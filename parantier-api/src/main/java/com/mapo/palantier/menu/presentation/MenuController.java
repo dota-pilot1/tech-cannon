@@ -24,14 +24,13 @@ public class MenuController {
     @Operation(summary = "메뉴 트리 조회", description = "현재 사용자 권한에 맞는 메뉴 트리 조회")
     @GetMapping("/tree")
     public ResponseEntity<List<MenuResponse>> getMenuTree(Authentication auth) {
-        String role = "USER"; // 기본값
+        String role = "ROLE_USER"; // 기본값 (ROLE_ 접두사 포함)
 
         if (auth != null && auth.getAuthorities() != null) {
             role = auth.getAuthorities().stream()
                     .findFirst()
                     .map(Object::toString)
-                    .map(r -> r.replace("ROLE_", ""))  // ROLE_ 접두사 제거
-                    .orElse("USER");
+                    .orElse("ROLE_USER");
         }
 
         List<Menu> menus = menuService.getMenuTreeByRole(role);
@@ -47,8 +46,7 @@ public class MenuController {
         String role = auth.getAuthorities().stream()
                 .findFirst()
                 .map(Object::toString)
-                .map(r -> r.replace("ROLE_", ""))
-                .orElse("USER");
+                .orElse("ROLE_USER");
 
         List<Menu> menus = menuService.getChildMenus(parentId, role);
         return ResponseEntity.ok(MenuResponse.fromList(menus));
