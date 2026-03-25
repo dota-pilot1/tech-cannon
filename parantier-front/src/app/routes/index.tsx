@@ -14,7 +14,8 @@ import { AuthoritiesPage } from '@/pages/admin/authorities/AuthoritiesPage'
 import { OrganizationsPage } from '@/pages/admin/organizations/OrganizationsPage'
 import { RolesPage } from '@/pages/admin/roles/RolesPage'
 import TasksPage from '@/features/task/components/TasksPage'
-import { ChatPage } from '@/routes/chat/index'
+import { ChatRoomsPage } from '@/routes/chat/index'
+import { ChatRoomPage } from '@/routes/chat/$roomId'
 import { authStore } from '@/entities/user/model/authStore'
 import { toast } from 'sonner'
 
@@ -134,11 +135,47 @@ const tasksRoute = createRoute({
   component: TasksPage,
 })
 
-// 채팅 (모든 사용자 접근 가능)
+// 인증 체크 (로그인 필요)
+const requireAuth = async () => {
+  const auth = authStore.state
+
+  if (!auth.isAuthenticated) {
+    toast.error('로그인이 필요합니다')
+    throw redirect({ to: '/dashboard' })
+  }
+
+  // 인증 상태가 복원될 때까지 기다림
+  if (!auth.user) {
+    for (let i = 0; i < 30; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      const currentAuth = authStore.state
+      if (currentAuth.user) {
+        break
+      }
+    }
+  }
+
+  const finalAuth = authStore.state
+  if (!finalAuth.user) {
+    toast.error('로그인이 필요합니다')
+    throw redirect({ to: '/dashboard' })
+  }
+}
+
+// 채팅방 목록 (로그인 필요)
 const chatRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/chat',
-  component: ChatPage,
+  beforeLoad: () => requireAuth(),
+  component: ChatRoomsPage,
+})
+
+// 채팅방 상세 (로그인 필요)
+const chatRoomRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/chat/$roomId',
+  beforeLoad: () => requireAuth(),
+  component: ChatRoomPage,
 })
 
 // Route Tree
@@ -153,6 +190,7 @@ const routeTree = rootRoute.addChildren([
   adminRolesRoute,
   tasksRoute,
   chatRoute,
+  chatRoomRoute,
 ])
 
 // Router 생성

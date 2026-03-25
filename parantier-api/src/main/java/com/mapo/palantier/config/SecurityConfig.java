@@ -62,6 +62,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/menus/**").permitAll()
                 // WebSocket endpoints - 인증 없이 접근 가능 (실시간 통신용)
                 .requestMatchers("/ws/**").permitAll()
+                // Chat endpoints - 채팅방 API (개발 중 임시 허용)
+                .requestMatchers("/api/chat/**").permitAll()
                 // Admin endpoints - 관리자 전용
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // 나머지 Actuator endpoints - 인증 필요

@@ -32,17 +32,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 1. Request Header에서 JWT 토큰 추출
             String token = getTokenFromRequest(request);
 
-            logger.info("JWT Filter - Path: " + request.getRequestURI() + ", Token exists: " + (token != null));
-
             // 2. 토큰 유효성 검증
             if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
                 // 3. 토큰에서 사용자 정보 추출
                 String email = jwtTokenProvider.getEmailFromToken(token);
                 String role = jwtTokenProvider.getRoleFromToken(token);
+                Long userId = jwtTokenProvider.getUserIdFromToken(token);
 
-                logger.info("JWT Filter - Email: " + email + ", Role: " + role);
+                // 4. Request Attribute에 userId 저장 (Controller에서 사용)
+                request.setAttribute("userId", userId);
 
-                // 4. Spring Security 인증 객체 생성
+                // 5. Spring Security 인증 객체 생성
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 email,
@@ -52,12 +52,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                // 5. SecurityContext에 인증 정보 설정
+                // 6. SecurityContext에 인증 정보 설정
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                logger.info("JWT Filter - Authentication set successfully");
-            } else {
-                logger.info("JWT Filter - No valid token found");
             }
         } catch (Exception e) {
             logger.error("Could not set user authentication in security context", e);

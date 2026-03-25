@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.chat.ChatRoomMapper">
+
+    <resultMap id="ChatRoomResultMap" type="com.mapo.palantier.chat.ChatRoom">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="roomType" column="room_type"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdByName" column="created_by_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="isActive" column="is_active"/>
+        <result property="memberCount" column="member_count"/>
+    </resultMap>
+
+    <resultMap id="RoomMemberResultMap" type="com.mapo.palantier.chat.RoomMember">
+        <id property="id" column="id"/>
+        <result property="roomId" column="room_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="email" column="email"/>
+        <result property="joinedAt" column="joined_at"/>
+        <result property="lastReadAt" column="last_read_at"/>
+    </resultMap>
+
+    <!-- 사용자가 참가한 채팅방 목록 -->
+    <select id="findRoomsByUserId" resultMap="ChatRoomResultMap">
+        SELECT cr.id, cr.name, cr.room_type, cr.created_by,
+               u.username as created_by_name,
+               cr.created_at, cr.is_active,
+               (SELECT COUNT(*) FROM room_members WHERE room_id = cr.id) as member_count
+        FROM chat_rooms cr
+        JOIN users u ON cr.created_by = u.id
+        JOIN room_members rm ON cr.id = rm.room_id
+        WHERE rm.user_id = #{userId}
+          AND cr.is_active = true
+        ORDER BY cr.created_at DESC
+    </select>
+
+    <!-- 모든 채팅방 조회 (관리자용) -->
+    <select id="findAll" resultMap="ChatRoomResultMap">
+        SELECT cr.id, cr.name, cr.room_type, cr.created_by,
+               u.username as created_by_name,
+               cr.created_at, cr.is_active,
+               (SELECT COUNT(*) FROM room_members WHERE room_id = cr.id) as member_count
+        FROM chat_rooms cr
+        JOIN users u ON cr.created_by = u.id
+        WHERE cr.is_active = true
+        ORDER BY cr.created_at DESC
+    </select>
+
+    <!-- 채팅방 상세 조회 -->
+    <select id="findById" resultMap="ChatRoomResultMap">
+        SELECT cr.id, cr.name, cr.room_type, cr.created_by,
+               u.username as created_by_name,
+               cr.created_at, cr.is_active,
+               (SELECT COUNT(*) FROM room_members WHERE room_id = cr.id) as member_count
+        FROM chat_rooms cr
+        JOIN users u ON cr.created_by = u.id
+        WHERE cr.id = #{id} AND cr.is_active = true
+    </select>
+
+    <!-- 채팅방 생성 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_rooms (name, room_type, created_by)
+        VALUES (#{name}, #{roomType}, #{createdBy})
+    </insert>
+
+    <!-- 채팅방 수정 -->
+    <update id="update">
+        UPDATE chat_rooms
+        SET name = #{name},
+            room_type = #{roomType}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 채팅방 삭제 (hard delete) -->
+    <delete id="delete">
+        DELETE FROM chat_rooms
+        WHERE id = #{id}
+    </delete>
+
+    <!-- 모든 채팅방 삭제 (관리자용, CASCADE로 참가자도 자동 삭제) -->
+    <delete id="deleteAll">
+        DELETE FROM chat_rooms
+    </delete>
+
+    <!-- 채팅방 참가자 목록 -->
+    <select id="findMembersByRoomId" resultMap="RoomMemberResultMap">
+        SELECT rm.id, rm.room_id, rm.user_id, rm.joined_at, rm.last_read_at,
+               u.username, u.email
+        FROM room_members rm
+        JOIN users u ON rm.user_id = u.id
+        WHERE rm.room_id = #{roomId}
+        ORDER BY rm.joined_at
+    </select>
+
+    <!-- 채팅방 참가 -->
+    <insert id="joinRoom">
+        INSERT INTO room_members (room_id, user_id)
+        VALUES (#{roomId}, #{userId})
+        ON CONFLICT (room_id, user_id) DO NOTHING
+    </insert>
+
+    <!-- 채팅방 나가기 -->
+    <delete id="leaveRoom">
+        DELETE FROM room_members
+        WHERE room_id = #{roomId} AND user_id = #{userId}
+    </delete>
+
+</mapper>
