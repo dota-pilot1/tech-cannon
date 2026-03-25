@@ -18,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ChatRoomController {
     private final ChatRoomService chatRoomService;
+    private final ChatMessageMapper chatMessageMapper;
 
     @Operation(summary = "모든 활성 채팅방 목록 조회")
     @GetMapping
@@ -93,6 +94,17 @@ public class ChatRoomController {
         Long userId = getUserIdFromRequest(request);
         chatRoomService.leaveRoom(id, userId);
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "채팅방 메시지 히스토리 조회")
+    @GetMapping("/{id}/messages")
+    public ResponseEntity<List<ChatMessageHistory>> getRoomMessages(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(required = false) Long beforeId
+    ) {
+        List<ChatMessageHistory> messages = chatMessageMapper.findByRoomId(id, limit, beforeId);
+        return ResponseEntity.ok(messages);
     }
 
     /**

@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/api/client'
-import type { ChatRoom, RoomMember } from '@/types/chat'
+import type { ChatRoom, RoomMember, ChatMessage } from '@/types/chat'
 
 export const chatApi = {
   // 모든 활성 채팅방 목록
@@ -55,5 +55,19 @@ export const chatApi = {
   // 채팅방 나가기
   leaveRoom: async (roomId: number): Promise<void> => {
     await apiClient.post(`/chat/rooms/${roomId}/leave`)
+  },
+
+  // 채팅방 메시지 히스토리 조회
+  getRoomMessages: async (
+    roomId: number,
+    limit: number = 50,
+    beforeId?: number
+  ): Promise<ChatMessage[]> => {
+    const params = new URLSearchParams({ limit: limit.toString() })
+    if (beforeId) {
+      params.append('beforeId', beforeId.toString())
+    }
+    const { data } = await apiClient.get(`/chat/rooms/${roomId}/messages?${params}`)
+    return data
   },
 }

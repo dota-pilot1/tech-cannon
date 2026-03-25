@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.chat.ChatMessageMapper">
+
+    <resultMap id="ChatMessageHistoryResultMap" type="com.mapo.palantier.chat.ChatMessageHistory">
+        <id property="id" column="id"/>
+        <result property="roomId" column="room_id"/>
+        <result property="senderId" column="sender_id"/>
+        <result property="senderName" column="sender_name"/>
+        <result property="content" column="content"/>
+        <result property="messageType" column="message_type"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 메시지 저장 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_messages (room_id, sender_id, sender_name, content, message_type, created_at)
+        VALUES (#{roomId}, #{senderId}, #{senderName}, #{content}, #{messageType}, #{createdAt})
+    </insert>
+
+    <!-- 채팅방 메시지 조회 (페이지네이션) -->
+    <select id="findByRoomId" resultMap="ChatMessageHistoryResultMap">
+        SELECT id, room_id, sender_id, sender_name, content, message_type, created_at
+        FROM chat_messages
+        WHERE room_id = #{roomId}
+        <if test="beforeId != null">
+            AND id &lt; #{beforeId}
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 오래된 메시지 삭제 (자동 정리용) -->
+    <delete id="deleteOldMessages">
+        DELETE FROM chat_messages
+        WHERE created_at &lt; #{before}
+    </delete>
+
+    <!-- 채팅방 메시지 개수 조회 -->
+    <select id="countByRoomId" resultType="int">
+        SELECT COUNT(*)
+        FROM chat_messages
+        WHERE room_id = #{roomId}
+    </select>
+
+</mapper>

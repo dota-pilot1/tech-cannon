@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Client } from '@stomp/stompjs'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -16,8 +16,11 @@ export function ChatRoomPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState('')
   const [isConnected, setIsConnected] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const clientRef = useRef<Client | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesTopRef = useRef<HTMLDivElement>(null)
   const currentRoomIdRef = useRef<string | null>(null)
 
   // 로그인한 사용자 정보 가져오기
@@ -42,6 +45,62 @@ export function ChatRoomPage() {
   useEffect(() => {
     currentRoomIdRef.current = roomId
   }, [roomId])
+
+  // 채팅방 입장 시 최근 메시지만 로드 (30개 = 약 1일치)
+  useEffect(() => {
+    if (!roomId) return
+
+    chatApi
+      .getRoomMessages(Number(roomId), 30)
+      .then((history) => {
+        // 최신순으로 받았으므로 역순으로 표시 (오래된 것부터)
+        setMessages(history.reverse())
+        setHasMore(history.length === 30) // 30개 가득 채워졌으면 더 있을 수 있음
+      })
+      .catch((error) => {
+        console.error('Failed to load message history:', error)
+      })
+  }, [roomId])
+
+  // 과거 메시지 로드 (무한 스크롤)
+  const loadMoreMessages = async () => {
+    if (!roomId || isLoadingMore || !hasMore || messages.length === 0) return
+
+    setIsLoadingMore(true)
+    try {
+      const oldestMessageId = messages[0]?.id
+      const olderMessages = await chatApi.getRoomMessages(Number(roomId), 30, oldestMessageId)
+
+      if (olderMessages.length > 0) {
+        setMessages((prev) => [...olderMessages.reverse(), ...prev])
+        setHasMore(olderMessages.length === 30)
+      } else {
+        setHasMore(false)
+      }
+    } catch (error) {
+      console.error('Failed to load more messages:', error)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }
+
+  // 스크롤 최상단 감지 (무한 스크롤)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadMoreMessages()
+        }
+      },
+      { threshold: 1.0 }
+    )
+
+    if (messagesTopRef.current) {
+      observer.observe(messagesTopRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [hasMore, isLoadingMore, messages])
 
   // 명시적 나가기 버튼 핸들러
   const handleLeaveRoom = () => {
@@ -140,6 +199,36 @@ export function ChatRoomPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // 날짜 구분선이 포함된 메시지 목록 (메모이제이션)
+  const messagesWithSeparators = useMemo(() => {
+    return messages.map((msg, index) => {
+      const currentDate = msg.createdAt
+        ? new Date(msg.createdAt).toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'long',
+          })
+        : null
+
+      const prevDate =
+        index > 0 && messages[index - 1].createdAt
+          ? new Date(messages[index - 1].createdAt).toLocaleDateString('ko-KR', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              weekday: 'long',
+            })
+          : null
+
+      return {
+        ...msg,
+        dateLabel: currentDate,
+        showDateSeparator: currentDate && currentDate !== prevDate,
+      }
+    })
+  }, [messages])
+
   const sendMessage = () => {
     if (!inputMessage.trim() || !isConnected || !clientRef.current || !roomId) return
 
@@ -201,30 +290,56 @@ export function ChatRoomPage() {
 
         {/* 메시지 목록 */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {messages.length === 0 ? (
+          {messagesWithSeparators.length === 0 ? (
             <div className="text-center text-muted-foreground mt-8">
               메시지가 없습니다. 첫 메시지를 보내보세요!
             </div>
           ) : (
-            messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex ${msg.senderName === username ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[70%] rounded-lg p-3 ${
-                    msg.senderName === username
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
-                >
-                  <div className="text-xs opacity-70 mb-1">{msg.senderName}</div>
-                  <div className="break-words">{msg.content}</div>
+            <>
+              {/* 무한 스크롤 트리거 (최상단) */}
+              <div ref={messagesTopRef} className="h-1" />
+
+              {/* 로딩 인디케이터 */}
+              {isLoadingMore && (
+                <div className="text-center py-2">
+                  <span className="text-xs text-muted-foreground">과거 메시지 불러오는 중...</span>
                 </div>
-              </div>
-            ))
+              )}
+
+              {messagesWithSeparators.map((msg, index) => (
+                <div key={index}>
+                  {/* 날짜 구분선 */}
+                  {msg.showDateSeparator && (
+                    <div className="flex items-center gap-4 my-6">
+                      <div className="flex-1 border-t border-border" />
+                      <div className="text-xs text-muted-foreground font-medium px-3">
+                        {msg.dateLabel}
+                      </div>
+                      <div className="flex-1 border-t border-border" />
+                    </div>
+                  )}
+
+                  {/* 메시지 */}
+                  <div
+                    className={`flex ${msg.senderName === username ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[70%] rounded-lg p-3 ${
+                        msg.senderName === username
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
+                      <div className="text-xs opacity-70 mb-1">{msg.senderName}</div>
+                      <div className="break-words">{msg.content}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div ref={messagesEndRef} />
+            </>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         {/* 메시지 입력 (하단 고정) */}
