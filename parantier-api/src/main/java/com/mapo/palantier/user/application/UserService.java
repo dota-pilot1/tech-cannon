@@ -4,6 +4,7 @@ import com.mapo.palantier.user.domain.User;
 import com.mapo.palantier.user.domain.UserRepository;
 import com.mapo.palantier.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * 전체 사용자 목록 조회 (관리자 전용)
@@ -70,5 +72,44 @@ public class UserService {
 
         // 조직을 NULL로 업데이트
         userRepository.updateOrganization(userId, null);
+    }
+
+    /**
+     * 이메일로 사용자 조회
+     */
+    public User findByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+    }
+
+    /**
+     * 사용자 정보 업데이트
+     */
+    @Transactional
+    public void updateUser(Long userId, User user) {
+        User existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        // 사용자명만 업데이트
+        userRepository.updateUsername(userId, user.getUsername());
+    }
+
+    /**
+     * 비밀번호 확인
+     */
+    public boolean verifyPassword(Long userId, String currentPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        return passwordEncoder.matches(currentPassword, user.getPassword());
+    }
+
+    /**
+     * 비밀번호 변경
+     */
+    @Transactional
+    public void changePassword(Long userId, String newPassword) {
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        userRepository.updatePassword(userId, encodedPassword);
     }
 }

@@ -13,4 +13,6 @@ public interface UserRepository {
     List<User> findAll();
     void updateRole(Long id, UserRole role);
     void updateOrganization(@Param("id") Long id, @Param("organizationId") Long organizationId);
+    void updateUsername(@Param("id") Long id, @Param("username") String username);
+    void updatePassword(@Param("id") Long id, @Param("password") String password);
 }

@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
 import { authStore } from '@/entities/user/model/authStore'
 import { LoginForm } from '@/features/auth/login/LoginForm'
@@ -9,12 +9,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/ui/dropdown-menu'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, User, LogOut } from 'lucide-react'
 
 export function Header() {
   const auth = useStore(authStore, (state) => state)
+  const navigate = useNavigate()
   const { data: menus = [] } = useMenuTree()
 
   // 디버깅: 메뉴 데이터 확인
@@ -101,12 +103,42 @@ export function Header() {
 
           <div className="flex items-center gap-4">
             {auth.isAuthenticated ? (
-              <>
-                <span className="text-sm text-muted-foreground">
-                  {auth.user?.username} ({auth.user?.role})
-                </span>
-                <LogoutButton />
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors cursor-pointer outline-none">
+                  <User className="w-4 h-4" />
+                  {auth.user?.username}
+                  <ChevronDown className="w-4 h-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[200px]">
+                  <div className="px-2 py-1.5 text-sm">
+                    <div className="font-medium">{auth.user?.username}</div>
+                    <div className="text-xs text-muted-foreground">{auth.user?.email}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {auth.user?.role}
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer">
+                      <User className="w-4 h-4 mr-2" />
+                      프로필
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                    onClick={() => {
+                      authStore.setState({ isAuthenticated: false, user: null })
+                      localStorage.removeItem('accessToken')
+                      localStorage.removeItem('refreshToken')
+                      navigate({ to: '/' })
+                    }}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    로그아웃
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <>
                 <LoginForm />
