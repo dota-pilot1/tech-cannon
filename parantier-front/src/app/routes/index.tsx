@@ -16,6 +16,7 @@ import { RolesPage } from '@/pages/admin/roles/RolesPage'
 import TasksPage from '@/features/task/components/TasksPage'
 import { ChatRoomsPage } from '@/routes/chat/index'
 import { ChatRoomPage } from '@/routes/chat/$roomId'
+import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { authStore } from '@/entities/user/model/authStore'
 import { toast } from 'sonner'
 
@@ -178,6 +179,14 @@ const chatRoomRoute = createRoute({
   component: ChatRoomPage,
 })
 
+// 프로필 페이지 (로그인 필요)
+const profileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/profile',
+  beforeLoad: () => requireAuth(),
+  component: ProfilePage,
+})
+
 // Route Tree
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -191,6 +200,7 @@ const routeTree = rootRoute.addChildren([
   tasksRoute,
   chatRoute,
   chatRoomRoute,
+  profileRoute,
 ])
 
 // Router 생성

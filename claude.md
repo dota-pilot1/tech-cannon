@@ -95,12 +95,17 @@ com.mapo.palantier          ← 모든 코드는 이 패키지 아래에 위치
 
 #### 라우팅 방식
 
-**중요: 이 프로젝트는 수동 라우트 등록 방식을 사용합니다**
+**⚠️ 중요: 이 프로젝트는 수동 라우트 등록 방식을 사용합니다**
 
 파일 위치: `parantier-front/src/app/routes/index.tsx`
 
+**라우트 작동 방식**:
+- 파일 기반 라우팅(file-based routing) 사용 **안 함**
+- `src/routes/` 폴더에 파일을 만들어도 자동으로 라우트가 생성되지 **않음**
+- 반드시 `src/app/routes/index.tsx`에 수동으로 등록해야 함
+
 **새 페이지 추가 시 절차**:
-1. 페이지 컴포넌트 작성 (예: `src/routes/chat/index.tsx`)
+1. 페이지 컴포넌트 작성 (예: `src/pages/profile/ProfilePage.tsx`)
 2. `src/app/routes/index.tsx`에 import 추가
 3. `createRoute`로 라우트 생성
 4. `routeTree.addChildren([...])` 배열에 추가
@@ -108,20 +113,21 @@ com.mapo.palantier          ← 모든 코드는 이 패키지 아래에 위치
 **예시**:
 ```typescript
 // 1. Import
-import { ChatPage } from '@/routes/chat/index'
+import { ProfilePage } from '@/pages/profile/ProfilePage'
 
 // 2. Route 생성
-const chatRoute = createRoute({
+const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/chat',
-  component: ChatPage,
+  path: '/profile',
+  beforeLoad: () => requireAuth(),  // 로그인 필요 시
+  component: ProfilePage,
 })
 
 // 3. routeTree에 추가
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
   // ... 기존 라우트들
-  chatRoute,  // 여기에 추가
+  profileRoute,  // ⭐ 반드시 여기에 추가해야 함
 ])
 ```
 
@@ -134,7 +140,20 @@ const adminUsersRoute = createRoute({
   beforeLoad: () => requireRole('ROLE_ADMIN'),
   component: UsersPage,
 })
+
+// 로그인 필요
+const chatRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/chat',
+  beforeLoad: () => requireAuth(),
+  component: ChatPage,
+})
 ```
+
+**주의사항**:
+- `/src/routes/` 폴더에 파일을 생성해도 라우트가 자동으로 작동하지 않음
+- 반드시 `index.tsx`에 수동 등록 필요
+- 등록하지 않으면 "Not Found" 에러 발생
 
 ## 권한 시스템
 
