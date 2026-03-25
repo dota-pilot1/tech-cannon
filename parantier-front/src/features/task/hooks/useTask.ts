@@ -53,6 +53,13 @@ export function useDeleteFolderMutation(onSuccess?: () => void) {
 }
 
 // Post hooks
+export function useAllTaskPosts() {
+  return useQuery({
+    queryKey: ['taskPosts'],
+    queryFn: () => taskApi.getAllPosts(),
+  })
+}
+
 export function useTaskPosts(folderId: number | null) {
   return useQuery({
     queryKey: ['taskPosts', folderId],
@@ -78,7 +85,7 @@ export function useSaveTaskMutation(
   return useMutation({
     mutationFn: (dto: TaskPostDto) => taskApi.savePost(dto),
     onSuccess: (newId) => {
-      queryClient.invalidateQueries({ queryKey: ['taskPosts', folderId] })
+      queryClient.invalidateQueries({ queryKey: ['taskPosts'] })
       if (postId) {
         queryClient.invalidateQueries({ queryKey: ['taskPost', postId] })
       }
@@ -93,7 +100,7 @@ export function useDeleteTaskMutation(folderId: number | null, onSuccess?: () =>
   return useMutation({
     mutationFn: (id: number) => taskApi.deletePost(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['taskPosts', folderId] })
+      queryClient.invalidateQueries({ queryKey: ['taskPosts'] })
       toast.success('삭제되었습니다')
       if (onSuccess) onSuccess()
     },

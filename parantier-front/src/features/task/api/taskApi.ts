@@ -34,6 +34,11 @@ export const taskApi = {
   },
 
   // Posts
+  getAllPosts: async (): Promise<TaskPost[]> => {
+    const { data } = await apiClient.get('/tasks/posts')
+    return data
+  },
+
   getPostsByFolder: async (folderId: number): Promise<TaskPost[]> => {
     const { data } = await apiClient.get('/tasks/posts', {
       params: { folderId },

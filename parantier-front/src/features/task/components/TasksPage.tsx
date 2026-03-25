@@ -3,7 +3,7 @@ import { useConfirm } from '@/shared/hooks/useConfirm'
 import { toast } from 'sonner'
 import {
   useTaskFolders,
-  useTaskPosts,
+  useAllTaskPosts,
   useTaskPostDetail,
   useSaveTaskMutation,
   useDeleteTaskMutation,
@@ -116,7 +116,7 @@ export default function TasksPage() {
   const [inlineFolderName, setInlineFolderName] = useState('')
   const [folderCtxMenu, setFolderCtxMenu] = useState<FolderCtxMenu>(null)
 
-  const { data: posts = [] } = useTaskPosts(selectedFolderId)
+  const { data: allPosts = [] } = useAllTaskPosts()
   const { data: postDetail } = useTaskPostDetail(selectedPostId, !isEditing)
 
   const saveMutation = useSaveTaskMutation(selectedFolderId, selectedPostId, (newId) => {
@@ -365,8 +365,9 @@ export default function TasksPage() {
           <>
             {subFolders.map((sub) => renderFolder(sub, depth + 1))}
             {inlineFolderInput?.parentId === folder.id && renderInlineFolderInput(depth + 1)}
-            {isSelected &&
-              posts.map((post) => {
+            {allPosts
+              .filter((post) => post.folderId === folder.id)
+              .map((post) => {
                 const primaryType = post.blocks?.[0]?.blockType ?? 'NOTE'
                 const meta = TYPE_META[primaryType as BlockType] ?? TYPE_META.NOTE
                 return (
