@@ -17,6 +17,11 @@ export function Header() {
   const auth = useStore(authStore, (state) => state)
   const { data: menus = [] } = useMenuTree()
 
+  // 디버깅: 메뉴 데이터 확인
+  console.log('[Header] 전체 메뉴 데이터:', menus)
+  console.log('[Header] 인증 상태:', auth.isAuthenticated)
+  console.log('[Header] 사용자 정보:', auth.user)
+
   // 현재 사용자의 역할
   const userRole = auth.user?.role || null
 
@@ -39,6 +44,9 @@ export function Header() {
       // 하위 메뉴도 필터링
       children: menu.children?.filter(isMenuAccessible),
     }))
+
+  console.log('[Header] 필터링 후 헤더 메뉴:', headerMenus)
+  console.log('[Header] 사용자 역할:', userRole)
 
   return (
     <header className="border-b border-border bg-card">
