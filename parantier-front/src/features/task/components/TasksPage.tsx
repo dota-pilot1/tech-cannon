@@ -114,6 +114,8 @@ export default function TasksPage() {
   const [editingFolderName, setEditingFolderName] = useState('')
   const [inlineFolderInput, setInlineFolderInput] = useState<{ parentId: number | null } | null>(null)
   const [inlineFolderName, setInlineFolderName] = useState('')
+  const [inlineDocInput, setInlineDocInput] = useState<{ folderId: number } | null>(null)
+  const [inlineDocTitle, setInlineDocTitle] = useState('')
   const [folderCtxMenu, setFolderCtxMenu] = useState<FolderCtxMenu>(null)
 
   const { data: allPosts = [] } = useAllTaskPosts()
@@ -142,6 +144,13 @@ export default function TasksPage() {
   const deleteFolderMutation = useDeleteFolderMutation(() => {
     setSelectedFolderId(null)
     setSelectedPostId(null)
+  })
+
+  const createDocMutation = useSaveTaskMutation(inlineDocInput?.folderId ?? null, null, (newId) => {
+    setInlineDocInput(null)
+    setInlineDocTitle('')
+    setSelectedPostId(newId)
+    setIsEditing(false)
   })
 
   // Sidebar resizing
@@ -182,12 +191,24 @@ export default function TasksPage() {
   }
 
   const openNewDoc = (folderId: number) => {
-    setSelectedFolderId(folderId)
+    setInlineDocInput({ folderId })
+    setInlineDocTitle('')
     setExpandedFolders((p) => new Set(p).add(folderId))
-    setSelectedPostId(null)
-    setIsEditing(true)
-    setFormTitle('')
-    setBlocks([{ blockType: 'NOTE', content: '' }])
+  }
+
+  const handleCreateDoc = () => {
+    const trimmedTitle = inlineDocTitle.trim()
+    if (!trimmedTitle) {
+      toast.error('문서 제목을 입력하세요')
+      return
+    }
+    if (!inlineDocInput) return
+
+    createDocMutation.mutate({
+      folderId: inlineDocInput.folderId,
+      title: trimmedTitle,
+      blocks: [{ blockType: 'NOTE', content: '' }],
+    })
   }
 
   const handleEdit = () => {
@@ -285,6 +306,31 @@ export default function TasksPage() {
     </div>
   )
 
+  // 인라인 문서 제목 입력
+  const renderInlineDocInput = (depth: number) => (
+    <div
+      className="flex items-center gap-1.5 py-1"
+      style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: '8px' }}
+    >
+      <span className="text-xs shrink-0">📝</span>
+      <input
+        autoFocus
+        value={inlineDocTitle}
+        onChange={(e) => setInlineDocTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return
+          if (e.key === 'Enter') handleCreateDoc()
+          if (e.key === 'Escape') {
+            setInlineDocInput(null)
+            setInlineDocTitle('')
+          }
+        }}
+        placeholder="제목 입력 후 Enter"
+        className="flex-1 border border-blue-400 rounded px-1.5 py-0.5 text-xs min-w-0 focus:outline-none focus:ring-1 focus:ring-blue-400"
+      />
+    </div>
+  )
+
   // 폴더 렌더링
   const renderFolder = (folder: TaskFolder, depth = 0) => {
     const isSelected = selectedFolderId === folder.id
@@ -365,6 +411,7 @@ export default function TasksPage() {
           <>
             {subFolders.map((sub) => renderFolder(sub, depth + 1))}
             {inlineFolderInput?.parentId === folder.id && renderInlineFolderInput(depth + 1)}
+            {inlineDocInput?.folderId === folder.id && renderInlineDocInput(depth + 1)}
             {allPosts
               .filter((post) => post.folderId === folder.id)
               .map((post) => {
