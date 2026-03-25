@@ -149,48 +149,10 @@ export function ChatRoomPage() {
     clientRef.current = client
     client.activate()
 
-    // 페이지 이탈/새로고침 시 자동 나가기 처리
-    const handleBeforeUnload = () => {
-      // WebSocket 연결 끊기
-      client.deactivate()
-
-      // Beacon API로 나가기 요청 (페이지 unload 시에도 안전하게 전송)
-      if (currentRoomIdRef.current) {
-        const token = localStorage.getItem('accessToken')
-        if (token) {
-          const url = `http://localhost:8080/api/chat/rooms/${currentRoomIdRef.current}/leave`
-          const data = new FormData()
-
-          // Beacon으로 POST 요청 보내기
-          fetch(url, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-            keepalive: true, // 페이지가 unload 되어도 요청 완료 보장
-          }).catch(() => {}) // 에러 무시 (페이지가 닫히는 중이므로)
-        }
-      }
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload)
-
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
       client.deactivate()
-
-      // 정상적인 컴포넌트 unmount 시에도 나가기 (라우팅 이동 등)
-      if (currentRoomIdRef.current) {
-        const token = localStorage.getItem('accessToken')
-        if (token) {
-          fetch(`http://localhost:8080/api/chat/rooms/${currentRoomIdRef.current}/leave`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          }).catch(console.error)
-        }
-      }
+      // 새로고침 시에는 나가기 처리하지 않음
+      // 명시적으로 "나가기" 버튼을 누르거나 다른 페이지로 이동할 때만 나가기
     }
   }, [roomId])
 
