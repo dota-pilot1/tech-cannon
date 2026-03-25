@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: parantier-api
+
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/palantier
+    username: palantier_user
+    password: palantier_password
+    driver-class-name: org.postgresql.Driver
+
+# MyBatis Configuration
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 30
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  mapper-locations: classpath:mybatis/mapper/**/*.xml
+  type-aliases-package: com.mapo.palantier
+
+# Flyway Configuration
+flyway:
+  enabled: true  # 리프레시 토큰 테이블 생성을 위해 활성화
+  locations: classpath:db/migration
+  baseline-on-migrate: true
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    defaults:
+      enabled: true
+
+# Swagger/OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    disable-swagger-default-url: true
+
+# JWT Configuration
+jwt:
+  secret: your-256-bit-secret-key-change-this-in-production-please-make-it-long-enough
+  access-token-expiration: 3600000   # 1시간 (밀리초)
+  refresh-token-expiration: 604800000 # 7일 (밀리초)

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.user.infrastructure.UserMapper">
+
+    <resultMap id="UserResultMap" type="com.mapo.palantier.user.domain.User">
+        <id property="id" column="id"/>
+        <result property="email" column="email"/>
+        <result property="password" column="password"/>
+        <result property="username" column="username"/>
+        <result property="role" column="role"/>
+        <result property="organizationId" column="organization_id"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.mapo.palantier.user.domain.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (email, password, username, role, is_active)
+        VALUES (#{email}, #{password}, #{username}, #{role}, #{isActive})
+    </insert>
+
+    <select id="findByEmail" resultMap="UserResultMap">
+        SELECT id, email, password, username, role, organization_id, is_active, created_at, updated_at
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <select id="findById" resultMap="UserResultMap">
+        SELECT id, email, password, username, role, organization_id, is_active, created_at, updated_at
+        FROM users
+        WHERE id = #{id}
+    </select>
+
+    <select id="existsByEmail" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})
+    </select>
+
+    <select id="findAll" resultMap="UserResultMap">
+        SELECT id, email, password, username, role, organization_id, is_active, created_at, updated_at
+        FROM users
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateRole">
+        UPDATE users
+        SET role = #{role}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateOrganization">
+        UPDATE users
+        SET organization_id = #{organizationId}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

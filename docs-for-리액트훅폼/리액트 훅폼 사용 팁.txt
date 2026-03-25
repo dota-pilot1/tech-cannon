@@ -1,0 +1,170 @@
+1. 여러 필드 한번에 감시 (useWatch)
+// 단일 필드
+const username = useWatch({ control, name: 'username' })
+
+// 여러 필드 동시 감시
+const [name, email, age] = useWatch({ 
+  control, 
+  name: ['name', 'email', 'age'] 
+})
+
+// 전체 폼 감시
+const formValues = useWatch({ control })
+2. 조건부 필드 초기화 (reset 부분만)
+const { reset, setValue } = useForm()
+
+// 특정 필드만 초기화
+reset({ menuName: '새 이름' }, { 
+  keepDirty: true,  // dirty 상태 유지
+  keepTouched: true // touched 상태 유지
+})
+
+// 필드 하나만 초기화
+setValue('menuName', '새 이름', { 
+  shouldDirty: false,  // dirty로 표시 안 함
+  shouldValidate: true // 검증 실행
+})
+3. 동적 에러 메시지 설정
+const { setError, clearErrors } = useForm()
+
+// 수동 에러 설정 (API 검증 실패 시 유용)
+setError('username', { 
+  type: 'manual',
+  message: '이미 사용 중인 아이디입니다' 
+})
+
+// 에러 제거
+clearErrors('username')
+
+// 여러 필드 에러 설정
+setError('root.serverError', { 
+  type: '500',
+  message: '서버 에러가 발생했습니다' 
+})
+4. 폼 상태 체크 (formState)
+const { formState } = useForm()
+
+formState.isDirty        // 폼이 변경되었는지
+formState.dirtyFields    // 변경된 필드 목록 { menuName: true }
+formState.touchedFields  // 터치된 필드 목록
+formState.errors         // 에러 목록
+formState.isSubmitting   // 제출 중인지
+formState.isValid        // 유효한지
+formState.submitCount    // 제출 시도 횟수
+
+// 특정 필드만 체크
+if (formState.dirtyFields.menuName) {
+  console.log('메뉴명이 변경되었습니다')
+}
+5. 기본값 설정 (defaultValues)
+const { control } = useForm({
+  defaultValues: {
+    username: '',
+    email: '',
+    nested: { value: '중첩 객체도 가능' }
+  }
+})
+
+// 또는 비동기 로딩
+useEffect(() => {
+  fetch('/api/user').then(data => {
+    reset(data) // API 데이터로 폼 초기화
+  })
+}, [])
+6. 조건부 검증 (의존성 검증)
+<Controller
+  name="password"
+  control={control}
+  rules={{
+    required: '비밀번호를 입력하세요',
+    minLength: { value: 8, message: '8자 이상' }
+  }}
+  render={({ field }) => <input {...field} type="password" />}
+/>
+
+<Controller
+  name="passwordConfirm"
+  control={control}
+  rules={{
+    validate: (value) => {
+      const password = watch('password')
+      return value === password || '비밀번호가 일치하지 않습니다'
+    }
+  }}
+  render={({ field }) => <input {...field} type="password" />}
+/>
+7. 배열 필드 관리 (useFieldArray)
+import { useFieldArray } from 'react-hook-form'
+
+const { fields, append, remove, insert } = useFieldArray({
+  control,
+  name: 'items'
+})
+
+// 항목 추가
+append({ name: '', price: 0 })
+
+// 항목 삭제
+remove(index)
+
+// 중간에 삽입
+insert(1, { name: '새 항목', price: 100 })
+
+// 렌더링
+{fields.map((field, index) => (
+  <div key={field.id}>
+    <input {...register(`items.${index}.name`)} />
+    <button onClick={() => remove(index)}>삭제</button>
+  </div>
+))}
+8. 에러 메시지 간단하게 표시
+import { ErrorMessage } from '@hookform/error-message'
+
+<Controller name="email" control={control} rules={{ required: '필수' }} />
+<ErrorMessage 
+  errors={formState.errors} 
+  name="email"
+  render={({ message }) => <p className="error">{message}</p>}
+/>
+9. 폼 제출 전 변경사항 확인
+const onSubmit = (data) => {
+  const dirtyValues = Object.keys(formState.dirtyFields).reduce((acc, key) => {
+    acc[key] = data[key]
+    return acc
+  }, {})
+  
+  console.log('변경된 값만:', dirtyValues)
+  // API에 변경된 값만 전송
+}
+10. 디바운스 검증 (성능 최적화)
+<Controller
+  name="username"
+  control={control}
+  rules={{
+    validate: {
+      checkUsername: debounce(async (value) => {
+        const result = await checkUsernameAPI(value)
+        return result.available || '이미 사용 중입니다'
+      }, 500)
+    }
+  }}
+/>
+11. 폼 모드 설정 (검증 타이밍)
+const { control } = useForm({
+  mode: 'onChange',    // 입력할 때마다 검증
+  // mode: 'onBlur',   // 포커스 벗어날 때 검증
+  // mode: 'onSubmit', // 제출할 때만 검증 (기본값)
+  // mode: 'onTouched', // 터치 + 변경 시 검증
+  // mode: 'all',      // 모든 이벤트에서 검증
+})
+12. getValues vs watch 차이
+const { watch, getValues } = useForm()
+
+// watch: 리렌더링 발생 (실시간 UI 반영 필요 시)
+const username = watch('username')
+
+// getValues: 리렌더링 없음 (제출 시 값만 필요할 때)
+const handleClick = () => {
+  const currentValue = getValues('username')
+  console.log(currentValue)
+}

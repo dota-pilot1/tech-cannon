@@ -1,0 +1,61 @@
+=====================================
+BEFORE
+=====================================
+
+rowClick(e, row) {
+  const rowData = row.getData()
+  const setter = selectedSetterMap[type]
+
+  const currentSelected = type === 'shop' ? selectedShopRef.current
+    : type === 'site' ? selectedSiteRef.current
+      : type === 'corner' ? selectedCornerRef.current : null
+  const isSelected = currentSelected?.code === rowData.code
+
+  if (isSelected) {
+    if (setter) setter(null)
+    row.getElement().style.backgroundColor = ''
+    if (type === 'shop') { updateSelectedSite(null); updateSelectedCorner(null) }
+    if (type === 'site') { updateSelectedCorner(null) }
+  } else {
+    if (setter) setter(rowData)
+    if (type === 'shop') { updateSelectedSite(null); updateSelectedCorner(null) }
+    if (type === 'site') { updateSelectedCorner(null) }
+
+    if (gridRef.current) {
+      gridRef.current.getRows().forEach((r) => {
+        r.getElement().style.backgroundColor = ''
+      })
+    }
+    row.getElement().style.backgroundColor = '#e8f4fd'
+  }
+}
+
+=====================================
+AFTER
+=====================================
+
+rowClick(e, row) {
+  const rowData = row.getData()
+  const setter = selectedSetterMap[type]
+
+  const currentSelected = type === 'shop' ? selectedShopRef.current
+    : type === 'site' ? selectedSiteRef.current
+      : type === 'corner' ? selectedCornerRef.current : null
+  const isSelected = currentSelected?.code === rowData.code
+
+  if (isSelected) {
+    return
+  }
+
+  if (setter) setter(rowData)
+
+  if (type === 'shop') { updateSelectedSite(null); updateSelectedCorner(null) }
+  if (type === 'site') { updateSelectedCorner(null) }
+
+  if (gridRef.current) {
+    gridRef.current.getRows().forEach((r) => {
+      r.getElement().style.backgroundColor = ''
+    })
+  }
+  row.getElement().style.backgroundColor = '#e8f4fd'
+}

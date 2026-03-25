@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.workspace.infrastructure.WorkspaceMapper">
+
+    <!-- ResultMap -->
+    <resultMap id="WorkspaceNodeResultMap" type="com.mapo.palantier.workspace.domain.WorkspaceNode">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+        <result property="nodeType" column="node_type"/>
+        <result property="status" column="status"/>
+        <result property="priority" column="priority"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="assignedTo" column="assigned_to"/>
+        <result property="dueDate" column="due_date"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdByUsername" column="created_by_username"/>
+        <result property="assignedToUsername" column="assigned_to_username"/>
+    </resultMap>
+
+    <!-- 전체 노드 조회 -->
+    <select id="findAll" resultMap="WorkspaceNodeResultMap">
+        SELECT
+            wn.*,
+            u1.username as created_by_username,
+            u2.username as assigned_to_username
+        FROM workspace_nodes wn
+        LEFT JOIN users u1 ON wn.created_by = u1.id
+        LEFT JOIN users u2 ON wn.assigned_to = u2.id
+        WHERE wn.is_active = true
+        ORDER BY wn.parent_id NULLS FIRST, wn.order_num
+    </select>
+
+    <!-- 사용자별 노드 조회 (생성자 또는 담당자) -->
+    <select id="findAllByUserId" resultMap="WorkspaceNodeResultMap">
+        SELECT
+            wn.*,
+            u1.username as created_by_username,
+            u2.username as assigned_to_username
+        FROM workspace_nodes wn
+        LEFT JOIN users u1 ON wn.created_by = u1.id
+        LEFT JOIN users u2 ON wn.assigned_to = u2.id
+        WHERE wn.is_active = true
+          AND (wn.created_by = #{userId} OR wn.assigned_to = #{userId})
+        ORDER BY wn.parent_id NULLS FIRST, wn.order_num
+    </select>
+
+    <!-- 트리 구조 조회 (재귀 쿼리) -->
+    <select id="findTreeByUserId" resultMap="WorkspaceNodeResultMap">
+        WITH RECURSIVE node_tree AS (
+            -- 최상위 노드 (parent_id IS NULL)
+            SELECT
+                wn.*,
+                u1.username as created_by_username,
+                u2.username as assigned_to_username
+            FROM workspace_nodes wn
+            LEFT JOIN users u1 ON wn.created_by = u1.id
+            LEFT JOIN users u2 ON wn.assigned_to = u2.id
+            WHERE wn.parent_id IS NULL
+              AND wn.is_active = true
+              AND (wn.created_by = #{userId} OR wn.assigned_to = #{userId})
+
+            UNION ALL
+
+            -- 자식 노드 재귀 조회
+            SELECT
+                wn.*,
+                u1.username as created_by_username,
+                u2.username as assigned_to_username
+            FROM workspace_nodes wn
+            INNER JOIN node_tree nt ON wn.parent_id = nt.id
+            LEFT JOIN users u1 ON wn.created_by = u1.id
+            LEFT JOIN users u2 ON wn.assigned_to = u2.id
+            WHERE wn.is_active = true
+        )
+        SELECT * FROM node_tree
+        ORDER BY parent_id NULLS FIRST, order_num
+    </select>
+
+    <!-- 자식 노드 조회 -->
+    <select id="findChildNodes" resultMap="WorkspaceNodeResultMap">
+        SELECT
+            wn.*,
+            u1.username as created_by_username,
+            u2.username as assigned_to_username
+        FROM workspace_nodes wn
+        LEFT JOIN users u1 ON wn.created_by = u1.id
+        LEFT JOIN users u2 ON wn.assigned_to = u2.id
+        WHERE wn.parent_id = #{parentId}
+          AND wn.is_active = true
+        ORDER BY wn.order_num
+    </select>
+
+    <!-- ID로 조회 -->
+    <select id="findById" resultMap="WorkspaceNodeResultMap">
+        SELECT
+            wn.*,
+            u1.username as created_by_username,
+            u2.username as assigned_to_username
+        FROM workspace_nodes wn
+        LEFT JOIN users u1 ON wn.created_by = u1.id
+        LEFT JOIN users u2 ON wn.assigned_to = u2.id
+        WHERE wn.id = #{id}
+    </select>
+
+    <!-- 이름으로 검색 -->
+    <select id="searchByName" resultMap="WorkspaceNodeResultMap">
+        SELECT
+            wn.*,
+            u1.username as created_by_username,
+            u2.username as assigned_to_username
+        FROM workspace_nodes wn
+        LEFT JOIN users u1 ON wn.created_by = u1.id
+        LEFT JOIN users u2 ON wn.assigned_to = u2.id
+        WHERE wn.is_active = true
+          AND wn.name ILIKE '%' || #{query} || '%'
+          AND (wn.created_by = #{userId} OR wn.assigned_to = #{userId})
+        ORDER BY wn.parent_id NULLS FIRST, wn.order_num
+    </select>
+
+    <!-- 생성 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO workspace_nodes (
+            name, description, node_type, status, priority,
+            parent_id, order_num, created_by, assigned_to, due_date, is_active
+        )
+        VALUES (
+            #{name}, #{description}, CAST(#{nodeType} AS node_type),
+            CAST(#{status} AS node_status), CAST(#{priority} AS node_priority),
+            #{parentId}, #{orderNum}, #{createdBy}, #{assignedTo}, #{dueDate}, #{isActive}
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="update">
+        UPDATE workspace_nodes
+        SET name = #{name},
+            description = #{description},
+            node_type = CAST(#{nodeType} AS node_type),
+            status = CAST(#{status} AS node_status),
+            priority = CAST(#{priority} AS node_priority),
+            parent_id = #{parentId},
+            order_num = #{orderNum},
+            assigned_to = #{assignedTo},
+            due_date = #{dueDate},
+            is_active = #{isActive},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 위치 변경 (이동) -->
+    <update id="updatePosition">
+        UPDATE workspace_nodes
+        SET parent_id = #{parentId},
+            order_num = #{orderNum},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 순서 변경 -->
+    <update id="updateOrderNum">
+        UPDATE workspace_nodes
+        SET order_num = #{orderNum},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 삭제 (CASCADE로 자식도 함께 삭제됨) -->
+    <delete id="deleteById">
+        DELETE FROM workspace_nodes WHERE id = #{id}
+    </delete>
+
+</mapper>

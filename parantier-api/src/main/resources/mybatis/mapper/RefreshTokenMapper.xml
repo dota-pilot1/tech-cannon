@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.user.domain.RefreshTokenRepository">
+
+    <!-- ResultMap -->
+    <resultMap id="refreshTokenResultMap" type="com.mapo.palantier.user.domain.RefreshToken">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="token" column="token"/>
+        <result property="expiryDate" column="expiry_date"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 리프레시 토큰 저장 -->
+    <insert id="save" parameterType="com.mapo.palantier.user.domain.RefreshToken"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO refresh_tokens (user_id, token, expiry_date, created_at)
+        VALUES (#{userId}, #{token}, #{expiryDate}, #{createdAt})
+    </insert>
+
+    <!-- 토큰 문자열로 조회 -->
+    <select id="findByToken" resultMap="refreshTokenResultMap">
+        SELECT id, user_id, token, expiry_date, created_at
+        FROM refresh_tokens
+        WHERE token = #{token}
+    </select>
+
+    <!-- 사용자 ID로 조회 -->
+    <select id="findByUserId" resultMap="refreshTokenResultMap">
+        SELECT id, user_id, token, expiry_date, created_at
+        FROM refresh_tokens
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 사용자 ID로 삭제 -->
+    <delete id="deleteByUserId">
+        DELETE FROM refresh_tokens
+        WHERE user_id = #{userId}
+    </delete>
+
+    <!-- 토큰 문자열로 삭제 -->
+    <delete id="deleteByToken">
+        DELETE FROM refresh_tokens
+        WHERE token = #{token}
+    </delete>
+
+    <!-- 만료된 토큰 일괄 삭제 -->
+    <delete id="deleteExpiredTokens">
+        <![CDATA[
+        DELETE FROM refresh_tokens
+        WHERE expiry_date < NOW()
+        ]]>
+    </delete>
+
+</mapper>

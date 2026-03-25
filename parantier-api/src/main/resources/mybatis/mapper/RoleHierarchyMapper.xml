@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.role.domain.RoleHierarchyRepository">
+
+    <!-- 접근 가능한 모든 권한 조회 (재귀 CTE) -->
+    <select id="findAccessibleRoles" resultType="string">
+        WITH RECURSIVE accessible_roles AS (
+            -- 현재 권한
+            SELECT CAST(#{role} AS VARCHAR(50)) as role
+
+            UNION ALL
+
+            -- 하위 권한 재귀 조회
+            SELECT rh.child_role
+            FROM role_hierarchy rh
+            INNER JOIN accessible_roles ar ON rh.parent_role = ar.role
+        )
+        SELECT role FROM accessible_roles
+    </select>
+
+</mapper>

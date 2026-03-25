@@ -1,0 +1,110 @@
+더 나은 접근: 권한 중심 설계 + 역할은 템플릿
+제안하는 구조:
+User → Authorities (직접 매핑, 주요)
+Role → Authorities (템플릿, 보조)
+핵심 원칙:
+사용자는 직접 권한을 가짐 (user_authority 테이블)
+역할은 권한 묶음의 "템플릿" - 역할 할당 시 해당 권한들을 복사
+JWT에는 최종 권한 목록만 - 역할이 아닌 실제 권한만 체크
+구체적 구현 방법
+1. 테이블 구조
+-- 사용자가 직접 보유한 권한 (메인)
+user_authority (
+  user_id, 
+  authority_id,
+  granted_by,  -- 누가 부여했는지
+  granted_at
+)
+
+-- 역할은 권한 템플릿 역할
+role (id, name, description)
+role_authority (role_id, authority_id)
+
+-- 역할 할당 이력 (선택사항, 추적용)
+user_role_history (
+  user_id,
+  role_id, 
+  assigned_at,
+  assigned_by
+)
+2. 로직 흐름
+사용자에게 역할 할당 시:
+public void assignRoleToUser(Long userId, Long roleId, String assignedBy) {
+    // 1. 역할의 권한들을 조회
+    List<Long> authorityIds = roleRepository.findAuthorityIdsByRoleId(roleId);
+    
+    // 2. 각 권한을 user_authority에 추가 (중복 제외)
+    for (Long authorityId : authorityIds) {
+        userAuthorityRepository.grantAuthorityToUser(
+            userId, authorityId, assignedBy
+        );
+    }
+    
+    // 3. 이력만 기록 (선택사항)
+    userRoleHistoryRepository.recordAssignment(userId, roleId, assignedBy);
+}
+로그인 시 JWT 생성:
+public String generateAccessToken(Long userId, String email) {
+    // user_authority에서 직접 조회
+    List<String> authorities = userAuthorityRepository
+        .findAuthoritiesByUserId(userId);
+    
+    return Jwts.builder()
+        .subject(email)
+        .claim("authorities", authorities)  // 권한만!
+        .claim("type", "ACCESS")
+        .issuedAt(now)
+        .expiration(expiryDate)
+        .signWith(secretKey)
+        .compact();
+}
+권한 체크:
+// 프론트/백엔드 모두
+if (userAuthorities.includes("PROJECT:CREATE")) {
+    // 허용
+}
+3. 장점
+유연성: 개별 사용자에게 권한 추가/제거 자유로움
+단순성: JWT에 권한만 있으면 됨, 역할 신경 안 써도 됨
+확장성: 새 권한 추가가 쉬움
+성능: 권한 체크가 단순하고 빠름
+감사: 누가 언제 어떤 권한을 부여했는지 추적 가능
+4. 역할의 역할
+역할은 "권한 템플릿"으로만 사용:
+관리자가 "ROLE_MANAGER"를 누군가에게 할당
+→ 시스템이 자동으로 MANAGER 역할의 모든 권한을 user_authority에 복사
+→ 이후 개별 권한 추가/제거 가능
+마이그레이션 방안
+기존 구조에서 전환하려면:
+-- V12: 권한 중심 구조로 전환
+-- 1. user_authority 테이블 (이미 있을 것)
+CREATE TABLE IF NOT EXISTS user_authority (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    authority_id BIGINT NOT NULL,
+    granted_by VARCHAR(100),
+    granted_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, authority_id),
+    FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE,
+    FOREIGN KEY (authority_id) REFERENCES authority(id) ON DELETE CASCADE
+);
+
+-- 2. 기존 user_role 데이터를 user_authority로 마이그레이션
+INSERT INTO user_authority (user_id, authority_id, granted_by, granted_at)
+SELECT DISTINCT ur.user_id, ra.authority_id, 'SYSTEM', ur.granted_at
+FROM user_role ur
+JOIN role_authority ra ON ur.role_id = ra.role_id
+ON CONFLICT (user_id, authority_id) DO NOTHING;
+
+-- 3. user_role은 history로 이름 변경 (선택)
+ALTER TABLE user_role RENAME TO user_role_history;
+추천 방향
+권한 중심 설계를 추천합니다. 이유:
+실무에서는 예외 케이스가 항상 발생 (특정 사용자에게만 임시 권한 등)
+권한이 명확하면 디버깅과 감사가 쉬움
+역할은 "편의 기능"으로 남겨두되, 강제하지 않음
+확장성이 훨씬 좋음
+현재 구현을 이 방향으로 수정할까요? 아니면 지금 구조를 유지하면서 user_authority 직접 매핑만 추가할까요?
+
+현실적 타협:
+맞아요. 규모가 커지거나 예외 케이스가 많아질수록 “역할 중심”에만 기대는 건 한계가 있고, 결국 권한 중심 설계가 현실적인 정석이 됩니다. 역할은 템플릿으로 둔 뒤 user_authority에 실제 권한을 붙여 관리하면, 스프링 시큐리티 같은 프레임워크에서도 JWT를 권한만으로 구성해 심플하게 검증할 수 있고, 특정 사용자 임시 권한·디버깅·감사·확장 같은 요구를 모두 유연하게 처리할 수 있어요. 즉 “역할=편의 기능”으로 보고, 실제 접근 제어는 권한 테이블에서 관리하는 게 확실히 우아하고 실무 친화적인 접근입니다.

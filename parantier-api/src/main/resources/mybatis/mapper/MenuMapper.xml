@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.menu.infrastructure.MenuMapper">
+
+    <!-- ResultMap -->
+    <resultMap id="MenuResultMap" type="com.mapo.palantier.menu.domain.Menu">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="path" column="path"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="menuType" column="menu_type"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="requiredRole" column="required_role"/>
+        <result property="icon" column="icon"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 전체 메뉴 조회 (권한 필터링) -->
+    <select id="findAllByRole" resultMap="MenuResultMap">
+        SELECT * FROM menus
+        WHERE is_active = true
+          AND (required_role IS NULL OR required_role = #{role})
+        ORDER BY parent_id NULLS FIRST, order_num
+    </select>
+
+    <!-- 메뉴 트리 (재귀 쿼리) -->
+    <select id="findMenuTreeByRole" resultMap="MenuResultMap">
+        WITH RECURSIVE menu_tree AS (
+            -- 최상위 메뉴 (parent_id IS NULL)
+            SELECT * FROM menus
+            WHERE parent_id IS NULL AND is_active = true
+
+            UNION ALL
+
+            -- 자식 메뉴 재귀 조회
+            SELECT m.* FROM menus m
+            INNER JOIN menu_tree mt ON m.parent_id = mt.id
+            WHERE m.is_active = true
+        ),
+        -- 현재 권한이 접근 가능한 모든 하위 권한 (재귀 CTE)
+        accessible_roles AS (
+            SELECT CAST(#{role} AS VARCHAR(50)) as role
+            UNION ALL
+            SELECT rh.child_role
+            FROM role_hierarchy rh
+            INNER JOIN accessible_roles ar ON rh.parent_role = ar.role
+        )
+        SELECT * FROM menu_tree
+        WHERE required_role IS NULL
+           OR required_role IN (SELECT role FROM accessible_roles)
+        ORDER BY parent_id NULLS FIRST, order_num
+    </select>
+
+    <!-- 자식 메뉴 조회 -->
+    <select id="findChildMenus" resultMap="MenuResultMap">
+        SELECT * FROM menus
+        WHERE parent_id = #{parentId}
+          AND is_active = true
+          AND (required_role IS NULL OR required_role = #{role})
+        ORDER BY order_num
+    </select>
+
+    <!-- ID로 조회 -->
+    <select id="findById" resultMap="MenuResultMap">
+        SELECT * FROM menus WHERE id = #{id}
+    </select>
+
+    <!-- 생성 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO menus (name, path, parent_id, menu_type, order_num, required_role, icon, is_active)
+        VALUES (#{name}, #{path}, #{parentId}, #{menuType}, #{orderNum}, #{requiredRole}, #{icon}, #{isActive})
+    </insert>
+
+    <!-- 수정 -->
+    <update id="update">
+        UPDATE menus
+        SET name = #{name},
+            path = #{path},
+            parent_id = #{parentId},
+            menu_type = #{menuType},
+            order_num = #{orderNum},
+            required_role = #{requiredRole},
+            icon = #{icon},
+            is_active = #{isActive},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 삭제 -->
+    <delete id="deleteById">
+        DELETE FROM menus WHERE id = #{id}
+    </delete>
+
+</mapper>

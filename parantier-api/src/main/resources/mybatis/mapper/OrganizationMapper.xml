@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.organization.domain.OrganizationRepository">
+
+    <resultMap id="organizationResultMap" type="com.mapo.palantier.organization.domain.Organization">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="description" column="description"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="orgType" column="org_type"/>
+        <result property="level" column="level"/>
+        <result property="displayOrder" column="display_order"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+    </resultMap>
+
+    <!-- 모든 조직 조회 -->
+    <select id="findAll" resultMap="organizationResultMap">
+        SELECT * FROM organization
+        WHERE is_active = true
+        ORDER BY level, display_order
+    </select>
+
+    <!-- ID로 조직 조회 -->
+    <select id="findById" resultMap="organizationResultMap">
+        SELECT * FROM organization
+        WHERE id = #{id}
+    </select>
+
+    <!-- 최상위 조직 조회 -->
+    <select id="findRootOrganizations" resultMap="organizationResultMap">
+        SELECT * FROM organization
+        WHERE parent_id IS NULL AND is_active = true
+        ORDER BY display_order
+    </select>
+
+    <!-- 부모 ID로 자식 조직 조회 -->
+    <select id="findByParentId" resultMap="organizationResultMap">
+        SELECT * FROM organization
+        WHERE parent_id = #{parentId} AND is_active = true
+        ORDER BY display_order
+    </select>
+
+    <!-- 조직 타입으로 조회 -->
+    <select id="findByType" resultMap="organizationResultMap">
+        SELECT * FROM organization
+        WHERE org_type = #{orgType} AND is_active = true
+        ORDER BY level, display_order
+    </select>
+
+    <!-- 조직 코드로 조회 -->
+    <select id="findByCode" resultMap="organizationResultMap">
+        SELECT * FROM organization
+        WHERE code = #{code}
+    </select>
+
+    <!-- 조직 생성 -->
+    <insert id="create" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO organization (
+            name, code, description, parent_id, org_type,
+            level, display_order, is_active, created_at, updated_at,
+            created_by, updated_by
+        ) VALUES (
+            #{name}, #{code}, #{description}, #{parentId}, #{orgType},
+            #{level}, #{displayOrder}, #{isActive}, NOW(), NOW(),
+            #{createdBy}, #{updatedBy}
+        )
+    </insert>
+
+    <!-- 조직 수정 -->
+    <update id="update">
+        UPDATE organization
+        SET name = #{name},
+            code = #{code},
+            description = #{description},
+            parent_id = #{parentId},
+            org_type = #{orgType},
+            level = #{level},
+            display_order = #{displayOrder},
+            is_active = #{isActive},
+            updated_at = NOW(),
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 조직 삭제 (소프트 삭제) -->
+    <delete id="delete">
+        UPDATE organization
+        SET is_active = false, updated_at = NOW()
+        WHERE id = #{id}
+    </delete>
+
+</mapper>
