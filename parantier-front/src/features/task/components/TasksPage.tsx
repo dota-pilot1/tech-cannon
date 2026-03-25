@@ -68,7 +68,7 @@ function FolderContextMenu({
           onMouseLeave={() => setShowDocSubmenu(false)}
         >
           <div className="flex items-center gap-2">
-            <span>📄</span> 새 Task 추가
+            <span>📄</span> 새 문서 추가
           </div>
           <span className="text-xs text-gray-400">▶</span>
         </button>
@@ -367,7 +367,7 @@ export default function TasksPage() {
                   e.stopPropagation()
                   openNewDoc(folder.id)
                 }}
-                title="새 Task"
+                title="새 문서"
               >
                 +
               </button>
@@ -539,7 +539,7 @@ export default function TasksPage() {
               <TaskBlockViewer post={postDetail} />
             ) : (
               <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">
-                {selectedFolderId ? '폴더에서 + 버튼으로 새 Task 추가' : '좌측에서 폴더를 선택하세요.'}
+                {selectedFolderId ? '폴더 우클릭 또는 + 버튼으로 새 문서 추가' : '좌측에서 폴더를 선택하세요.'}
               </div>
             )}
           </div>
