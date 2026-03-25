@@ -30,4 +30,8 @@ public class Menu {
     // 트리 구조용 (조회 시에만 사용)
     @Builder.Default
     private List<Menu> children = null;
+
+    // 접근 가능한 모든 역할 목록 (조회 시에만 사용)
+    @Builder.Default
+    private List<String> allowedRoles = null;
 }

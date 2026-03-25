@@ -21,6 +21,8 @@ public class MenuService {
 
     public List<Menu> getMenuTreeByRole(String role) {
         List<Menu> flatList = menuRepository.findMenuTreeByRole(role);
+        // 각 메뉴에 allowedRoles 설정
+        populateAllowedRoles(flatList);
         return buildMenuTree(flatList);
     }
 
@@ -84,5 +86,21 @@ public class MenuService {
     @Transactional
     public void deleteMenu(Long id) {
         menuRepository.deleteById(id);
+    }
+
+    /**
+     * 각 메뉴에 접근 가능한 역할 목록 설정
+     */
+    private void populateAllowedRoles(List<Menu> menus) {
+        for (Menu menu : menus) {
+            if (menu.getRequiredRole() != null) {
+                // requiredRole이 있는 경우, 해당 역할과 상위 역할들을 조회
+                List<String> allowedRoles = menuRepository.findAllowedRoles(menu.getRequiredRole());
+                menu.setAllowedRoles(allowedRoles);
+            } else {
+                // requiredRole이 null이면 모든 역할이 접근 가능 (빈 리스트로 표시하거나 null)
+                menu.setAllowedRoles(null);
+            }
+        }
     }
 }

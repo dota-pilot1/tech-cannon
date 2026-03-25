@@ -69,6 +69,20 @@
         SELECT * FROM menus WHERE id = #{id}
     </select>
 
+    <!-- 특정 역할에 접근 가능한 모든 역할 목록 -->
+    <select id="findAllowedRoles" resultType="string">
+        WITH RECURSIVE allowed_roles AS (
+            -- 요구되는 역할부터 시작
+            SELECT CAST(#{requiredRole} AS VARCHAR(50)) as role
+            UNION ALL
+            -- 상위 역할들 (자식 -> 부모 방향으로 탐색)
+            SELECT rh.parent_role
+            FROM role_hierarchy rh
+            INNER JOIN allowed_roles ar ON rh.child_role = ar.role
+        )
+        SELECT role FROM allowed_roles
+    </select>
+
     <!-- 생성 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO menus (name, path, parent_id, menu_type, order_num, required_role, icon, is_active)

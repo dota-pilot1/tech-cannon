@@ -126,7 +126,7 @@ export default function TasksPage() {
     }
     if (!selectedFolderId) return
 
-    const refinedBlocks = blocks.map((b, idx) => ({
+    const refinedBlocks = blocks.map((b) => ({
       blockType: b.blockType,
       content: b.content,
     }))

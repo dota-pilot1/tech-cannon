@@ -34,6 +34,11 @@ public class MenuRepositoryImpl implements MenuRepository {
     }
 
     @Override
+    public List<String> findAllowedRoles(String requiredRole) {
+        return menuMapper.findAllowedRoles(requiredRole);
+    }
+
+    @Override
     public void save(Menu menu) {
         menuMapper.insert(menu);
     }

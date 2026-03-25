@@ -17,10 +17,28 @@ export function Header() {
   const auth = useStore(authStore, (state) => state)
   const { data: menus = [] } = useMenuTree()
 
+  // 현재 사용자의 역할
+  const userRole = auth.user?.role || null
+
+  // 역할 기반 메뉴 필터링 헬퍼
+  const isMenuAccessible = (menu: any) => {
+    // allowedRoles가 없으면 모든 사용자 접근 가능
+    if (!menu.allowedRoles || menu.allowedRoles.length === 0) {
+      return true
+    }
+    // 사용자 역할이 allowedRoles에 포함되어 있으면 접근 가능
+    return userRole && menu.allowedRoles.includes(userRole)
+  }
+
   // 헤더 메뉴만 필터링 (HEADER 또는 CATEGORY 타입, parent_id가 null인 1차 메뉴)
-  const headerMenus = menus.filter(
-    (menu) => menu.parentId === null && (menu.menuType === 'HEADER' || menu.menuType === 'CATEGORY')
-  )
+  const headerMenus = menus
+    .filter((menu) => menu.parentId === null && (menu.menuType === 'HEADER' || menu.menuType === 'CATEGORY'))
+    .filter(isMenuAccessible)
+    .map((menu) => ({
+      ...menu,
+      // 하위 메뉴도 필터링
+      children: menu.children?.filter(isMenuAccessible),
+    }))
 
   return (
     <header className="border-b border-border bg-card">

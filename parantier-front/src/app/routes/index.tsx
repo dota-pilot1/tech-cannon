@@ -16,16 +16,6 @@ import { RolesPage } from '@/pages/admin/roles/RolesPage'
 import { authStore } from '@/entities/user/model/authStore'
 import { toast } from 'sonner'
 
-// 권한 체크 헬퍼 (최소한의 프론트 체크)
-const requireAuth = () => {
-  const auth = authStore.state
-
-  if (!auth.isAuthenticated) {
-    toast.error('로그인이 필요합니다')
-    throw redirect({ to: '/dashboard' })
-  }
-}
-
 // Role 기반 권한 체크 (관리자 페이지 접근용)
 const requireRole = async (requiredRole: string) => {
   const auth = authStore.state
@@ -58,44 +48,6 @@ const requireRole = async (requiredRole: string) => {
   // 권한이 없으면 접근 차단
   toast.error('접근 권한이 없습니다', {
     description: `관리자만 접근할 수 있습니다.`,
-  })
-  throw redirect({ to: '/dashboard' })
-}
-
-// Authority 기반 권한 체크 (비동기 처리 추가)
-const requireAuthority = async (requiredAuthority: string) => {
-  const auth = authStore.state
-
-  if (!auth.isAuthenticated) {
-    toast.error('로그인이 필요합니다')
-    throw redirect({ to: '/dashboard' })
-  }
-
-  // 인증 상태가 복원될 때까지 기다림 (user 정보가 없으면)
-  if (!auth.user) {
-    // 짧은 대기 후 재확인 (최대 3초)
-    for (let i = 0; i < 30; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      const currentAuth = authStore.state
-      if (currentAuth.user) {
-        break
-      }
-    }
-  }
-
-  // 다시 확인
-  const finalAuth = authStore.state
-
-  // JWT에서 추출한 authorities 배열로 권한 체크
-  const userAuthorities = finalAuth.user?.authorities || []
-
-  if (userAuthorities.includes(requiredAuthority)) {
-    return
-  }
-
-  // 권한이 없으면 접근 차단
-  toast.error('접근 권한이 없습니다', {
-    description: `${requiredAuthority} 권한이 필요합니다.`,
   })
   throw redirect({ to: '/dashboard' })
 }

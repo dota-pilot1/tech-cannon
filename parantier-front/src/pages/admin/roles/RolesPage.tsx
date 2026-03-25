@@ -169,7 +169,7 @@ export function RolesPage() {
 
   // 카테고리별로 권한 그룹화
   const groupedAuthorities = authorities.reduce((acc, authority) => {
-    const categoryName = authority.categoryName || '기타'
+    const categoryName = authority.category?.name || '기타'
     if (!acc[categoryName]) {
       acc[categoryName] = []
     }

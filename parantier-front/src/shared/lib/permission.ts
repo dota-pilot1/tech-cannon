@@ -3,7 +3,6 @@
  */
 
 import { authStore } from '@/entities/user/model/authStore'
-import type { User } from '@/shared/types/auth'
 
 /**
  * 사용자가 특정 권한을 가지고 있는지 확인

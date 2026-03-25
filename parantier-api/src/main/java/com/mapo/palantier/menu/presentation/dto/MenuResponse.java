@@ -46,6 +46,9 @@ public class MenuResponse {
     @Schema(description = "자식 메뉴 목록")
     private List<MenuResponse> children;
 
+    @Schema(description = "접근 가능한 역할 목록 (권한 체크용)")
+    private List<String> allowedRoles;
+
     public static MenuResponse from(Menu menu) {
         return MenuResponse.builder()
                 .id(menu.getId())
@@ -58,6 +61,7 @@ public class MenuResponse {
                 .icon(menu.getIcon())
                 .isActive(menu.getIsActive())
                 .createdAt(menu.getCreatedAt())
+                .allowedRoles(menu.getAllowedRoles())
                 .children(menu.getChildren() != null && !menu.getChildren().isEmpty()
                         ? fromList(menu.getChildren())
                         : null)

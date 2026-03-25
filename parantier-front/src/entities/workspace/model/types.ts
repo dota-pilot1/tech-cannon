@@ -1,25 +1,28 @@
-// NodeType Enum
-export enum NodeType {
-  FOLDER = 'FOLDER',
-  TASK = 'TASK',
-  DOCUMENT = 'DOCUMENT',
-}
+// NodeType
+export const NodeType = {
+  FOLDER: 'FOLDER',
+  TASK: 'TASK',
+  DOCUMENT: 'DOCUMENT',
+} as const
+export type NodeType = (typeof NodeType)[keyof typeof NodeType]
 
-// NodeStatus Enum
-export enum NodeStatus {
-  TODO = 'TODO',
-  IN_PROGRESS = 'IN_PROGRESS',
-  DONE = 'DONE',
-  BLOCKED = 'BLOCKED',
-}
+// NodeStatus
+export const NodeStatus = {
+  TODO: 'TODO',
+  IN_PROGRESS: 'IN_PROGRESS',
+  DONE: 'DONE',
+  BLOCKED: 'BLOCKED',
+} as const
+export type NodeStatus = (typeof NodeStatus)[keyof typeof NodeStatus]
 
-// NodePriority Enum
-export enum NodePriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  URGENT = 'URGENT',
-}
+// NodePriority
+export const NodePriority = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+  URGENT: 'URGENT',
+} as const
+export type NodePriority = (typeof NodePriority)[keyof typeof NodePriority]
 
 // WorkspaceNode 인터페이스
 export interface WorkspaceNode {

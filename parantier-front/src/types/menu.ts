@@ -1,4 +1,4 @@
-export type MenuType = 'HEADER' | 'SIDE' | 'SUB'
+export type MenuType = 'HEADER' | 'SIDE' | 'SUB' | 'CATEGORY' | 'PAGE'
 
 export interface Menu {
   id: number
@@ -12,6 +12,7 @@ export interface Menu {
   isActive: boolean
   createdAt: string
   children?: Menu[]
+  allowedRoles?: string[] | null // 접근 가능한 역할 목록
 }
 
 export interface CreateMenuRequest {

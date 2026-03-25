@@ -14,6 +14,9 @@ public interface MenuMapper {
     List<Menu> findChildMenus(@Param("parentId") Long parentId, @Param("role") String role);
     Optional<Menu> findById(@Param("id") Long id);
 
+    // 특정 역할에 접근 가능한 모든 역할 목록 조회
+    List<String> findAllowedRoles(@Param("requiredRole") String requiredRole);
+
     void insert(Menu menu);
     void update(Menu menu);
     void deleteById(@Param("id") Long id);

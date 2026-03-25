@@ -9,6 +9,7 @@ public interface MenuRepository {
     List<Menu> findMenuTreeByRole(String role);
     List<Menu> findChildMenus(Long parentId, String role);
     Optional<Menu> findById(Long id);
+    List<String> findAllowedRoles(String requiredRole);
 
     // CUD
     void save(Menu menu);
