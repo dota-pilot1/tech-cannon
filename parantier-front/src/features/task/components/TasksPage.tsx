@@ -16,6 +16,82 @@ import { buildTree, TYPE_META } from '../types/task.types'
 import TaskBlockEditor from './TaskBlockEditor'
 import TaskBlockViewer from './TaskBlockViewer'
 
+// 폴더 컨텍스트 메뉴
+type FolderCtxMenu = { x: number; y: number; folderId: number; folderName: string } | null
+
+function FolderContextMenu({
+  menu,
+  onClose,
+  onAddSubFolder,
+  onAddDoc,
+  onRename,
+  onDelete,
+}: {
+  menu: FolderCtxMenu
+  onClose: () => void
+  onAddSubFolder: (parentId: number) => void
+  onAddDoc: (folderId: number) => void
+  onRename: (id: number, name: string) => void
+  onDelete: (id: number, name: string) => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  if (!menu) return null
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 bg-white border rounded shadow-xl py-1 min-w-[180px] text-sm"
+      style={{ top: menu.y, left: menu.x }}
+    >
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
+        onClick={() => {
+          onAddDoc(menu.folderId)
+          onClose()
+        }}
+      >
+        <span>📄</span> 새 Task 추가
+      </button>
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
+        onClick={() => {
+          onAddSubFolder(menu.folderId)
+          onClose()
+        }}
+      >
+        <span>📁</span> 하위 폴더 추가
+      </button>
+      <div className="border-t my-1" />
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
+        onClick={() => {
+          onRename(menu.folderId, menu.folderName)
+          onClose()
+        }}
+      >
+        <span>✏️</span> 이름 변경
+      </button>
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
+        onClick={() => {
+          onDelete(menu.folderId, menu.folderName)
+          onClose()
+        }}
+      >
+        <span>🗑️</span> 폴더 삭제
+      </button>
+    </div>
+  )
+}
+
 export default function TasksPage() {
   const { confirm, ConfirmDialog } = useConfirm()
 
@@ -37,6 +113,7 @@ export default function TasksPage() {
   const [editingFolderName, setEditingFolderName] = useState('')
   const [inlineFolderInput, setInlineFolderInput] = useState<{ parentId: number | null } | null>(null)
   const [inlineFolderName, setInlineFolderName] = useState('')
+  const [folderCtxMenu, setFolderCtxMenu] = useState<FolderCtxMenu>(null)
 
   const { data: posts = [] } = useTaskPosts(selectedFolderId)
   const { data: postDetail } = useTaskPostDetail(selectedPostId, !isEditing)
@@ -222,6 +299,10 @@ export default function TasksPage() {
           }`}
           style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: '4px' }}
           onClick={() => handleFolderClick(folder.id)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            setFolderCtxMenu({ x: e.clientX, y: e.clientY, folderId: folder.id, folderName: folder.name })
+          }}
         >
           <span className="text-[10px] text-gray-400 w-3 shrink-0">{isExpanded ? '▼' : '▶'}</span>
           <span className="shrink-0">📁</span>
@@ -312,6 +393,17 @@ export default function TasksPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <ConfirmDialog />
+      <FolderContextMenu
+        menu={folderCtxMenu}
+        onClose={() => setFolderCtxMenu(null)}
+        onAddSubFolder={(parentId) => openInlineFolderInput(parentId)}
+        onAddDoc={(folderId) => openNewDoc(folderId)}
+        onRename={(id, name) => {
+          setEditingFolderId(id)
+          setEditingFolderName(name)
+        }}
+        onDelete={(id, name) => handleDeleteFolder(id, name)}
+      />
 
       <div className="bg-white rounded border mb-4">
         <div className="p-3 border-b bg-gray-50">
