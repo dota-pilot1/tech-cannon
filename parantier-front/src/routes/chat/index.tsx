@@ -1,13 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
 import { Client } from '@stomp/stompjs'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Send } from 'lucide-react'
-
-export const Route = createFileRoute('/chat/')({
-  component: ChatPage,
-})
 
 interface ChatMessage {
   id?: number
@@ -19,7 +14,7 @@ interface ChatMessage {
   createdAt?: string
 }
 
-function ChatPage() {
+export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState('')
   const [isConnected, setIsConnected] = useState(false)

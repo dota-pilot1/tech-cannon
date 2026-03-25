@@ -93,6 +93,49 @@ com.mapo.palantier          ← 모든 코드는 이 패키지 아래에 위치
 - TanStack Query
 - Vite
 
+#### 라우팅 방식
+
+**중요: 이 프로젝트는 수동 라우트 등록 방식을 사용합니다**
+
+파일 위치: `parantier-front/src/app/routes/index.tsx`
+
+**새 페이지 추가 시 절차**:
+1. 페이지 컴포넌트 작성 (예: `src/routes/chat/index.tsx`)
+2. `src/app/routes/index.tsx`에 import 추가
+3. `createRoute`로 라우트 생성
+4. `routeTree.addChildren([...])` 배열에 추가
+
+**예시**:
+```typescript
+// 1. Import
+import { ChatPage } from '@/routes/chat/index'
+
+// 2. Route 생성
+const chatRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/chat',
+  component: ChatPage,
+})
+
+// 3. routeTree에 추가
+const routeTree = rootRoute.addChildren([
+  dashboardRoute,
+  // ... 기존 라우트들
+  chatRoute,  // 여기에 추가
+])
+```
+
+**권한 제어**:
+```typescript
+// ROLE_ADMIN만 접근 가능
+const adminUsersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/users',
+  beforeLoad: () => requireRole('ROLE_ADMIN'),
+  component: UsersPage,
+})
+```
+
 ## 권한 시스템
 
 ### Role vs Authority

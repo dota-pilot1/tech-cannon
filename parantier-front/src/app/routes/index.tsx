@@ -14,6 +14,7 @@ import { AuthoritiesPage } from '@/pages/admin/authorities/AuthoritiesPage'
 import { OrganizationsPage } from '@/pages/admin/organizations/OrganizationsPage'
 import { RolesPage } from '@/pages/admin/roles/RolesPage'
 import TasksPage from '@/features/task/components/TasksPage'
+import { ChatPage } from '@/routes/chat/index'
 import { authStore } from '@/entities/user/model/authStore'
 import { toast } from 'sonner'
 
@@ -133,6 +134,13 @@ const tasksRoute = createRoute({
   component: TasksPage,
 })
 
+// 채팅 (모든 사용자 접근 가능)
+const chatRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/chat',
+  component: ChatPage,
+})
+
 // Route Tree
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -144,6 +152,7 @@ const routeTree = rootRoute.addChildren([
   adminOrganizationsRoute,
   adminRolesRoute,
   tasksRoute,
+  chatRoute,
 ])
 
 // Router 생성
