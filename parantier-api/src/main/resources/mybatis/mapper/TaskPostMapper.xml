@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.palantier.domain.task.post.TaskPostMapper">
+<mapper namespace="com.mapo.palantier.task.post.TaskPostMapper">
 
-    <resultMap id="TaskPostResultMap" type="com.palantier.domain.task.post.TaskPost">
+    <resultMap id="TaskPostResultMap" type="com.mapo.palantier.task.post.TaskPost">
         <id property="id" column="id"/>
         <result property="folderId" column="folder_id"/>
         <result property="title" column="title"/>
@@ -15,7 +15,7 @@
         <result property="deletedAt" column="deleted_at"/>
     </resultMap>
 
-    <resultMap id="TaskPostWithBlocksResultMap" type="com.palantier.domain.task.post.TaskPost">
+    <resultMap id="TaskPostWithBlocksResultMap" type="com.mapo.palantier.task.post.TaskPost">
         <id property="id" column="id"/>
         <result property="folderId" column="folder_id"/>
         <result property="title" column="title"/>
@@ -23,7 +23,7 @@
         <result property="authorName" column="author_name"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
-        <collection property="blocks" ofType="com.palantier.domain.task.block.TaskBlock">
+        <collection property="blocks" ofType="com.mapo.palantier.task.block.TaskBlock">
             <id property="id" column="block_id"/>
             <result property="postId" column="post_id"/>
             <result property="blockType" column="block_type"/>

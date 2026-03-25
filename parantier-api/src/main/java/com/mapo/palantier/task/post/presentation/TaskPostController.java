@@ -1,8 +1,8 @@
-package com.palantier.domain.task.post.presentation;
+package com.mapo.palantier.task.post.presentation;
 
-import com.palantier.domain.task.dto.TaskPostDto;
-import com.palantier.domain.task.post.TaskPost;
-import com.palantier.domain.task.post.TaskPostService;
+import com.mapo.palantier.task.dto.TaskPostDto;
+import com.mapo.palantier.task.post.TaskPost;
+import com.mapo.palantier.task.post.TaskPostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

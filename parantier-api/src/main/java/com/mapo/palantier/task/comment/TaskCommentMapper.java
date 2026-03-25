@@ -1,4 +1,4 @@
-package com.palantier.domain.task.comment;
+package com.mapo.palantier.task.comment;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

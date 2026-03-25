@@ -1,4 +1,4 @@
-package com.palantier.domain.task.block;
+package com.mapo.palantier.task.block;
 
 public enum BlockType {
     NOTE,       // 마크다운 텍스트

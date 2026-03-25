@@ -1,8 +1,8 @@
-package com.palantier.domain.task.folder.presentation;
+package com.mapo.palantier.task.folder.presentation;
 
-import com.palantier.domain.task.dto.TaskFolderDto;
-import com.palantier.domain.task.folder.TaskFolder;
-import com.palantier.domain.task.folder.TaskFolderService;
+import com.mapo.palantier.task.dto.TaskFolderDto;
+import com.mapo.palantier.task.folder.TaskFolder;
+import com.mapo.palantier.task.folder.TaskFolderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

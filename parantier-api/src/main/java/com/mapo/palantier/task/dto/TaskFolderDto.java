@@ -1,4 +1,4 @@
-package com.palantier.domain.task.dto;
+package com.mapo.palantier.task.dto;
 
 import lombok.Data;
 

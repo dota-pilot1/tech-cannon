@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.palantier.domain.task.block.TaskBlockMapper">
+<mapper namespace="com.mapo.palantier.task.block.TaskBlockMapper">
 
-    <resultMap id="TaskBlockResultMap" type="com.palantier.domain.task.block.TaskBlock">
+    <resultMap id="TaskBlockResultMap" type="com.mapo.palantier.task.block.TaskBlock">
         <id property="id" column="id"/>
         <result property="postId" column="post_id"/>
         <result property="blockType" column="block_type" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>

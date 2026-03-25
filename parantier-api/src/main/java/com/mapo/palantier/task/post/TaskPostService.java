@@ -1,9 +1,9 @@
-package com.palantier.domain.task.post;
+package com.mapo.palantier.task.post;
 
-import com.palantier.domain.task.block.TaskBlock;
-import com.palantier.domain.task.block.TaskBlockMapper;
-import com.palantier.domain.task.dto.TaskBlockDto;
-import com.palantier.domain.task.dto.TaskPostDto;
+import com.mapo.palantier.task.block.TaskBlock;
+import com.mapo.palantier.task.block.TaskBlockMapper;
+import com.mapo.palantier.task.dto.TaskBlockDto;
+import com.mapo.palantier.task.dto.TaskPostDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

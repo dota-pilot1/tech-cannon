@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.palantier.domain.task.folder.TaskFolderMapper">
+<mapper namespace="com.mapo.palantier.task.folder.TaskFolderMapper">
 
-    <resultMap id="TaskFolderResultMap" type="com.palantier.domain.task.folder.TaskFolder">
+    <resultMap id="TaskFolderResultMap" type="com.mapo.palantier.task.folder.TaskFolder">
         <id property="id" column="id"/>
         <result property="parentId" column="parent_id"/>
         <result property="name" column="name"/>

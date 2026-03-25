@@ -1,8 +1,8 @@
-package com.palantier.domain.task.comment.presentation;
+package com.mapo.palantier.task.comment.presentation;
 
-import com.palantier.domain.task.comment.TaskComment;
-import com.palantier.domain.task.comment.TaskCommentService;
-import com.palantier.domain.task.dto.TaskCommentDto;
+import com.mapo.palantier.task.comment.TaskComment;
+import com.mapo.palantier.task.comment.TaskCommentService;
+import com.mapo.palantier.task.dto.TaskCommentDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

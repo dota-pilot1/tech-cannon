@@ -1,6 +1,6 @@
-package com.palantier.domain.task.post;
+package com.mapo.palantier.task.post;
 
-import com.palantier.domain.task.block.TaskBlock;
+import com.mapo.palantier.task.block.TaskBlock;
 import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;

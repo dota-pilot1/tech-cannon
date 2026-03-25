@@ -1,4 +1,4 @@
-package com.palantier.domain.task.folder;
+package com.mapo.palantier.task.folder;
 
 import lombok.Data;
 import java.time.LocalDateTime;

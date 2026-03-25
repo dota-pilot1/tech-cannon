@@ -1,6 +1,6 @@
-package com.palantier.domain.task.comment;
+package com.mapo.palantier.task.comment;
 
-import com.palantier.domain.task.dto.TaskCommentDto;
+import com.mapo.palantier.task.dto.TaskCommentDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

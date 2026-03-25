@@ -1,4 +1,4 @@
-package com.palantier.domain.task.post;
+package com.mapo.palantier.task.post;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

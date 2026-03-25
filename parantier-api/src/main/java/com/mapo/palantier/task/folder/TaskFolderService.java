@@ -1,6 +1,6 @@
-package com.palantier.domain.task.folder;
+package com.mapo.palantier.task.folder;
 
-import com.palantier.domain.task.dto.TaskFolderDto;
+import com.mapo.palantier.task.dto.TaskFolderDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

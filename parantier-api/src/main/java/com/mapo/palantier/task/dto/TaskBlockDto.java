@@ -1,6 +1,6 @@
-package com.palantier.domain.task.dto;
+package com.mapo.palantier.task.dto;
 
-import com.palantier.domain.task.block.BlockType;
+import com.mapo.palantier.task.block.BlockType;
 import lombok.Data;
 
 @Data
