@@ -1,9 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useConfirm } from '@/shared/hooks/useConfirm'
 import { toast } from 'sonner'
+import { useQueries } from '@tanstack/react-query'
 import {
   useTaskFolders,
-  useAllTaskPosts,
   useTaskPostDetail,
   useSaveTaskMutation,
   useDeleteTaskMutation,
@@ -11,6 +11,7 @@ import {
   useRenameFolderMutation,
   useDeleteFolderMutation,
 } from '../hooks/useTask'
+import { taskApi } from '../api/taskApi'
 import type { TaskFolder, TaskPost, TaskBlock, BlockType } from '../types/task.types'
 import { buildTree, TYPE_META } from '../types/task.types'
 import TaskBlockEditor from './TaskBlockEditor'
@@ -118,7 +119,28 @@ export default function TasksPage() {
   const [inlineDocTitle, setInlineDocTitle] = useState('')
   const [folderCtxMenu, setFolderCtxMenu] = useState<FolderCtxMenu>(null)
 
-  const { data: allPosts = [] } = useAllTaskPosts()
+  // 확장된 폴더들의 posts 조회
+  const postsQueries = useQueries({
+    queries: Array.from(expandedFolders).map((folderId) => ({
+      queryKey: ['taskPosts', folderId],
+      queryFn: () => taskApi.getPostsByFolder(folderId),
+      staleTime: 30000, // 30초 동안 캐시 유지
+    })),
+  })
+
+  // 폴더별 posts를 Map으로 변환
+  const postsByFolder = useMemo(() => {
+    const map = new Map<number, TaskPost[]>()
+    const expandedArray = Array.from(expandedFolders)
+    expandedArray.forEach((folderId, index) => {
+      const query = postsQueries[index]
+      if (query?.data) {
+        map.set(folderId, query.data)
+      }
+    })
+    return map
+  }, [postsQueries, expandedFolders])
+
   const { data: postDetail } = useTaskPostDetail(selectedPostId, !isEditing)
 
   const saveMutation = useSaveTaskMutation(selectedFolderId, selectedPostId, (newId) => {
@@ -412,27 +434,25 @@ export default function TasksPage() {
             {subFolders.map((sub) => renderFolder(sub, depth + 1))}
             {inlineFolderInput?.parentId === folder.id && renderInlineFolderInput(depth + 1)}
             {inlineDocInput?.folderId === folder.id && renderInlineDocInput(depth + 1)}
-            {allPosts
-              .filter((post) => post.folderId === folder.id)
-              .map((post) => {
-                const primaryType = post.blocks?.[0]?.blockType ?? 'NOTE'
-                const meta = TYPE_META[primaryType as BlockType] ?? TYPE_META.NOTE
-                return (
-                  <div
-                    key={post.id}
-                    onClick={() => handlePostClick(post)}
-                    className={`flex items-center gap-1.5 py-1 cursor-pointer rounded text-sm transition-colors ${
-                      selectedPostId === post.id
-                        ? 'bg-blue-100 text-blue-800 font-medium'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                    style={{ paddingLeft: `${(depth + 1) * 14 + 8}px`, paddingRight: '8px' }}
-                  >
-                    <span className="text-xs shrink-0">{meta.icon}</span>
-                    <span className="truncate min-w-0">{post.title}</span>
-                  </div>
-                )
-              })}
+            {(postsByFolder.get(folder.id) || []).map((post) => {
+              const primaryType = post.blocks?.[0]?.blockType ?? 'NOTE'
+              const meta = TYPE_META[primaryType as BlockType] ?? TYPE_META.NOTE
+              return (
+                <div
+                  key={post.id}
+                  onClick={() => handlePostClick(post)}
+                  className={`flex items-center gap-1.5 py-1 cursor-pointer rounded text-sm transition-colors ${
+                    selectedPostId === post.id
+                      ? 'bg-blue-100 text-blue-800 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                  style={{ paddingLeft: `${(depth + 1) * 14 + 8}px`, paddingRight: '8px' }}
+                >
+                  <span className="text-xs shrink-0">{meta.icon}</span>
+                  <span className="truncate min-w-0">{post.title}</span>
+                </div>
+              )
+            })}
           </>
         )}
       </div>
