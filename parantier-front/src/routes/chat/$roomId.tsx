@@ -7,6 +7,7 @@ import { useStore } from '@tanstack/react-store'
 import { authStore } from '@/entities/user/model/authStore'
 import { useParams, useNavigate } from '@tanstack/react-router'
 import { useRoomMembers, useLeaveRoom, useChatRoom } from '@/hooks/useChat'
+import { chatApi } from '@/api/chatApi'
 import type { ChatMessage } from '@/types/chat'
 
 export function ChatRoomPage() {
@@ -45,6 +46,10 @@ export function ChatRoomPage() {
   // 명시적 나가기 버튼 핸들러
   const handleLeaveRoom = () => {
     if (currentRoomIdRef.current) {
+      // WebSocket 연결 먼저 끊기
+      if (clientRef.current) {
+        clientRef.current.deactivate()
+      }
       leaveRoomMutation.mutate(Number(currentRoomIdRef.current))
     }
   }
@@ -85,8 +90,48 @@ export function ChatRoomPage() {
     clientRef.current = client
     client.activate()
 
-    return () => {
+    // 페이지 이탈/새로고침 시 자동 나가기 처리
+    const handleBeforeUnload = () => {
+      // WebSocket 연결 끊기
       client.deactivate()
+
+      // Beacon API로 나가기 요청 (페이지 unload 시에도 안전하게 전송)
+      if (currentRoomIdRef.current) {
+        const token = localStorage.getItem('accessToken')
+        if (token) {
+          const url = `http://localhost:8080/api/chat/rooms/${currentRoomIdRef.current}/leave`
+          const data = new FormData()
+
+          // Beacon으로 POST 요청 보내기
+          fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            keepalive: true, // 페이지가 unload 되어도 요청 완료 보장
+          }).catch(() => {}) // 에러 무시 (페이지가 닫히는 중이므로)
+        }
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      client.deactivate()
+
+      // 정상적인 컴포넌트 unmount 시에도 나가기 (라우팅 이동 등)
+      if (currentRoomIdRef.current) {
+        const token = localStorage.getItem('accessToken')
+        if (token) {
+          fetch(`http://localhost:8080/api/chat/rooms/${currentRoomIdRef.current}/leave`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          }).catch(console.error)
+        }
+      }
     }
   }, [roomId])
 

@@ -89,15 +89,10 @@ public class ChatRoomService {
 
     /**
      * 채팅방 나가기
+     * 참가자가 0명이 되어도 채팅방은 유지 (업무 히스토리 보존)
      */
     @Transactional
     public void leaveRoom(Long roomId, Long userId) {
         chatRoomMapper.leaveRoom(roomId, userId);
-
-        // 남은 참가자가 0명이면 채팅방 삭제 (hard delete)
-        List<RoomMember> remainingMembers = chatRoomMapper.findMembersByRoomId(roomId);
-        if (remainingMembers.isEmpty()) {
-            chatRoomMapper.delete(roomId);
-        }
     }
 }
