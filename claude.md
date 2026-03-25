@@ -59,6 +59,34 @@ services:
 - PostgreSQL
 - JWT 인증
 
+**패키지 구조 원칙:**
+```
+com.mapo.palantier          ← 모든 코드는 이 패키지 아래에 위치
+├── menu                     ← 메뉴 관리
+├── user                     ← 사용자 관리
+├── organization             ← 조직 관리
+├── role                     ← 역할 관리
+├── authority                ← 권한 관리
+├── task                     ← 업무 관리
+│   ├── folder
+│   ├── post
+│   ├── comment
+│   └── block
+├── config                   ← 설정
+└── common                   ← 공통 유틸리티
+```
+
+**중요 원칙:**
+- ✅ **반드시** `com.mapo.palantier` 패키지 아래에 모든 코드 작성
+- ✅ Spring Boot 기본 컴포넌트 스캔 활용 (추가 설정 불필요)
+- ❌ `@ComponentScan`, `@MapperScan` 명시적 설정 금지
+- ❌ 다른 루트 패키지(`com.palantier` 등) 사용 금지
+
+**이유:**
+- Spring Boot는 메인 클래스(`@SpringBootApplication`)의 패키지를 루트로 자동 스캔
+- 명시적 스캔 설정은 유지보수 복잡도 증가
+- 패키지 구조 일관성 유지
+
 ### Frontend (parantier-front)
 - React + TypeScript
 - TanStack Router
