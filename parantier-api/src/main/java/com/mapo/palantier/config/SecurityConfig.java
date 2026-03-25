@@ -60,6 +60,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/check-email").permitAll()
                 // Menu endpoints - 메뉴 조회는 인증 없이 접근 가능 (동적 네비게이션용)
                 .requestMatchers("/api/menus/**").permitAll()
+                // WebSocket endpoints - 인증 없이 접근 가능 (실시간 통신용)
+                .requestMatchers("/ws/**").permitAll()
                 // Admin endpoints - 관리자 전용
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // 나머지 Actuator endpoints - 인증 필요
