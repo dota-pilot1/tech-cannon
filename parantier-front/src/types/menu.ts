@@ -7,7 +7,7 @@ export interface Menu {
   parentId: number | null
   menuType: MenuType
   orderNum: number
-  requiredRole: 'USER' | 'ADMIN' | null
+  requiredRole: 'ROLE_USER' | 'ROLE_ADMIN' | null
   icon: string | null
   isActive: boolean
   createdAt: string
@@ -21,6 +21,6 @@ export interface CreateMenuRequest {
   parentId?: number
   menuType: MenuType
   orderNum?: number
-  requiredRole?: 'USER' | 'ADMIN'
+  requiredRole?: 'ROLE_USER' | 'ROLE_ADMIN'
   icon?: string
 }
