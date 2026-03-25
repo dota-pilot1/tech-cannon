@@ -13,6 +13,7 @@ import { WorkspacePage } from '@/pages/admin/workspace/WorkspacePage'
 import { AuthoritiesPage } from '@/pages/admin/authorities/AuthoritiesPage'
 import { OrganizationsPage } from '@/pages/admin/organizations/OrganizationsPage'
 import { RolesPage } from '@/pages/admin/roles/RolesPage'
+import TasksPage from '@/features/task/components/TasksPage'
 import { authStore } from '@/entities/user/model/authStore'
 import { toast } from 'sonner'
 
@@ -125,6 +126,13 @@ const adminRolesRoute = createRoute({
   component: RolesPage,
 })
 
+// 업무 관리 (ROLE_USER 이상)
+const tasksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/tasks',
+  component: TasksPage,
+})
+
 // Route Tree
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -135,6 +143,7 @@ const routeTree = rootRoute.addChildren([
   adminAuthoritiesRoute,
   adminOrganizationsRoute,
   adminRolesRoute,
+  tasksRoute,
 ])
 
 // Router 생성
