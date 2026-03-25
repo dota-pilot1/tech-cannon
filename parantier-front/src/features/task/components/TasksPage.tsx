@@ -30,11 +30,13 @@ function FolderContextMenu({
   menu: FolderCtxMenu
   onClose: () => void
   onAddSubFolder: (parentId: number) => void
-  onAddDoc: (folderId: number) => void
+  onAddDoc: (folderId: number, blockType: BlockType) => void
   onRename: (id: number, name: string) => void
   onDelete: (id: number, name: string) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const [showDocSubmenu, setShowDocSubmenu] = useState(false)
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose()
@@ -45,21 +47,55 @@ function FolderContextMenu({
 
   if (!menu) return null
 
+  const docTypes: Array<{ type: BlockType; label: string }> = [
+    { type: 'NOTE', label: '노트' },
+    { type: 'MMD', label: '다이어그램' },
+    { type: 'FIGMA', label: 'Figma' },
+    { type: 'FILE', label: '파일' },
+    { type: 'DBTABLE', label: 'DB 테이블' },
+  ]
+
   return (
     <div
       ref={ref}
       className="fixed z-50 bg-white border rounded shadow-xl py-1 min-w-[180px] text-sm"
       style={{ top: menu.y, left: menu.x }}
     >
-      <button
-        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
-        onClick={() => {
-          onAddDoc(menu.folderId)
-          onClose()
-        }}
-      >
-        <span>📄</span> 새 Task 추가
-      </button>
+      <div className="relative">
+        <button
+          className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between gap-2"
+          onMouseEnter={() => setShowDocSubmenu(true)}
+          onMouseLeave={() => setShowDocSubmenu(false)}
+        >
+          <div className="flex items-center gap-2">
+            <span>📄</span> 새 Task 추가
+          </div>
+          <span className="text-xs text-gray-400">▶</span>
+        </button>
+        {showDocSubmenu && (
+          <div
+            className="absolute left-full top-0 ml-1 bg-white border rounded shadow-xl py-1 min-w-[160px]"
+            onMouseEnter={() => setShowDocSubmenu(true)}
+            onMouseLeave={() => setShowDocSubmenu(false)}
+          >
+            {docTypes.map(({ type, label }) => {
+              const meta = TYPE_META[type]
+              return (
+                <button
+                  key={type}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
+                  onClick={() => {
+                    onAddDoc(menu.folderId, type)
+                    onClose()
+                  }}
+                >
+                  <span>{meta.icon}</span> {label}
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
       <button
         className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
         onClick={() => {
@@ -180,13 +216,13 @@ export default function TasksPage() {
     setIsEditing(false)
   }
 
-  const openNewDoc = (folderId: number) => {
+  const openNewDoc = (folderId: number, blockType: BlockType = 'NOTE') => {
     setSelectedFolderId(folderId)
     setExpandedFolders((p) => new Set(p).add(folderId))
     setSelectedPostId(null)
     setIsEditing(true)
     setFormTitle('')
-    setBlocks([{ blockType: 'NOTE', content: '' }])
+    setBlocks([{ blockType, content: '' }])
   }
 
   const handleEdit = () => {
@@ -397,7 +433,7 @@ export default function TasksPage() {
         menu={folderCtxMenu}
         onClose={() => setFolderCtxMenu(null)}
         onAddSubFolder={(parentId) => openInlineFolderInput(parentId)}
-        onAddDoc={(folderId) => openNewDoc(folderId)}
+        onAddDoc={(folderId, blockType) => openNewDoc(folderId, blockType)}
         onRename={(id, name) => {
           setEditingFolderId(id)
           setEditingFolderName(name)
