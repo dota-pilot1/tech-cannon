@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.palantier.domain.task.comment.TaskCommentMapper">
+
+    <resultMap id="TaskCommentResultMap" type="com.palantier.domain.task.comment.TaskComment">
+        <id property="id" column="id"/>
+        <result property="postId" column="post_id"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="content" column="content"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="deletedAt" column="deleted_at"/>
+    </resultMap>
+
+    <select id="findByPostId" resultMap="TaskCommentResultMap">
+        SELECT c.id, c.post_id, c.author_id,
+               u.username as author_name,
+               c.content, c.created_at, c.updated_at
+        FROM task_comments c
+        JOIN users u ON c.author_id = u.id
+        WHERE c.post_id = #{postId}
+          AND c.deleted_at IS NULL
+        ORDER BY c.created_at ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO task_comments (post_id, author_id, content)
+        VALUES (#{postId}, #{authorId}, #{content})
+    </insert>
+
+    <update id="softDelete">
+        UPDATE task_comments
+        SET deleted_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

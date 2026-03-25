@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.palantier.domain.task.block.TaskBlockMapper">
+
+    <resultMap id="TaskBlockResultMap" type="com.palantier.domain.task.block.TaskBlock">
+        <id property="id" column="id"/>
+        <result property="postId" column="post_id"/>
+        <result property="blockType" column="block_type" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="content" column="content"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByPostId" resultMap="TaskBlockResultMap">
+        SELECT id, post_id, block_type, content, sort_order, created_at, updated_at
+        FROM task_blocks
+        WHERE post_id = #{postId}
+        ORDER BY sort_order
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO task_blocks (post_id, block_type, content, sort_order)
+        VALUES (#{postId}, #{blockType}, #{content}, #{sortOrder})
+    </insert>
+
+    <delete id="deleteByPostId">
+        DELETE FROM task_blocks WHERE post_id = #{postId}
+    </delete>
+
+</mapper>

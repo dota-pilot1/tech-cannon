@@ -1,0 +1,413 @@
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { useConfirm } from '@/shared/hooks/useConfirm'
+import { toast } from 'sonner'
+import {
+  useTaskFolders,
+  useTaskPosts,
+  useTaskPostDetail,
+  useSaveTaskMutation,
+  useDeleteTaskMutation,
+  useCreateFolderMutation,
+  useRenameFolderMutation,
+  useDeleteFolderMutation,
+} from '../hooks/useTask'
+import type { TaskFolder, TaskPost, TaskBlock, BlockType } from '../types/task.types'
+import { buildTree, TYPE_META } from '../types/task.types'
+import TaskBlockEditor from './TaskBlockEditor'
+import TaskBlockViewer from './TaskBlockViewer'
+
+export default function TasksPage() {
+  const { confirm, ConfirmDialog } = useConfirm()
+
+  const { data: folders = [] } = useTaskFolders()
+  const { roots, children: folderChildren } = useMemo(() => buildTree(folders), [folders])
+
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null)
+  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set())
+
+  const [sidebarWidth, setSidebarWidth] = useState(250)
+  const isResizing = useRef(false)
+
+  const [isEditing, setIsEditing] = useState(false)
+  const [formTitle, setFormTitle] = useState('')
+  const [blocks, setBlocks] = useState<TaskBlock[]>([])
+
+  const [editingFolderId, setEditingFolderId] = useState<number | null>(null)
+  const [editingFolderName, setEditingFolderName] = useState('')
+  const [inlineFolderInput, setInlineFolderInput] = useState<{ parentId: number | null } | null>(null)
+  const [inlineFolderName, setInlineFolderName] = useState('')
+
+  const { data: posts = [] } = useTaskPosts(selectedFolderId)
+  const { data: postDetail } = useTaskPostDetail(selectedPostId, !isEditing)
+
+  const saveMutation = useSaveTaskMutation(selectedFolderId, selectedPostId, (newId) => {
+    setSelectedPostId(newId)
+    setIsEditing(false)
+  })
+
+  const deleteMutation = useDeleteTaskMutation(selectedFolderId, () => {
+    setSelectedPostId(null)
+    setIsEditing(false)
+  })
+
+  const createFolderMutation = useCreateFolderMutation((parentId) => {
+    setInlineFolderInput(null)
+    setInlineFolderName('')
+    if (parentId !== null) setExpandedFolders((p) => new Set(p).add(parentId))
+  })
+
+  const renameFolderMutation = useRenameFolderMutation(() => {
+    setEditingFolderId(null)
+  })
+
+  const deleteFolderMutation = useDeleteFolderMutation(() => {
+    setSelectedFolderId(null)
+    setSelectedPostId(null)
+  })
+
+  // Sidebar resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return
+      setSidebarWidth(Math.max(200, Math.min(800, e.clientX - 24)))
+    }
+    const handleMouseUp = () => {
+      if (isResizing.current) {
+        isResizing.current = false
+        document.body.style.cursor = 'default'
+      }
+    }
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
+
+  const handleFolderClick = (id: number) => {
+    setSelectedFolderId(id)
+    setSelectedPostId(null)
+    setIsEditing(false)
+    setExpandedFolders((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handlePostClick = (post: TaskPost) => {
+    setSelectedPostId(post.id)
+    setIsEditing(false)
+  }
+
+  const openNewDoc = (folderId: number) => {
+    setSelectedFolderId(folderId)
+    setExpandedFolders((p) => new Set(p).add(folderId))
+    setSelectedPostId(null)
+    setIsEditing(true)
+    setFormTitle('')
+    setBlocks([{ blockType: 'NOTE', content: '' }])
+  }
+
+  const handleEdit = () => {
+    if (!postDetail) return
+    setFormTitle(postDetail.title)
+    setBlocks(postDetail.blocks?.length ? [...postDetail.blocks] : [{ blockType: 'NOTE', content: '' }])
+    setIsEditing(true)
+  }
+
+  const handleSave = async () => {
+    if (!formTitle.trim()) {
+      toast.error('제목을 입력하세요')
+      return
+    }
+    if (!selectedFolderId) return
+
+    const refinedBlocks = blocks.map((b, idx) => ({
+      blockType: b.blockType,
+      content: b.content,
+    }))
+
+    saveMutation.mutate({
+      id: selectedPostId || undefined,
+      folderId: selectedFolderId,
+      title: formTitle,
+      blocks: refinedBlocks,
+    })
+  }
+
+  const handleDelete = async () => {
+    if (!selectedPostId) return
+    const ok = await confirm({
+      title: '삭제 확인',
+      description: '이 Task를 삭제하시겠습니까?',
+      variant: 'destructive',
+    })
+    if (ok) deleteMutation.mutate(selectedPostId)
+  }
+
+  const handleDeleteFolder = async (id: number, name: string) => {
+    const ok = await confirm({
+      title: '폴더 삭제',
+      description: `"${name}" 폴더와 하위 Task가 모두 삭제됩니다.`,
+      variant: 'destructive',
+    })
+    if (ok) deleteFolderMutation.mutate(id)
+  }
+
+  const handleCreateFolder = () => {
+    if (!inlineFolderName.trim()) return
+    createFolderMutation.mutate({
+      name: inlineFolderName.trim(),
+      parentId: inlineFolderInput?.parentId ?? null,
+    })
+  }
+
+  const openInlineFolderInput = (parentId: number | null) => {
+    setInlineFolderInput({ parentId })
+    setInlineFolderName('')
+    if (parentId !== null) setExpandedFolders((p) => new Set(p).add(parentId))
+  }
+
+  // 인라인 폴더명 입력
+  const renderInlineFolderInput = (depth: number) => (
+    <div
+      className="flex items-center gap-1 py-1"
+      style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: '4px' }}
+    >
+      <span className="text-[10px] text-gray-300 w-3 shrink-0">·</span>
+      <span className="shrink-0 text-base">📁</span>
+      <input
+        autoFocus
+        value={inlineFolderName}
+        onChange={(e) => setInlineFolderName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return
+          if (e.key === 'Enter') handleCreateFolder()
+          if (e.key === 'Escape') {
+            setInlineFolderInput(null)
+            setInlineFolderName('')
+          }
+        }}
+        placeholder="이름 입력 후 Enter"
+        className="flex-1 border border-blue-400 rounded px-1.5 py-0.5 text-xs min-w-0 focus:outline-none focus:ring-1 focus:ring-blue-400"
+      />
+    </div>
+  )
+
+  // 폴더 렌더링
+  const renderFolder = (folder: TaskFolder, depth = 0) => {
+    const isSelected = selectedFolderId === folder.id
+    const isExpanded = expandedFolders.has(folder.id)
+    const subFolders = folderChildren[folder.id] ?? []
+    const isEditingThis = editingFolderId === folder.id
+
+    return (
+      <div key={folder.id}>
+        <div
+          className={`group flex items-center gap-1 py-1.5 cursor-pointer rounded text-sm transition-colors ${
+            isSelected ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+          }`}
+          style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: '4px' }}
+          onClick={() => handleFolderClick(folder.id)}
+        >
+          <span className="text-[10px] text-gray-400 w-3 shrink-0">{isExpanded ? '▼' : '▶'}</span>
+          <span className="shrink-0">📁</span>
+          {isEditingThis ? (
+            <input
+              autoFocus
+              value={editingFolderName}
+              onChange={(e) => setEditingFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return
+                if (e.key === 'Enter')
+                  renameFolderMutation.mutate({ id: folder.id, dto: { name: editingFolderName, parentId: folder.parentId } })
+                if (e.key === 'Escape') setEditingFolderId(null)
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 border rounded px-1 py-0 text-xs min-w-0"
+            />
+          ) : (
+            <span className="flex-1 truncate min-w-0">{folder.name}</span>
+          )}
+          {!isEditingThis && (
+            <div className="hidden group-hover:flex gap-1 shrink-0">
+              <button
+                className="text-xs text-gray-500 hover:text-blue-600 px-1"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  openNewDoc(folder.id)
+                }}
+                title="새 Task"
+              >
+                +
+              </button>
+              <button
+                className="text-xs text-gray-500 hover:text-gray-700 px-1"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setEditingFolderId(folder.id)
+                  setEditingFolderName(folder.name)
+                }}
+                title="이름 변경"
+              >
+                ✏️
+              </button>
+              <button
+                className="text-xs text-gray-500 hover:text-red-600 px-1"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDeleteFolder(folder.id, folder.name)
+                }}
+                title="삭제"
+              >
+                🗑️
+              </button>
+            </div>
+          )}
+        </div>
+
+        {isExpanded && (
+          <>
+            {subFolders.map((sub) => renderFolder(sub, depth + 1))}
+            {inlineFolderInput?.parentId === folder.id && renderInlineFolderInput(depth + 1)}
+            {isSelected &&
+              posts.map((post) => {
+                const primaryType = post.blocks?.[0]?.blockType ?? 'NOTE'
+                const meta = TYPE_META[primaryType as BlockType] ?? TYPE_META.NOTE
+                return (
+                  <div
+                    key={post.id}
+                    onClick={() => handlePostClick(post)}
+                    className={`flex items-center gap-1.5 py-1 cursor-pointer rounded text-sm transition-colors ${
+                      selectedPostId === post.id
+                        ? 'bg-blue-100 text-blue-800 font-medium'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                    style={{ paddingLeft: `${(depth + 1) * 14 + 8}px`, paddingRight: '8px' }}
+                  >
+                    <span className="text-xs shrink-0">{meta.icon}</span>
+                    <span className="truncate min-w-0">{post.title}</span>
+                  </div>
+                )
+              })}
+          </>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <ConfirmDialog />
+
+      <div className="bg-white rounded border mb-4">
+        <div className="p-3 border-b bg-gray-50">
+          <h1 className="text-lg font-bold">Task 관리</h1>
+        </div>
+      </div>
+
+      <div className="flex items-stretch" style={{ minHeight: 'calc(100vh - 120px)' }}>
+        {/* 좌: 트리 */}
+        <div
+          className="shrink-0 bg-white rounded border flex flex-col h-full"
+          style={{ width: `${sidebarWidth}px`, maxHeight: 'calc(100vh - 120px)' }}
+        >
+          <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+            <span className="font-medium text-sm">폴더</span>
+            <button
+              onClick={() => openInlineFolderInput(null)}
+              className="px-2 py-0.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+            >
+              + 폴더
+            </button>
+          </div>
+
+          <div className="overflow-y-auto py-1" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+            {roots.length === 0 && !inlineFolderInput ? (
+              <p className="text-xs text-gray-400 text-center py-4">+ 폴더 버튼으로 추가하세요.</p>
+            ) : (
+              roots.map((f) => renderFolder(f))
+            )}
+            {inlineFolderInput?.parentId === null && renderInlineFolderInput(0)}
+          </div>
+        </div>
+
+        {/* 크기 조절 핸들 */}
+        <div
+          className="w-4 cursor-col-resize flex flex-col justify-center items-center group z-10 mx-[-2px]"
+          onMouseDown={(e) => {
+            e.preventDefault()
+            isResizing.current = true
+            document.body.style.cursor = 'col-resize'
+          }}
+        >
+          <div className="w-[1px] h-full bg-gray-200 group-hover:bg-blue-400 group-active:bg-blue-500 transition-colors"></div>
+        </div>
+
+        {/* 우: 상세 */}
+        <div className="flex-1 min-w-0 bg-white rounded border">
+          <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+            <span className="font-medium text-sm">
+              {isEditing ? (selectedPostId ? 'Task 편집' : '새 Task') : 'Task 상세'}
+            </span>
+            <div className="flex gap-1">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleSave}
+                    disabled={saveMutation.isPending}
+                    className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    저장
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-3 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500"
+                  >
+                    취소
+                  </button>
+                </>
+              ) : selectedPostId ? (
+                <>
+                  <button
+                    onClick={handleEdit}
+                    className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                  >
+                    편집
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    삭제
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="p-4">
+            {isEditing ? (
+              <TaskBlockEditor
+                title={formTitle}
+                setTitle={setFormTitle}
+                blocks={blocks}
+                setBlocks={setBlocks}
+              />
+            ) : postDetail ? (
+              <TaskBlockViewer post={postDetail} />
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">
+                {selectedFolderId ? '폴더에서 + 버튼으로 새 Task 추가' : '좌측에서 폴더를 선택하세요.'}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
