@@ -50,6 +50,7 @@ export function ChatRoomPage() {
   }
 
   useEffect(() => {
+    if (!roomId) return
 
     // WebSocket 연결 설정
     const client = new Client({
@@ -59,12 +60,13 @@ export function ChatRoomPage() {
       heartbeatOutgoing: 4000,
 
       onConnect: () => {
-        console.log('WebSocket Connected')
+        console.log(`WebSocket Connected - Room ${roomId}`)
         setIsConnected(true)
 
-        // /topic/messages 구독 (나중에 /topic/room/{roomId}로 변경)
-        client.subscribe('/topic/messages', (message) => {
+        // 채팅방별 토픽 구독: /topic/room/{roomId}
+        client.subscribe(`/topic/room/${roomId}`, (message) => {
           const receivedMessage = JSON.parse(message.body) as ChatMessage
+          console.log('Received message in room', roomId, receivedMessage)
           setMessages((prev) => [...prev, receivedMessage])
         })
       },
@@ -86,7 +88,7 @@ export function ChatRoomPage() {
     return () => {
       client.deactivate()
     }
-  }, [])
+  }, [roomId])
 
   // 메시지 자동 스크롤
   useEffect(() => {
@@ -94,18 +96,18 @@ export function ChatRoomPage() {
   }, [messages])
 
   const sendMessage = () => {
-    if (!inputMessage.trim() || !isConnected || !clientRef.current) return
+    if (!inputMessage.trim() || !isConnected || !clientRef.current || !roomId) return
 
     const message: ChatMessage = {
-      senderId: 1, // 임시 ID
+      senderId: currentUserId || 1,
       senderName: username,
       content: inputMessage,
       messageType: 'TEXT',
     }
 
-    // /app/chat.send 로 메시지 전송
+    // 채팅방별 메시지 전송: /app/chat/{roomId}/send
     clientRef.current.publish({
-      destination: '/app/chat.send',
+      destination: `/app/chat/${roomId}/send`,
       body: JSON.stringify(message),
     })
 
