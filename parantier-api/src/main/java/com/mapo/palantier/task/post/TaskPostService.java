@@ -17,6 +17,10 @@ public class TaskPostService {
     private final TaskPostMapper taskPostMapper;
     private final TaskBlockMapper taskBlockMapper;
 
+    public List<TaskPost> getAllPosts() {
+        return taskPostMapper.findAll();
+    }
+
     public List<TaskPost> getPostsByFolderId(Long folderId) {
         return taskPostMapper.findByFolderId(folderId);
     }

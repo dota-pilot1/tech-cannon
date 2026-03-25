@@ -19,11 +19,14 @@ import java.util.List;
 public class TaskPostController {
     private final TaskPostService taskPostService;
 
-    @Operation(summary = "폴더별 게시글 목록 조회")
+    @Operation(summary = "폴더별 게시글 목록 조회 (folderId 없으면 전체 조회)")
     @GetMapping
     public ResponseEntity<List<TaskPost>> getPostsByFolder(
-            @RequestParam Long folderId
+            @RequestParam(required = false) Long folderId
     ) {
+        if (folderId == null) {
+            return ResponseEntity.ok(taskPostService.getAllPosts());
+        }
         return ResponseEntity.ok(taskPostService.getPostsByFolderId(folderId));
     }
 

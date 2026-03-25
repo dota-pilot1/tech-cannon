@@ -8,6 +8,7 @@ import java.util.Optional;
 
 @Mapper
 public interface TaskPostMapper {
+    List<TaskPost> findAll();
     List<TaskPost> findByFolderId(@Param("folderId") Long folderId);
     Optional<TaskPost> findById(@Param("id") Long id);
     Optional<TaskPost> findByIdWithBlocks(@Param("id") Long id);
