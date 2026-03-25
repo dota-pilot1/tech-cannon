@@ -159,9 +159,18 @@ export default function TasksPage() {
   }
 
   const handleCreateFolder = () => {
-    if (!inlineFolderName.trim()) return
+    const trimmedName = inlineFolderName.trim()
+    console.log('[TasksPage] handleCreateFolder 호출:', { trimmedName, parentId: inlineFolderInput?.parentId })
+
+    if (!trimmedName) {
+      console.log('[TasksPage] 폴더명이 비어있어서 취소')
+      toast.error('폴더명을 입력하세요')
+      return
+    }
+
+    console.log('[TasksPage] createFolderMutation.mutate 호출')
     createFolderMutation.mutate({
-      name: inlineFolderName.trim(),
+      name: trimmedName,
       parentId: inlineFolderInput?.parentId ?? null,
     })
   }

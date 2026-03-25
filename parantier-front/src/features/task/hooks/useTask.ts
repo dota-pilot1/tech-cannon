@@ -20,6 +20,10 @@ export function useCreateFolderMutation(onSuccess?: (parentId: number | null) =>
       toast.success('폴더가 생성되었습니다')
       if (onSuccess) onSuccess(variables.parentId)
     },
+    onError: (error: any) => {
+      console.error('[useCreateFolderMutation] 에러:', error)
+      toast.error('폴더 생성 실패: ' + (error?.message || '알 수 없는 오류'))
+    },
   })
 }
 
