@@ -198,6 +198,46 @@ import { User, Building2, Trash2, Edit, Plus } from 'lucide-react'
 <User className="w-4 h-4" />
 ```
 
+## API 구성 가이드
+
+### Axios baseURL 설정
+
+**중요: API 엔드포인트 중복 방지**
+
+프론트엔드에서 axios를 사용할 때 baseURL과 개별 API 호출의 경로가 중복되지 않도록 주의해야 합니다.
+
+**현재 설정** (`parantier-front/src/shared/api/axios.ts`):
+```typescript
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+
+export const apiClient = axios.create({
+  baseURL,  // 이미 /api 포함
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+```
+
+**올바른 API 호출 방법**:
+```typescript
+// ✅ 올바른 방법 - /api 접두사 제거
+apiClient.get('/tasks/folders')  // → http://localhost:8080/api/tasks/folders
+
+// ❌ 잘못된 방법 - /api 중복
+apiClient.get('/api/tasks/folders')  // → http://localhost:8080/api/api/tasks/folders
+```
+
+**발생했던 문제**:
+- 증상: `No static resource api/api/tasks/folders for request '/api/api/tasks/folders'`
+- 원인: baseURL에 `/api`가 포함되어 있는데, API 호출 시에도 `/api/tasks/...` 사용
+- 결과: `/api/api/tasks/...` 형태로 중복된 경로 생성
+- 해결: 모든 API 호출에서 `/api` 접두사 제거
+
+**모범 사례**:
+1. baseURL에는 공통 경로(`/api`)를 포함
+2. 개별 API 함수에서는 리소스 경로만 명시 (`/tasks/...`, `/users/...`)
+3. 절대 경로 형태가 필요한 경우 axios 인스턴스 대신 전체 URL 사용
+
 ## Git Commit 규칙
 
 - feat: 새로운 기능
