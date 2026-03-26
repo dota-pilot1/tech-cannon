@@ -43,6 +43,9 @@ export function IssuesPage() {
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null)
   const [isEditing, setIsEditing] = useState(false)
 
+  // 수정된 행 추적
+  const [modifiedRowIds, setModifiedRowIds] = useState<Set<number>>(new Set())
+
   // 필터 상태
   const [filterStatus, setFilterStatus] = useState<string>('ALL')
   const [filterCategory, setFilterCategory] = useState<string>('ALL')
@@ -106,9 +109,145 @@ export function IssuesPage() {
     []
   )
 
+  // 상태 레이블
+  const statusLabels: Record<IssueStatus, string> = {
+    OPEN: '진행 전',
+    IN_PROGRESS: '진행 중',
+    CLOSED: '완료',
+  }
+
+  // 셀 값 변경 핸들러 (수정 플래그만 설정, 저장은 안함)
+  const onCellValueChanged = (params: any) => {
+    const { data, newValue, oldValue } = params
+
+    if (newValue === oldValue) return
+
+    // 수정된 행 ID 추가
+    setModifiedRowIds((prev) => new Set(prev).add(data.id))
+
+    // 그리드 행 스타일 업데이트를 위해 리프레시
+    params.api.refreshCells({ rowNodes: [params.node], force: true })
+  }
+
+  // 새 행 추가
+  const handleAddRow = () => {
+    const newRow: Partial<Issue> = {
+      id: -(Date.now()), // 음수 ID = 신규
+      title: '',
+      content: '',
+      category: 'COMMON',
+      status: 'OPEN',
+      priority: 'MEDIUM',
+      assigneeName: '',
+    }
+
+    gridRef.current?.api.applyTransaction({ add: [newRow as Issue], addIndex: 0 })
+    setModifiedRowIds((prev) => new Set(prev).add(newRow.id!))
+  }
+
+  // 선택된 행 삭제
+  const handleDeleteSelected = async () => {
+    const selectedRows = gridRef.current?.api.getSelectedRows() || []
+
+    if (selectedRows.length === 0) {
+      toast.info('삭제할 행을 선택하세요.')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: '행 삭제',
+      description: `선택한 ${selectedRows.length}개 행을 삭제하시겠습니까?`,
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'destructive',
+    })
+
+    if (!confirmed) return
+
+    // 기존 이슈 삭제 (API 호출)
+    const existingIssues = selectedRows.filter((r) => r.id > 0)
+    for (const row of existingIssues) {
+      await deleteIssue(row.id)
+    }
+
+    // 그리드에서 제거
+    gridRef.current?.api.applyTransaction({ remove: selectedRows })
+
+    // 수정 플래그에서 제거
+    const idsToRemove = selectedRows.map((r) => r.id)
+    setModifiedRowIds((prev) => {
+      const newSet = new Set(prev)
+      idsToRemove.forEach((id) => newSet.delete(id))
+      return newSet
+    })
+
+    toast.success(`${selectedRows.length}개 항목이 삭제되었습니다.`)
+  }
+
+  // 수정/신규 행 일괄 저장
+  const handleSaveModified = async () => {
+    if (modifiedRowIds.size === 0) {
+      toast.info('수정된 항목이 없습니다.')
+      return
+    }
+
+    const modifiedRows: Issue[] = []
+    gridRef.current?.api.forEachNode((node) => {
+      if (modifiedRowIds.has(node.data.id)) {
+        modifiedRows.push(node.data)
+      }
+    })
+
+    // 신규/수정 구분
+    const newRows = modifiedRows.filter((r) => r.id < 0)
+    const updatedRows = modifiedRows.filter((r) => r.id > 0)
+
+    // 신규 행 생성
+    for (const row of newRows) {
+      await createIssue({
+        title: row.title || '제목 없음',
+        content: row.content || '',
+        category: row.category,
+        status: row.status,
+        priority: row.priority,
+      })
+    }
+
+    // 수정된 행 업데이트
+    for (const row of updatedRows) {
+      await updateIssue({
+        id: row.id,
+        request: {
+          title: row.title,
+          content: row.content,
+          category: row.category,
+          status: row.status,
+          priority: row.priority,
+        },
+      })
+    }
+
+    // 저장 후 그리드에서 음수 ID 행 제거
+    if (newRows.length > 0) {
+      gridRef.current?.api.applyTransaction({ remove: newRows })
+    }
+
+    // 수정 플래그 초기화
+    setModifiedRowIds(new Set())
+    toast.success(`신규 ${newRows.length}개, 수정 ${updatedRows.length}개 항목이 저장되었습니다.`)
+  }
+
   // 컬럼 정의 (좌측 목록용 - 간소화)
   const columnDefs = useMemo<ColDef<Issue>[]>(
     () => [
+      {
+        headerName: '',
+        field: 'id',
+        width: 50,
+        checkboxSelection: true,
+        headerCheckboxSelection: true,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
+      },
       {
         headerName: 'ID',
         field: 'id',
@@ -120,19 +259,20 @@ export function IssuesPage() {
         field: 'title',
         flex: 1,
         minWidth: 200,
+        editable: true,
         cellStyle: { display: 'flex', alignItems: 'center' } as any,
       },
       {
         headerName: '상태',
         field: 'status',
         width: 100,
-        cellRenderer: (params: any) => {
+        editable: true,
+        cellEditor: 'agSelectCellEditor',
+        cellEditorParams: {
+          values: ['OPEN', 'IN_PROGRESS', 'CLOSED'],
+        },
+        valueFormatter: (params: any) => {
           const status = params.value as IssueStatus
-          const statusLabels: Record<IssueStatus, string> = {
-            OPEN: '진행 전',
-            IN_PROGRESS: '진행 중',
-            CLOSED: '완료',
-          }
           return statusLabels[status] || status
         },
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
@@ -156,6 +296,14 @@ export function IssuesPage() {
       resizable: true,
     }),
     []
+  )
+
+  // 수정된 행에 스타일 적용
+  const rowClassRules = useMemo(
+    () => ({
+      'bg-yellow-50': (params: any) => modifiedRowIds.has(params.data.id),
+    }),
+    [modifiedRowIds]
   )
 
   // 행 선택 이벤트
@@ -406,12 +554,6 @@ export function IssuesPage() {
     }
   }
 
-  const statusLabels: Record<IssueStatus, string> = {
-    OPEN: '진행 전',
-    IN_PROGRESS: '진행 중',
-    CLOSED: '완료',
-  }
-
   const priorityLabels: Record<IssuePriority, string> = {
     LOW: '낮음',
     MEDIUM: '보통',
@@ -484,14 +626,33 @@ export function IssuesPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측: 이슈 목록 */}
         <div className="w-[45%] border-r border-border p-4 overflow-hidden flex flex-col">
+          {/* Grid Toolbar */}
+          <div className="flex justify-end gap-2 mb-2 pb-2 border-b">
+            <Button onClick={handleAddRow} size="sm" variant="outline">
+              <Plus className="w-4 h-4 mr-1" />
+              행 추가
+            </Button>
+            {modifiedRowIds.size > 0 && (
+              <Button onClick={handleSaveModified} size="sm" variant="default">
+                저장 ({modifiedRowIds.size})
+              </Button>
+            )}
+            <Button onClick={handleDeleteSelected} size="sm" variant="destructive">
+              <Trash2 className="w-4 h-4 mr-1" />
+              삭제
+            </Button>
+          </div>
+
           <div className="flex-1" style={{ height: '100%' }}>
             <AgGridReact<Issue>
               ref={gridRef}
               rowData={issues}
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
-              rowSelection="single"
+              rowSelection="multiple"
               onRowSelected={onRowSelected}
+              onCellValueChanged={onCellValueChanged}
+              rowClassRules={rowClassRules}
               animateRows={true}
               theme={themeQuartz.withParams({
                 headerHeight: 40,
