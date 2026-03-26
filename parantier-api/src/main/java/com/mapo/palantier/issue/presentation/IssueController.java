@@ -3,7 +3,9 @@ package com.mapo.palantier.issue.presentation;
 import com.mapo.palantier.issue.application.IssueService;
 import com.mapo.palantier.issue.domain.Issue;
 import com.mapo.palantier.issue.domain.IssueImage;
+import com.mapo.palantier.issue.domain.IssueAssignee;
 import com.mapo.palantier.issue.infrastructure.IssueImageMapper;
+import com.mapo.palantier.issue.infrastructure.IssueAssigneeMapper;
 import com.mapo.palantier.issue.presentation.dto.CreateIssueRequest;
 import com.mapo.palantier.issue.presentation.dto.IssueResponse;
 import org.springframework.http.ResponseEntity;
@@ -21,10 +23,12 @@ public class IssueController {
 
     private final IssueService issueService;
     private final IssueImageMapper issueImageMapper;
+    private final IssueAssigneeMapper issueAssigneeMapper;
 
-    public IssueController(IssueService issueService, IssueImageMapper issueImageMapper) {
+    public IssueController(IssueService issueService, IssueImageMapper issueImageMapper, IssueAssigneeMapper issueAssigneeMapper) {
         this.issueService = issueService;
         this.issueImageMapper = issueImageMapper;
+        this.issueAssigneeMapper = issueAssigneeMapper;
     }
 
     @GetMapping
@@ -167,4 +171,48 @@ public class IssueController {
     }
 
     public record AddImageRequest(String url, String filename) {}
+
+    // Assignee endpoints
+    @GetMapping("/{issueId}/assignees")
+    public ResponseEntity<List<IssueAssignee>> getIssueAssignees(@PathVariable Long issueId) {
+        List<IssueAssignee> assignees = issueAssigneeMapper.findByIssueId(issueId);
+        return ResponseEntity.ok(assignees);
+    }
+
+    @PostMapping("/{issueId}/assignees")
+    public ResponseEntity<Void> addAssignee(
+            @PathVariable Long issueId,
+            @RequestBody Map<String, Long> request
+    ) {
+        Long userId = request.get("userId");
+        issueAssigneeMapper.insert(issueId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{issueId}/assignees/{userId}")
+    public ResponseEntity<Void> removeAssignee(
+            @PathVariable Long issueId,
+            @PathVariable Long userId
+    ) {
+        issueAssigneeMapper.delete(issueId, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{issueId}/assignees")
+    public ResponseEntity<Void> updateAssignees(
+            @PathVariable Long issueId,
+            @RequestBody UpdateAssigneesRequest request
+    ) {
+        // 기존 담당자 모두 제거
+        issueAssigneeMapper.deleteByIssueId(issueId);
+
+        // 새 담당자 일괄 추가
+        if (request.userIds() != null && !request.userIds().isEmpty()) {
+            issueAssigneeMapper.insertBatch(issueId, request.userIds());
+        }
+
+        return ResponseEntity.ok().build();
+    }
+
+    public record UpdateAssigneesRequest(List<Long> userIds) {}
 }

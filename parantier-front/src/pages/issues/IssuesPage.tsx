@@ -16,12 +16,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/shared/ui/popover'
-import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus } from '@/features/issue/hooks/useIssues'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/shared/ui/dialog'
+import { Checkbox } from '@/shared/ui/checkbox'
+import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus, useUpdateIssueAssignee } from '@/features/issue/hooks/useIssues'
 import { useIssueImages, useUploadIssueImage, useDeleteIssueImage } from '@/features/issue/hooks/useIssueImages'
+import { useIssueAssignees, useUpdateIssueAssignees } from '@/features/issue/hooks/useIssueAssignees'
 import type { Issue, IssueStatus, IssuePriority, IssueCategory } from '@/entities/issue/types/issue'
-import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, Users } from 'lucide-react'
 import { useConfirm } from '@/shared/hooks/useConfirm'
 import { toast } from 'sonner'
+import { useUsers } from '@/features/admin/hooks/useUsers'
 
 // AG-Grid 모듈 등록
 ModuleRegistry.registerModules([AllCommunityModule])
@@ -60,7 +70,18 @@ export function IssuesPage() {
   const { mutate: updateIssue } = useUpdateIssue()
   const { mutate: deleteIssue } = useDeleteIssue()
   const { mutate: updateStatus } = useUpdateIssueStatus()
+  const { mutate: updateAssignee } = useUpdateIssueAssignee()
   const { confirm, ConfirmDialog } = useConfirm()
+
+  // 사용자 목록 (담당자 선택용)
+  const { data: usersData } = useUsers()
+  const users = usersData || []
+
+  // 담당자 관련
+  const { data: issueAssignees } = useIssueAssignees(selectedIssueId)
+  const { mutate: updateAssignees } = useUpdateIssueAssignees(selectedIssueId!)
+  const [isAssigneeDialogOpen, setIsAssigneeDialogOpen] = useState(false)
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
 
   // 이미지 관련
   const { data: issueImages } = useIssueImages(selectedIssueId)
@@ -117,18 +138,11 @@ export function IssuesPage() {
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
       },
       {
-        headerName: '우선순위',
-        field: 'priority',
+        headerName: '담당자',
+        field: 'assigneeName',
         width: 100,
         cellRenderer: (params: any) => {
-          const priority = params.value as IssuePriority
-          const priorityLabels: Record<IssuePriority, string> = {
-            LOW: '낮음',
-            MEDIUM: '보통',
-            HIGH: '높음',
-            CRITICAL: '긴급',
-          }
-          return priorityLabels[priority] || priority
+          return params.value || '미지정'
         },
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
       },
@@ -277,6 +291,29 @@ export function IssuesPage() {
         priority: issueDetail.priority,
       },
     })
+  }
+
+  // 담당자 Dialog 열기
+  const openAssigneeDialog = () => {
+    if (!selectedIssueId) return
+    // 현재 담당자 목록으로 초기화
+    const currentAssigneeIds = issueAssignees?.map((a) => a.userId) || []
+    setSelectedUserIds(currentAssigneeIds)
+    setIsAssigneeDialogOpen(true)
+  }
+
+  // 담당자 변경 저장
+  const handleSaveAssignees = () => {
+    if (!selectedIssueId) return
+    updateAssignees(selectedUserIds)
+    setIsAssigneeDialogOpen(false)
+  }
+
+  // 담당자 체크박스 토글
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    )
   }
 
   // 이미지 업로드 핸들러
@@ -473,7 +510,7 @@ export function IssuesPage() {
         <div className="flex-1 p-6 overflow-y-auto">
           {isEditing ? (
             /* 편집 모드 */
-            <div className="max-w-3xl">
+            <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">
                   {selectedIssueId ? '이슈 수정' : '새 이슈 작성'}
@@ -560,7 +597,7 @@ export function IssuesPage() {
             </div>
           ) : issueDetail ? (
             /* 조회 모드 */
-            <div className="max-w-3xl">
+            <div>
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-2xl font-bold mb-2">{issueDetail.title}</h2>
@@ -680,7 +717,30 @@ export function IssuesPage() {
                     </tr>
                     <tr className="border-b">
                       <td className="bg-muted px-4 py-2 font-medium">담당자</td>
-                      <td className="px-4 py-2">{issueDetail.assigneeName || '미지정'}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          {issueAssignees && issueAssignees.length > 0 ? (
+                            <>
+                              {issueAssignees.map((assignee) => (
+                                <Badge key={assignee.userId} variant="outline">
+                                  {assignee.username}
+                                </Badge>
+                              ))}
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">미지정</span>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={openAssigneeDialog}
+                            className="h-6 px-2"
+                          >
+                            <Users className="w-3 h-3 mr-1" />
+                            변경
+                          </Button>
+                        </div>
+                      </td>
                       <td className="bg-muted px-4 py-2 font-medium">폴더</td>
                       <td className="px-4 py-2">{issueDetail.folderId || '-'}</td>
                     </tr>
@@ -804,6 +864,41 @@ export function IssuesPage() {
       </div>
 
       <ConfirmDialog />
+
+      {/* 담당자 선택 Dialog */}
+      <Dialog open={isAssigneeDialogOpen} onOpenChange={setIsAssigneeDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>담당자 선택</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2 max-h-96 overflow-y-auto py-4">
+            {users.map((user) => (
+              <div
+                key={user.id}
+                className="flex items-center space-x-2 p-2 hover:bg-accent rounded cursor-pointer"
+                onClick={() => toggleUserSelection(user.id)}
+              >
+                <Checkbox
+                  checked={selectedUserIds.includes(user.id)}
+                  onCheckedChange={() => toggleUserSelection(user.id)}
+                />
+                <label className="flex-1 cursor-pointer">
+                  {user.username}
+                  <span className="text-xs text-muted-foreground ml-2">({user.email})</span>
+                </label>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAssigneeDialogOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleSaveAssignees}>저장</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
