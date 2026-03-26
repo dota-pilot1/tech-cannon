@@ -253,10 +253,10 @@ export function IssuesPage() {
     () => [
       {
         headerName: '',
-        field: 'id',
         width: 50,
         checkboxSelection: true,
         headerCheckboxSelection: true,
+        suppressMovable: true,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
       },
       {
@@ -280,6 +280,12 @@ export function IssuesPage() {
           const status = params.value as IssueStatus
           return statusLabels[status] || status
         },
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
+      },
+      {
+        headerName: '요청자',
+        field: 'authorName',
+        width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
       },
       {
@@ -330,20 +336,19 @@ export function IssuesPage() {
     []
   )
 
-  // 수정된 행에 스타일 적용
+  // 수정된 행 및 선택된 행에 스타일 적용
   const rowClassRules = useMemo(
     () => ({
       'bg-yellow-50': (params: any) => modifiedRowIds.has(params.data.id),
+      'bg-blue-50': (params: any) => params.data.id === selectedIssueId,
     }),
-    [modifiedRowIds]
+    [modifiedRowIds, selectedIssueId]
   )
 
-  // 행 선택 이벤트
-  const onRowSelected = (event: RowSelectedEvent) => {
-    if (event.node.isSelected()) {
-      setSelectedIssueId(event.data.id)
-      setIsEditing(false)
-    }
+  // 행 클릭 이벤트 (상세 보기)
+  const onRowClicked = (event: any) => {
+    setSelectedIssueId(event.data.id)
+    setIsEditing(false)
   }
 
   // 신규 작성
@@ -665,7 +670,7 @@ export function IssuesPage() {
       {/* 메인 컨텐츠: 좌우 분할 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측: 이슈 목록 */}
-        <div className="w-[45%] border-r border-border p-4 overflow-hidden flex flex-col">
+        <div className="w-[55%] border-r border-border p-4 overflow-hidden flex flex-col">
           {/* Grid Toolbar */}
           <div className="flex justify-end gap-2 mb-2 pb-2 border-b">
             <Button onClick={handleAddRow} size="sm" variant="outline">
@@ -690,7 +695,8 @@ export function IssuesPage() {
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               rowSelection="multiple"
-              onRowSelected={onRowSelected}
+              suppressRowClickSelection={true}
+              onRowClicked={onRowClicked}
               onCellValueChanged={onCellValueChanged}
               rowClassRules={rowClassRules}
               animateRows={true}
