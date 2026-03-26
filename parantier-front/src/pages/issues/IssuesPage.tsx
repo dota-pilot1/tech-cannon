@@ -33,8 +33,8 @@ import { useIssueMindmaps, useCreateMindmap, useUpdateMindmap, useDeleteMindmap 
 import { useIssueTasks, useLinkTask, useUnlinkTask } from '@/features/issue/hooks/useIssueTasks'
 import { useIssueDbTables, useCreateDbTable, useUpdateDbTable, useDeleteDbTable } from '@/features/issue/hooks/useIssueDbTables'
 import type { Issue, IssueStatus, IssuePriority, IssueCategory } from '@/entities/issue/types/issue'
-import type { DbColumn, DbTableContent } from '@/entities/issue/types/issueDbTable'
-import { parseTsvToColumns, parseDbTableContent } from '@/entities/issue/types/issueDbTable'
+import type { DbTableContent } from '@/entities/issue/types/issueDbTable'
+import { parseDbTableContent, parseTsvToColumns } from '@/entities/issue/types/issueDbTable'
 import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, Users, ChevronRight, ChevronLeft, FileText, Database } from 'lucide-react'
 import { useConfirm } from '@/shared/hooks/useConfirm'
 import { toast } from 'sonner'
@@ -714,6 +714,7 @@ export function IssuesPage() {
         schema: '',
         category: '',
         description: '',
+        queryResult: '',
         columns: [],
       })
     }
@@ -726,12 +727,25 @@ export function IssuesPage() {
       toast.error('테이블명을 입력하세요')
       return
     }
-    if (dbTableContent.columns.length === 0) {
-      toast.error('최소 1개 이상의 컬럼을 추가하세요')
+    if (!dbTableContent.queryResult.trim()) {
+      toast.error('쿼리 결과를 입력하세요')
       return
     }
 
-    const tableInfo = JSON.stringify(dbTableContent)
+    // 쿼리 결과 파싱
+    const parsedColumns = parseTsvToColumns(dbTableContent.queryResult)
+    if (parsedColumns.length === 0) {
+      toast.error('유효한 쿼리 결과를 입력하세요')
+      return
+    }
+
+    // columns 추가해서 저장
+    const contentToSave = {
+      ...dbTableContent,
+      columns: parsedColumns,
+    }
+
+    const tableInfo = JSON.stringify(contentToSave)
     const tableName = dbTableContent.tableName
 
     if (selectedDbTableId) {
@@ -759,62 +773,12 @@ export function IssuesPage() {
       schema: '',
       category: '',
       description: '',
+      queryResult: '',
       columns: [],
     })
     setSelectedDbTableId(null)
   }
 
-  // TSV 붙여넣기 핸들러
-  const handleTsvPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const text = e.clipboardData.getData('text/plain')
-    if (text.includes('\t')) {
-      e.preventDefault()
-      const parsed = parseTsvToColumns(text)
-      if (parsed.length > 0) {
-        setDbTableContent((prev) => ({
-          ...prev,
-          columns: parsed,
-        }))
-        toast.success(`${parsed.length}개 컬럼 파싱 완료`)
-      } else {
-        toast.error('유효한 테이블 컬럼 데이터를 찾을 수 없습니다')
-      }
-    }
-  }
-
-  // 컬럼 추가
-  const handleAddColumn = () => {
-    const newCol: DbColumn = {
-      no: dbTableContent.columns.length + 1,
-      name: '',
-      comment: '',
-      type: 'VARCHAR',
-      size: '',
-      pk: false,
-      notNull: false,
-      note: '',
-    }
-    setDbTableContent((prev) => ({
-      ...prev,
-      columns: [...prev.columns, newCol],
-    }))
-  }
-
-  // 컬럼 삭제
-  const handleDeleteColumn = (index: number) => {
-    setDbTableContent((prev) => ({
-      ...prev,
-      columns: prev.columns.filter((_, i) => i !== index).map((col, i) => ({ ...col, no: i + 1 })),
-    }))
-  }
-
-  // 컬럼 업데이트
-  const handleUpdateColumn = (index: number, field: keyof DbColumn, value: string | number | boolean) => {
-    setDbTableContent((prev) => ({
-      ...prev,
-      columns: prev.columns.map((col, i) => (i === index ? { ...col, [field]: value } : col)),
-    }))
-  }
 
   // DB 테이블 삭제
   const handleDeleteDbTable = async (dbTableId: number) => {
@@ -1477,72 +1441,62 @@ export function IssuesPage() {
                                 </div>
                               )}
 
-                              {/* DDL 또는 컬럼 테이블 */}
-                              {content.ddl ? (
-                                <div className="p-4">
-                                  <pre className="bg-gray-50 border rounded p-3 text-xs font-mono overflow-x-auto">
-                                    {content.ddl}
-                                  </pre>
+                              {/* 컬럼 테이블 */}
+                              {content.columns && content.columns.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead className="bg-gray-700 text-white">
+                                      <tr>
+                                        <th className="px-3 py-2 text-left">column_name</th>
+                                        <th className="px-3 py-2 text-left">data_type</th>
+                                        <th className="px-3 py-2 text-center w-20">nullable</th>
+                                        <th className="px-3 py-2 text-center w-12">pk</th>
+                                        <th className="px-3 py-2 text-center w-12">fk</th>
+                                        <th className="px-3 py-2 text-center w-16">unique_key</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {content.columns.map((col, idx) => (
+                                        <tr
+                                          key={idx}
+                                          className={`border-t hover:bg-blue-50 ${
+                                            col.pk === 'PK' ? 'bg-amber-50' : ''
+                                          }`}
+                                        >
+                                          <td className="px-3 py-2 font-medium font-mono text-sm">
+                                            {col.column_name}
+                                          </td>
+                                          <td className="px-3 py-2 font-mono text-xs text-blue-600">
+                                            {col.data_type}
+                                          </td>
+                                          <td className="px-3 py-2 text-center text-muted-foreground">
+                                            {col.nullable}
+                                          </td>
+                                          <td className="px-3 py-2 text-center">
+                                            {col.pk === 'PK' && <span className="text-amber-600">✓</span>}
+                                          </td>
+                                          <td className="px-3 py-2 text-center">
+                                            {col.fk === 'FK' && <span className="text-green-600">✓</span>}
+                                          </td>
+                                          <td className="px-3 py-2 text-center">
+                                            {col.unique_key === 'UQ' && <span className="text-purple-600">✓</span>}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
                                 </div>
                               ) : (
-                                <>
-                                  <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                      <thead className="bg-gray-700 text-white">
-                                        <tr>
-                                          <th className="px-3 py-2 text-center w-12">No</th>
-                                          <th className="px-3 py-2 text-left">컬럼명</th>
-                                          <th className="px-3 py-2 text-left">설명</th>
-                                          <th className="px-3 py-2 text-left">타입</th>
-                                          <th className="px-3 py-2 text-center w-16">크기</th>
-                                          <th className="px-3 py-2 text-center w-12">PK</th>
-                                          <th className="px-3 py-2 text-center w-12">NN</th>
-                                          <th className="px-3 py-2 text-left">비고</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {content.columns.map((col, idx) => (
-                                          <tr
-                                            key={idx}
-                                            className={`border-t hover:bg-blue-50 ${
-                                              col.pk ? 'bg-amber-50' : ''
-                                            }`}
-                                          >
-                                            <td className="px-3 py-2 text-center text-muted-foreground">
-                                              {col.no}
-                                            </td>
-                                            <td className="px-3 py-2 font-medium font-mono text-sm">
-                                              {col.name}
-                                            </td>
-                                            <td className="px-3 py-2 text-muted-foreground">
-                                              {col.comment}
-                                            </td>
-                                            <td className="px-3 py-2 font-mono text-xs text-blue-600">
-                                              {col.type}
-                                            </td>
-                                            <td className="px-3 py-2 text-center text-muted-foreground">
-                                              {col.size}
-                                            </td>
-                                            <td className="px-3 py-2 text-center">
-                                              {col.pk && <span className="text-amber-600">✓</span>}
-                                            </td>
-                                            <td className="px-3 py-2 text-center">
-                                              {col.notNull && <span className="text-blue-600">✓</span>}
-                                            </td>
-                                            <td className="px-3 py-2 text-xs text-muted-foreground">
-                                              {col.note}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </>
+                                <div className="p-4">
+                                  <pre className="bg-gray-50 border rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre">
+                                    {content.queryResult}
+                                  </pre>
+                                </div>
                               )}
 
                               {/* 푸터 */}
                               <div className="px-4 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
-                                {content.ddl ? 'DDL 형식' : `${content.columns.length}개 컬럼`}
+                                {content.columns.length > 0 ? `${content.columns.length}개 컬럼` : '원본 데이터'}
                               </div>
                             </div>
                           )
@@ -1827,122 +1781,81 @@ export function IssuesPage() {
               />
             </div>
 
-            {/* TSV 붙여넣기 영역 */}
-                <div className="bg-amber-50 border-2 border-amber-200 rounded-md p-3">
-                  <label className="text-sm font-semibold mb-2 block text-amber-900">
-                    📋 DBeaver/Excel에서 붙여넣기 (TSV)
-                  </label>
+            {/* 쿼리 결과 입력 */}
+            <div>
+              <label className="text-sm font-semibold mb-2 block">
+                쿼리 결과 <span className="text-red-500">*</span>
+                <span className="text-muted-foreground font-normal ml-2">
+                  (PostgreSQL 쿼리 결과를 그대로 붙여넣으세요)
+                </span>
+              </label>
               <textarea
-                onPaste={handleTsvPaste}
-                placeholder={`DBeaver/Excel에서 범위 선택 후 Ctrl+C → 여기에 Ctrl+V\n\n예시:\nNo\t컬럼명\t설명\t타입\t크기\tPK\tNN\t비고\n1\tid\t사용자ID\tBIGINT\t\tY\tY\tPK\n2\tusername\t사용자명\tVARCHAR\t50\t\tY\t`}
-                className="w-full px-3 py-2 border border-amber-300 rounded-md text-sm font-mono bg-white"
-                rows={4}
+                value={dbTableContent.queryResult}
+                onChange={(e) => setDbTableContent((prev) => ({ ...prev, queryResult: e.target.value }))}
+                placeholder={`DBeaver에서 PostgreSQL 쿼리 결과를 복사해서 붙여넣으세요:\n\ncolumn_name\tdata_type\tnullable\tpk\tfk\tunique_key\nuser_id\tbigint\tNO\tPK\tFK\t\nauthority_id\tbigint\tNO\tPK\tFK\t\ncreated_at\ttimestamp without time zone\tYES\t\t\t`}
+                className="w-full px-3 py-2 border border-input rounded-md text-sm font-mono"
+                rows={8}
               />
-              <p className="text-xs text-amber-700 mt-1.5">
-                DBeaver에서 테이블 컬럼 정보를 선택하고 복사한 후 위 영역에 붙여넣으면 자동으로 파싱됩니다
+              <p className="text-xs text-muted-foreground mt-1.5">
+                PostgreSQL 쿼리 결과를 붙여넣으면 아래에서 미리보기를 확인할 수 있습니다
               </p>
             </div>
 
-            {/* 컬럼 편집 테이블 */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm font-semibold">컬럼 정보</label>
-                <Button variant="outline" size="sm" onClick={handleAddColumn}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  행 추가
-                </Button>
-              </div>
-
-              <div className="border rounded-md overflow-x-auto">
-                <table className="w-full text-sm">
-                  <tbody>
-                    {dbTableContent.columns.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
-                          위의 TSV 붙여넣기 영역에 데이터를 붙여넣거나 "행 추가" 버튼을 클릭하세요
-                        </td>
-                      </tr>
-                    ) : (
-                      dbTableContent.columns.map((col, idx) => (
-                        <tr key={idx} className={`border-t hover:bg-blue-50 ${col.pk ? 'bg-amber-50' : ''}`}>
-                          <td className="px-2 py-1.5 text-center text-muted-foreground">{col.no}</td>
-                          <td className="px-2 py-1.5">
-                            <input
-                              type="text"
-                              value={col.name}
-                              onChange={(e) => handleUpdateColumn(idx, 'name', e.target.value)}
-                              className="w-full px-2 py-1 border rounded text-sm"
-                              placeholder="컬럼명"
-                            />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input
-                              type="text"
-                              value={col.comment}
-                              onChange={(e) => handleUpdateColumn(idx, 'comment', e.target.value)}
-                              className="w-full px-2 py-1 border rounded text-sm"
-                              placeholder="설명"
-                            />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input
-                              type="text"
-                              value={col.type}
-                              onChange={(e) => handleUpdateColumn(idx, 'type', e.target.value)}
-                              className="w-full px-2 py-1 border rounded text-sm font-mono"
-                              placeholder="VARCHAR"
-                            />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input
-                              type="text"
-                              value={col.size}
-                              onChange={(e) => handleUpdateColumn(idx, 'size', e.target.value)}
-                              className="w-full px-2 py-1 border rounded text-sm text-center"
-                              placeholder=""
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 text-center">
-                            <Checkbox
-                              checked={col.pk}
-                              onCheckedChange={(checked) => handleUpdateColumn(idx, 'pk', checked as boolean)}
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 text-center">
-                            <Checkbox
-                              checked={col.notNull}
-                              onCheckedChange={(checked) => handleUpdateColumn(idx, 'notNull', checked as boolean)}
-                            />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input
-                              type="text"
-                              value={col.note}
-                              onChange={(e) => handleUpdateColumn(idx, 'note', e.target.value)}
-                              className="w-full px-2 py-1 border rounded text-sm"
-                              placeholder="FK 등"
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 text-center">
-                            <button
-                              onClick={() => handleDeleteColumn(idx)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </td>
+            {/* 파싱 미리보기 */}
+            {dbTableContent.queryResult && (() => {
+              const previewColumns = parseTsvToColumns(dbTableContent.queryResult)
+              return previewColumns.length > 0 ? (
+                <div className="border rounded-md overflow-hidden">
+                  <div className="bg-gray-100 px-3 py-2 border-b">
+                    <h4 className="text-sm font-semibold">미리보기</h4>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-700 text-white">
+                        <tr>
+                          <th className="px-3 py-2 text-left">column_name</th>
+                          <th className="px-3 py-2 text-left">data_type</th>
+                          <th className="px-3 py-2 text-center w-20">nullable</th>
+                          <th className="px-3 py-2 text-center w-12">pk</th>
+                          <th className="px-3 py-2 text-center w-12">fk</th>
+                          <th className="px-3 py-2 text-center w-16">unique_key</th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {dbTableContent.columns.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  {dbTableContent.columns.length}개 컬럼
-                </p>
-              )}
-            </div>
+                      </thead>
+                      <tbody>
+                        {previewColumns.map((col, idx) => (
+                          <tr
+                            key={idx}
+                            className={`border-t ${col.pk === 'PK' ? 'bg-amber-50' : ''}`}
+                          >
+                            <td className="px-3 py-2 font-medium font-mono text-sm">
+                              {col.column_name}
+                            </td>
+                            <td className="px-3 py-2 font-mono text-xs text-blue-600">
+                              {col.data_type}
+                            </td>
+                            <td className="px-3 py-2 text-center text-muted-foreground">
+                              {col.nullable}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {col.pk === 'PK' && <span className="text-amber-600">✓</span>}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {col.fk === 'FK' && <span className="text-green-600">✓</span>}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {col.unique_key === 'UQ' && <span className="text-purple-600">✓</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="px-3 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
+                    {previewColumns.length}개 컬럼 감지됨
+                  </div>
+                </div>
+              ) : null
+            })()}
           </div>
 
           <DialogFooter className="mt-4">

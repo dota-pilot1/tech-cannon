@@ -1,23 +1,21 @@
-// DB 컬럼 정보
+// DB 컬럼 정보 (읽기 전용 표시용)
 export interface DbColumn {
-  no: number
-  name: string
-  comment: string
-  type: string
-  size: number | string
-  pk: boolean
-  notNull: boolean
-  note: string
+  column_name: string
+  data_type: string
+  nullable: string
+  pk: string
+  fk: string
+  unique_key: string
 }
 
-// DB 테이블 컨텐츠 (JSON으로 저장됨)
+// DB 테이블 컨텐츠
 export interface DbTableContent {
   tableName: string
   schema: string
   category: string
   description: string
-  headers?: string[]
-  columns: DbColumn[]
+  queryResult: string // 원본 쿼리 결과 (텍스트)
+  columns: DbColumn[] // 파싱된 컬럼 데이터 (표시용)
 }
 
 export interface IssueDbTable {
@@ -42,50 +40,35 @@ export interface UpdateDbTableRequest {
   orderNum: number
 }
 
-// TSV 파싱 유틸리티 - DBeaver 출력 그대로 저장
+// TSV를 파싱해서 컬럼 배열로 변환
 export function parseTsvToColumns(tsv: string): DbColumn[] {
   const lines = tsv.trim().split('\n')
   if (lines.length === 0) return []
 
   const rows = lines.map((line) => line.split('\t'))
-  const parsedColumns: DbColumn[] = []
+  const columns: DbColumn[] = []
 
-  for (const row of rows) {
+  // 첫 번째 줄이 헤더인지 확인
+  const startIndex = rows[0]?.[0]?.trim().toLowerCase() === 'column_name' ? 1 : 0
+
+  for (let i = startIndex; i < rows.length; i++) {
+    const row = rows[i]
     if (row.length < 2) continue
 
-    // DBeaver 형식: column_name | data_type | size | is_nullable
-    // 예: id | bigint | [NULL] | NO
-    // 예: email | character varying | 255 | NO
-    const name = row[0]?.trim() || ''
-    const typeRaw = row[1]?.trim() || ''
-    const sizeRaw = row[2]?.trim() || ''
-    const isNullable = row[3]?.trim().toUpperCase() || ''
+    const column_name = row[0]?.trim() || ''
+    if (!column_name) continue
 
-    if (!name) continue
-
-    // data_type 변환 (가독성 향상)
-    let type = typeRaw
-    if (typeRaw.toLowerCase().includes('character varying')) type = 'VARCHAR'
-    else if (typeRaw.toLowerCase().includes('timestamp without')) type = 'TIMESTAMP'
-    else if (typeRaw.toLowerCase().includes('timestamp with')) type = 'TIMESTAMPTZ'
-    else type = typeRaw.toUpperCase()
-
-    // size 정리 ([NULL] 제거)
-    const size = sizeRaw === '[NULL]' || !sizeRaw ? '' : sizeRaw
-
-    parsedColumns.push({
-      no: parsedColumns.length + 1,
-      name,
-      comment: '',
-      type,
-      size,
-      pk: false, // DBeaver는 PK 정보를 제공하지 않으므로 수동 설정
-      notNull: isNullable === 'NO',
-      note: '',
+    columns.push({
+      column_name,
+      data_type: row[1]?.trim() || '',
+      nullable: row[2]?.trim() || '',
+      pk: row[3]?.trim() || '',
+      fk: row[4]?.trim() || '',
+      unique_key: row[5]?.trim() || '',
     })
   }
 
-  return parsedColumns
+  return columns
 }
 
 // JSON 파싱 헬퍼
@@ -97,7 +80,7 @@ export function parseDbTableContent(raw: string): DbTableContent {
       schema: parsed.schema || '',
       category: parsed.category || '',
       description: parsed.description || '',
-      headers: parsed.headers || [],
+      queryResult: parsed.queryResult || '',
       columns: parsed.columns || [],
     }
   } catch {
@@ -106,7 +89,7 @@ export function parseDbTableContent(raw: string): DbTableContent {
       schema: '',
       category: '',
       description: '',
-      headers: [],
+      queryResult: '',
       columns: [],
     }
   }
