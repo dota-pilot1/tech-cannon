@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, useEffect } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import type { ColDef, RowSelectedEvent } from 'ag-grid-community'
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community'
@@ -28,7 +28,7 @@ import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, us
 import { useIssueImages, useUploadIssueImage, useDeleteIssueImage } from '@/features/issue/hooks/useIssueImages'
 import { useIssueAssignees, useUpdateIssueAssignees } from '@/features/issue/hooks/useIssueAssignees'
 import type { Issue, IssueStatus, IssuePriority, IssueCategory } from '@/entities/issue/types/issue'
-import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, Users } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, Users, ChevronRight, ChevronLeft } from 'lucide-react'
 import { useConfirm } from '@/shared/hooks/useConfirm'
 import { toast } from 'sonner'
 import { useUsers } from '@/features/admin/hooks/useUsers'
@@ -81,10 +81,12 @@ export function IssuesPage() {
   const users = usersData || []
 
   // 담당자 관련
-  const { data: issueAssignees } = useIssueAssignees(selectedIssueId)
-  const { mutate: updateAssignees } = useUpdateIssueAssignees(selectedIssueId!)
+  const [assigneeDialogIssueId, setAssigneeDialogIssueId] = useState<number | null>(null)
+  const { data: issueAssignees } = useIssueAssignees(assigneeDialogIssueId || selectedIssueId)
+  const { mutate: updateAssignees } = useUpdateIssueAssignees(assigneeDialogIssueId || selectedIssueId!)
   const [isAssigneeDialogOpen, setIsAssigneeDialogOpen] = useState(false)
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
+  const [userSearchKeyword, setUserSearchKeyword] = useState('')
 
   // 이미지 관련
   const { data: issueImages } = useIssueImages(selectedIssueId)
@@ -96,6 +98,15 @@ export function IssuesPage() {
   const uploadAreaRef = useRef<HTMLDivElement>(null)
 
   const issues = issuesData?.items || []
+
+  // 담당자 다이얼로그 열릴 때 현재 담당자 목록 로드
+  useEffect(() => {
+    if (isAssigneeDialogOpen && issueAssignees) {
+      const currentAssigneeIds = issueAssignees.map((a) => a.userId)
+      setSelectedUserIds(currentAssigneeIds)
+      setUserSearchKeyword('') // 검색어 초기화
+    }
+  }, [isAssigneeDialogOpen, issueAssignees])
 
   // AG-Grid 한국어 로케일
   const localeText = useMemo(
@@ -249,12 +260,6 @@ export function IssuesPage() {
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
       },
       {
-        headerName: 'ID',
-        field: 'id',
-        width: 70,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-      },
-      {
         headerName: '제목',
         field: 'title',
         flex: 1,
@@ -280,11 +285,38 @@ export function IssuesPage() {
       {
         headerName: '담당자',
         field: 'assigneeName',
-        width: 100,
+        width: 120,
         cellRenderer: (params: any) => {
-          return params.value || '미지정'
+          const handleClick = (e: React.MouseEvent) => {
+            e.stopPropagation()
+            setAssigneeDialogIssueId(params.data.id)
+            setIsAssigneeDialogOpen(true)
+          }
+
+          // 담당자 정보 조회 (useQuery 대신 간단하게 표시)
+          const AssigneeCell = () => {
+            const { data: assignees } = useIssueAssignees(params.data.id)
+            const count = assignees?.length || 0
+
+            if (count === 0) {
+              return <span className="text-muted-foreground">미지정</span>
+            } else if (count === 1) {
+              return <span>{assignees![0].username}</span>
+            } else {
+              return <span>{assignees![0].username} 외 {count - 1}명</span>
+            }
+          }
+
+          return (
+            <div
+              onClick={handleClick}
+              className="cursor-pointer hover:text-blue-600 hover:underline w-full h-full flex items-center justify-center"
+            >
+              <AssigneeCell />
+            </div>
+          )
         },
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 } as any,
       },
     ],
     []
@@ -452,16 +484,24 @@ export function IssuesPage() {
 
   // 담당자 변경 저장
   const handleSaveAssignees = () => {
-    if (!selectedIssueId) return
-    updateAssignees(selectedUserIds)
-    setIsAssigneeDialogOpen(false)
+    const targetIssueId = assigneeDialogIssueId || selectedIssueId
+    if (!targetIssueId) return
+    updateAssignees(selectedUserIds, {
+      onSuccess: () => {
+        setIsAssigneeDialogOpen(false)
+        setAssigneeDialogIssueId(null)
+      },
+    })
   }
 
-  // 담당자 체크박스 토글
-  const toggleUserSelection = (userId: number) => {
-    setSelectedUserIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    )
+  // 담당자 추가 (왼쪽 → 오른쪽)
+  const addAssignee = (userId: number) => {
+    setSelectedUserIds((prev) => [...prev, userId])
+  }
+
+  // 담당자 제거 (오른쪽 → 왼쪽)
+  const removeAssignee = (userId: number) => {
+    setSelectedUserIds((prev) => prev.filter((id) => id !== userId))
   }
 
   // 이미지 업로드 핸들러
@@ -1028,28 +1068,83 @@ export function IssuesPage() {
 
       {/* 담당자 선택 Dialog */}
       <Dialog open={isAssigneeDialogOpen} onOpenChange={setIsAssigneeDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>담당자 선택</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-2 max-h-96 overflow-y-auto py-4">
-            {users.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center space-x-2 p-2 hover:bg-accent rounded cursor-pointer"
-                onClick={() => toggleUserSelection(user.id)}
-              >
-                <Checkbox
-                  checked={selectedUserIds.includes(user.id)}
-                  onCheckedChange={() => toggleUserSelection(user.id)}
-                />
-                <label className="flex-1 cursor-pointer">
-                  {user.username}
-                  <span className="text-xs text-muted-foreground ml-2">({user.email})</span>
-                </label>
+          <div className="flex gap-6 py-4">
+            {/* 왼쪽: 선택된 담당자 */}
+            <div className="flex-1 border rounded-md p-4 bg-blue-50">
+              <h3 className="font-semibold mb-3 text-sm">선택된 담당자</h3>
+              <div className="space-y-1 max-h-96 overflow-y-auto">
+                {users
+                  .filter((user) => selectedUserIds.includes(user.id))
+                  .map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-2 hover:bg-blue-100 rounded cursor-pointer"
+                      onClick={() => removeAssignee(user.id)}
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{user.username}</div>
+                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  ))}
+                {selectedUserIds.length === 0 && (
+                  <div className="text-center text-sm text-muted-foreground py-8">
+                    선택된 담당자가 없습니다
+                  </div>
+                )}
               </div>
-            ))}
+            </div>
+
+            {/* 가운데: 화살표 버튼 */}
+            <div className="flex flex-col justify-center gap-2">
+              <div className="text-muted-foreground text-xs text-center">클릭하여<br />이동</div>
+            </div>
+
+            {/* 오른쪽: 선택 가능한 사용자 */}
+            <div className="flex-1 border rounded-md p-4">
+              <h3 className="font-semibold mb-3 text-sm">사용자 목록</h3>
+
+              {/* 검색 입력 */}
+              <input
+                type="text"
+                placeholder="이름 또는 이메일 검색..."
+                value={userSearchKeyword}
+                onChange={(e) => setUserSearchKeyword(e.target.value)}
+                className="w-full px-3 py-2 mb-3 border border-input rounded-md text-sm"
+              />
+
+              <div className="space-y-1 max-h-80 overflow-y-auto">
+                {users
+                  .filter((user) => !selectedUserIds.includes(user.id))
+                  .filter((user) => {
+                    if (!userSearchKeyword) return true
+                    const keyword = userSearchKeyword.toLowerCase()
+                    return (
+                      user.username.toLowerCase().includes(keyword) ||
+                      user.email.toLowerCase().includes(keyword)
+                    )
+                  })
+                  .map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-2 hover:bg-accent rounded cursor-pointer"
+                      onClick={() => addAssignee(user.id)}
+                    >
+                      <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                      <div className="flex-1 ml-2">
+                        <div className="font-medium text-sm">{user.username}</div>
+                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
