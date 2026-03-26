@@ -1,6 +1,6 @@
 import { useChatRooms, useCreateRoom, useJoinRoom, useDeleteAllRooms } from '@/hooks/useChat'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { MessageSquare, Users, Plus, Trash2 } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { MessageSquare, Users, Plus, Trash2, Layers } from 'lucide-react'
 import { useConfirm } from '@/shared/hooks/useConfirm'
 import { authStore } from '@/entities/user/model/authStore'
 import { Button } from '@/shared/ui/button'
@@ -15,6 +15,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import {
   Select,
   SelectContent,
@@ -22,6 +23,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+
+const roomTypeMeta = {
+  TEAM: {
+    label: '팀',
+    helper: '팀 별 빠른 협업 채널',
+    badge: 'border-sky-200 bg-sky-50 text-sky-700',
+    iconWrapper: 'bg-sky-100 text-sky-600',
+    icon: Users,
+  },
+  PROJECT: {
+    label: '프로젝트',
+    helper: '프로젝트 이슈 정리 공간',
+    badge: 'border-violet-200 bg-violet-50 text-violet-700',
+    iconWrapper: 'bg-violet-100 text-violet-600',
+    icon: Layers,
+  },
+  DIRECT: {
+    label: '1:1',
+    helper: '집중적인 1:1 대화',
+    badge: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    iconWrapper: 'bg-emerald-100 text-emerald-600',
+    icon: MessageSquare,
+  },
+} as const
+
+type ChatRoomType = keyof typeof roomTypeMeta
+
+const chatDateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+})
+
+const resolveRoomType = (roomType: string | null | undefined): ChatRoomType => {
+  if (roomType === 'PROJECT' || roomType === 'DIRECT') {
+    return roomType
+  }
+  return 'TEAM'
+}
 
 export function ChatRoomsPage() {
   const navigate = useNavigate()
@@ -130,49 +170,70 @@ export function ChatRoomsPage() {
             <p className="text-sm mt-1">새 채팅방을 만들어보세요</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rooms.map((room) => (
-              <div
-                key={room.id}
-                onClick={(e) => handleRoomClick(room.id, e)}
-                className="block cursor-pointer"
-              >
-                <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                  {/* 채팅방 아이콘 */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <MessageSquare className="w-6 h-6 text-primary" />
-                    </div>
-                    <span className="text-xs px-2 py-1 rounded bg-muted">
-                      {room.roomType === 'TEAM' && '팀'}
-                      {room.roomType === 'PROJECT' && '프로젝트'}
-                      {room.roomType === 'DIRECT' && '1:1'}
-                    </span>
-                  </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 auto-rows-[minmax(0,1fr)]">
+            {rooms.map((room) => {
+              const typeKey = resolveRoomType(room.roomType)
+              const typeMeta = roomTypeMeta[typeKey]
+              const TypeIcon = typeMeta.icon
 
-                  {/* 채팅방 이름 */}
-                  <h3 className="font-semibold text-lg mb-2 truncate">{room.name}</h3>
-
-                  {/* 참가자 수 및 생성자 */}
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      <span>{room.memberCount}명</span>
-                    </div>
-                    <span className="text-xs">생성: {room.createdByName}</span>
-                  </div>
-
-                  {/* 생성 시간 */}
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    {new Date(room.createdAt).toLocaleDateString('ko-KR', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </div>
-                </div>
-              </div>
-            ))}
+              return (
+                <button
+                  key={room.id}
+                  type="button"
+                  aria-label={`${room.name} 채팅방 입장`}
+                  onClick={(e) => handleRoomClick(room.id, e)}
+                  className="group block text-left"
+                >
+                  <Card className="h-full border-border/60 bg-card/80 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-lg group-focus-visible:ring-2 group-focus-visible:ring-primary group-focus-visible:ring-offset-2">
+                    <CardHeader className="space-y-4 pb-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex h-12 w-12 items-center justify-center rounded-xl ${typeMeta.iconWrapper}`}
+                          >
+                            <TypeIcon className="h-6 w-6" />
+                          </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-lg leading-tight">{room.name}</CardTitle>
+                            <CardDescription className="mt-1 text-xs">
+                              {typeMeta.helper}
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <span
+                          className={`text-xs font-medium px-2.5 py-1 rounded-full border ${typeMeta.badge}`}
+                        >
+                          {typeMeta.label}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4 pt-0">
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Users className="w-4 h-4" />
+                          <span>{room.memberCount}명 참여중</span>
+                        </div>
+                        <span className="text-xs">ID #{room.id}</span>
+                      </div>
+                      <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between">
+                          <span>생성자</span>
+                          <span className="font-medium text-foreground">
+                            {room.createdByName || '알 수 없음'}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <span>개설일</span>
+                          <span className="font-medium text-foreground">
+                            {chatDateFormatter.format(new Date(room.createdAt))}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
