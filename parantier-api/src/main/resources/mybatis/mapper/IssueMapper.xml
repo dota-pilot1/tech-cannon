@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.issue.infrastructure.IssueMapper">
+
+    <resultMap id="IssueResultMap" type="com.mapo.palantier.issue.domain.Issue">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="category" column="category"/>
+        <result property="status" column="status"/>
+        <result property="priority" column="priority"/>
+        <result property="authorId" column="author_id"/>
+        <result property="assigneeId" column="assignee_id"/>
+        <result property="organizationId" column="organization_id"/>
+        <result property="folderId" column="folder_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="authorName" column="author_name"/>
+        <result property="authorEmail" column="author_email"/>
+        <result property="assigneeName" column="assignee_name"/>
+        <result property="assigneeEmail" column="assignee_email"/>
+    </resultMap>
+
+    <!-- 이슈 목록 조회 (JOIN으로 작성자/담당자 정보 포함) -->
+    <select id="findAll" resultMap="IssueResultMap">
+        SELECT
+            i.id,
+            i.title,
+            i.content,
+            i.category,
+            i.status,
+            i.priority,
+            i.author_id,
+            i.assignee_id,
+            i.organization_id,
+            i.folder_id,
+            i.created_at,
+            i.updated_at,
+            u1.username AS author_name,
+            u1.email AS author_email,
+            u2.username AS assignee_name,
+            u2.email AS assignee_email
+        FROM issues i
+        LEFT JOIN users u1 ON i.author_id = u1.id
+        LEFT JOIN users u2 ON i.assignee_id = u2.id
+        <where>
+            <if test="status != null and status != ''">
+                AND i.status = #{status}
+            </if>
+            <if test="category != null and category != ''">
+                AND i.category = #{category}
+            </if>
+            <if test="priority != null and priority != ''">
+                AND i.priority = #{priority}
+            </if>
+            <if test="assigneeId != null">
+                AND i.assignee_id = #{assigneeId}
+            </if>
+            <if test="authorId != null">
+                AND i.author_id = #{authorId}
+            </if>
+            <if test="folderId != null">
+                AND i.folder_id = #{folderId}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (i.title ILIKE '%' || #{keyword} || '%'
+                OR i.content ILIKE '%' || #{keyword} || '%')
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="sortBy == 'priority'">
+                CASE i.priority
+                    WHEN 'CRITICAL' THEN 1
+                    WHEN 'HIGH' THEN 2
+                    WHEN 'MEDIUM' THEN 3
+                    WHEN 'LOW' THEN 4
+                END,
+                i.created_at DESC
+            </when>
+            <when test="sortBy == 'status'">
+                i.status, i.created_at DESC
+            </when>
+            <otherwise>
+                i.created_at DESC
+            </otherwise>
+        </choose>
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+        <if test="offset != null">
+            OFFSET #{offset}
+        </if>
+    </select>
+
+    <!-- 이슈 상세 조회 -->
+    <select id="findById" resultMap="IssueResultMap">
+        SELECT
+            i.id,
+            i.title,
+            i.content,
+            i.category,
+            i.status,
+            i.priority,
+            i.author_id,
+            i.assignee_id,
+            i.organization_id,
+            i.folder_id,
+            i.created_at,
+            i.updated_at,
+            u1.username AS author_name,
+            u1.email AS author_email,
+            u2.username AS assignee_name,
+            u2.email AS assignee_email
+        FROM issues i
+        LEFT JOIN users u1 ON i.author_id = u1.id
+        LEFT JOIN users u2 ON i.assignee_id = u2.id
+        WHERE i.id = #{id}
+    </select>
+
+    <!-- 이슈 생성 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO issues (
+            title, content, category, status, priority,
+            author_id, assignee_id, organization_id, folder_id,
+            created_at, updated_at
+        ) VALUES (
+            #{title},
+            #{content},
+            #{category},
+            #{status},
+            #{priority},
+            #{authorId},
+            #{assigneeId},
+            #{organizationId},
+            #{folderId},
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 이슈 수정 -->
+    <update id="update">
+        UPDATE issues
+        SET
+            title = #{title},
+            content = #{content},
+            category = #{category},
+            status = #{status},
+            priority = #{priority},
+            assignee_id = #{assigneeId},
+            folder_id = #{folderId},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 이슈 삭제 -->
+    <delete id="delete">
+        DELETE FROM issues WHERE id = #{id}
+    </delete>
+
+    <!-- 상태 변경 -->
+    <update id="updateStatus">
+        UPDATE issues
+        SET status = #{status}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 담당자 변경 -->
+    <update id="updateAssignee">
+        UPDATE issues
+        SET assignee_id = #{assigneeId}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 이슈 개수 조회 -->
+    <select id="count" resultType="int">
+        SELECT COUNT(*)
+        FROM issues i
+        <where>
+            <if test="status != null and status != ''">
+                AND i.status = #{status}
+            </if>
+            <if test="category != null and category != ''">
+                AND i.category = #{category}
+            </if>
+            <if test="priority != null and priority != ''">
+                AND i.priority = #{priority}
+            </if>
+            <if test="assigneeId != null">
+                AND i.assignee_id = #{assigneeId}
+            </if>
+            <if test="authorId != null">
+                AND i.author_id = #{authorId}
+            </if>
+            <if test="folderId != null">
+                AND i.folder_id = #{folderId}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (i.title ILIKE '%' || #{keyword} || '%'
+                OR i.content ILIKE '%' || #{keyword} || '%')
+            </if>
+        </where>
+    </select>
+
+</mapper>

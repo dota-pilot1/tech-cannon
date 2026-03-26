@@ -17,4 +17,6 @@ public interface UserMapper {
     List<User> findAll();
     void updateRole(@Param("id") Long id, @Param("role") UserRole role);
     void updateOrganization(@Param("id") Long id, @Param("organizationId") Long organizationId);
+    void updateUsername(@Param("id") Long id, @Param("username") String username);
+    void updatePassword(@Param("id") Long id, @Param("password") String password);
 }

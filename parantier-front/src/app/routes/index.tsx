@@ -17,6 +17,7 @@ import TasksPage from '@/features/task/components/TasksPage'
 import { ChatRoomsPage } from '@/routes/chat/index'
 import { ChatRoomPage } from '@/routes/chat/$roomId'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
+import { IssuesPage } from '@/pages/issues/IssuesPage'
 import { authStore } from '@/entities/user/model/authStore'
 import { toast } from 'sonner'
 
@@ -187,6 +188,14 @@ const profileRoute = createRoute({
   component: ProfilePage,
 })
 
+// 이슈 관리 (로그인 필요)
+const issuesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/issues',
+  beforeLoad: () => requireAuth(),
+  component: IssuesPage,
+})
+
 // Route Tree
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -201,6 +210,7 @@ const routeTree = rootRoute.addChildren([
   chatRoute,
   chatRoomRoute,
   profileRoute,
+  issuesRoute,
 ])
 
 // Router 생성

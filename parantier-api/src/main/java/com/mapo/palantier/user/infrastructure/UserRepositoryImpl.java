@@ -49,4 +49,14 @@ public class UserRepositoryImpl implements UserRepository {
     public void updateOrganization(Long id, Long organizationId) {
         userMapper.updateOrganization(id, organizationId);
     }
+
+    @Override
+    public void updateUsername(Long id, String username) {
+        userMapper.updateUsername(id, username);
+    }
+
+    @Override
+    public void updatePassword(Long id, String password) {
+        userMapper.updatePassword(id, password);
+    }
 }
