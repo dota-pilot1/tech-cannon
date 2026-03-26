@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { TaskBlock, BlockType, DbColumn, DbTableContent } from '../types/task.types'
 import { TYPE_META, parseDbTableContent, parseTsvToColumns } from '../types/task.types'
 import { Checkbox } from '@/shared/ui/checkbox'
 import { toast } from 'sonner'
+import { tablePresetApi } from '@/shared/api/tablePreset.api'
+import type { TablePreset } from '@/shared/types/tablePreset'
 
 interface Props {
   title: string
@@ -116,14 +118,13 @@ export default function TaskBlockEditor({ title, setTitle, blocks, setBlocks }: 
 // DB 테이블 블록 전용 에디터
 function DbTableBlockEditor({ content, onChange }: { content: string; onChange: (content: string) => void }) {
   const [dbTable, setDbTable] = useState<DbTableContent>(() => parseDbTableContent(content))
-  const [inputMode, setInputMode] = useState<'tsv' | 'ddl'>(() => {
-    const parsed = parseDbTableContent(content)
-    return parsed.ddl ? 'ddl' : 'tsv'
-  })
-  const [ddlText, setDdlText] = useState(() => {
-    const parsed = parseDbTableContent(content)
-    return parsed.ddl || ''
-  })
+  const [presets, setPresets] = useState<TablePreset[]>([])
+  const [selectedPresetId, setSelectedPresetId] = useState<number | null>(null)
+
+  // 프리셋 로드
+  useEffect(() => {
+    tablePresetApi.getMyPresets().then(setPresets).catch(console.error)
+  }, [])
 
   // dbTable 변경 시 JSON 문자열로 변환하여 부모에 전달
   const handleUpdate = (updated: DbTableContent) => {
@@ -131,10 +132,19 @@ function DbTableBlockEditor({ content, onChange }: { content: string; onChange: 
     onChange(JSON.stringify(updated))
   }
 
-  // DDL 텍스트 변경 핸들러
-  const handleDdlChange = (text: string) => {
-    setDdlText(text)
-    handleUpdate({ ...dbTable, ddl: text, columns: [] })
+  // 프리셋 적용
+  const handleApplyPreset = (presetId: number | null) => {
+    setSelectedPresetId(presetId)
+    if (presetId === null) {
+      handleUpdate({ ...dbTable, headers: [] })
+      return
+    }
+
+    const preset = presets.find((p) => p.id === presetId)
+    if (preset) {
+      handleUpdate({ ...dbTable, headers: preset.headers })
+      toast.success(`프리셋 "${preset.name}" 적용 완료`)
+    }
   }
 
   const handleTsvPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -181,6 +191,28 @@ function DbTableBlockEditor({ content, onChange }: { content: string; onChange: 
 
   return (
     <div className="p-3 space-y-3">
+      {/* 프리셋 선택 */}
+      <div>
+        <label className="text-xs font-medium mb-1 block">테이블 헤더 프리셋</label>
+        <select
+          value={selectedPresetId ?? ''}
+          onChange={(e) => handleApplyPreset(e.target.value ? Number(e.target.value) : null)}
+          className="w-full px-2 py-1.5 border rounded text-xs"
+        >
+          <option value="">프리셋 없음</option>
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.name} {preset.isDefault ? '(기본)' : ''}
+            </option>
+          ))}
+        </select>
+        {dbTable.headers && dbTable.headers.length > 0 && (
+          <p className="text-[10px] text-gray-500 mt-1">
+            적용된 헤더: {dbTable.headers.join(', ')}
+          </p>
+        )}
+      </div>
+
       {/* 테이블 메타데이터 */}
       <div className="grid grid-cols-4 gap-2">
         <div className="col-span-2">
@@ -228,32 +260,7 @@ function DbTableBlockEditor({ content, onChange }: { content: string; onChange: 
         />
       </div>
 
-      {/* 입력 방식 선택 버튼 */}
-      <div className="flex items-center gap-2 border-b pb-2">
-        <span className="text-xs font-medium text-gray-600">입력 방식:</span>
-        <div className="flex gap-1 bg-gray-100 p-0.5 rounded">
-          <button
-            onClick={() => setInputMode('tsv')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              inputMode === 'tsv' ? 'bg-blue-600 text-white shadow' : 'hover:bg-gray-200'
-            }`}
-          >
-            📋 TSV
-          </button>
-          <button
-            onClick={() => setInputMode('ddl')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              inputMode === 'ddl' ? 'bg-blue-600 text-white shadow' : 'hover:bg-gray-200'
-            }`}
-          >
-            📝 DDL
-          </button>
-        </div>
-      </div>
-
-      {inputMode === 'tsv' ? (
-        <>
-          {/* TSV 붙여넣기 영역 */}
+      {/* TSV 붙여넣기 영역 */}
           <div className="bg-amber-50 border-2 border-amber-200 rounded p-2">
             <label className="text-xs font-semibold mb-1.5 block text-amber-900">
               📋 DBeaver/Excel에서 붙여넣기 (TSV)
@@ -283,19 +290,18 @@ function DbTableBlockEditor({ content, onChange }: { content: string; onChange: 
 
         <div className="border rounded overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="bg-gray-700 text-white">
-              <tr>
-                <th className="px-2 py-1.5 text-center w-10">No</th>
-                <th className="px-2 py-1.5 text-left w-28">컬럼명</th>
-                <th className="px-2 py-1.5 text-left w-32">설명</th>
-                <th className="px-2 py-1.5 text-left w-24">타입</th>
-                <th className="px-2 py-1.5 text-center w-16">크기</th>
-                <th className="px-2 py-1.5 text-center w-10">PK</th>
-                <th className="px-2 py-1.5 text-center w-10">NN</th>
-                <th className="px-2 py-1.5 text-left w-20">비고</th>
-                <th className="px-2 py-1.5 text-center w-10"></th>
-              </tr>
-            </thead>
+            {dbTable.headers && dbTable.headers.length > 0 && (
+              <thead className="bg-gray-700 text-white">
+                <tr>
+                  {dbTable.headers.map((header, idx) => (
+                    <th key={idx} className="px-2 py-2 text-left text-xs font-normal">
+                      {header}
+                    </th>
+                  ))}
+                  <th className="px-2 py-2 text-center w-12"></th>
+                </tr>
+              </thead>
+            )}
             <tbody>
               {dbTable.columns.length === 0 ? (
                 <tr>
@@ -379,23 +385,6 @@ function DbTableBlockEditor({ content, onChange }: { content: string; onChange: 
           <p className="text-[10px] text-gray-500 mt-1">{dbTable.columns.length}개 컬럼</p>
         )}
       </div>
-    </>
-  ) : (
-    <>
-      {/* DDL 입력 영역 */}
-      <div className="bg-blue-50 border-2 border-blue-200 rounded p-2">
-        <label className="text-xs font-semibold mb-1.5 block text-blue-900">📝 CREATE TABLE DDL 입력</label>
-        <textarea
-          value={ddlText}
-          onChange={(e) => handleDdlChange(e.target.value)}
-          placeholder={`CREATE TABLE users (\n  id BIGSERIAL PRIMARY KEY,\n  username VARCHAR(50) NOT NULL,\n  email VARCHAR(100) NOT NULL UNIQUE,\n  password VARCHAR(255) NOT NULL,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\nDBeaver의 DDL 탭에서 복사하여 붙여넣으세요.`}
-          className="w-full px-2 py-1.5 border border-blue-300 rounded text-xs font-mono bg-white"
-          rows={12}
-        />
-        <p className="text-[10px] text-blue-700 mt-1">CREATE TABLE 문을 입력하면 DDL을 그대로 저장합니다</p>
-      </div>
-    </>
-  )}
     </div>
   )
 }

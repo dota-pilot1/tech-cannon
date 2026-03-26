@@ -142,8 +142,6 @@ export function IssuesPage() {
     columns: [],
   })
   const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false)
-  const [dbTableInputMode, setDbTableInputMode] = useState<'tsv' | 'ddl'>('tsv')
-  const [ddlText, setDdlText] = useState('')
 
   const issues = issuesData?.items || []
 
@@ -708,14 +706,6 @@ export function IssuesPage() {
         setSelectedDbTableId(dbTableId)
         const content = parseDbTableContent(dbTable.tableInfo)
         setDbTableContent(content)
-        // DDL이 있으면 DDL 모드로, 없으면 TSV 모드로
-        if (content.ddl) {
-          setDbTableInputMode('ddl')
-          setDdlText(content.ddl)
-        } else {
-          setDbTableInputMode('tsv')
-          setDdlText('')
-        }
       }
     } else {
       setSelectedDbTableId(null)
@@ -726,47 +716,23 @@ export function IssuesPage() {
         description: '',
         columns: [],
       })
-      setDbTableInputMode('tsv')
-      setDdlText('')
     }
     setIsDbTableDialogOpen(true)
   }
 
   // DB 테이블 저장
   const handleSaveDbTable = () => {
-    let tableInfo: string
-    let tableName: string
-
-    if (dbTableInputMode === 'ddl') {
-      // DDL 모드: DDL 텍스트를 그대로 저장
-      if (!ddlText.trim()) {
-        toast.error('DDL을 입력하세요')
-        return
-      }
-      if (!dbTableContent.tableName.trim()) {
-        toast.error('테이블명을 입력하세요')
-        return
-      }
-      // DDL 텍스트를 content 형태로 저장
-      tableInfo = JSON.stringify({
-        ...dbTableContent,
-        ddl: ddlText,
-        columns: [], // DDL 모드에서는 columns는 빈 배열
-      })
-      tableName = dbTableContent.tableName
-    } else {
-      // TSV 모드: 기존 방식대로 저장
-      if (!dbTableContent.tableName.trim()) {
-        toast.error('테이블명을 입력하세요')
-        return
-      }
-      if (dbTableContent.columns.length === 0) {
-        toast.error('최소 1개 이상의 컬럼을 추가하세요')
-        return
-      }
-      tableInfo = JSON.stringify(dbTableContent)
-      tableName = dbTableContent.tableName
+    if (!dbTableContent.tableName.trim()) {
+      toast.error('테이블명을 입력하세요')
+      return
     }
+    if (dbTableContent.columns.length === 0) {
+      toast.error('최소 1개 이상의 컬럼을 추가하세요')
+      return
+    }
+
+    const tableInfo = JSON.stringify(dbTableContent)
+    const tableName = dbTableContent.tableName
 
     if (selectedDbTableId) {
       const dbTable = dbTables?.find((t) => t.id === selectedDbTableId)
@@ -795,7 +761,6 @@ export function IssuesPage() {
       description: '',
       columns: [],
     })
-    setDdlText('')
     setSelectedDbTableId(null)
   }
 
@@ -1862,36 +1827,7 @@ export function IssuesPage() {
               />
             </div>
 
-            {/* 입력 방식 선택 버튼 */}
-            <div className="flex items-center gap-2 border-b pb-2">
-              <span className="text-sm font-medium text-muted-foreground">입력 방식:</span>
-              <div className="flex gap-1 bg-muted p-1 rounded-md">
-                <button
-                  onClick={() => setDbTableInputMode('tsv')}
-                  className={`px-3 py-1 text-xs rounded transition-colors ${
-                    dbTableInputMode === 'tsv'
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'hover:bg-background'
-                  }`}
-                >
-                  📋 TSV 붙여넣기
-                </button>
-                <button
-                  onClick={() => setDbTableInputMode('ddl')}
-                  className={`px-3 py-1 text-xs rounded transition-colors ${
-                    dbTableInputMode === 'ddl'
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'hover:bg-background'
-                  }`}
-                >
-                  📝 DDL 입력
-                </button>
-              </div>
-            </div>
-
-            {dbTableInputMode === 'tsv' ? (
-              <>
-                {/* TSV 붙여넣기 영역 */}
+            {/* TSV 붙여넣기 영역 */}
                 <div className="bg-amber-50 border-2 border-amber-200 rounded-md p-3">
                   <label className="text-sm font-semibold mb-2 block text-amber-900">
                     📋 DBeaver/Excel에서 붙여넣기 (TSV)
@@ -1919,19 +1855,6 @@ export function IssuesPage() {
 
               <div className="border rounded-md overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-700 text-white">
-                    <tr>
-                      <th className="px-2 py-2 text-center w-12">No</th>
-                      <th className="px-2 py-2 text-left w-32">컬럼명</th>
-                      <th className="px-2 py-2 text-left w-40">설명</th>
-                      <th className="px-2 py-2 text-left w-28">타입</th>
-                      <th className="px-2 py-2 text-center w-20">크기</th>
-                      <th className="px-2 py-2 text-center w-12">PK</th>
-                      <th className="px-2 py-2 text-center w-12">NN</th>
-                      <th className="px-2 py-2 text-left w-24">비고</th>
-                      <th className="px-2 py-2 text-center w-12"></th>
-                    </tr>
-                  </thead>
                   <tbody>
                     {dbTableContent.columns.length === 0 ? (
                       <tr>
@@ -2020,27 +1943,6 @@ export function IssuesPage() {
                 </p>
               )}
             </div>
-          </>
-        ) : (
-          <>
-            {/* DDL 입력 영역 */}
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-md p-3">
-              <label className="text-sm font-semibold mb-2 block text-blue-900">
-                📝 CREATE TABLE DDL 입력
-              </label>
-              <textarea
-                value={ddlText}
-                onChange={(e) => setDdlText(e.target.value)}
-                placeholder={`CREATE TABLE users (\n  id BIGSERIAL PRIMARY KEY,\n  username VARCHAR(50) NOT NULL,\n  email VARCHAR(100) NOT NULL UNIQUE,\n  password VARCHAR(255) NOT NULL,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\nDBeaver의 DDL 탭에서 복사하여 붙여넣으세요.`}
-                className="w-full px-3 py-2 border border-blue-300 rounded-md text-sm font-mono bg-white"
-                rows={15}
-              />
-              <p className="text-xs text-blue-700 mt-1.5">
-                CREATE TABLE 문을 입력하면 DDL을 그대로 저장합니다
-              </p>
-            </div>
-          </>
-        )}
           </div>
 
           <DialogFooter className="mt-4">

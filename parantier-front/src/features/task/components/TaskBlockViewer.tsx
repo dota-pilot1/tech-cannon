@@ -133,27 +133,20 @@ export default function TaskBlockViewer({ post }: Props) {
                         </p>
                       )}
 
-                      {tbl.ddl ? (
-                        <div className="overflow-x-auto">
-                          <pre className="bg-gray-50 border rounded p-3 text-xs font-mono">
-                            {tbl.ddl}
-                          </pre>
-                        </div>
-                      ) : tbl.columns.length > 0 ? (
+                      {tbl.columns.length > 0 ? (
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs border-collapse">
-                            <thead>
-                              <tr className="bg-gray-700 text-white">
-                                <th className="border border-gray-600 px-3 py-2 w-10 text-center">No</th>
-                                <th className="border border-gray-600 px-3 py-2 text-left">컬럼명</th>
-                                <th className="border border-gray-600 px-3 py-2 text-left">설명</th>
-                                <th className="border border-gray-600 px-3 py-2 text-left">타입</th>
-                                <th className="border border-gray-600 px-3 py-2 w-14 text-center">크기</th>
-                                <th className="border border-gray-600 px-3 py-2 w-10 text-center">PK</th>
-                                <th className="border border-gray-600 px-3 py-2 w-10 text-center">NN</th>
-                                <th className="border border-gray-600 px-3 py-2 text-left">비고</th>
-                              </tr>
-                            </thead>
+                            {tbl.headers && tbl.headers.length > 0 && (
+                              <thead className="bg-gray-700 text-white">
+                                <tr>
+                                  {tbl.headers.map((header, idx) => (
+                                    <th key={idx} className="border border-gray-600 px-3 py-2 text-left text-xs font-normal">
+                                      {header}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                            )}
                             <tbody>
                               {tbl.columns.map((col, ci) => (
                                 <tr

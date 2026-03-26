@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.tablepreset.UserTablePresetMapper">
+
+    <resultMap id="UserTablePresetResultMap" type="com.mapo.palantier.tablepreset.UserTablePreset">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="name" column="name"/>
+        <result property="headers" column="headers" typeHandler="com.mapo.palantier.common.JsonbTypeHandler"/>
+        <result property="isDefault" column="is_default"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByUserId" resultMap="UserTablePresetResultMap">
+        SELECT id, user_id, name, headers, is_default, created_at, updated_at
+        FROM user_table_presets
+        WHERE user_id = #{userId}
+        ORDER BY is_default DESC, created_at DESC
+    </select>
+
+    <select id="findById" resultMap="UserTablePresetResultMap">
+        SELECT id, user_id, name, headers, is_default, created_at, updated_at
+        FROM user_table_presets
+        WHERE id = #{id}
+    </select>
+
+    <select id="findDefaultByUserId" resultMap="UserTablePresetResultMap">
+        SELECT id, user_id, name, headers, is_default, created_at, updated_at
+        FROM user_table_presets
+        WHERE user_id = #{userId} AND is_default = true
+        LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_table_presets (user_id, name, headers, is_default, created_at, updated_at)
+        VALUES (#{userId}, #{name}, #{headers, typeHandler=com.mapo.palantier.common.JsonbTypeHandler}::jsonb, #{isDefault}, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE user_table_presets
+        SET name = #{name},
+            headers = #{headers, typeHandler=com.mapo.palantier.common.JsonbTypeHandler}::jsonb,
+            is_default = #{isDefault},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM user_table_presets
+        WHERE id = #{id}
+    </delete>
+
+    <update id="clearDefaultForUser">
+        UPDATE user_table_presets
+        SET is_default = false,
+            updated_at = NOW()
+        WHERE user_id = #{userId} AND is_default = true
+    </update>
+
+</mapper>
