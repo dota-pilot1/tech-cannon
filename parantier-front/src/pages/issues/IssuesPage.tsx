@@ -17,8 +17,9 @@ import {
   PopoverTrigger,
 } from '@/shared/ui/popover'
 import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus } from '@/features/issue/hooks/useIssues'
+import { useIssueImages, useUploadIssueImage, useDeleteIssueImage } from '@/features/issue/hooks/useIssueImages'
 import type { Issue, IssueStatus, IssuePriority, IssueCategory } from '@/entities/issue/types/issue'
-import { Plus, Edit2, Trash2, X } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon } from 'lucide-react'
 import { useConfirm } from '@/shared/hooks/useConfirm'
 import { toast } from 'sonner'
 
@@ -60,6 +61,13 @@ export function IssuesPage() {
   const { mutate: deleteIssue } = useDeleteIssue()
   const { mutate: updateStatus } = useUpdateIssueStatus()
   const { confirm, ConfirmDialog } = useConfirm()
+
+  // 이미지 관련
+  const { data: issueImages } = useIssueImages(selectedIssueId)
+  const { mutate: uploadImage, isPending: isUploading } = useUploadIssueImage(selectedIssueId!)
+  const { mutate: deleteImage } = useDeleteIssueImage(selectedIssueId!)
+  const [isDragging, setIsDragging] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const issues = issuesData?.items || []
 
@@ -267,6 +275,55 @@ export function IssuesPage() {
         priority: issueDetail.priority,
       },
     })
+  }
+
+  // 이미지 업로드 핸들러
+  const handleImageUpload = (files: FileList | File[]) => {
+    const fileArray = Array.from(files)
+    const imageFiles = fileArray.filter((file) => file.type.startsWith('image/'))
+
+    if (imageFiles.length === 0) {
+      toast.error('이미지 파일만 업로드 가능합니다.')
+      return
+    }
+
+    imageFiles.forEach((file) => {
+      uploadImage(file)
+    })
+  }
+
+  // 드래그앤드롭 핸들러
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    if (e.dataTransfer.files) {
+      handleImageUpload(e.dataTransfer.files)
+    }
+  }
+
+  // 붙여넣기 핸들러
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    const imageItems = Array.from(items).filter((item) => item.type.startsWith('image/'))
+    if (imageItems.length === 0) return
+
+    const files = imageItems.map((item) => item.getAsFile()).filter((file): file is File => file !== null)
+    if (files.length > 0) {
+      handleImageUpload(files)
+    }
   }
 
   const getStatusBadgeVariant = (status: IssueStatus) => {
@@ -620,6 +677,76 @@ export function IssuesPage() {
                     </tr>
                   </tbody>
                 </table>
+              </div>
+
+              {/* 이미지 */}
+              <div className="border rounded-lg p-4 mb-6" onPaste={handlePaste}>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-bold">첨부 이미지</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {isUploading ? '업로드 중...' : '이미지 추가'}
+                  </Button>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
+                  />
+                </div>
+
+                {/* 드래그앤드롭 영역 */}
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
+                    isDragging
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {issueImages && issueImages.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {issueImages.map((image) => (
+                        <div
+                          key={image.id}
+                          className="relative group aspect-square rounded overflow-hidden border bg-gray-100"
+                        >
+                          <img
+                            src={image.url}
+                            alt={image.filename}
+                            className="w-full h-full object-cover cursor-pointer"
+                            onClick={() => window.open(image.url, '_blank')}
+                          />
+                          <button
+                            onClick={() => deleteImage(image.id)}
+                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity leading-none"
+                          >
+                            ✕
+                          </button>
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                            {image.filename}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">
+                        이미지를 드래그하여 놓거나, 클릭하여 업로드하거나, Ctrl+V로 붙여넣으세요
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* 내용 */}
