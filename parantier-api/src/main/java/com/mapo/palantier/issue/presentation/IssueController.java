@@ -2,6 +2,8 @@ package com.mapo.palantier.issue.presentation;
 
 import com.mapo.palantier.issue.application.IssueService;
 import com.mapo.palantier.issue.domain.Issue;
+import com.mapo.palantier.issue.domain.IssueImage;
+import com.mapo.palantier.issue.infrastructure.IssueImageMapper;
 import com.mapo.palantier.issue.presentation.dto.CreateIssueRequest;
 import com.mapo.palantier.issue.presentation.dto.IssueResponse;
 import org.springframework.http.ResponseEntity;
@@ -18,9 +20,11 @@ import java.util.stream.Collectors;
 public class IssueController {
 
     private final IssueService issueService;
+    private final IssueImageMapper issueImageMapper;
 
-    public IssueController(IssueService issueService) {
+    public IssueController(IssueService issueService, IssueImageMapper issueImageMapper) {
         this.issueService = issueService;
+        this.issueImageMapper = issueImageMapper;
     }
 
     @GetMapping
@@ -131,4 +135,36 @@ public class IssueController {
         issueService.updateAssignee(id, assigneeId);
         return ResponseEntity.ok().build();
     }
+
+    // Image endpoints
+    @GetMapping("/{issueId}/images")
+    public ResponseEntity<List<IssueImage>> getIssueImages(@PathVariable Long issueId) {
+        List<IssueImage> images = issueImageMapper.findByIssueId(issueId);
+        return ResponseEntity.ok(images);
+    }
+
+    @PostMapping("/{issueId}/images")
+    public ResponseEntity<IssueImage> addIssueImage(
+            @PathVariable Long issueId,
+            @RequestBody AddImageRequest request
+    ) {
+        IssueImage image = IssueImage.builder()
+                .issueId(issueId)
+                .url(request.url())
+                .filename(request.filename())
+                .build();
+        issueImageMapper.insert(image);
+        return ResponseEntity.ok(image);
+    }
+
+    @DeleteMapping("/{issueId}/images/{imageId}")
+    public ResponseEntity<Void> deleteIssueImage(
+            @PathVariable Long issueId,
+            @PathVariable Long imageId
+    ) {
+        issueImageMapper.deleteById(imageId);
+        return ResponseEntity.noContent().build();
+    }
+
+    public record AddImageRequest(String url, String filename) {}
 }

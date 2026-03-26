@@ -53,3 +53,11 @@ jwt:
   secret: your-256-bit-secret-key-change-this-in-production-please-make-it-long-enough
   access-token-expiration: 3600000   # 1시간 (밀리초)
   refresh-token-expiration: 604800000 # 7일 (밀리초)
+
+# AWS S3 Configuration
+aws:
+  s3:
+    access-key-id: ${AWS_ACCESS_KEY_ID:}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+    bucket-name: ${AWS_S3_BUCKET_NAME:hibot-docu}
+    region: ${AWS_S3_REGION:ap-northeast-2}
