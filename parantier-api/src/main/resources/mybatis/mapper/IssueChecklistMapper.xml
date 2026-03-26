@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.issue.infrastructure.IssueChecklistMapper">
+
+    <resultMap id="IssueChecklistResultMap" type="com.mapo.palantier.issue.domain.IssueChecklist">
+        <id property="id" column="id"/>
+        <result property="issueId" column="issue_id"/>
+        <result property="content" column="content"/>
+        <result property="checked" column="checked"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 특정 이슈의 체크리스트 목록 조회 -->
+    <select id="findByIssueId" resultMap="IssueChecklistResultMap">
+        SELECT id, issue_id, content, checked, order_num, created_at
+        FROM issue_checklists
+        WHERE issue_id = #{issueId}
+        ORDER BY order_num ASC, created_at ASC
+    </select>
+
+    <!-- 체크리스트 항목 추가 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO issue_checklists (issue_id, content, checked, order_num)
+        VALUES (#{issueId}, #{content}, #{checked}, #{orderNum})
+    </insert>
+
+    <!-- 체크리스트 항목 수정 -->
+    <update id="update">
+        UPDATE issue_checklists
+        SET content = #{content},
+            checked = #{checked},
+            order_num = #{orderNum}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 체크리스트 항목 삭제 -->
+    <delete id="delete">
+        DELETE FROM issue_checklists
+        WHERE id = #{id}
+    </delete>
+
+    <!-- 이슈의 모든 체크리스트 삭제 -->
+    <delete id="deleteByIssueId">
+        DELETE FROM issue_checklists
+        WHERE issue_id = #{issueId}
+    </delete>
+
+    <!-- 체크 상태 토글 -->
+    <update id="toggleChecked">
+        UPDATE issue_checklists
+        SET checked = NOT checked
+        WHERE id = #{id}
+    </update>
+
+</mapper>

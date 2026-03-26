@@ -1,5 +1,8 @@
-import type { TaskBlock, BlockType } from '../types/task.types'
-import { TYPE_META } from '../types/task.types'
+import { useState } from 'react'
+import type { TaskBlock, BlockType, DbColumn, DbTableContent } from '../types/task.types'
+import { TYPE_META, parseDbTableContent, parseTsvToColumns } from '../types/task.types'
+import { Checkbox } from '@/shared/ui/checkbox'
+import { toast } from 'sonner'
 
 interface Props {
   title: string
@@ -65,25 +68,30 @@ export default function TaskBlockEditor({ title, setTitle, blocks, setBlocks }: 
                 </button>
               </div>
 
-              <div className="p-0">
-                <textarea
-                  value={block.content}
-                  onChange={(e) => updateBlock(_idx, 'content', e.target.value)}
-                  rows={10}
-                  className="w-full px-3 py-2 text-sm font-mono border-0 resize-y focus:outline-none"
-                  placeholder={
-                    block.blockType === 'MMD'
-                      ? 'flowchart LR\n    A[시작] --> B[끝]'
-                      : block.blockType === 'FIGMA'
-                        ? 'https://www.figma.com/file/...'
-                        : block.blockType === 'FILE'
-                          ? '{"url": "", "filename": "", "description": ""}'
-                          : block.blockType === 'DBTABLE'
-                            ? '{"tableName": "", "columns": []}'
-                            : '마크다운 형식으로 자유롭게 작성하세요.'
-                  }
+              {block.blockType === 'DBTABLE' ? (
+                <DbTableBlockEditor
+                  content={block.content}
+                  onChange={(newContent) => updateBlock(_idx, 'content', newContent)}
                 />
-              </div>
+              ) : (
+                <div className="p-0">
+                  <textarea
+                    value={block.content}
+                    onChange={(e) => updateBlock(_idx, 'content', e.target.value)}
+                    rows={10}
+                    className="w-full px-3 py-2 text-sm font-mono border-0 resize-y focus:outline-none"
+                    placeholder={
+                      block.blockType === 'MMD'
+                        ? 'flowchart LR\n    A[시작] --> B[끝]'
+                        : block.blockType === 'FIGMA'
+                          ? 'https://www.figma.com/file/...'
+                          : block.blockType === 'FILE'
+                            ? '{"url": "", "filename": "", "description": ""}'
+                            : '마크다운 형식으로 자유롭게 작성하세요.'
+                    }
+                  />
+                </div>
+              )}
             </div>
           )
         })}
@@ -101,6 +109,293 @@ export default function TaskBlockEditor({ title, setTitle, blocks, setBlocks }: 
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+// DB 테이블 블록 전용 에디터
+function DbTableBlockEditor({ content, onChange }: { content: string; onChange: (content: string) => void }) {
+  const [dbTable, setDbTable] = useState<DbTableContent>(() => parseDbTableContent(content))
+  const [inputMode, setInputMode] = useState<'tsv' | 'ddl'>(() => {
+    const parsed = parseDbTableContent(content)
+    return parsed.ddl ? 'ddl' : 'tsv'
+  })
+  const [ddlText, setDdlText] = useState(() => {
+    const parsed = parseDbTableContent(content)
+    return parsed.ddl || ''
+  })
+
+  // dbTable 변경 시 JSON 문자열로 변환하여 부모에 전달
+  const handleUpdate = (updated: DbTableContent) => {
+    setDbTable(updated)
+    onChange(JSON.stringify(updated))
+  }
+
+  // DDL 텍스트 변경 핸들러
+  const handleDdlChange = (text: string) => {
+    setDdlText(text)
+    handleUpdate({ ...dbTable, ddl: text, columns: [] })
+  }
+
+  const handleTsvPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const text = e.clipboardData.getData('text/plain')
+    if (text.includes('\t')) {
+      e.preventDefault()
+      const parsed = parseTsvToColumns(text)
+      if (parsed.length > 0) {
+        handleUpdate({ ...dbTable, columns: parsed })
+        toast.success(`${parsed.length}개 컬럼 파싱 완료`)
+      } else {
+        toast.error('유효한 테이블 컬럼 데이터를 찾을 수 없습니다')
+      }
+    }
+  }
+
+  const handleAddColumn = () => {
+    const newCol: DbColumn = {
+      no: dbTable.columns.length + 1,
+      name: '',
+      comment: '',
+      type: 'VARCHAR',
+      size: '',
+      pk: false,
+      notNull: false,
+      note: '',
+    }
+    handleUpdate({ ...dbTable, columns: [...dbTable.columns, newCol] })
+  }
+
+  const handleDeleteColumn = (index: number) => {
+    handleUpdate({
+      ...dbTable,
+      columns: dbTable.columns.filter((_, i) => i !== index).map((col, i) => ({ ...col, no: i + 1 })),
+    })
+  }
+
+  const handleUpdateColumn = (index: number, field: keyof DbColumn, value: string | number | boolean) => {
+    handleUpdate({
+      ...dbTable,
+      columns: dbTable.columns.map((col, i) => (i === index ? { ...col, [field]: value } : col)),
+    })
+  }
+
+  return (
+    <div className="p-3 space-y-3">
+      {/* 테이블 메타데이터 */}
+      <div className="grid grid-cols-4 gap-2">
+        <div className="col-span-2">
+          <label className="text-xs font-medium mb-1 block">
+            테이블명 <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={dbTable.tableName}
+            onChange={(e) => handleUpdate({ ...dbTable, tableName: e.target.value })}
+            placeholder="예: users, task_posts"
+            className="w-full px-2 py-1.5 border rounded text-xs"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium mb-1 block">스키마</label>
+          <input
+            type="text"
+            value={dbTable.schema}
+            onChange={(e) => handleUpdate({ ...dbTable, schema: e.target.value })}
+            placeholder="예: public"
+            className="w-full px-2 py-1.5 border rounded text-xs"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium mb-1 block">분류</label>
+          <input
+            type="text"
+            value={dbTable.category}
+            onChange={(e) => handleUpdate({ ...dbTable, category: e.target.value })}
+            placeholder="예: 사용자"
+            className="w-full px-2 py-1.5 border rounded text-xs"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium mb-1 block">테이블 설명</label>
+        <input
+          type="text"
+          value={dbTable.description}
+          onChange={(e) => handleUpdate({ ...dbTable, description: e.target.value })}
+          placeholder="이 테이블이 무엇을 저장하는지 설명하세요"
+          className="w-full px-2 py-1.5 border rounded text-xs"
+        />
+      </div>
+
+      {/* 입력 방식 선택 버튼 */}
+      <div className="flex items-center gap-2 border-b pb-2">
+        <span className="text-xs font-medium text-gray-600">입력 방식:</span>
+        <div className="flex gap-1 bg-gray-100 p-0.5 rounded">
+          <button
+            onClick={() => setInputMode('tsv')}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              inputMode === 'tsv' ? 'bg-blue-600 text-white shadow' : 'hover:bg-gray-200'
+            }`}
+          >
+            📋 TSV
+          </button>
+          <button
+            onClick={() => setInputMode('ddl')}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              inputMode === 'ddl' ? 'bg-blue-600 text-white shadow' : 'hover:bg-gray-200'
+            }`}
+          >
+            📝 DDL
+          </button>
+        </div>
+      </div>
+
+      {inputMode === 'tsv' ? (
+        <>
+          {/* TSV 붙여넣기 영역 */}
+          <div className="bg-amber-50 border-2 border-amber-200 rounded p-2">
+            <label className="text-xs font-semibold mb-1.5 block text-amber-900">
+              📋 DBeaver/Excel에서 붙여넣기 (TSV)
+        </label>
+        <textarea
+          onPaste={handleTsvPaste}
+          placeholder={`DBeaver/Excel에서 범위 선택 후 Ctrl+C → 여기에 Ctrl+V\n\n예시:\nNo\t컬럼명\t설명\t타입\t크기\tPK\tNN\t비고\n1\tid\t사용자ID\tBIGINT\t\tY\tY\tPK`}
+          className="w-full px-2 py-1.5 border border-amber-300 rounded text-xs font-mono bg-white"
+          rows={3}
+        />
+        <p className="text-[10px] text-amber-700 mt-1">
+          DBeaver에서 테이블 컬럼 정보를 선택하고 복사한 후 위 영역에 붙여넣으면 자동으로 파싱됩니다
+        </p>
+      </div>
+
+      {/* 컬럼 편집 테이블 */}
+      <div>
+        <div className="flex justify-between items-center mb-1.5">
+          <label className="text-xs font-semibold">컬럼 정보</label>
+          <button
+            onClick={handleAddColumn}
+            className="text-xs px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200"
+          >
+            + 행 추가
+          </button>
+        </div>
+
+        <div className="border rounded overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-gray-700 text-white">
+              <tr>
+                <th className="px-2 py-1.5 text-center w-10">No</th>
+                <th className="px-2 py-1.5 text-left w-28">컬럼명</th>
+                <th className="px-2 py-1.5 text-left w-32">설명</th>
+                <th className="px-2 py-1.5 text-left w-24">타입</th>
+                <th className="px-2 py-1.5 text-center w-16">크기</th>
+                <th className="px-2 py-1.5 text-center w-10">PK</th>
+                <th className="px-2 py-1.5 text-center w-10">NN</th>
+                <th className="px-2 py-1.5 text-left w-20">비고</th>
+                <th className="px-2 py-1.5 text-center w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {dbTable.columns.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-3 py-6 text-center text-gray-400 text-xs">
+                    위의 TSV 붙여넣기 영역에 데이터를 붙여넣거나 "행 추가" 버튼을 클릭하세요
+                  </td>
+                </tr>
+              ) : (
+                dbTable.columns.map((col, idx) => (
+                  <tr key={idx} className={`border-t hover:bg-blue-50 ${col.pk ? 'bg-amber-50' : ''}`}>
+                    <td className="px-2 py-1 text-center text-gray-500">{col.no}</td>
+                    <td className="px-2 py-1">
+                      <input
+                        type="text"
+                        value={col.name}
+                        onChange={(e) => handleUpdateColumn(idx, 'name', e.target.value)}
+                        className="w-full px-1.5 py-1 border rounded text-xs"
+                        placeholder="컬럼명"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <input
+                        type="text"
+                        value={col.comment}
+                        onChange={(e) => handleUpdateColumn(idx, 'comment', e.target.value)}
+                        className="w-full px-1.5 py-1 border rounded text-xs"
+                        placeholder="설명"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <input
+                        type="text"
+                        value={col.type}
+                        onChange={(e) => handleUpdateColumn(idx, 'type', e.target.value)}
+                        className="w-full px-1.5 py-1 border rounded text-xs font-mono"
+                        placeholder="VARCHAR"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <input
+                        type="text"
+                        value={col.size}
+                        onChange={(e) => handleUpdateColumn(idx, 'size', e.target.value)}
+                        className="w-full px-1.5 py-1 border rounded text-xs text-center"
+                        placeholder=""
+                      />
+                    </td>
+                    <td className="px-2 py-1 text-center">
+                      <Checkbox
+                        checked={col.pk}
+                        onCheckedChange={(checked) => handleUpdateColumn(idx, 'pk', checked as boolean)}
+                      />
+                    </td>
+                    <td className="px-2 py-1 text-center">
+                      <Checkbox
+                        checked={col.notNull}
+                        onCheckedChange={(checked) => handleUpdateColumn(idx, 'notNull', checked as boolean)}
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <input
+                        type="text"
+                        value={col.note}
+                        onChange={(e) => handleUpdateColumn(idx, 'note', e.target.value)}
+                        className="w-full px-1.5 py-1 border rounded text-xs"
+                        placeholder="FK 등"
+                      />
+                    </td>
+                    <td className="px-2 py-1 text-center">
+                      <button onClick={() => handleDeleteColumn(idx)} className="text-red-500 hover:text-red-700 text-xs">
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {dbTable.columns.length > 0 && (
+          <p className="text-[10px] text-gray-500 mt-1">{dbTable.columns.length}개 컬럼</p>
+        )}
+      </div>
+    </>
+  ) : (
+    <>
+      {/* DDL 입력 영역 */}
+      <div className="bg-blue-50 border-2 border-blue-200 rounded p-2">
+        <label className="text-xs font-semibold mb-1.5 block text-blue-900">📝 CREATE TABLE DDL 입력</label>
+        <textarea
+          value={ddlText}
+          onChange={(e) => handleDdlChange(e.target.value)}
+          placeholder={`CREATE TABLE users (\n  id BIGSERIAL PRIMARY KEY,\n  username VARCHAR(50) NOT NULL,\n  email VARCHAR(100) NOT NULL UNIQUE,\n  password VARCHAR(255) NOT NULL,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\nDBeaver의 DDL 탭에서 복사하여 붙여넣으세요.`}
+          className="w-full px-2 py-1.5 border border-blue-300 rounded text-xs font-mono bg-white"
+          rows={12}
+        />
+        <p className="text-[10px] text-blue-700 mt-1">CREATE TABLE 문을 입력하면 DDL을 그대로 저장합니다</p>
+      </div>
+    </>
+  )}
     </div>
   )
 }

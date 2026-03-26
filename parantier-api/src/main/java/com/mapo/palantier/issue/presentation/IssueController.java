@@ -4,8 +4,16 @@ import com.mapo.palantier.issue.application.IssueService;
 import com.mapo.palantier.issue.domain.Issue;
 import com.mapo.palantier.issue.domain.IssueImage;
 import com.mapo.palantier.issue.domain.IssueAssignee;
+import com.mapo.palantier.issue.domain.IssueChecklist;
+import com.mapo.palantier.issue.domain.IssueMindmap;
+import com.mapo.palantier.issue.domain.IssueTaskLink;
+import com.mapo.palantier.issue.domain.IssueDbTable;
 import com.mapo.palantier.issue.infrastructure.IssueImageMapper;
 import com.mapo.palantier.issue.infrastructure.IssueAssigneeMapper;
+import com.mapo.palantier.issue.infrastructure.IssueChecklistMapper;
+import com.mapo.palantier.issue.infrastructure.IssueMindmapMapper;
+import com.mapo.palantier.issue.infrastructure.IssueTaskLinkMapper;
+import com.mapo.palantier.issue.infrastructure.IssueDbTableMapper;
 import com.mapo.palantier.issue.presentation.dto.CreateIssueRequest;
 import com.mapo.palantier.issue.presentation.dto.IssueResponse;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +32,22 @@ public class IssueController {
     private final IssueService issueService;
     private final IssueImageMapper issueImageMapper;
     private final IssueAssigneeMapper issueAssigneeMapper;
+    private final IssueChecklistMapper issueChecklistMapper;
+    private final IssueMindmapMapper issueMindmapMapper;
+    private final IssueTaskLinkMapper issueTaskLinkMapper;
+    private final IssueDbTableMapper issueDbTableMapper;
 
-    public IssueController(IssueService issueService, IssueImageMapper issueImageMapper, IssueAssigneeMapper issueAssigneeMapper) {
+    public IssueController(IssueService issueService, IssueImageMapper issueImageMapper,
+                          IssueAssigneeMapper issueAssigneeMapper, IssueChecklistMapper issueChecklistMapper,
+                          IssueMindmapMapper issueMindmapMapper, IssueTaskLinkMapper issueTaskLinkMapper,
+                          IssueDbTableMapper issueDbTableMapper) {
         this.issueService = issueService;
         this.issueImageMapper = issueImageMapper;
         this.issueAssigneeMapper = issueAssigneeMapper;
+        this.issueChecklistMapper = issueChecklistMapper;
+        this.issueMindmapMapper = issueMindmapMapper;
+        this.issueTaskLinkMapper = issueTaskLinkMapper;
+        this.issueDbTableMapper = issueDbTableMapper;
     }
 
     @GetMapping
@@ -156,6 +175,7 @@ public class IssueController {
                 .issueId(issueId)
                 .url(request.url())
                 .filename(request.filename())
+                .fileType(request.fileType() != null ? request.fileType() : "image")
                 .build();
         issueImageMapper.insert(image);
         return ResponseEntity.ok(image);
@@ -170,7 +190,7 @@ public class IssueController {
         return ResponseEntity.noContent().build();
     }
 
-    public record AddImageRequest(String url, String filename) {}
+    public record AddImageRequest(String url, String filename, String fileType) {}
 
     // Assignee endpoints
     @GetMapping("/{issueId}/assignees")
@@ -215,4 +235,198 @@ public class IssueController {
     }
 
     public record UpdateAssigneesRequest(List<Long> userIds) {}
+
+    // ===== 체크리스트 API =====
+
+    @GetMapping("/{issueId}/checklists")
+    public ResponseEntity<List<IssueChecklist>> getChecklists(@PathVariable Long issueId) {
+        List<IssueChecklist> checklists = issueChecklistMapper.findByIssueId(issueId);
+        return ResponseEntity.ok(checklists);
+    }
+
+    @PostMapping("/{issueId}/checklists")
+    public ResponseEntity<IssueChecklist> createChecklist(
+            @PathVariable Long issueId,
+            @RequestBody CreateChecklistRequest request
+    ) {
+        IssueChecklist checklist = IssueChecklist.builder()
+                .issueId(issueId)
+                .content(request.content())
+                .checked(false)
+                .orderNum(request.orderNum() != null ? request.orderNum() : 0)
+                .build();
+
+        issueChecklistMapper.insert(checklist);
+        return ResponseEntity.ok(checklist);
+    }
+
+    @PutMapping("/{issueId}/checklists/{checklistId}")
+    public ResponseEntity<Void> updateChecklist(
+            @PathVariable Long issueId,
+            @PathVariable Long checklistId,
+            @RequestBody UpdateChecklistRequest request
+    ) {
+        IssueChecklist checklist = IssueChecklist.builder()
+                .id(checklistId)
+                .content(request.content())
+                .checked(request.checked())
+                .orderNum(request.orderNum())
+                .build();
+
+        issueChecklistMapper.update(checklist);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{issueId}/checklists/{checklistId}/toggle")
+    public ResponseEntity<Void> toggleChecklist(
+            @PathVariable Long issueId,
+            @PathVariable Long checklistId
+    ) {
+        issueChecklistMapper.toggleChecked(checklistId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{issueId}/checklists/{checklistId}")
+    public ResponseEntity<Void> deleteChecklist(
+            @PathVariable Long issueId,
+            @PathVariable Long checklistId
+    ) {
+        issueChecklistMapper.delete(checklistId);
+        return ResponseEntity.ok().build();
+    }
+
+    public record CreateChecklistRequest(String content, Integer orderNum) {}
+    public record UpdateChecklistRequest(String content, Boolean checked, Integer orderNum) {}
+
+    // Mindmap endpoints
+    @GetMapping("/{issueId}/mindmaps")
+    public ResponseEntity<List<IssueMindmap>> getMindmaps(@PathVariable Long issueId) {
+        List<IssueMindmap> mindmaps = issueMindmapMapper.findByIssueId(issueId);
+        return ResponseEntity.ok(mindmaps);
+    }
+
+    @PostMapping("/{issueId}/mindmaps")
+    public ResponseEntity<IssueMindmap> createMindmap(
+            @PathVariable Long issueId,
+            @RequestBody CreateMindmapRequest request
+    ) {
+        IssueMindmap mindmap = IssueMindmap.builder()
+                .issueId(issueId)
+                .title(request.title())
+                .content(request.content())
+                .orderNum(request.orderNum() != null ? request.orderNum() : 0)
+                .build();
+        issueMindmapMapper.insert(mindmap);
+        return ResponseEntity.ok(mindmap);
+    }
+
+    @PutMapping("/{issueId}/mindmaps/{mindmapId}")
+    public ResponseEntity<Void> updateMindmap(
+            @PathVariable Long issueId,
+            @PathVariable Long mindmapId,
+            @RequestBody UpdateMindmapRequest request
+    ) {
+        IssueMindmap mindmap = IssueMindmap.builder()
+                .id(mindmapId)
+                .title(request.title())
+                .content(request.content())
+                .orderNum(request.orderNum())
+                .build();
+        issueMindmapMapper.update(mindmap);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{issueId}/mindmaps/{mindmapId}")
+    public ResponseEntity<Void> deleteMindmap(
+            @PathVariable Long issueId,
+            @PathVariable Long mindmapId
+    ) {
+        issueMindmapMapper.delete(mindmapId);
+        return ResponseEntity.ok().build();
+    }
+
+    public record CreateMindmapRequest(String title, String content, Integer orderNum) {}
+    public record UpdateMindmapRequest(String title, String content, Integer orderNum) {}
+
+    // Task Link endpoints
+    @GetMapping("/{issueId}/tasks")
+    public ResponseEntity<List<Map<String, Object>>> getLinkedTasks(@PathVariable Long issueId) {
+        List<Map<String, Object>> tasks = issueTaskLinkMapper.findTasksByIssueId(issueId);
+        return ResponseEntity.ok(tasks);
+    }
+
+    @PostMapping("/{issueId}/tasks")
+    public ResponseEntity<IssueTaskLink> linkTask(
+            @PathVariable Long issueId,
+            @RequestBody LinkTaskRequest request
+    ) {
+        IssueTaskLink link = IssueTaskLink.builder()
+                .issueId(issueId)
+                .taskPostId(request.taskPostId())
+                .orderNum(request.orderNum() != null ? request.orderNum() : 0)
+                .build();
+        issueTaskLinkMapper.insert(link);
+        return ResponseEntity.ok(link);
+    }
+
+    @DeleteMapping("/{issueId}/tasks/{linkId}")
+    public ResponseEntity<Void> unlinkTask(
+            @PathVariable Long issueId,
+            @PathVariable Long linkId
+    ) {
+        issueTaskLinkMapper.delete(linkId);
+        return ResponseEntity.ok().build();
+    }
+
+    public record LinkTaskRequest(Long taskPostId, Integer orderNum) {}
+
+    // DB Table endpoints
+    @GetMapping("/{issueId}/dbtables")
+    public ResponseEntity<List<IssueDbTable>> getDbTables(@PathVariable Long issueId) {
+        List<IssueDbTable> dbTables = issueDbTableMapper.findByIssueId(issueId);
+        return ResponseEntity.ok(dbTables);
+    }
+
+    @PostMapping("/{issueId}/dbtables")
+    public ResponseEntity<IssueDbTable> createDbTable(
+            @PathVariable Long issueId,
+            @RequestBody CreateDbTableRequest request
+    ) {
+        IssueDbTable dbTable = IssueDbTable.builder()
+                .issueId(issueId)
+                .tableName(request.tableName())
+                .tableInfo(request.tableInfo())
+                .orderNum(request.orderNum() != null ? request.orderNum() : 0)
+                .build();
+        issueDbTableMapper.insert(dbTable);
+        return ResponseEntity.ok(dbTable);
+    }
+
+    @PutMapping("/{issueId}/dbtables/{dbTableId}")
+    public ResponseEntity<Void> updateDbTable(
+            @PathVariable Long issueId,
+            @PathVariable Long dbTableId,
+            @RequestBody UpdateDbTableRequest request
+    ) {
+        IssueDbTable dbTable = IssueDbTable.builder()
+                .id(dbTableId)
+                .tableName(request.tableName())
+                .tableInfo(request.tableInfo())
+                .orderNum(request.orderNum())
+                .build();
+        issueDbTableMapper.update(dbTable);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{issueId}/dbtables/{dbTableId}")
+    public ResponseEntity<Void> deleteDbTable(
+            @PathVariable Long issueId,
+            @PathVariable Long dbTableId
+    ) {
+        issueDbTableMapper.delete(dbTableId);
+        return ResponseEntity.ok().build();
+    }
+
+    public record CreateDbTableRequest(String tableName, String tableInfo, Integer orderNum) {}
+    public record UpdateDbTableRequest(String tableName, String tableInfo, Integer orderNum) {}
 }

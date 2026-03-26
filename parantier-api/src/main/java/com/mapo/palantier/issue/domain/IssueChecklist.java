@@ -1,21 +1,17 @@
 package com.mapo.palantier.issue.domain;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class IssueImage {
+public class IssueChecklist {
     private Long id;
     private Long issueId;
-    private String url;
-    private String filename;
-    private String fileType;
+    private String content;
+    private Boolean checked;
+    private Integer orderNum;
     private LocalDateTime createdAt;
 }

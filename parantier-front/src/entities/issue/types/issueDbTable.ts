@@ -1,86 +1,16 @@
-export type BlockType = 'NOTE' | 'MMD' | 'FIGMA' | 'FILE' | 'DBTABLE'
-
-export interface TaskFolder {
-  id: number
-  parentId: number | null
-  name: string
-  sortOrder: number
-  createdBy: number
-  createdAt: string
-  updatedAt: string
-}
-
-export interface TaskBlock {
-  id?: number
-  postId?: number
-  blockType: BlockType
-  content: string
-  sortOrder?: number
-}
-
-export interface TaskPost {
-  id: number
-  folderId: number
-  title: string
-  authorId: number
-  authorName: string
-  createdAt: string
-  updatedAt: string
-  blocks?: TaskBlock[]
-}
-
-export interface TaskComment {
-  id: number
-  postId: number
-  authorId: number
-  authorName: string
-  content: string
-  createdAt: string
-}
-
-// DTO types
-export interface TaskFolderDto {
-  id?: number
-  parentId: number | null
-  name: string
-  sortOrder?: number
-}
-
-export interface TaskBlockDto {
-  blockType: BlockType
-  content: string
-}
-
-export interface TaskPostDto {
-  id?: number
-  folderId: number
-  title: string
-  blocks: TaskBlockDto[]
-}
-
-export interface TaskCommentDto {
-  postId: number
-  content: string
-}
-
-// JSON content types
-export interface FileContent {
-  url: string
-  filename: string
-  description: string
-}
-
+// DB 컬럼 정보
 export interface DbColumn {
   no: number
   name: string
   comment: string
   type: string
-  size: string
+  size: number | string
   pk: boolean
   notNull: boolean
   note: string
 }
 
+// DB 테이블 컨텐츠 (JSON으로 저장됨)
 export interface DbTableContent {
   tableName: string
   schema: string
@@ -90,34 +20,30 @@ export interface DbTableContent {
   ddl?: string // DDL 모드로 입력된 경우
 }
 
-// Block metadata
-export const TYPE_META: Record<BlockType, { icon: string; label: string; color: string }> = {
-  NOTE: { icon: '📝', label: '노트', color: 'bg-blue-100 text-blue-700' },
-  MMD: { icon: '📊', label: '다이어그램', color: 'bg-purple-100 text-purple-700' },
-  FIGMA: { icon: '🎨', label: 'Figma', color: 'bg-pink-100 text-pink-700' },
-  FILE: { icon: '📎', label: '첨부파일', color: 'bg-green-100 text-green-700' },
-  DBTABLE: { icon: '🗄️', label: 'DB테이블', color: 'bg-amber-100 text-amber-700' },
+export interface IssueDbTable {
+  id: number
+  issueId: number
+  tableName: string
+  tableInfo: string // JSON stringified DbTableContent
+  orderNum: number
+  createdAt: string
+  updatedAt: string
 }
 
-// Helper functions
-export const parseFileContent = (content: string): FileContent => {
-  try {
-    return JSON.parse(content)
-  } catch {
-    return { url: '', filename: '', description: '' }
-  }
+export interface CreateDbTableRequest {
+  tableName: string
+  tableInfo: string // JSON stringified DbTableContent
+  orderNum?: number
 }
 
-export const parseDbTableContent = (content: string): DbTableContent => {
-  try {
-    return JSON.parse(content)
-  } catch {
-    return { tableName: '', schema: '', category: '', description: '', columns: [] }
-  }
+export interface UpdateDbTableRequest {
+  tableName: string
+  tableInfo: string // JSON stringified DbTableContent
+  orderNum: number
 }
 
 // TSV 파싱 유틸리티 - 다양한 형식 자동 감지
-export const parseTsvToColumns = (tsv: string): DbColumn[] => {
+export function parseTsvToColumns(tsv: string): DbColumn[] {
   const lines = tsv.trim().split('\n')
   if (lines.length === 0) return []
 
@@ -277,7 +203,7 @@ export const parseTsvToColumns = (tsv: string): DbColumn[] => {
           name,
           comment,
           type,
-          size,
+          size: isNaN(Number(size)) ? size : Number(size),
           pk,
           notNull,
           note,
@@ -289,21 +215,24 @@ export const parseTsvToColumns = (tsv: string): DbColumn[] => {
   return parsedColumns
 }
 
-// Tree builder
-export const buildTree = (folders: TaskFolder[]) => {
-  const children: Record<number, TaskFolder[]> = {}
-  const roots: TaskFolder[] = []
-
-  folders.forEach((folder) => {
-    if (folder.parentId === null) {
-      roots.push(folder)
-    } else {
-      if (!children[folder.parentId]) {
-        children[folder.parentId] = []
-      }
-      children[folder.parentId].push(folder)
+// JSON 파싱 헬퍼
+export function parseDbTableContent(raw: string): DbTableContent {
+  try {
+    const parsed = JSON.parse(raw)
+    return {
+      tableName: parsed.tableName || '',
+      schema: parsed.schema || '',
+      category: parsed.category || '',
+      description: parsed.description || '',
+      columns: parsed.columns || [],
     }
-  })
-
-  return { roots, children }
+  } catch {
+    return {
+      tableName: '',
+      schema: '',
+      category: '',
+      description: '',
+      columns: [],
+    }
+  }
 }

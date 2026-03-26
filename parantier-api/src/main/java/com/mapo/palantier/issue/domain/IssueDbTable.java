@@ -11,11 +11,12 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class IssueImage {
+public class IssueDbTable {
     private Long id;
     private Long issueId;
-    private String url;
-    private String filename;
-    private String fileType;
+    private String tableName;
+    private String tableInfo;
+    private Integer orderNum;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

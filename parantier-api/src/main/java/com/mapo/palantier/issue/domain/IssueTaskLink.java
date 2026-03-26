@@ -11,11 +11,10 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class IssueImage {
+public class IssueTaskLink {
     private Long id;
     private Long issueId;
-    private String url;
-    private String filename;
-    private String fileType;
+    private Long taskPostId;
+    private Integer orderNum;
     private LocalDateTime createdAt;
 }

@@ -3,6 +3,7 @@ export interface IssueImage {
   issueId: number
   url: string
   filename: string
+  fileType: string
   createdAt: string
 }
 

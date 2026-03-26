@@ -29,10 +29,11 @@ export const issueImageApi = {
   },
 
   // Add image to issue
-  addIssueImage: async (issueId: number, url: string, filename: string): Promise<IssueImage> => {
+  addIssueImage: async (issueId: number, url: string, filename: string, fileType?: string): Promise<IssueImage> => {
     const response = await apiClient.post<IssueImage>(`/issues/${issueId}/images`, {
       url,
       filename,
+      fileType: fileType || 'image',
     })
     return response.data
   },

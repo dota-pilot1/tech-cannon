@@ -14,25 +14,27 @@ export function useUploadIssueImage(issueId: number) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, fileType }: { file: File; fileType?: string }) => {
       // 1. Get presigned URL
       const { presignedUrl, publicUrl } = await issueImageApi.getPresignedUrl(
         file.name,
-        file.type
+        file.type || 'application/octet-stream'
       )
 
       // 2. Upload to S3
       await issueImageApi.uploadToS3(presignedUrl, file)
 
       // 3. Save to database
-      return await issueImageApi.addIssueImage(issueId, publicUrl, file.name)
+      return await issueImageApi.addIssueImage(issueId, publicUrl, file.name, fileType)
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['issueImages', issueId] })
-      toast.success('이미지가 업로드되었습니다.')
+      const fileType = variables.fileType || 'image'
+      toast.success(fileType === 'mmd' ? 'MMD 파일이 업로드되었습니다.' : '이미지가 업로드되었습니다.')
     },
-    onError: () => {
-      toast.error('이미지 업로드에 실패했습니다.')
+    onError: (_, variables) => {
+      const fileType = variables.fileType || 'image'
+      toast.error(fileType === 'mmd' ? 'MMD 파일 업로드에 실패했습니다.' : '이미지 업로드에 실패했습니다.')
     },
   })
 }

@@ -9,16 +9,17 @@
         <result property="issueId" column="issue_id"/>
         <result property="url" column="url"/>
         <result property="filename" column="filename"/>
+        <result property="fileType" column="file_type"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
     <insert id="insert" parameterType="com.mapo.palantier.issue.domain.IssueImage" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO issue_images (issue_id, url, filename, created_at)
-        VALUES (#{issueId}, #{url}, #{filename}, CURRENT_TIMESTAMP)
+        INSERT INTO issue_images (issue_id, url, filename, file_type, created_at)
+        VALUES (#{issueId}, #{url}, #{filename}, #{fileType}, CURRENT_TIMESTAMP)
     </insert>
 
     <select id="findByIssueId" resultMap="IssueImageResultMap">
-        SELECT id, issue_id, url, filename, created_at
+        SELECT id, issue_id, url, filename, file_type, created_at
         FROM issue_images
         WHERE issue_id = #{issueId}
         ORDER BY created_at ASC

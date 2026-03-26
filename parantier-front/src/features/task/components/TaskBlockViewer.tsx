@@ -133,7 +133,13 @@ export default function TaskBlockViewer({ post }: Props) {
                         </p>
                       )}
 
-                      {tbl.columns.length > 0 ? (
+                      {tbl.ddl ? (
+                        <div className="overflow-x-auto">
+                          <pre className="bg-gray-50 border rounded p-3 text-xs font-mono">
+                            {tbl.ddl}
+                          </pre>
+                        </div>
+                      ) : tbl.columns.length > 0 ? (
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs border-collapse">
                             <thead>

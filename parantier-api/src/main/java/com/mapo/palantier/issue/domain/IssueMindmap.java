@@ -11,11 +11,12 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class IssueImage {
+public class IssueMindmap {
     private Long id;
     private Long issueId;
-    private String url;
-    private String filename;
-    private String fileType;
+    private String title;
+    private String content;
+    private Integer orderNum;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
