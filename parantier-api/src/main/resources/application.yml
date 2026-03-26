@@ -2,6 +2,10 @@ spring:
   application:
     name: parantier-api
 
+  # Active Profile (default: local)
+  profiles:
+    active: local
+
   # Database Configuration
   datasource:
     url: jdbc:postgresql://localhost:5432/palantier

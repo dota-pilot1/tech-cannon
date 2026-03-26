@@ -67,7 +67,9 @@ export function IssuesPage() {
   const { mutate: uploadImage, isPending: isUploading } = useUploadIssueImage(selectedIssueId!)
   const { mutate: deleteImage } = useDeleteIssueImage(selectedIssueId!)
   const [isDragging, setIsDragging] = useState(false)
+  const [isPasteMode, setIsPasteMode] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const uploadAreaRef = useRef<HTMLDivElement>(null)
 
   const issues = issuesData?.items || []
 
@@ -312,8 +314,21 @@ export function IssuesPage() {
     }
   }
 
-  // 붙여넣기 핸들러
+  // 업로드 영역 클릭 (활성화)
+  const handleUploadAreaClick = () => {
+    setIsPasteMode(true)
+    uploadAreaRef.current?.focus()
+  }
+
+  // 포커스를 잃으면 비활성화
+  const handleUploadAreaBlur = () => {
+    setIsPasteMode(false)
+  }
+
+  // 붙여넣기 핸들러 (활성화 상태일 때만)
   const handlePaste = (e: React.ClipboardEvent) => {
+    if (!isPasteMode) return
+
     const items = e.clipboardData?.items
     if (!items) return
 
@@ -704,11 +719,17 @@ export function IssuesPage() {
 
                 {/* 드래그앤드롭 영역 */}
                 <div
-                  className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
-                    isDragging
+                  ref={uploadAreaRef}
+                  tabIndex={0}
+                  className={`border-2 border-dashed rounded-lg p-6 transition-all cursor-pointer outline-none ${
+                    isPasteMode
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : isDragging
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
                   }`}
+                  onClick={handleUploadAreaClick}
+                  onBlur={handleUploadAreaBlur}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
@@ -741,9 +762,15 @@ export function IssuesPage() {
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">
-                        이미지를 드래그하여 놓거나, 클릭하여 업로드하거나, Ctrl+V로 붙여넣으세요
-                      </p>
+                      {isPasteMode ? (
+                        <p className="text-sm text-primary font-medium">
+                          Ctrl+V로 이미지를 붙여넣으세요
+                        </p>
+                      ) : (
+                        <p className="text-sm">
+                          이미지를 드래그하여 놓거나, 클릭하여 활성화 후 Ctrl+V로 붙여넣으세요
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
