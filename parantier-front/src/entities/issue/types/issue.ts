@@ -1,4 +1,4 @@
-export type IssueStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'REJECTED'
+export type IssueStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED'
 export type IssuePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 export type IssueCategory = 'COMMON' | 'BUG' | 'FEATURE' | 'IMPROVEMENT' | 'QUESTION'
 

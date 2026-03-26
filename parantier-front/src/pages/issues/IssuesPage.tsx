@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, ICellRendererParams } from 'ag-grid-community'
+import type { ColDef, RowSelectedEvent } from 'ag-grid-community'
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
@@ -11,87 +11,236 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
-import { useIssues, useUpdateIssueStatus } from '@/features/issue/hooks/useIssues'
+import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue } from '@/features/issue/hooks/useIssues'
 import type { Issue, IssueStatus, IssuePriority, IssueCategory } from '@/entities/issue/types/issue'
-import { Plus } from 'lucide-react'
+import { Plus, Edit2, Trash2, X } from 'lucide-react'
 import { useConfirm } from '@/shared/hooks/useConfirm'
+import { toast } from 'sonner'
 
 // AG-Grid 모듈 등록
 ModuleRegistry.registerModules([AllCommunityModule])
 
-// 상태 배지 렌더러
-function StatusCellRenderer(props: ICellRendererParams<Issue>) {
-  const { mutate: updateStatus, isPending } = useUpdateIssueStatus()
-  const status = props.value as IssueStatus
+export function IssuesPage() {
+  const gridRef = useRef<AgGridReact>(null)
 
-  const handleStatusChange = (newStatus: string) => {
-    if (!props.data) return
+  // 상태 관리
+  const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
 
-    const previousStatus = props.value
-    props.node.setDataValue('status', newStatus)
+  // 필터 상태
+  const [filterStatus, setFilterStatus] = useState<string>('ALL')
+  const [filterCategory, setFilterCategory] = useState<string>('ALL')
+  const [searchKeyword, setSearchKeyword] = useState('')
 
-    updateStatus(
-      { id: props.data.id, status: newStatus },
+  // 폼 데이터
+  const [formTitle, setFormTitle] = useState('')
+  const [formContent, setFormContent] = useState('')
+  const [formCategory, setFormCategory] = useState<IssueCategory>('COMMON')
+  const [formStatus, setFormStatus] = useState<IssueStatus>('OPEN')
+  const [formPriority, setFormPriority] = useState<IssuePriority>('MEDIUM')
+
+  // API 호출
+  const { data: issuesData } = useIssues({
+    status: filterStatus === 'ALL' ? undefined : (filterStatus as IssueStatus),
+    category: filterCategory === 'ALL' ? undefined : (filterCategory as IssueCategory),
+    keyword: searchKeyword || undefined,
+  })
+
+  const { data: issueDetail } = useIssue(selectedIssueId!, {
+    enabled: !!selectedIssueId && !isEditing,
+  })
+
+  const { mutate: createIssue } = useCreateIssue()
+  const { mutate: updateIssue } = useUpdateIssue()
+  const { mutate: deleteIssue } = useDeleteIssue()
+  const { confirm, ConfirmDialog } = useConfirm()
+
+  const issues = issuesData?.items || []
+
+  // AG-Grid 한국어 로케일
+  const localeText = useMemo(
+    () => ({
+      page: '페이지',
+      of: '/',
+      to: '-',
+      pageSizeSelectorLabel: '페이지당',
+      pageSizeSelectorLabelText: '행',
+    }),
+    []
+  )
+
+  // 컬럼 정의 (좌측 목록용 - 간소화)
+  const columnDefs = useMemo<ColDef<Issue>[]>(
+    () => [
       {
-        onError: () => {
-          props.node.setDataValue('status', previousStatus)
+        headerName: 'ID',
+        field: 'id',
+        width: 70,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
+      },
+      {
+        headerName: '제목',
+        field: 'title',
+        flex: 1,
+        minWidth: 200,
+        cellStyle: { display: 'flex', alignItems: 'center' } as any,
+      },
+      {
+        headerName: '상태',
+        field: 'status',
+        width: 100,
+        cellRenderer: (params: any) => {
+          const status = params.value as IssueStatus
+          const statusLabels: Record<IssueStatus, string> = {
+            OPEN: '진행 전',
+            IN_PROGRESS: '진행 중',
+            CLOSED: '완료',
+          }
+          return statusLabels[status] || status
         },
-      }
-    )
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
+      },
+      {
+        headerName: '우선순위',
+        field: 'priority',
+        width: 100,
+        cellRenderer: (params: any) => {
+          const priority = params.value as IssuePriority
+          const priorityLabels: Record<IssuePriority, string> = {
+            LOW: '낮음',
+            MEDIUM: '보통',
+            HIGH: '높음',
+            CRITICAL: '긴급',
+          }
+          return priorityLabels[priority] || priority
+        },
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
+      },
+    ],
+    []
+  )
+
+  const defaultColDef = useMemo<ColDef>(
+    () => ({
+      sortable: true,
+      resizable: true,
+    }),
+    []
+  )
+
+  // 행 선택 이벤트
+  const onRowSelected = (event: RowSelectedEvent) => {
+    if (event.node.isSelected()) {
+      setSelectedIssueId(event.data.id)
+      setIsEditing(false)
+    }
   }
 
-  const getStatusVariant = (status: IssueStatus) => {
+  // 신규 작성
+  const handleNew = () => {
+    setSelectedIssueId(null)
+    setFormTitle('')
+    setFormContent('')
+    setFormCategory('COMMON')
+    setFormStatus('OPEN')
+    setFormPriority('MEDIUM')
+    setIsEditing(true)
+  }
+
+  // 수정 모드로 전환
+  const handleEdit = () => {
+    if (!issueDetail) return
+    setFormTitle(issueDetail.title)
+    setFormContent(issueDetail.content)
+    setFormCategory(issueDetail.category)
+    setFormStatus(issueDetail.status)
+    setFormPriority(issueDetail.priority)
+    setIsEditing(true)
+  }
+
+  // 저장
+  const handleSave = () => {
+    if (!formTitle.trim()) {
+      toast.error('제목을 입력하세요')
+      return
+    }
+    if (!formContent.trim()) {
+      toast.error('내용을 입력하세요')
+      return
+    }
+
+    const data = {
+      title: formTitle,
+      content: formContent,
+      category: formCategory,
+      status: formStatus,
+      priority: formPriority,
+    }
+
+    if (selectedIssueId) {
+      // 수정
+      updateIssue({ id: selectedIssueId, request: data }, {
+        onSuccess: () => {
+          setIsEditing(false)
+        },
+      })
+    } else {
+      // 신규 생성
+      createIssue(data, {
+        onSuccess: () => {
+          setIsEditing(false)
+          setSelectedIssueId(null)
+        },
+      })
+    }
+  }
+
+  // 취소
+  const handleCancel = () => {
+    if (selectedIssueId) {
+      setIsEditing(false)
+    } else {
+      setIsEditing(false)
+      setSelectedIssueId(null)
+    }
+  }
+
+  // 삭제
+  const handleDelete = async () => {
+    if (!selectedIssueId) return
+
+    const confirmed = await confirm({
+      title: '이슈 삭제',
+      description: '정말로 이 이슈를 삭제하시겠습니까? 모든 댓글과 체크리스트도 함께 삭제됩니다.',
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'destructive',
+    })
+
+    if (confirmed) {
+      deleteIssue(selectedIssueId, {
+        onSuccess: () => {
+          setSelectedIssueId(null)
+          setIsEditing(false)
+        },
+      })
+    }
+  }
+
+  const getStatusBadgeVariant = (status: IssueStatus) => {
     switch (status) {
       case 'OPEN':
-        return 'default'
-      case 'IN_PROGRESS':
-        return 'secondary'
-      case 'RESOLVED':
-        return 'outline'
-      case 'CLOSED':
-        return 'outline'
-      case 'REJECTED':
         return 'destructive'
+      case 'IN_PROGRESS':
+        return 'default'
+      case 'CLOSED':
+        return 'secondary'
       default:
         return 'default'
     }
   }
 
-  const statusLabels: Record<IssueStatus, string> = {
-    OPEN: '진행 전',
-    IN_PROGRESS: '진행 중',
-    RESOLVED: '해결됨',
-    CLOSED: '종료됨',
-    REJECTED: '거부됨',
-  }
-
-  return (
-    <div className="flex items-center h-full py-1 px-1">
-      <Select value={status} onValueChange={handleStatusChange} disabled={isPending}>
-        <SelectTrigger className="h-8 w-28 text-xs border-gray-300">
-          <SelectValue>
-            <Badge variant={getStatusVariant(status)} className="text-xs">
-              {statusLabels[status]}
-            </Badge>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="OPEN">진행 전</SelectItem>
-          <SelectItem value="IN_PROGRESS">진행 중</SelectItem>
-          <SelectItem value="RESOLVED">해결됨</SelectItem>
-          <SelectItem value="CLOSED">종료됨</SelectItem>
-          <SelectItem value="REJECTED">거부됨</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-  )
-}
-
-// 우선순위 배지 렌더러
-function PriorityCellRenderer(props: ICellRendererParams<Issue>) {
-  const priority = props.value as IssuePriority
-
-  const getPriorityVariant = (priority: IssuePriority) => {
+  const getPriorityBadgeVariant = (priority: IssuePriority) => {
     switch (priority) {
       case 'CRITICAL':
         return 'destructive'
@@ -106,25 +255,18 @@ function PriorityCellRenderer(props: ICellRendererParams<Issue>) {
     }
   }
 
+  const statusLabels: Record<IssueStatus, string> = {
+    OPEN: '진행 전',
+    IN_PROGRESS: '진행 중',
+    CLOSED: '완료',
+  }
+
   const priorityLabels: Record<IssuePriority, string> = {
     LOW: '낮음',
     MEDIUM: '보통',
     HIGH: '높음',
     CRITICAL: '긴급',
   }
-
-  return (
-    <div className="flex items-center h-full">
-      <Badge variant={getPriorityVariant(priority)} className="text-xs">
-        {priorityLabels[priority]}
-      </Badge>
-    </div>
-  )
-}
-
-// 카테고리 배지 렌더러
-function CategoryCellRenderer(props: ICellRendererParams<Issue>) {
-  const category = props.value as IssueCategory
 
   const categoryLabels: Record<IssueCategory, string> = {
     COMMON: '일반',
@@ -134,237 +276,266 @@ function CategoryCellRenderer(props: ICellRendererParams<Issue>) {
     QUESTION: '질문',
   }
 
-  const getCategoryColor = (category: IssueCategory) => {
-    switch (category) {
-      case 'BUG':
-        return 'bg-red-100 text-red-800'
-      case 'FEATURE':
-        return 'bg-blue-100 text-blue-800'
-      case 'IMPROVEMENT':
-        return 'bg-green-100 text-green-800'
-      case 'QUESTION':
-        return 'bg-yellow-100 text-yellow-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   return (
-    <span className={`inline-block px-2 py-1 rounded-full text-xs ${getCategoryColor(category)}`}>
-      {categoryLabels[category]}
-    </span>
-  )
-}
-
-// 제목 렌더러 (클릭 가능)
-function TitleCellRenderer(props: ICellRendererParams<Issue>) {
-  const handleClick = () => {
-    if (props.data) {
-      // TODO: 이슈 상세 페이지 구현 후 활성화
-      console.log('Navigate to issue:', props.data.id)
-    }
-  }
-
-  return (
-    <button
-      onClick={handleClick}
-      className="text-left hover:text-blue-600 hover:underline w-full"
-    >
-      {props.value}
-    </button>
-  )
-}
-
-export function IssuesPage() {
-  const gridRef = useRef<AgGridReact>(null)
-  const [filters] = useState({
-    page: 0,
-    limit: 20,
-  })
-
-  const { data, isLoading, isError, error, refetch } = useIssues(filters)
-  const { ConfirmDialog } = useConfirm()
-
-  const issues = data?.items || []
-
-  // AG-Grid 한국어 로케일
-  const localeText = useMemo(
-    () => ({
-      page: '페이지',
-      of: '/',
-      to: '-',
-      pageSizeSelectorLabel: '페이지당',
-      pageSizeSelectorLabelText: '행',
-    }),
-    []
-  )
-
-  // 컬럼 정의
-  const columnDefs = useMemo<ColDef<Issue>[]>(
-    () => [
-      {
-        headerName: 'ID',
-        field: 'id',
-        width: 80,
-        filter: 'agNumberColumnFilter',
-        sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
-      },
-      {
-        headerName: '제목',
-        field: 'title',
-        flex: 2,
-        minWidth: 300,
-        filter: 'agTextColumnFilter',
-        sortable: true,
-        cellRenderer: TitleCellRenderer,
-        cellStyle: { display: 'flex', alignItems: 'center' } as any,
-      },
-      {
-        headerName: '카테고리',
-        field: 'category',
-        width: 100,
-        cellRenderer: CategoryCellRenderer,
-        filter: 'agTextColumnFilter',
-        sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
-      },
-      {
-        headerName: '상태',
-        field: 'status',
-        width: 140,
-        cellRenderer: StatusCellRenderer,
-        filter: 'agTextColumnFilter',
-        sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
-      },
-      {
-        headerName: '우선순위',
-        field: 'priority',
-        width: 100,
-        cellRenderer: PriorityCellRenderer,
-        filter: 'agTextColumnFilter',
-        sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
-      },
-      {
-        headerName: '작성자',
-        field: 'authorName',
-        width: 120,
-        filter: 'agTextColumnFilter',
-        sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
-      },
-      {
-        headerName: '담당자',
-        field: 'assigneeName',
-        width: 120,
-        filter: 'agTextColumnFilter',
-        sortable: true,
-        valueGetter: (params) => params.data?.assigneeName || '미지정',
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
-      },
-      {
-        headerName: '생성일',
-        field: 'createdAt',
-        width: 140,
-        valueFormatter: (params) => {
-          return new Date(params.value).toLocaleDateString('ko-KR')
-        },
-        filter: 'agDateColumnFilter',
-        sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
-      },
-    ],
-    []
-  )
-
-  const defaultColDef = useMemo<ColDef>(
-    () => ({
-      sortable: true,
-      filter: true,
-      resizable: true,
-      wrapHeaderText: true,
-      autoHeaderHeight: true,
-    }),
-    []
-  )
-
-  const handleCreateIssue = () => {
-    // TODO: 이슈 생성 모달 또는 페이지로 이동
-    console.log('Create issue')
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-lg">로딩 중...</p>
-      </div>
-    )
-  }
-
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-        <p className="text-lg text-destructive">
-          {error instanceof Error ? error.message : '이슈 목록을 불러오지 못했습니다.'}
-        </p>
-        <Button onClick={() => refetch()}>다시 시도</Button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="container max-w-7xl mx-auto py-8 px-4">
-      <div className="mb-6 flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">이슈 관리</h1>
-          <p className="text-muted-foreground mt-2">
-            프로젝트 이슈를 등록하고 관리할 수 있습니다.
-          </p>
+    <div className="h-screen flex flex-col bg-background">
+      {/* 헤더 */}
+      <div className="border-b border-border bg-card px-6 py-4">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-3xl font-bold">이슈 관리</h1>
+            <p className="text-muted-foreground mt-1">프로젝트 이슈를 등록하고 관리할 수 있습니다.</p>
+          </div>
+          <Button onClick={handleNew}>
+            <Plus className="w-4 h-4 mr-2" />
+            새 이슈
+          </Button>
         </div>
-        <Button onClick={handleCreateIssue}>
-          <Plus className="w-4 h-4 mr-2" />
-          새 이슈
-        </Button>
-      </div>
 
-      <div style={{ height: '650px', width: '100%' }}>
-        <AgGridReact<Issue>
-          ref={gridRef}
-          rowData={issues}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          pagination={true}
-          paginationPageSize={20}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-          animateRows={true}
-          suppressRowClickSelection={true}
-          suppressCellFocus={true}
-          localeText={localeText}
-          theme={themeQuartz.withParams({
-            headerHeight: 48,
-            rowHeight: 48,
-            fontSize: 13,
-            headerFontSize: 13,
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
-          })}
-        />
-      </div>
+        {/* 필터 */}
+        <div className="flex gap-3">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">전체 상태</SelectItem>
+              <SelectItem value="OPEN">진행 전</SelectItem>
+              <SelectItem value="IN_PROGRESS">진행 중</SelectItem>
+              <SelectItem value="CLOSED">완료</SelectItem>
+            </SelectContent>
+          </Select>
 
-      {issues.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">등록된 이슈가 없습니다.</p>
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">전체 카테고리</SelectItem>
+              <SelectItem value="COMMON">일반</SelectItem>
+              <SelectItem value="BUG">버그</SelectItem>
+              <SelectItem value="FEATURE">기능</SelectItem>
+              <SelectItem value="IMPROVEMENT">개선</SelectItem>
+              <SelectItem value="QUESTION">질문</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <input
+            type="text"
+            placeholder="제목 검색..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            className="px-3 py-2 border border-input rounded-md flex-1 max-w-md"
+          />
         </div>
-      )}
+      </div>
+
+      {/* 메인 컨텐츠: 좌우 분할 */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* 좌측: 이슈 목록 */}
+        <div className="w-[45%] border-r border-border p-4 overflow-hidden flex flex-col">
+          <div className="flex-1" style={{ height: '100%' }}>
+            <AgGridReact<Issue>
+              ref={gridRef}
+              rowData={issues}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              rowSelection="single"
+              onRowSelected={onRowSelected}
+              animateRows={true}
+              theme={themeQuartz.withParams({
+                headerHeight: 40,
+                rowHeight: 40,
+                fontSize: 13,
+                headerFontSize: 13,
+                fontFamily:
+                  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+              })}
+              localeText={localeText}
+            />
+          </div>
+        </div>
+
+        {/* 우측: 이슈 상세 */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {isEditing ? (
+            /* 편집 모드 */
+            <div className="max-w-3xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">
+                  {selectedIssueId ? '이슈 수정' : '새 이슈 작성'}
+                </h2>
+                <div className="flex gap-2">
+                  <Button onClick={handleSave}>저장</Button>
+                  <Button variant="outline" onClick={handleCancel}>
+                    <X className="w-4 h-4 mr-2" />
+                    취소
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">카테고리</label>
+                    <Select value={formCategory} onValueChange={(v) => setFormCategory(v as IssueCategory)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="COMMON">일반</SelectItem>
+                        <SelectItem value="BUG">버그</SelectItem>
+                        <SelectItem value="FEATURE">기능</SelectItem>
+                        <SelectItem value="IMPROVEMENT">개선</SelectItem>
+                        <SelectItem value="QUESTION">질문</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">상태</label>
+                    <Select value={formStatus} onValueChange={(v) => setFormStatus(v as IssueStatus)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="OPEN">진행 전</SelectItem>
+                        <SelectItem value="IN_PROGRESS">진행 중</SelectItem>
+                        <SelectItem value="CLOSED">완료</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">우선순위</label>
+                  <Select value={formPriority} onValueChange={(v) => setFormPriority(v as IssuePriority)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">낮음</SelectItem>
+                      <SelectItem value="MEDIUM">보통</SelectItem>
+                      <SelectItem value="HIGH">높음</SelectItem>
+                      <SelectItem value="CRITICAL">긴급</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">제목 *</label>
+                  <input
+                    type="text"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    className="w-full px-3 py-2 border border-input rounded-md"
+                    placeholder="이슈 제목을 입력하세요"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">내용 *</label>
+                  <textarea
+                    value={formContent}
+                    onChange={(e) => setFormContent(e.target.value)}
+                    rows={10}
+                    className="w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                    placeholder="이슈 내용을 입력하세요"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : issueDetail ? (
+            /* 조회 모드 */
+            <div className="max-w-3xl">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">{issueDetail.title}</h2>
+                  <div className="flex gap-2 items-center text-sm text-muted-foreground">
+                    <span>#{issueDetail.id}</span>
+                    <span>•</span>
+                    <span>{issueDetail.authorName}</span>
+                    <span>•</span>
+                    <span>{new Date(issueDetail.createdAt).toLocaleDateString('ko-KR')}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleEdit}>
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    수정
+                  </Button>
+                  <Button variant="destructive" onClick={handleDelete}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    삭제
+                  </Button>
+                </div>
+              </div>
+
+              {/* 기본 정보 */}
+              <div className="border rounded-lg overflow-hidden mb-6">
+                <table className="w-full text-sm">
+                  <tbody>
+                    <tr className="border-b">
+                      <td className="bg-muted px-4 py-2 font-medium w-32">카테고리</td>
+                      <td className="px-4 py-2">{categoryLabels[issueDetail.category]}</td>
+                      <td className="bg-muted px-4 py-2 font-medium w-32">작성자</td>
+                      <td className="px-4 py-2">{issueDetail.authorName}</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="bg-muted px-4 py-2 font-medium">상태</td>
+                      <td className="px-4 py-2">
+                        <Badge variant={getStatusBadgeVariant(issueDetail.status)}>
+                          {statusLabels[issueDetail.status]}
+                        </Badge>
+                      </td>
+                      <td className="bg-muted px-4 py-2 font-medium">우선순위</td>
+                      <td className="px-4 py-2">
+                        <Badge variant={getPriorityBadgeVariant(issueDetail.priority)}>
+                          {priorityLabels[issueDetail.priority]}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="bg-muted px-4 py-2 font-medium">담당자</td>
+                      <td className="px-4 py-2">{issueDetail.assigneeName || '미지정'}</td>
+                      <td className="bg-muted px-4 py-2 font-medium">폴더</td>
+                      <td className="px-4 py-2">{issueDetail.folderId || '-'}</td>
+                    </tr>
+                    <tr>
+                      <td className="bg-muted px-4 py-2 font-medium">작성일</td>
+                      <td className="px-4 py-2">{new Date(issueDetail.createdAt).toLocaleString('ko-KR')}</td>
+                      <td className="bg-muted px-4 py-2 font-medium">수정일</td>
+                      <td className="px-4 py-2">{new Date(issueDetail.updatedAt).toLocaleString('ko-KR')}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 내용 */}
+              <div className="border rounded-lg p-4 mb-6">
+                <h3 className="font-bold mb-3">내용</h3>
+                <div className="whitespace-pre-wrap text-sm">{issueDetail.content}</div>
+              </div>
+
+              {/* TODO: 체크리스트 섹션 */}
+              <div className="border rounded-lg p-4 mb-6">
+                <h3 className="font-bold mb-3">체크리스트</h3>
+                <p className="text-sm text-muted-foreground">구현 예정</p>
+              </div>
+
+              {/* TODO: 댓글 섹션 */}
+              <div className="border rounded-lg p-4">
+                <h3 className="font-bold mb-3">댓글</h3>
+                <p className="text-sm text-muted-foreground">구현 예정</p>
+              </div>
+            </div>
+          ) : (
+            /* 선택 안됨 */
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <p>왼쪽 목록에서 이슈를 선택하거나 새 이슈를 작성하세요.</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       <ConfirmDialog />
     </div>

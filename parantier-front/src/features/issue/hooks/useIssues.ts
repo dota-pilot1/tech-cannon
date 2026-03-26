@@ -10,11 +10,11 @@ export function useIssues(filters?: IssueFilters & { page?: number; limit?: numb
   })
 }
 
-export function useIssue(id: number) {
+export function useIssue(id: number, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['issues', id],
     queryFn: () => issueApi.getIssue(id),
-    enabled: !!id,
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
   })
 }
 
