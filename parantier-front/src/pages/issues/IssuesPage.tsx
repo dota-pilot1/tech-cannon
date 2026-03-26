@@ -11,7 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
-import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue } from '@/features/issue/hooks/useIssues'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/shared/ui/popover'
+import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus } from '@/features/issue/hooks/useIssues'
 import type { Issue, IssueStatus, IssuePriority, IssueCategory } from '@/entities/issue/types/issue'
 import { Plus, Edit2, Trash2, X } from 'lucide-react'
 import { useConfirm } from '@/shared/hooks/useConfirm'
@@ -53,6 +58,7 @@ export function IssuesPage() {
   const { mutate: createIssue } = useCreateIssue()
   const { mutate: updateIssue } = useUpdateIssue()
   const { mutate: deleteIssue } = useDeleteIssue()
+  const { mutate: updateStatus } = useUpdateIssueStatus()
   const { confirm, ConfirmDialog } = useConfirm()
 
   const issues = issuesData?.items || []
@@ -225,6 +231,42 @@ export function IssuesPage() {
         },
       })
     }
+  }
+
+  // 상태 변경
+  const handleStatusChange = (newStatus: IssueStatus) => {
+    if (!selectedIssueId) return
+    updateStatus({ id: selectedIssueId, status: newStatus })
+  }
+
+  // 우선순위 변경
+  const handlePriorityChange = (newPriority: IssuePriority) => {
+    if (!selectedIssueId || !issueDetail) return
+    updateIssue({
+      id: selectedIssueId,
+      request: {
+        title: issueDetail.title,
+        content: issueDetail.content,
+        category: issueDetail.category,
+        status: issueDetail.status,
+        priority: newPriority,
+      },
+    })
+  }
+
+  // 카테고리 변경
+  const handleCategoryChange = (newCategory: IssueCategory) => {
+    if (!selectedIssueId || !issueDetail) return
+    updateIssue({
+      id: selectedIssueId,
+      request: {
+        title: issueDetail.title,
+        content: issueDetail.content,
+        category: newCategory,
+        status: issueDetail.status,
+        priority: issueDetail.priority,
+      },
+    })
   }
 
   const getStatusBadgeVariant = (status: IssueStatus) => {
@@ -476,22 +518,92 @@ export function IssuesPage() {
                   <tbody>
                     <tr className="border-b">
                       <td className="bg-muted px-4 py-2 font-medium w-32">카테고리</td>
-                      <td className="px-4 py-2">{categoryLabels[issueDetail.category]}</td>
+                      <td className="px-4 py-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className="cursor-pointer hover:bg-accent"
+                            >
+                              {categoryLabels[issueDetail.category]}
+                            </Badge>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-40 p-2">
+                            <div className="space-y-1">
+                              {(Object.keys(categoryLabels) as IssueCategory[]).map((cat) => (
+                                <div
+                                  key={cat}
+                                  className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
+                                    cat === issueDetail.category ? 'bg-accent' : ''
+                                  }`}
+                                  onClick={() => handleCategoryChange(cat)}
+                                >
+                                  {categoryLabels[cat]}
+                                </div>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </td>
                       <td className="bg-muted px-4 py-2 font-medium w-32">작성자</td>
                       <td className="px-4 py-2">{issueDetail.authorName}</td>
                     </tr>
                     <tr className="border-b">
                       <td className="bg-muted px-4 py-2 font-medium">상태</td>
                       <td className="px-4 py-2">
-                        <Badge variant={getStatusBadgeVariant(issueDetail.status)}>
-                          {statusLabels[issueDetail.status]}
-                        </Badge>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Badge
+                              variant={getStatusBadgeVariant(issueDetail.status)}
+                              className="cursor-pointer hover:opacity-80"
+                            >
+                              {statusLabels[issueDetail.status]}
+                            </Badge>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-40 p-2">
+                            <div className="space-y-1">
+                              {(Object.keys(statusLabels) as IssueStatus[]).map((status) => (
+                                <div
+                                  key={status}
+                                  className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
+                                    status === issueDetail.status ? 'bg-accent' : ''
+                                  }`}
+                                  onClick={() => handleStatusChange(status)}
+                                >
+                                  {statusLabels[status]}
+                                </div>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </td>
                       <td className="bg-muted px-4 py-2 font-medium">우선순위</td>
                       <td className="px-4 py-2">
-                        <Badge variant={getPriorityBadgeVariant(issueDetail.priority)}>
-                          {priorityLabels[issueDetail.priority]}
-                        </Badge>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Badge
+                              variant={getPriorityBadgeVariant(issueDetail.priority)}
+                              className="cursor-pointer hover:opacity-80"
+                            >
+                              {priorityLabels[issueDetail.priority]}
+                            </Badge>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-40 p-2">
+                            <div className="space-y-1">
+                              {(Object.keys(priorityLabels) as IssuePriority[]).map((priority) => (
+                                <div
+                                  key={priority}
+                                  className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
+                                    priority === issueDetail.priority ? 'bg-accent' : ''
+                                  }`}
+                                  onClick={() => handlePriorityChange(priority)}
+                                >
+                                  {priorityLabels[priority]}
+                                </div>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </td>
                     </tr>
                     <tr className="border-b">
