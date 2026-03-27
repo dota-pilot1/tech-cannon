@@ -26,7 +26,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Checkbox } from '@/shared/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
-import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus, useUpdateIssuePriority } from '@/features/issue/hooks/useIssues'
+import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus } from '@/features/issue/hooks/useIssues'
 import { useIssueImages, useUploadIssueImage, useDeleteIssueImage } from '@/features/issue/hooks/useIssueImages'
 import { useIssueAssignees, useUpdateIssueAssignees } from '@/features/issue/hooks/useIssueAssignees'
 import { useIssueChecklists, useCreateChecklist, useToggleChecklist, useDeleteChecklist } from '@/features/issue/hooks/useIssueChecklists'
