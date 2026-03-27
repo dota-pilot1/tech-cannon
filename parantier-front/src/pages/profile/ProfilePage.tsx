@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useStore } from '@tanstack/react-store'
 import { authStore } from '@/entities/user/model/authStore'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Card } from '@/shared/ui/card'
-import { User, Mail, Shield, Building2, Calendar, Edit, Eye, EyeOff } from 'lucide-react'
+import { User, Mail, Shield, Building2, Calendar, Edit, Eye, EyeOff, Upload, Camera } from 'lucide-react'
 import { profileApi } from '@/api/profileApi'
 import { toast } from 'sonner'
 
@@ -26,6 +26,12 @@ export function ProfilePage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  // 프로필 이미지 업로드
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dropZoneRef = useRef<HTMLDivElement>(null)
 
   if (!user) {
     return (
@@ -85,6 +91,94 @@ export function ProfilePage() {
     }
   }
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    await uploadImage(file)
+
+    // input 초기화
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const uploadImage = async (file: File) => {
+    // 파일 크기 체크 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('파일 크기는 5MB 이하여야 합니다.')
+      return
+    }
+
+    // 파일 타입 체크
+    if (!file.type.startsWith('image/')) {
+      toast.error('이미지 파일만 업로드할 수 있습니다.')
+      return
+    }
+
+    setIsUploadingImage(true)
+    try {
+      const updatedUser = await profileApi.uploadProfileImage(file)
+
+      // authStore 업데이트
+      authStore.setState((prev) => ({
+        ...prev,
+        user: updatedUser,
+        isAuthenticated: true,
+      }))
+
+      toast.success('프로필 이미지가 업데이트되었습니다.')
+    } catch (error) {
+      console.error('Image upload error:', error)
+      toast.error('이미지 업로드에 실패했습니다.')
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const file = e.dataTransfer.files[0]
+    if (file) {
+      await uploadImage(file)
+    }
+  }
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile()
+        if (file) {
+          e.preventDefault()
+          await uploadImage(file)
+          break
+        }
+      }
+    }
+  }
+
   return (
     <div className="p-8">
       <div className="mb-6">
@@ -105,7 +199,67 @@ export function ProfilePage() {
         {/* 오른쪽 사이드바 (1/3) */}
         <div className="lg:col-span-1 space-y-6">
           {/* 기본 정보 */}
-          <Card className="p-6">
+          <Card
+            ref={dropZoneRef}
+            className={`p-6 transition-all ${isDragging ? 'border-primary border-2 bg-primary/5' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onPaste={handlePaste}
+            tabIndex={0}
+          >
+            {/* 프로필 이미지 */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="relative group">
+                <div className="w-24 h-24 rounded-lg overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                  {user.profileImageUrl ? (
+                    <img
+                      src={user.profileImageUrl}
+                      alt={user.username}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-4xl font-bold text-white">
+                      {user.username?.[0]?.toUpperCase() || 'U'}
+                    </span>
+                  )}
+                </div>
+                {/* 호버 오버레이 */}
+                <button
+                  onClick={handleImageClick}
+                  disabled={isUploadingImage}
+                  className="absolute inset-0 rounded-lg bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <Camera className="w-6 h-6 text-white" />
+                </button>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <Button
+                onClick={handleImageClick}
+                disabled={isUploadingImage}
+                variant="ghost"
+                size="sm"
+                className="mt-2"
+              >
+                {isUploadingImage ? (
+                  <>업로드 중...</>
+                ) : (
+                  <>
+                    <Upload className="w-3 h-3 mr-1" />
+                    이미지 변경
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                드래그 또는 붙여넣기 가능
+              </p>
+            </div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">기본 정보</h2>
               {!isEditing && (

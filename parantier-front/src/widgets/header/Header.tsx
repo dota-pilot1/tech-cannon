@@ -104,17 +104,41 @@ export function Header() {
             {auth.isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors cursor-pointer outline-none">
-                  <User className="w-4 h-4" />
+                  {/* 프로필 이미지 또는 아바타 */}
+                  {auth.user?.profileImageUrl ? (
+                    <img
+                      src={auth.user.profileImageUrl}
+                      alt={auth.user.username}
+                      className="w-8 h-8 rounded-full object-cover border-2 border-primary/20"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                      {auth.user?.username?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                  )}
                   {auth.user?.username}
                   <ChevronDown className="w-4 h-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-[200px]">
                   <div className="px-2 py-1.5 text-sm">
-                    <div className="font-medium">{auth.user?.username}</div>
-                    <div className="text-xs text-muted-foreground">{auth.user?.email}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {auth.user?.role}
+                    <div className="flex items-center gap-3 mb-2">
+                      {auth.user?.profileImageUrl ? (
+                        <img
+                          src={auth.user.profileImageUrl}
+                          alt={auth.user.username}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                          {auth.user?.username?.[0]?.toUpperCase() || 'U'}
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-medium">{auth.user?.username}</div>
+                        <div className="text-xs text-muted-foreground">{auth.user?.role}</div>
+                      </div>
                     </div>
+                    <div className="text-xs text-muted-foreground">{auth.user?.email}</div>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>

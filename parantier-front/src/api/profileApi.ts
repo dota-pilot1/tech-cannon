@@ -21,4 +21,17 @@ export const profileApi = {
       newPassword,
     })
   },
+
+  // 프로필 이미지 업로드
+  uploadProfileImage: async (file: File): Promise<User> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const { data } = await apiClient.post('/profile/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return data
+  },
 }

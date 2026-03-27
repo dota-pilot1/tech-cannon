@@ -59,4 +59,9 @@ public class UserRepositoryImpl implements UserRepository {
     public void updatePassword(Long id, String password) {
         userMapper.updatePassword(id, password);
     }
+
+    @Override
+    public void updateProfileImage(Long id, String profileImageUrl) {
+        userMapper.updateProfileImage(id, profileImageUrl);
+    }
 }

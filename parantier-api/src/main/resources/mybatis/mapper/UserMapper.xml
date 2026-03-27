@@ -12,6 +12,7 @@
         <result property="role" column="role"/>
         <result property="organizationId" column="organization_id"/>
         <result property="isActive" column="is_active"/>
+        <result property="profileImageUrl" column="profile_image_url"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -22,13 +23,13 @@
     </insert>
 
     <select id="findByEmail" resultMap="UserResultMap">
-        SELECT id, email, password, username, role, organization_id, is_active, created_at, updated_at
+        SELECT id, email, password, username, role, organization_id, is_active, profile_image_url, created_at, updated_at
         FROM users
         WHERE email = #{email}
     </select>
 
     <select id="findById" resultMap="UserResultMap">
-        SELECT id, email, password, username, role, organization_id, is_active, created_at, updated_at
+        SELECT id, email, password, username, role, organization_id, is_active, profile_image_url, created_at, updated_at
         FROM users
         WHERE id = #{id}
     </select>
@@ -38,7 +39,7 @@
     </select>
 
     <select id="findAll" resultMap="UserResultMap">
-        SELECT id, email, password, username, role, organization_id, is_active, created_at, updated_at
+        SELECT id, email, password, username, role, organization_id, is_active, profile_image_url, created_at, updated_at
         FROM users
         ORDER BY created_at DESC
     </select>
@@ -64,6 +65,12 @@
     <update id="updatePassword">
         UPDATE users
         SET password = #{password}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateProfileImage">
+        UPDATE users
+        SET profile_image_url = #{profileImageUrl}, updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
 

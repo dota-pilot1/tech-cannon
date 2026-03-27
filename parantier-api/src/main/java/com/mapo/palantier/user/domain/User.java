@@ -21,6 +21,7 @@ public class User {
     private UserRole role;
     private Long organizationId;
     private Boolean isActive;
+    private String profileImageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

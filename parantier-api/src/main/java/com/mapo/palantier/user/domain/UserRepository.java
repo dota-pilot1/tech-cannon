@@ -15,4 +15,5 @@ public interface UserRepository {
     void updateOrganization(@Param("id") Long id, @Param("organizationId") Long organizationId);
     void updateUsername(@Param("id") Long id, @Param("username") String username);
     void updatePassword(@Param("id") Long id, @Param("password") String password);
+    void updateProfileImage(@Param("id") Long id, @Param("profileImageUrl") String profileImageUrl);
 }

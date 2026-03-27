@@ -83,6 +83,14 @@ public class UserService {
     }
 
     /**
+     * ID로 사용자 조회
+     */
+    public User findById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+    }
+
+    /**
      * 사용자 정보 업데이트
      */
     @Transactional
@@ -111,5 +119,13 @@ public class UserService {
     public void changePassword(Long userId, String newPassword) {
         String encodedPassword = passwordEncoder.encode(newPassword);
         userRepository.updatePassword(userId, encodedPassword);
+    }
+
+    /**
+     * 프로필 이미지 URL 업데이트
+     */
+    @Transactional
+    public void updateProfileImage(Long userId, String profileImageUrl) {
+        userRepository.updateProfileImage(userId, profileImageUrl);
     }
 }

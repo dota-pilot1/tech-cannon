@@ -6,6 +6,7 @@ export interface User {
   roles: string[]               // 접근 가능한 역할 배열 (역할 계층 포함)
   authorities: string[]         // 실제 권한 배열 (MENU:ADMIN:READ, PROJECT:CREATE 등)
   organizationId?: number       // 소속 조직 ID (선택)
+  profileImageUrl?: string      // 프로필 이미지 URL (선택)
   createdAt?: string            // 생성일시 (선택)
 }
 
