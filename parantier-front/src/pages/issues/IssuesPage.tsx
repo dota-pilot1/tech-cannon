@@ -42,6 +42,7 @@ import { useIssueChecklists, useCreateChecklist, useToggleChecklist, useDeleteCh
 import { useIssueMindmaps, useCreateMindmap, useUpdateMindmap, useDeleteMindmap } from '@/features/issue/hooks/useIssueMindmaps'
 // import { useIssueTasks, useLinkTask, useUnlinkTask } from '@/features/issue/hooks/useIssueTasks'
 import { useIssueDbTables, useCreateDbTable, useUpdateDbTable, useDeleteDbTable } from '@/features/issue/hooks/useIssueDbTables'
+import { ChatPanel } from '@/features/issue/components/ChatPanel'
 import type { Issue, IssueStatus, IssuePriority, IssueCategory } from '@/entities/issue/types/issue'
 import type { DbTableContent } from '@/entities/issue/types/issueDbTable'
 import { parseDbTableContent, parseTsvToColumns } from '@/entities/issue/types/issueDbTable'
@@ -1901,10 +1902,10 @@ export function IssuesPage() {
                 </div>
               </div>
 
-              {/* TODO: 댓글 섹션 */}
+              {/* 채팅 섹션 */}
               <div className="border rounded-lg p-4">
-                <h3 className="font-bold mb-3">댓글</h3>
-                <p className="text-sm text-muted-foreground">구현 예정</p>
+                <h3 className="font-bold mb-3">채팅</h3>
+                <ChatPanel issueId={issueDetail.id} />
               </div>
             </div>
           ) : (
