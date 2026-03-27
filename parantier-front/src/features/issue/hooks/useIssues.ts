@@ -111,3 +111,17 @@ export function useUpdateIssuePriority() {
     },
   })
 }
+
+// 일괄 작업용 훅 (자동 invalidate/toast 없음)
+export function useCreateIssueSilent() {
+  return useMutation({
+    mutationFn: (request: CreateIssueRequest) => issueApi.createIssue(request),
+  })
+}
+
+export function useUpdateIssueSilent() {
+  return useMutation({
+    mutationFn: ({ id, request }: { id: number; request: UpdateIssueRequest }) =>
+      issueApi.updateIssue(id, request),
+  })
+}

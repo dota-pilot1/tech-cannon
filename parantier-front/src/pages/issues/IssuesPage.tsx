@@ -26,7 +26,16 @@ import {
 } from '@/shared/ui/dialog'
 import { Checkbox } from '@/shared/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
-import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus } from '@/features/issue/hooks/useIssues'
+import {
+  useIssues,
+  useIssue,
+  useUpdateIssue,
+  useCreateIssue,
+  useDeleteIssue,
+  useUpdateIssueStatus,
+  useCreateIssueSilent,
+  useUpdateIssueSilent,
+} from '@/features/issue/hooks/useIssues'
 import { useIssueImages, useUploadIssueImage, useDeleteIssueImage } from '@/features/issue/hooks/useIssueImages'
 import { useIssueAssignees, useUpdateIssueAssignees } from '@/features/issue/hooks/useIssueAssignees'
 import { useIssueChecklists, useCreateChecklist, useToggleChecklist, useDeleteChecklist } from '@/features/issue/hooks/useIssueChecklists'
@@ -90,6 +99,10 @@ export function IssuesPage() {
   const { mutate: updateIssue, mutateAsync: updateIssueAsync } = useUpdateIssue()
   const { mutate: deleteIssue } = useDeleteIssue()
   const { mutate: updateStatus } = useUpdateIssueStatus()
+
+  // 일괄 저장용 (toast/invalidate 없음)
+  const { mutateAsync: createIssueSilent } = useCreateIssueSilent()
+  const { mutateAsync: updateIssueSilent } = useUpdateIssueSilent()
   const { confirm, ConfirmDialog } = useConfirm()
 
   // 사용자 목록 (담당자 선택용)
@@ -366,9 +379,9 @@ export function IssuesPage() {
     }
 
     try {
-      // 신규 행 생성
+      // 신규 행 생성 (toast/invalidate 없는 버전 사용)
       for (const row of newRows) {
-        await createIssueAsync({
+        await createIssueSilent({
           title: row.title || '제목 없음',
           content: row.content || '',
           category: row.category || 'COMMON',
@@ -377,9 +390,9 @@ export function IssuesPage() {
         })
       }
 
-      // 수정된 행 업데이트 (invalidate 없이)
+      // 수정된 행 업데이트 (toast/invalidate 없는 버전 사용)
       for (const row of updatedRows) {
-        await updateIssueAsync({
+        await updateIssueSilent({
           id: row.id,
           request: {
             title: row.title,
