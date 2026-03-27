@@ -1,7 +1,7 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
-import { useConfirm } from '@/shared/hooks/useConfirm'
-import { toast } from 'sonner'
-import { useQueries } from '@tanstack/react-query'
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useConfirm } from "@/shared/hooks/useConfirm";
+import { toast } from "sonner";
+import { useQueries } from "@tanstack/react-query";
 import {
   useTaskFolders,
   useTaskPostDetail,
@@ -10,15 +10,25 @@ import {
   useCreateFolderMutation,
   useRenameFolderMutation,
   useDeleteFolderMutation,
-} from '../hooks/useTask'
-import { taskApi } from '../api/taskApi'
-import type { TaskFolder, TaskPost, TaskBlock, BlockType } from '../types/task.types'
-import { buildTree, TYPE_META } from '../types/task.types'
-import TaskBlockEditor from './TaskBlockEditor'
-import TaskBlockViewer from './TaskBlockViewer'
+} from "../hooks/useTask";
+import { taskApi } from "../api/taskApi";
+import type {
+  TaskFolder,
+  TaskPost,
+  TaskBlock,
+  BlockType,
+} from "../types/task.types";
+import { buildTree, TYPE_META } from "../types/task.types";
+import TaskBlockEditor from "./TaskBlockEditor";
+import TaskBlockViewer from "./TaskBlockViewer";
 
 // 폴더 컨텍스트 메뉴
-type FolderCtxMenu = { x: number; y: number; folderId: number; folderName: string } | null
+type FolderCtxMenu = {
+  x: number;
+  y: number;
+  folderId: number;
+  folderName: string;
+} | null;
 
 function FolderContextMenu({
   menu,
@@ -28,24 +38,24 @@ function FolderContextMenu({
   onRename,
   onDelete,
 }: {
-  menu: FolderCtxMenu
-  onClose: () => void
-  onAddSubFolder: (parentId: number) => void
-  onAddDoc: (folderId: number) => void
-  onRename: (id: number, name: string) => void
-  onDelete: (id: number, name: string) => void
+  menu: FolderCtxMenu;
+  onClose: () => void;
+  onAddSubFolder: (parentId: number) => void;
+  onAddDoc: (folderId: number) => void;
+  onRename: (id: number, name: string) => void;
+  onDelete: (id: number, name: string) => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [onClose])
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
 
-  if (!menu) return null
+  if (!menu) return null;
 
   return (
     <div
@@ -56,8 +66,8 @@ function FolderContextMenu({
       <button
         className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
         onClick={() => {
-          onAddDoc(menu.folderId)
-          onClose()
+          onAddDoc(menu.folderId);
+          onClose();
         }}
       >
         <span>📄</span> 새 문서 추가
@@ -65,8 +75,8 @@ function FolderContextMenu({
       <button
         className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
         onClick={() => {
-          onAddSubFolder(menu.folderId)
-          onClose()
+          onAddSubFolder(menu.folderId);
+          onClose();
         }}
       >
         <span>📁</span> 하위 폴더 추가
@@ -75,8 +85,8 @@ function FolderContextMenu({
       <button
         className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
         onClick={() => {
-          onRename(menu.folderId, menu.folderName)
-          onClose()
+          onRename(menu.folderId, menu.folderName);
+          onClose();
         }}
       >
         <span>✏️</span> 이름 변경
@@ -84,229 +94,254 @@ function FolderContextMenu({
       <button
         className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
         onClick={() => {
-          onDelete(menu.folderId, menu.folderName)
-          onClose()
+          onDelete(menu.folderId, menu.folderName);
+          onClose();
         }}
       >
         <span>🗑️</span> 폴더 삭제
       </button>
     </div>
-  )
+  );
 }
 
 export default function TasksPage() {
-  const { confirm, ConfirmDialog } = useConfirm()
+  const { confirm, ConfirmDialog } = useConfirm();
 
-  const { data: folders = [] } = useTaskFolders()
-  const { roots, children: folderChildren } = useMemo(() => buildTree(folders), [folders])
+  const { data: folders = [] } = useTaskFolders();
+  const { roots, children: folderChildren } = useMemo(
+    () => buildTree(folders),
+    [folders],
+  );
 
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
-  const [selectedPostId, setSelectedPostId] = useState<number | null>(null)
-  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set())
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(
+    new Set(),
+  );
 
-  const [sidebarWidth, setSidebarWidth] = useState(250)
-  const isResizing = useRef(false)
+  const [sidebarWidth, setSidebarWidth] = useState(250);
+  const isResizing = useRef(false);
 
-  const [isEditing, setIsEditing] = useState(false)
-  const [formTitle, setFormTitle] = useState('')
-  const [blocks, setBlocks] = useState<TaskBlock[]>([])
+  const [isEditing, setIsEditing] = useState(false);
+  const [formTitle, setFormTitle] = useState("");
+  const [blocks, setBlocks] = useState<TaskBlock[]>([]);
 
-  const [editingFolderId, setEditingFolderId] = useState<number | null>(null)
-  const [editingFolderName, setEditingFolderName] = useState('')
-  const [inlineFolderInput, setInlineFolderInput] = useState<{ parentId: number | null } | null>(null)
-  const [inlineFolderName, setInlineFolderName] = useState('')
-  const [inlineDocInput, setInlineDocInput] = useState<{ folderId: number } | null>(null)
-  const [inlineDocTitle, setInlineDocTitle] = useState('')
-  const [folderCtxMenu, setFolderCtxMenu] = useState<FolderCtxMenu>(null)
+  const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
+  const [inlineFolderInput, setInlineFolderInput] = useState<{
+    parentId: number | null;
+  } | null>(null);
+  const [inlineFolderName, setInlineFolderName] = useState("");
+  const [inlineDocInput, setInlineDocInput] = useState<{
+    folderId: number;
+  } | null>(null);
+  const [inlineDocTitle, setInlineDocTitle] = useState("");
+  const [folderCtxMenu, setFolderCtxMenu] = useState<FolderCtxMenu>(null);
 
   // 확장된 폴더들의 posts 조회
   const postsQueries = useQueries({
     queries: Array.from(expandedFolders).map((folderId) => ({
-      queryKey: ['taskPosts', folderId],
+      queryKey: ["taskPosts", folderId],
       queryFn: () => taskApi.getPostsByFolder(folderId),
       staleTime: 30000, // 30초 동안 캐시 유지
     })),
-  })
+  });
 
   // 폴더별 posts를 Map으로 변환
   const postsByFolder = useMemo(() => {
-    const map = new Map<number, TaskPost[]>()
-    const expandedArray = Array.from(expandedFolders)
+    const map = new Map<number, TaskPost[]>();
+    const expandedArray = Array.from(expandedFolders);
     expandedArray.forEach((folderId, index) => {
-      const query = postsQueries[index]
+      const query = postsQueries[index];
       if (query?.data) {
-        map.set(folderId, query.data)
+        map.set(folderId, query.data);
       }
-    })
-    return map
-  }, [postsQueries, expandedFolders])
+    });
+    return map;
+  }, [postsQueries, expandedFolders]);
 
-  const { data: postDetail } = useTaskPostDetail(selectedPostId, !isEditing)
+  const { data: postDetail } = useTaskPostDetail(selectedPostId, !isEditing);
 
-  const saveMutation = useSaveTaskMutation(selectedFolderId, selectedPostId, (newId) => {
-    setSelectedPostId(newId)
-    setIsEditing(false)
-  })
+  const saveMutation = useSaveTaskMutation(
+    selectedFolderId,
+    selectedPostId,
+    (newId) => {
+      setSelectedPostId(newId);
+      setIsEditing(false);
+    },
+  );
 
   const deleteMutation = useDeleteTaskMutation(selectedFolderId, () => {
-    setSelectedPostId(null)
-    setIsEditing(false)
-  })
+    setSelectedPostId(null);
+    setIsEditing(false);
+  });
 
   const createFolderMutation = useCreateFolderMutation((parentId) => {
-    setInlineFolderInput(null)
-    setInlineFolderName('')
-    if (parentId !== null) setExpandedFolders((p) => new Set(p).add(parentId))
-  })
+    setInlineFolderInput(null);
+    setInlineFolderName("");
+    if (parentId !== null) setExpandedFolders((p) => new Set(p).add(parentId));
+  });
 
   const renameFolderMutation = useRenameFolderMutation(() => {
-    setEditingFolderId(null)
-  })
+    setEditingFolderId(null);
+  });
 
   const deleteFolderMutation = useDeleteFolderMutation(() => {
-    setSelectedFolderId(null)
-    setSelectedPostId(null)
-  })
+    setSelectedFolderId(null);
+    setSelectedPostId(null);
+  });
 
-  const createDocMutation = useSaveTaskMutation(inlineDocInput?.folderId ?? null, null, (newId) => {
-    setInlineDocInput(null)
-    setInlineDocTitle('')
-    setSelectedPostId(newId)
-    setIsEditing(false)
-  })
+  const createDocMutation = useSaveTaskMutation(
+    inlineDocInput?.folderId ?? null,
+    null,
+    (newId) => {
+      setInlineDocInput(null);
+      setInlineDocTitle("");
+      setSelectedPostId(newId);
+      setIsEditing(false);
+    },
+  );
 
   // Sidebar resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing.current) return
-      setSidebarWidth(Math.max(200, Math.min(800, e.clientX - 24)))
-    }
+      if (!isResizing.current) return;
+      setSidebarWidth(Math.max(200, Math.min(800, e.clientX - 24)));
+    };
     const handleMouseUp = () => {
       if (isResizing.current) {
-        isResizing.current = false
-        document.body.style.cursor = 'default'
+        isResizing.current = false;
+        document.body.style.cursor = "default";
       }
-    }
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
+    };
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [])
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   const handleFolderClick = (id: number) => {
-    setSelectedFolderId(id)
-    setSelectedPostId(null)
-    setIsEditing(false)
+    setSelectedFolderId(id);
+    setSelectedPostId(null);
+    setIsEditing(false);
     setExpandedFolders((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handlePostClick = (post: TaskPost) => {
-    setSelectedPostId(post.id)
-    setIsEditing(false)
-  }
+    setSelectedPostId(post.id);
+    setIsEditing(false);
+  };
 
   const openNewDoc = (folderId: number) => {
-    setInlineDocInput({ folderId })
-    setInlineDocTitle('')
-    setExpandedFolders((p) => new Set(p).add(folderId))
-  }
+    setInlineDocInput({ folderId });
+    setInlineDocTitle("");
+    setExpandedFolders((p) => new Set(p).add(folderId));
+  };
 
   const handleCreateDoc = () => {
-    const trimmedTitle = inlineDocTitle.trim()
+    const trimmedTitle = inlineDocTitle.trim();
     if (!trimmedTitle) {
-      toast.error('문서 제목을 입력하세요')
-      return
+      toast.error("문서 제목을 입력하세요");
+      return;
     }
-    if (!inlineDocInput) return
+    if (!inlineDocInput) return;
 
     createDocMutation.mutate({
       folderId: inlineDocInput.folderId,
       title: trimmedTitle,
-      blocks: [{ blockType: 'NOTE', content: '' }],
-    })
-  }
+      blocks: [{ blockType: "NOTE", content: "" }],
+    });
+  };
 
   const handleEdit = () => {
-    if (!postDetail) return
-    setFormTitle(postDetail.title)
-    setBlocks(postDetail.blocks?.length ? [...postDetail.blocks] : [{ blockType: 'NOTE', content: '' }])
-    setIsEditing(true)
-  }
+    if (!postDetail) return;
+    setFormTitle(postDetail.title);
+    setBlocks(
+      postDetail.blocks?.length
+        ? [...postDetail.blocks]
+        : [{ blockType: "NOTE", content: "" }],
+    );
+    setIsEditing(true);
+  };
 
   const handleSave = async () => {
     if (!formTitle.trim()) {
-      toast.error('제목을 입력하세요')
-      return
+      toast.error("제목을 입력하세요");
+      return;
     }
-    if (!selectedFolderId) return
+    if (!selectedFolderId) return;
 
     const refinedBlocks = blocks.map((b) => ({
       blockType: b.blockType,
       content: b.content,
-    }))
+    }));
 
     saveMutation.mutate({
       id: selectedPostId || undefined,
       folderId: selectedFolderId,
       title: formTitle,
       blocks: refinedBlocks,
-    })
-  }
+    });
+  };
 
   const handleDelete = async () => {
-    if (!selectedPostId) return
+    if (!selectedPostId) return;
     const ok = await confirm({
-      title: '삭제 확인',
-      description: '이 Task를 삭제하시겠습니까?',
-      variant: 'destructive',
-    })
-    if (ok) deleteMutation.mutate(selectedPostId)
-  }
+      title: "삭제 확인",
+      description: "이 Task를 삭제하시겠습니까?",
+      variant: "destructive",
+    });
+    if (ok) deleteMutation.mutate(selectedPostId);
+  };
 
   const handleDeleteFolder = async (id: number, name: string) => {
     const ok = await confirm({
-      title: '폴더 삭제',
+      title: "폴더 삭제",
       description: `"${name}" 폴더와 하위 Task가 모두 삭제됩니다.`,
-      variant: 'destructive',
-    })
-    if (ok) deleteFolderMutation.mutate(id)
-  }
+      variant: "destructive",
+    });
+    if (ok) deleteFolderMutation.mutate(id);
+  };
 
   const handleCreateFolder = () => {
-    const trimmedName = inlineFolderName.trim()
-    console.log('[TasksPage] handleCreateFolder 호출:', { trimmedName, parentId: inlineFolderInput?.parentId })
+    const trimmedName = inlineFolderName.trim();
+    console.log("[TasksPage] handleCreateFolder 호출:", {
+      trimmedName,
+      parentId: inlineFolderInput?.parentId,
+    });
 
     if (!trimmedName) {
-      console.log('[TasksPage] 폴더명이 비어있어서 취소')
-      toast.error('폴더명을 입력하세요')
-      return
+      console.log("[TasksPage] 폴더명이 비어있어서 취소");
+      toast.error("폴더명을 입력하세요");
+      return;
     }
 
-    console.log('[TasksPage] createFolderMutation.mutate 호출')
+    console.log("[TasksPage] createFolderMutation.mutate 호출");
     createFolderMutation.mutate({
       name: trimmedName,
       parentId: inlineFolderInput?.parentId ?? null,
-    })
-  }
+    });
+  };
 
   const openInlineFolderInput = (parentId: number | null) => {
-    setInlineFolderInput({ parentId })
-    setInlineFolderName('')
-    if (parentId !== null) setExpandedFolders((p) => new Set(p).add(parentId))
-  }
+    setInlineFolderInput({ parentId });
+    setInlineFolderName("");
+    if (parentId !== null) setExpandedFolders((p) => new Set(p).add(parentId));
+  };
 
   // 인라인 폴더명 입력
   const renderInlineFolderInput = (depth: number) => (
     <div
       className="flex items-center gap-1 py-1"
-      style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: '4px' }}
+      style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: "4px" }}
     >
       <span className="text-[10px] text-gray-300 w-3 shrink-0">·</span>
       <span className="shrink-0 text-base">📁</span>
@@ -315,24 +350,24 @@ export default function TasksPage() {
         value={inlineFolderName}
         onChange={(e) => setInlineFolderName(e.target.value)}
         onKeyDown={(e) => {
-          if (e.nativeEvent.isComposing) return
-          if (e.key === 'Enter') handleCreateFolder()
-          if (e.key === 'Escape') {
-            setInlineFolderInput(null)
-            setInlineFolderName('')
+          if (e.nativeEvent.isComposing) return;
+          if (e.key === "Enter") handleCreateFolder();
+          if (e.key === "Escape") {
+            setInlineFolderInput(null);
+            setInlineFolderName("");
           }
         }}
         placeholder="이름 입력 후 Enter"
         className="flex-1 border border-blue-400 rounded px-1.5 py-0.5 text-xs min-w-0 focus:outline-none focus:ring-1 focus:ring-blue-400"
       />
     </div>
-  )
+  );
 
   // 인라인 문서 제목 입력
   const renderInlineDocInput = (depth: number) => (
     <div
       className="flex items-center gap-1.5 py-1"
-      style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: '8px' }}
+      style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: "8px" }}
     >
       <span className="text-xs shrink-0">📝</span>
       <input
@@ -340,40 +375,49 @@ export default function TasksPage() {
         value={inlineDocTitle}
         onChange={(e) => setInlineDocTitle(e.target.value)}
         onKeyDown={(e) => {
-          if (e.nativeEvent.isComposing) return
-          if (e.key === 'Enter') handleCreateDoc()
-          if (e.key === 'Escape') {
-            setInlineDocInput(null)
-            setInlineDocTitle('')
+          if (e.nativeEvent.isComposing) return;
+          if (e.key === "Enter") handleCreateDoc();
+          if (e.key === "Escape") {
+            setInlineDocInput(null);
+            setInlineDocTitle("");
           }
         }}
         placeholder="제목 입력 후 Enter"
         className="flex-1 border border-blue-400 rounded px-1.5 py-0.5 text-xs min-w-0 focus:outline-none focus:ring-1 focus:ring-blue-400"
       />
     </div>
-  )
+  );
 
   // 폴더 렌더링
   const renderFolder = (folder: TaskFolder, depth = 0) => {
-    const isSelected = selectedFolderId === folder.id
-    const isExpanded = expandedFolders.has(folder.id)
-    const subFolders = folderChildren[folder.id] ?? []
-    const isEditingThis = editingFolderId === folder.id
+    const isSelected = selectedFolderId === folder.id;
+    const isExpanded = expandedFolders.has(folder.id);
+    const subFolders = folderChildren[folder.id] ?? [];
+    const isEditingThis = editingFolderId === folder.id;
 
     return (
       <div key={folder.id}>
         <div
           className={`group flex items-center gap-1 py-1.5 cursor-pointer rounded text-sm transition-colors ${
-            isSelected ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+            isSelected
+              ? "bg-blue-50 text-blue-700"
+              : "text-gray-700 hover:bg-gray-100"
           }`}
-          style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: '4px' }}
+          style={{ paddingLeft: `${depth * 14 + 8}px`, paddingRight: "4px" }}
           onClick={() => handleFolderClick(folder.id)}
           onContextMenu={(e) => {
-            e.preventDefault()
-            setFolderCtxMenu({ x: e.clientX, y: e.clientY, folderId: folder.id, folderName: folder.name })
+            e.preventDefault();
+            setFolderCtxMenu({
+              x: e.clientX,
+              y: e.clientY,
+              folderId: folder.id,
+              folderName: folder.name,
+            });
           }}
         >
-          <span className="text-[10px] text-gray-400 w-3 shrink-0">{isExpanded ? '▼' : '▶'}</span>
+          <span className="text-[10px] text-gray-400 w-3 shrink-0">
+            {isExpanded ? "▼" : "▶"}
+          </span>
           <span className="shrink-0">📁</span>
           {isEditingThis ? (
             <input
@@ -381,10 +425,13 @@ export default function TasksPage() {
               value={editingFolderName}
               onChange={(e) => setEditingFolderName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.nativeEvent.isComposing) return
-                if (e.key === 'Enter')
-                  renameFolderMutation.mutate({ id: folder.id, dto: { name: editingFolderName, parentId: folder.parentId } })
-                if (e.key === 'Escape') setEditingFolderId(null)
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === "Enter")
+                  renameFolderMutation.mutate({
+                    id: folder.id,
+                    dto: { name: editingFolderName, parentId: folder.parentId },
+                  });
+                if (e.key === "Escape") setEditingFolderId(null);
               }}
               onClick={(e) => e.stopPropagation()}
               className="flex-1 border rounded px-1 py-0 text-xs min-w-0"
@@ -397,8 +444,8 @@ export default function TasksPage() {
               <button
                 className="text-xs text-gray-500 hover:text-blue-600 px-1"
                 onClick={(e) => {
-                  e.stopPropagation()
-                  openNewDoc(folder.id)
+                  e.stopPropagation();
+                  openNewDoc(folder.id);
                 }}
                 title="새 문서"
               >
@@ -407,9 +454,9 @@ export default function TasksPage() {
               <button
                 className="text-xs text-gray-500 hover:text-gray-700 px-1"
                 onClick={(e) => {
-                  e.stopPropagation()
-                  setEditingFolderId(folder.id)
-                  setEditingFolderName(folder.name)
+                  e.stopPropagation();
+                  setEditingFolderId(folder.id);
+                  setEditingFolderName(folder.name);
                 }}
                 title="이름 변경"
               >
@@ -418,8 +465,8 @@ export default function TasksPage() {
               <button
                 className="text-xs text-gray-500 hover:text-red-600 px-1"
                 onClick={(e) => {
-                  e.stopPropagation()
-                  handleDeleteFolder(folder.id, folder.name)
+                  e.stopPropagation();
+                  handleDeleteFolder(folder.id, folder.name);
                 }}
                 title="삭제"
               >
@@ -432,32 +479,38 @@ export default function TasksPage() {
         {isExpanded && (
           <>
             {subFolders.map((sub) => renderFolder(sub, depth + 1))}
-            {inlineFolderInput?.parentId === folder.id && renderInlineFolderInput(depth + 1)}
-            {inlineDocInput?.folderId === folder.id && renderInlineDocInput(depth + 1)}
+            {inlineFolderInput?.parentId === folder.id &&
+              renderInlineFolderInput(depth + 1)}
+            {inlineDocInput?.folderId === folder.id &&
+              renderInlineDocInput(depth + 1)}
             {(postsByFolder.get(folder.id) || []).map((post) => {
-              const primaryType = post.blocks?.[0]?.blockType ?? 'NOTE'
-              const meta = TYPE_META[primaryType as BlockType] ?? TYPE_META.NOTE
+              const primaryType = post.blocks?.[0]?.blockType ?? "NOTE";
+              const meta =
+                TYPE_META[primaryType as BlockType] ?? TYPE_META.NOTE;
               return (
                 <div
                   key={post.id}
                   onClick={() => handlePostClick(post)}
                   className={`flex items-center gap-1.5 py-1 cursor-pointer rounded text-sm transition-colors ${
                     selectedPostId === post.id
-                      ? 'bg-blue-100 text-blue-800 font-medium'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? "bg-blue-100 text-blue-800 font-medium"
+                      : "text-gray-600 hover:bg-gray-50"
                   }`}
-                  style={{ paddingLeft: `${(depth + 1) * 14 + 8}px`, paddingRight: '8px' }}
+                  style={{
+                    paddingLeft: `${(depth + 1) * 14 + 8}px`,
+                    paddingRight: "8px",
+                  }}
                 >
                   <span className="text-xs shrink-0">{meta.icon}</span>
                   <span className="truncate min-w-0">{post.title}</span>
                 </div>
-              )
+              );
             })}
           </>
         )}
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -468,8 +521,8 @@ export default function TasksPage() {
         onAddSubFolder={(parentId) => openInlineFolderInput(parentId)}
         onAddDoc={(folderId) => openNewDoc(folderId)}
         onRename={(id, name) => {
-          setEditingFolderId(id)
-          setEditingFolderName(name)
+          setEditingFolderId(id);
+          setEditingFolderName(name);
         }}
         onDelete={(id, name) => handleDeleteFolder(id, name)}
       />
@@ -480,29 +533,145 @@ export default function TasksPage() {
         </div>
       </div>
 
-      <div className="flex items-stretch" style={{ minHeight: 'calc(100vh - 120px)' }}>
+      <div
+        className="flex items-stretch"
+        style={{ minHeight: "calc(100vh - 120px)" }}
+      >
         {/* 좌: 트리 */}
         <div
           className="shrink-0 bg-white rounded border flex flex-col h-full"
-          style={{ width: `${sidebarWidth}px`, maxHeight: 'calc(100vh - 120px)' }}
+          style={{
+            width: `${sidebarWidth}px`,
+            maxHeight: "calc(100vh - 120px)",
+          }}
         >
-          <div className="flex items-center justify-between p-3 border-b bg-gray-50">
-            <span className="font-medium text-sm">폴더</span>
+          <div className="flex items-center justify-between px-2 py-1.5 border-b bg-gray-50">
+            <div className="flex items-center gap-1 flex-1 min-w-0 border rounded bg-white px-1.5 py-0.5 mr-1.5">
+              <svg
+                className="w-3 h-3 text-gray-400 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
+                />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="검색..."
+                className="flex-1 min-w-0 text-xs bg-transparent outline-none placeholder-gray-300"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-gray-300 hover:text-gray-500 shrink-0 leading-none"
+                >
+                  ×
+                </button>
+              )}
+            </div>
             <button
               onClick={() => openInlineFolderInput(null)}
-              className="px-2 py-0.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+              className="px-2 py-0.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 shrink-0"
             >
               + 폴더
             </button>
           </div>
 
-          <div className="overflow-y-auto py-1" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div
+            className="overflow-y-auto py-1"
+            style={{ maxHeight: "calc(100vh - 200px)" }}
+          >
             {roots.length === 0 && !inlineFolderInput ? (
-              <p className="text-xs text-gray-400 text-center py-4">+ 폴더 버튼으로 추가하세요.</p>
+              <p className="text-xs text-gray-400 text-center py-4">
+                + 폴더 버튼으로 추가하세요.
+              </p>
+            ) : searchQuery.trim() ? (
+              // 검색 모드: 폴더명 + 문서 제목 필터링
+              (() => {
+                const q = searchQuery.trim().toLowerCase();
+                const matchedFolders = folders.filter((f) =>
+                  f.name.toLowerCase().includes(q),
+                );
+                const allPosts = Array.from(postsByFolder.entries()).flatMap(
+                  ([folderId, posts]) =>
+                    posts
+                      .filter((p) => p.title.toLowerCase().includes(q))
+                      .map((p) => ({ ...p, folderId })),
+                );
+                return (
+                  <div>
+                    {matchedFolders.length > 0 && (
+                      <>
+                        <p className="text-[10px] text-gray-400 px-3 pt-2 pb-0.5 font-medium">
+                          폴더
+                        </p>
+                        {matchedFolders.map((f) => (
+                          <div
+                            key={f.id}
+                            onClick={() => handleFolderClick(f.id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm cursor-pointer rounded transition-colors ${
+                              selectedFolderId === f.id
+                                ? "bg-blue-50 text-blue-700"
+                                : "text-gray-700 hover:bg-gray-100"
+                            }`}
+                          >
+                            <span>📁</span>
+                            <span className="truncate">{f.name}</span>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                    {allPosts.length > 0 && (
+                      <>
+                        <p className="text-[10px] text-gray-400 px-3 pt-2 pb-0.5 font-medium">
+                          문서
+                        </p>
+                        {allPosts.map((p) => {
+                          const primaryType =
+                            p.blocks?.[0]?.blockType ?? "NOTE";
+                          const meta =
+                            TYPE_META[primaryType as BlockType] ??
+                            TYPE_META.NOTE;
+                          return (
+                            <div
+                              key={p.id}
+                              onClick={() => handlePostClick(p)}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm cursor-pointer rounded transition-colors ${
+                                selectedPostId === p.id
+                                  ? "bg-blue-100 text-blue-800 font-medium"
+                                  : "text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              <span className="text-xs shrink-0">
+                                {meta.icon}
+                              </span>
+                              <span className="truncate">{p.title}</span>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                    {matchedFolders.length === 0 && allPosts.length === 0 && (
+                      <p className="text-xs text-gray-400 text-center py-4">
+                        검색 결과가 없습니다.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               roots.map((f) => renderFolder(f))
             )}
-            {inlineFolderInput?.parentId === null && renderInlineFolderInput(0)}
+            {!searchQuery &&
+              inlineFolderInput?.parentId === null &&
+              renderInlineFolderInput(0)}
           </div>
         </div>
 
@@ -510,9 +679,9 @@ export default function TasksPage() {
         <div
           className="w-4 cursor-col-resize flex flex-col justify-center items-center group z-10 mx-[-2px]"
           onMouseDown={(e) => {
-            e.preventDefault()
-            isResizing.current = true
-            document.body.style.cursor = 'col-resize'
+            e.preventDefault();
+            isResizing.current = true;
+            document.body.style.cursor = "col-resize";
           }}
         >
           <div className="w-[1px] h-full bg-gray-200 group-hover:bg-blue-400 group-active:bg-blue-500 transition-colors"></div>
@@ -522,7 +691,11 @@ export default function TasksPage() {
         <div className="flex-1 min-w-0 bg-white rounded border">
           <div className="flex items-center justify-between p-3 border-b bg-gray-50">
             <span className="font-medium text-sm">
-              {isEditing ? (selectedPostId ? 'Task 편집' : '새 Task') : 'Task 상세'}
+              {isEditing
+                ? selectedPostId
+                  ? "Task 편집"
+                  : "새 Task"
+                : "Task 상세"}
             </span>
             <div className="flex gap-1">
               {isEditing ? (
@@ -572,12 +745,14 @@ export default function TasksPage() {
               <TaskBlockViewer post={postDetail} />
             ) : (
               <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">
-                {selectedFolderId ? '폴더 우클릭 또는 + 버튼으로 새 문서 추가' : '좌측에서 폴더를 선택하세요.'}
+                {selectedFolderId
+                  ? "폴더 우클릭 또는 + 버튼으로 새 문서 추가"
+                  : "좌측에서 폴더를 선택하세요."}
               </div>
             )}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
