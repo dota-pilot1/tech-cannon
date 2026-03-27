@@ -114,6 +114,7 @@ export default function TasksPage() {
   );
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(
@@ -562,14 +563,27 @@ export default function TasksPage() {
               </svg>
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="검색..."
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setSearchQuery(inputValue);
+                    e.currentTarget.blur();
+                  }
+                  if (e.key === "Escape") {
+                    setInputValue("");
+                    setSearchQuery("");
+                  }
+                }}
+                placeholder="검색 후 Enter..."
                 className="flex-1 min-w-0 text-xs bg-transparent outline-none placeholder-gray-300"
               />
-              {searchQuery && (
+              {(inputValue || searchQuery) && (
                 <button
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setInputValue("");
+                    setSearchQuery("");
+                  }}
                   className="text-gray-300 hover:text-gray-500 shrink-0 leading-none"
                 >
                   ×
@@ -592,7 +606,7 @@ export default function TasksPage() {
               <p className="text-xs text-gray-400 text-center py-4">
                 + 폴더 버튼으로 추가하세요.
               </p>
-            ) : searchQuery.trim() ? (
+            ) : searchQuery.trim() !== "" ? (
               // 검색 모드: 폴더명 + 문서 제목 필터링
               (() => {
                 const q = searchQuery.trim().toLowerCase();
@@ -669,7 +683,7 @@ export default function TasksPage() {
             ) : (
               roots.map((f) => renderFolder(f))
             )}
-            {!searchQuery &&
+            {!searchQuery.trim() &&
               inlineFolderInput?.parentId === null &&
               renderInlineFolderInput(0)}
           </div>
