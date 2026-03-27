@@ -69,7 +69,7 @@ export function IssuesPage() {
 
   // API 호출
   const { data: issuesData } = useIssues({
-    status: filterStatus === 'ALL' ? undefined : (filterStatus as IssueStatus),
+    // 상태 필터는 프론트엔드에서 처리 (statusCounts 계산을 위해 전체 데이터 필요)
     category: filterCategory === 'ALL' ? undefined : (filterCategory as IssueCategory),
     keyword: searchKeyword || undefined,
   })
@@ -147,7 +147,14 @@ export function IssuesPage() {
   })
   const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false)
 
-  const issues = issuesData?.items || []
+  // 필터링된 이슈 목록
+  const issues = useMemo(() => {
+    const allIssues = issuesData?.items || []
+    if (filterStatus === 'ALL') {
+      return allIssues
+    }
+    return allIssues.filter((issue) => issue.status === filterStatus)
+  }, [issuesData, filterStatus])
 
   // 담당자 다이얼로그 열릴 때 현재 담당자 목록 로드
   useEffect(() => {
@@ -332,9 +339,30 @@ export function IssuesPage() {
         cellEditorParams: {
           values: ['OPEN', 'IN_PROGRESS', 'CLOSED'],
         },
-        valueFormatter: (params: any) => {
+        cellRenderer: (params: any) => {
           const status = params.value as IssueStatus
-          return statusLabels[status] || status
+          const label = statusLabels[status] || status
+
+          // 상태별 색상 정의
+          const statusVariant = {
+            OPEN: 'default' as const,
+            IN_PROGRESS: 'secondary' as const,
+            CLOSED: 'outline' as const,
+          }
+
+          const statusColors = {
+            OPEN: 'bg-blue-100 text-blue-700 hover:bg-blue-100',
+            IN_PROGRESS: 'bg-amber-100 text-amber-700 hover:bg-amber-100',
+            CLOSED: 'bg-green-100 text-green-700 hover:bg-green-100',
+          }
+
+          return (
+            <div className="w-full h-full flex items-center justify-center">
+              <Badge className={statusColors[status]}>
+                {label}
+              </Badge>
+            </div>
+          )
         },
       },
       {
