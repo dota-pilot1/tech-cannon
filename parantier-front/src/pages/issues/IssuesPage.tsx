@@ -194,7 +194,7 @@ export function IssuesPage() {
 
   // 셀 값 변경 핸들러 (수정 플래그만 설정, 저장은 안함)
   const onCellValueChanged = (params: any) => {
-    const { data, newValue, oldValue } = params
+    const { data, newValue, oldValue, colDef } = params
 
     if (newValue === oldValue) return
 
@@ -204,8 +204,25 @@ export function IssuesPage() {
     // 수정된 행 자동 선택 (체크박스)
     params.node.setSelected(true)
 
-    // 그리드 행 스타일 업데이트를 위해 리프레시
-    params.api.refreshCells({ rowNodes: [params.node], force: true })
+    // 상태 변경 시 정렬 재적용 (최신순 유지)
+    if (colDef.field === 'status') {
+      // 모든 행 데이터 가져오기
+      const allRowData: Issue[] = []
+      params.api.forEachNode((node: any) => allRowData.push(node.data))
+
+      // 작성일 내림차순 정렬
+      const sortedData = allRowData.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return dateB - dateA
+      })
+
+      // 정렬된 데이터로 그리드 업데이트
+      params.api.setGridOption('rowData', sortedData)
+    } else {
+      // 그리드 행 스타일 업데이트를 위해 리프레시
+      params.api.refreshCells({ rowNodes: [params.node], force: true })
+    }
   }
 
   // 새 행 추가
@@ -316,6 +333,13 @@ export function IssuesPage() {
     toast.success(`신규 ${newRows.length}개, 수정 ${updatedRows.length}개 항목이 저장되었습니다.`)
   }
 
+  // 상태별 배지 색상 (그리드/상세뷰 공통)
+  const statusColors = {
+    OPEN: 'bg-blue-100 text-blue-700 hover:bg-blue-100',
+    IN_PROGRESS: 'bg-amber-100 text-amber-700 hover:bg-amber-100',
+    CLOSED: 'bg-green-100 text-green-700 hover:bg-green-100',
+  }
+
   // 컬럼 정의 (좌측 목록용 - 간소화)
   const columnDefs = useMemo<ColDef<Issue>[]>(
     () => [
@@ -333,7 +357,7 @@ export function IssuesPage() {
       {
         headerName: '제목',
         field: 'title',
-        width: 250,
+        width: 350,
         editable: true,
       },
       {
@@ -348,13 +372,6 @@ export function IssuesPage() {
         cellRenderer: (params: any) => {
           const status = params.value as IssueStatus
           const label = statusLabels[status] || status
-
-          // 상태별 색상 정의
-          const statusColors = {
-            OPEN: 'bg-blue-100 text-blue-700 hover:bg-blue-100',
-            IN_PROGRESS: 'bg-amber-100 text-amber-700 hover:bg-amber-100',
-            CLOSED: 'bg-green-100 text-green-700 hover:bg-green-100',
-          }
 
           return (
             <div className="w-full h-full flex items-center justify-center">
@@ -406,7 +423,7 @@ export function IssuesPage() {
         },
       },
     ],
-    []
+    [statusColors]
   )
 
   const defaultColDef = useMemo<ColDef>(
@@ -904,19 +921,6 @@ export function IssuesPage() {
     }
   }
 
-  const getStatusBadgeVariant = (status: IssueStatus) => {
-    switch (status) {
-      case 'OPEN':
-        return 'destructive'
-      case 'IN_PROGRESS':
-        return 'default'
-      case 'CLOSED':
-        return 'secondary'
-      default:
-        return 'default'
-    }
-  }
-
   const getPriorityBadgeVariant = (priority: IssuePriority) => {
     switch (priority) {
       case 'CRITICAL':
@@ -974,32 +978,58 @@ export function IssuesPage() {
         </div>
 
         {/* 필터 */}
-        <div className="flex gap-3">
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">전체 상태</SelectItem>
-              <SelectItem value="OPEN">진행 전</SelectItem>
-              <SelectItem value="IN_PROGRESS">진행 중</SelectItem>
-              <SelectItem value="CLOSED">완료</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">전체 카테고리</SelectItem>
-              <SelectItem value="COMMON">일반</SelectItem>
-              <SelectItem value="BUG">버그</SelectItem>
-              <SelectItem value="FEATURE">기능</SelectItem>
-              <SelectItem value="IMPROVEMENT">개선</SelectItem>
-              <SelectItem value="QUESTION">질문</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex gap-3 items-center">
+          <div className="flex gap-1.5">
+            <Button
+              variant={filterCategory === 'ALL' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterCategory('ALL')}
+              className="h-8 px-3 text-xs"
+            >
+              전체
+            </Button>
+            <div className="w-px bg-border mx-1" />
+            <Button
+              variant={filterCategory === 'COMMON' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterCategory('COMMON')}
+              className="h-8 px-3 text-xs"
+            >
+              일반
+            </Button>
+            <Button
+              variant={filterCategory === 'BUG' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterCategory('BUG')}
+              className="h-8 px-3 text-xs"
+            >
+              버그
+            </Button>
+            <Button
+              variant={filterCategory === 'FEATURE' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterCategory('FEATURE')}
+              className="h-8 px-3 text-xs"
+            >
+              기능
+            </Button>
+            <Button
+              variant={filterCategory === 'IMPROVEMENT' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterCategory('IMPROVEMENT')}
+              className="h-8 px-3 text-xs"
+            >
+              개선
+            </Button>
+            <Button
+              variant={filterCategory === 'QUESTION' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterCategory('QUESTION')}
+              className="h-8 px-3 text-xs"
+            >
+              질문
+            </Button>
+          </div>
 
           <input
             type="text"
@@ -1250,8 +1280,7 @@ export function IssuesPage() {
                         <Popover>
                           <PopoverTrigger asChild>
                             <Badge
-                              variant={getStatusBadgeVariant(issueDetail.status)}
-                              className="cursor-pointer hover:opacity-80"
+                              className={`cursor-pointer ${statusColors[issueDetail.status]}`}
                             >
                               {statusLabels[issueDetail.status]}
                             </Badge>
