@@ -1,4 +1,6 @@
-# React + TypeScript + Vite
+# Palantier Frontend
+
+React + TypeScript + Vite 기반 프론트엔드 애플리케이션
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
