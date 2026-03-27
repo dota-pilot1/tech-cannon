@@ -69,13 +69,25 @@ npm run dev
 | CloudFront ID | `E11NF3HMOB52NI` |
 | EC2 | `43.200.241.26` (ap-northeast-2) |
 
-### 자동 배포 (GitHub Actions)
+### 자동 배포 (GitHub Actions) ⚡
 
-- `parantier-front/**` 변경 → S3 + CloudFront 자동 배포
-- `parantier-api/**` 변경 → EC2 자동 배포
-- GitHub Actions 탭에서 수동 트리거도 가능 (`workflow_dispatch`)
+**권장 배포 방법**: 코드를 커밋하고 푸시하면 자동으로 배포됩니다.
 
-자세한 배포 정보 → [`배포 가이드/배포_가이드.md`](배포%20가이드/배포_가이드.md)
+```bash
+git add -A
+git commit -m "feat: 새 기능 추가"
+git push  # 자동 배포 트리거
+```
+
+**배포 워크플로우:**
+- `parantier-front/**` 변경 → S3 + CloudFront 자동 배포 (2-3분)
+- `parantier-api/**` 변경 → EC2 자동 배포 (3-5분)
+- 수동 트리거: GitHub Actions 탭에서 `workflow_dispatch` 실행
+
+**배포 문서:**
+- [GitHub Actions 배포 가이드](배포%20가이드/GitHub_Actions_배포.md) ⭐
+- [수동 배포 가이드](배포%20가이드/배포_가이드.md)
+- [빠른 참조](배포%20가이드/빠른_참조.md)
 
 ---
 
