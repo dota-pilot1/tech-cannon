@@ -24,5 +24,7 @@ public interface IssueMapper {
 
     void updateAssignee(@Param("id") Long id, @Param("assigneeId") Long assigneeId);
 
+    void updatePriority(@Param("id") Long id, @Param("priority") String priority);
+
     int count(Map<String, Object> params);
 }

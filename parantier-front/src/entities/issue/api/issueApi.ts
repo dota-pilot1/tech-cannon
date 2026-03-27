@@ -46,4 +46,9 @@ export const issueApi = {
   updateAssignee: async (id: number, assigneeId: number | null): Promise<void> => {
     await apiClient.put(`/issues/${id}/assignee`, { assigneeId })
   },
+
+  // 우선순위 변경
+  updatePriority: async (id: number, priority: string): Promise<void> => {
+    await apiClient.put(`/issues/${id}/priority`, { priority })
+  },
 }

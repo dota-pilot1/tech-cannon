@@ -1,6 +1,7 @@
 package com.mapo.palantier.issue.presentation;
 
 import com.mapo.palantier.issue.application.IssueService;
+import com.mapo.palantier.user.application.AuthService;
 import com.mapo.palantier.issue.domain.Issue;
 import com.mapo.palantier.issue.domain.IssueImage;
 import com.mapo.palantier.issue.domain.IssueAssignee;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 public class IssueController {
 
     private final IssueService issueService;
+    private final AuthService authService;
     private final IssueImageMapper issueImageMapper;
     private final IssueAssigneeMapper issueAssigneeMapper;
     private final IssueChecklistMapper issueChecklistMapper;
@@ -37,11 +39,13 @@ public class IssueController {
     private final IssueTaskLinkMapper issueTaskLinkMapper;
     private final IssueDbTableMapper issueDbTableMapper;
 
-    public IssueController(IssueService issueService, IssueImageMapper issueImageMapper,
+    public IssueController(IssueService issueService, AuthService authService,
+                          IssueImageMapper issueImageMapper,
                           IssueAssigneeMapper issueAssigneeMapper, IssueChecklistMapper issueChecklistMapper,
                           IssueMindmapMapper issueMindmapMapper, IssueTaskLinkMapper issueTaskLinkMapper,
                           IssueDbTableMapper issueDbTableMapper) {
         this.issueService = issueService;
+        this.authService = authService;
         this.issueImageMapper = issueImageMapper;
         this.issueAssigneeMapper = issueAssigneeMapper;
         this.issueChecklistMapper = issueChecklistMapper;
@@ -99,7 +103,8 @@ public class IssueController {
             Authentication authentication
     ) {
         // 현재 로그인한 사용자를 author로 설정
-        Long authorId = Long.parseLong(authentication.getName());
+        String email = authentication.getName();
+        Long authorId = authService.getUserByEmail(email).getId();
 
         Issue issue = new Issue();
         issue.setTitle(request.getTitle());
@@ -109,6 +114,7 @@ public class IssueController {
         issue.setPriority(request.getPriority() != null ? request.getPriority() : com.mapo.palantier.issue.domain.IssuePriority.MEDIUM);
         issue.setAuthorId(authorId);
         issue.setAssigneeId(request.getAssigneeId());
+        issue.setOrganizationId(1L); // TODO: 사용자의 organization_id로 설정
         issue.setFolderId(request.getFolderId());
 
         Issue created = issueService.createIssue(issue);
@@ -156,6 +162,16 @@ public class IssueController {
     ) {
         Long assigneeId = request.get("assigneeId");
         issueService.updateAssignee(id, assigneeId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}/priority")
+    public ResponseEntity<Void> updatePriority(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request
+    ) {
+        String priority = request.get("priority");
+        issueService.updatePriority(id, priority);
         return ResponseEntity.ok().build();
     }
 

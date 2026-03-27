@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { AgGridReact } from 'ag-grid-react'
 import type { ColDef } from 'ag-grid-community'
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community'
@@ -25,7 +26,7 @@ import {
 } from '@/shared/ui/dialog'
 import { Checkbox } from '@/shared/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
-import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus } from '@/features/issue/hooks/useIssues'
+import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus, useUpdateIssuePriority } from '@/features/issue/hooks/useIssues'
 import { useIssueImages, useUploadIssueImage, useDeleteIssueImage } from '@/features/issue/hooks/useIssueImages'
 import { useIssueAssignees, useUpdateIssueAssignees } from '@/features/issue/hooks/useIssueAssignees'
 import { useIssueChecklists, useCreateChecklist, useToggleChecklist, useDeleteChecklist } from '@/features/issue/hooks/useIssueChecklists'
@@ -41,12 +42,17 @@ import { toast } from 'sonner'
 import { Mermaid } from '@/shared/ui/mermaid'
 import { useUsers } from '@/features/admin/hooks/useUsers'
 import mermaid from 'mermaid'
+import { useStore } from '@tanstack/react-store'
+import { authStore } from '@/entities/user/model/authStore'
+import { useNavigate } from '@tanstack/react-router'
 
 // AG-Grid 모듈 등록
 ModuleRegistry.registerModules([AllCommunityModule])
 
 export function IssuesPage() {
   const gridRef = useRef<AgGridReact>(null)
+  const navigate = useNavigate()
+  const currentUser = useStore(authStore, (state) => state.user)
 
   // 상태 관리
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null)
@@ -72,14 +78,16 @@ export function IssuesPage() {
     // 상태 필터는 프론트엔드에서 처리 (statusCounts 계산을 위해 전체 데이터 필요)
     category: filterCategory === 'ALL' ? undefined : (filterCategory as IssueCategory),
     keyword: searchKeyword || undefined,
+    sortBy: 'created', // 작성일 기준 정렬 (최신순)
   })
 
   const { data: issueDetail } = useIssue(selectedIssueId!, {
     enabled: !!selectedIssueId && !isEditing,
   })
 
-  const { mutate: createIssue } = useCreateIssue()
-  const { mutate: updateIssue } = useUpdateIssue()
+  const queryClient = useQueryClient()
+  const { mutate: createIssue, mutateAsync: createIssueAsync } = useCreateIssue()
+  const { mutate: updateIssue, mutateAsync: updateIssueAsync } = useUpdateIssue()
   const { mutate: deleteIssue } = useDeleteIssue()
   const { mutate: updateStatus } = useUpdateIssueStatus()
   const { confirm, ConfirmDialog } = useConfirm()
@@ -147,21 +155,14 @@ export function IssuesPage() {
   })
   const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false)
 
-  // 필터링 및 정렬된 이슈 목록
+  // 필터링된 이슈 목록 (서버 정렬 순서 유지)
   const issues = useMemo(() => {
     const allIssues = issuesData?.items || []
 
-    // 필터링
-    const filtered = filterStatus === 'ALL'
+    // 필터링만 수행 (정렬은 서버에서 이미 처리됨)
+    return filterStatus === 'ALL'
       ? allIssues
       : allIssues.filter((issue) => issue.status === filterStatus)
-
-    // 작성일 내림차순 정렬 (최신순)
-    return filtered.sort((a, b) => {
-      const dateA = new Date(a.createdAt).getTime()
-      const dateB = new Date(b.createdAt).getTime()
-      return dateB - dateA // 내림차순
-    })
   }, [issuesData, filterStatus])
 
   // 담당자 다이얼로그 열릴 때 현재 담당자 목록 로드
@@ -196,6 +197,8 @@ export function IssuesPage() {
   const onCellValueChanged = (params: any) => {
     const { data, newValue, oldValue, colDef } = params
 
+    console.log('🔄 Cell changed:', { field: colDef.field, oldValue, newValue, issueId: data.id })
+
     if (newValue === oldValue) return
 
     // 수정된 행 ID 추가
@@ -206,9 +209,13 @@ export function IssuesPage() {
 
     // 상태 또는 중요도 변경 시 정렬 재적용 (최신순 유지)
     if (colDef.field === 'status' || colDef.field === 'priority') {
+      console.log('📊 Re-sorting by createdAt...')
+
       // 모든 행 데이터 가져오기
       const allRowData: Issue[] = []
       params.api.forEachNode((node: any) => allRowData.push(node.data))
+
+      console.log('Before sort:', allRowData.map(r => ({ id: r.id, title: r.title, createdAt: r.createdAt })))
 
       // 작성일 내림차순 정렬
       const sortedData = allRowData.sort((a, b) => {
@@ -217,8 +224,11 @@ export function IssuesPage() {
         return dateB - dateA
       })
 
+      console.log('After sort:', sortedData.map(r => ({ id: r.id, title: r.title, createdAt: r.createdAt })))
+
       // 정렬된 데이터로 그리드 업데이트
       params.api.setGridOption('rowData', sortedData)
+      console.log('✅ Grid updated with sorted data')
     } else {
       // 그리드 행 스타일 업데이트를 위해 리프레시
       params.api.refreshCells({ rowNodes: [params.node], force: true })
@@ -227,6 +237,13 @@ export function IssuesPage() {
 
   // 새 행 추가
   const handleAddRow = () => {
+    // 로그인 확인
+    if (!currentUser) {
+      toast.error('로그인이 필요합니다')
+      navigate({ to: '/dashboard' })
+      return
+    }
+
     const newRow: Partial<Issue> = {
       id: -(Date.now()), // 음수 ID = 신규
       title: '',
@@ -234,6 +251,9 @@ export function IssuesPage() {
       category: 'COMMON',
       status: 'OPEN',
       priority: 'MEDIUM',
+      authorId: currentUser.id,
+      authorName: currentUser.username,
+      authorEmail: currentUser.email,
       assigneeName: '',
     }
 
@@ -298,39 +318,95 @@ export function IssuesPage() {
     const newRows = modifiedRows.filter((r) => r.id < 0)
     const updatedRows = modifiedRows.filter((r) => r.id > 0)
 
-    // 신규 행 생성
-    for (const row of newRows) {
-      await createIssue({
-        title: row.title || '제목 없음',
-        content: row.content || '',
-        category: row.category,
-        status: row.status,
-        priority: row.priority,
+    // 유효성 검사: 필수 값 확인
+    const invalidRows: string[] = []
+
+    modifiedRows.forEach((row) => {
+      const missing: string[] = []
+
+      if (!row.title || row.title.trim() === '') {
+        missing.push('제목')
+      }
+      if (!row.category) {
+        missing.push('카테고리')
+      }
+      if (!row.status) {
+        missing.push('상태')
+      }
+      if (!row.priority) {
+        missing.push('중요도')
+      }
+      if (!row.authorName || row.authorName.trim() === '') {
+        missing.push('요청자')
+      }
+
+      if (missing.length > 0) {
+        const rowLabel = row.id < 0 ? '신규 행' : `"${row.title || '(제목 없음)'}"`
+        invalidRows.push(`${rowLabel}: ${missing.join(', ')} 필요`)
+      }
+    })
+
+    if (invalidRows.length > 0) {
+      const message = [
+        '다음 항목에 필수 값이 누락되었습니다:',
+        '',
+        ...invalidRows.map((msg) => `• ${msg}`),
+        '',
+        '계속 진행하시겠습니까?',
+      ].join('\n')
+
+      const confirmed = await confirm({
+        title: '필수 항목 누락',
+        description: message,
+        confirmText: '계속',
+        cancelText: '취소',
       })
+
+      if (!confirmed) return
     }
 
-    // 수정된 행 업데이트
-    for (const row of updatedRows) {
-      await updateIssue({
-        id: row.id,
-        request: {
-          title: row.title,
-          content: row.content,
-          category: row.category,
-          status: row.status,
-          priority: row.priority,
-        },
-      })
-    }
+    try {
+      // 신규 행 생성
+      for (const row of newRows) {
+        await createIssueAsync({
+          title: row.title || '제목 없음',
+          content: row.content || '',
+          category: row.category || 'COMMON',
+          status: row.status || 'OPEN',
+          priority: row.priority || 'MEDIUM',
+        })
+      }
 
-    // 저장 후 그리드에서 음수 ID 행 제거
-    if (newRows.length > 0) {
-      gridRef.current?.api.applyTransaction({ remove: newRows })
-    }
+      // 수정된 행 업데이트 (invalidate 없이)
+      for (const row of updatedRows) {
+        await updateIssueAsync({
+          id: row.id,
+          request: {
+            title: row.title,
+            content: row.content,
+            category: row.category,
+            status: row.status,
+            priority: row.priority,
+          },
+        })
+      }
 
-    // 수정 플래그 초기화
-    setModifiedRowIds(new Set())
-    toast.success(`신규 ${newRows.length}개, 수정 ${updatedRows.length}개 항목이 저장되었습니다.`)
+      // 저장 후 그리드에서 음수 ID 행 제거
+      if (newRows.length > 0) {
+        gridRef.current?.api.applyTransaction({ remove: newRows })
+      }
+
+      // 수정 플래그 초기화
+      setModifiedRowIds(new Set())
+
+      // 모든 업데이트 완료 후 한 번만 재조회
+      await queryClient.invalidateQueries({ queryKey: ['issues'] })
+
+      toast.success(`신규 ${newRows.length}개, 수정 ${updatedRows.length}개 항목이 저장되었습니다.`)
+    } catch (error) {
+      toast.error('저장 중 오류가 발생했습니다.')
+      console.error(error)
+    }
   }
 
   // 상태별 배지 색상 (그리드/상세뷰 공통)
@@ -379,22 +455,58 @@ export function IssuesPage() {
         headerName: '중요도',
         field: 'priority',
         width: 80,
-        editable: true,
-        cellEditor: 'agSelectCellEditor',
-        cellEditorParams: {
-          values: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
-        },
+        editable: false, // Popover로 변경하므로 AG Grid 편집 비활성화
         cellRenderer: (params: any) => {
-          const priority = params.value as IssuePriority
-          const label = priorityLabels[priority] || priority
+          const PriorityCell = () => {
+            const [open, setOpen] = useState(false)
+            const priority = params.value as IssuePriority
+            const label = priorityLabels[priority] || priority
 
-          return (
-            <div className="w-full h-full flex items-center justify-center">
-              <Badge className={priorityColors[priority]}>
-                {label}
-              </Badge>
-            </div>
-          )
+            const handlePriorityChange = (newPriority: IssuePriority) => {
+              // 로컬 데이터만 업데이트
+              params.data.priority = newPriority
+
+              // 수정된 행으로 표시 (노란 배경)
+              setModifiedRowIds((prev) => new Set(prev).add(params.data.id))
+
+              // 행 선택 (체크박스)
+              params.node.setSelected(true)
+
+              // 그리드 셀 리프레시
+              params.api.refreshCells({ rowNodes: [params.node], force: true })
+
+              setOpen(false)
+            }
+
+            return (
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <div className="w-full h-full flex items-center justify-center cursor-pointer">
+                    <Badge className={priorityColors[priority]}>
+                      {label}
+                    </Badge>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-32 p-2" align="center">
+                  <div className="flex flex-col gap-1">
+                    {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as IssuePriority[]).map((p) => (
+                      <Button
+                        key={p}
+                        variant={p === priority ? 'default' : 'ghost'}
+                        size="sm"
+                        className="justify-start h-8"
+                        onClick={() => handlePriorityChange(p)}
+                      >
+                        {priorityLabels[p]}
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )
+          }
+
+          return <PriorityCell />
         },
       },
       {
@@ -423,6 +535,7 @@ export function IssuesPage() {
         headerName: '요청자',
         field: 'authorName',
         width: 100,
+        editable: false, // 요청자는 수정 불가 (로그인한 사람 고정)
       },
       {
         headerName: '담당자',

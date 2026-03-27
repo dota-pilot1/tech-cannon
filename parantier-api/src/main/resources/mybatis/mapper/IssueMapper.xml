@@ -78,13 +78,14 @@
                     WHEN 'MEDIUM' THEN 3
                     WHEN 'LOW' THEN 4
                 END,
-                i.created_at DESC
+                i.created_at DESC,
+                i.id DESC
             </when>
             <when test="sortBy == 'status'">
-                i.status, i.created_at DESC
+                i.status, i.created_at DESC, i.id DESC
             </when>
             <otherwise>
-                i.created_at DESC
+                i.created_at DESC, i.id DESC
             </otherwise>
         </choose>
         <if test="limit != null">
@@ -172,6 +173,13 @@
     <update id="updateAssignee">
         UPDATE issues
         SET assignee_id = #{assigneeId}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 우선순위 변경 -->
+    <update id="updatePriority">
+        UPDATE issues
+        SET priority = #{priority}, updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
 

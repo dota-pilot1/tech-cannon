@@ -87,4 +87,9 @@ public class IssueService {
     public void updateAssignee(Long id, Long assigneeId) {
         issueMapper.updateAssignee(id, assigneeId);
     }
+
+    @Transactional
+    public void updatePriority(Long id, String priority) {
+        issueMapper.updatePriority(id, priority);
+    }
 }

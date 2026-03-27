@@ -95,3 +95,19 @@ export function useUpdateIssueAssignee() {
     },
   })
 }
+
+export function useUpdateIssuePriority() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, priority }: { id: number; priority: string }) =>
+      issueApi.updatePriority(id, priority),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['issues'] })
+      toast.success('우선순위가 변경되었습니다.')
+    },
+    onError: () => {
+      toast.error('우선순위 변경에 실패했습니다.')
+    },
+  })
+}
