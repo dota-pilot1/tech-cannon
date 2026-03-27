@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'parantier-api/**'
-      - '.github/workflows/deploy-backend.yml'
+      - "parantier-api/**"
+      - ".github/workflows/deploy-backend.yml"
 
 jobs:
   deploy:
@@ -19,9 +19,9 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
+          distribution: "temurin"
+          java-version: "17"
+          cache: "gradle"
 
       - name: Grant execute permission for gradlew
         working-directory: parantier-api
@@ -49,15 +49,25 @@ jobs:
           scp parantier-api/build/libs/*.jar \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/palantier-api.jar
 
-      - name: Create application.yml on EC2
+      - name: Write application.yml to EC2
+        # Heredoc에 싱글쿼트('EOF')를 쓰면 쉘이 변수를 확장하지 않아
+        # ${{ secrets.XXX }} 값이 주입되지 않는 버그가 있음.
+        # 따라서 로컬에서 파일을 생성한 뒤 scp로 전송하는 방식으로 변경.
         run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            cat > /home/${{ secrets.EC2_USER }}/application.yml << 'YAML'
+          cat > /tmp/application.yml << EOF
           spring:
             datasource:
               url: jdbc:postgresql://${{ secrets.DB_HOST }}:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}
               username: ${{ secrets.DB_USERNAME }}
               password: ${{ secrets.DB_PASSWORD }}
+              driver-class-name: org.postgresql.Driver
+            jpa:
+              hibernate:
+                ddl-auto: update
+              show-sql: false
+
+          server:
+            port: 8080
 
           jwt:
             secret: ${{ secrets.JWT_SECRET }}
@@ -67,24 +77,39 @@ jobs:
           aws:
             s3:
               bucket-name: ${{ secrets.AWS_S3_BUCKET_NAME_BACKEND }}
-              region: ${{ secrets.AWS_REGION }}
+              region: ap-northeast-2
               access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
               secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          YAML
+
+          cors:
+            allowed-origins:
+              - https://dxline-tallent.com
+              - https://d1841s1y3ps0cj.cloudfront.net
+              - http://localhost:5173
           EOF
+
+          scp /tmp/application.yml \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/application.yml
 
       - name: Start application
         run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << EOF
+            # 기존 프로세스 종료
+            pkill -f 'palantier-api' || true
+            sleep 2
+
+            # 애플리케이션 시작
             nohup java -jar /home/${{ secrets.EC2_USER }}/palantier-api.jar \
               --spring.config.location=/home/${{ secrets.EC2_USER }}/application.yml \
               > /home/${{ secrets.EC2_USER }}/app.log 2>&1 &
 
-            # Wait for application to start
-            sleep 10
+            echo "PID: \$!"
 
-            # Check if application is running
-            if curl -s http://localhost:8080/actuator/health | grep -q "UP"; then
+            # 시작 대기
+            sleep 15
+
+            # 헬스체크
+            if curl -s http://localhost:8080/actuator/health | grep -q '"status":"UP"'; then
               echo "✅ Application started successfully"
             else
               echo "❌ Application failed to start"
@@ -97,4 +122,4 @@ jobs:
         run: |
           echo "✅ Backend deployed successfully to EC2!"
           echo "🖥️  Host: ${{ secrets.EC2_HOST }}"
-          echo "🔗 Health check: http://${{ secrets.EC2_HOST }}:8080/actuator/health"
+          echo "🔗 Health check: https://api.dxline-tallent.com/actuator/health"
