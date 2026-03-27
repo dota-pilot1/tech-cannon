@@ -1,15 +1,36 @@
-# Palantier 프로젝트
+# Palantier
 
-## 백엔드 실행 방법 (교과서적 Spring Boot 방식)
+마포구 팔란티어 프로젝트 — 업무 관리 및 이슈 트래킹 웹 애플리케이션
 
-### 1. application-local.yml 생성 (필수)
+---
 
-**⚠️ 중요: 이 파일은 Git에 커밋되지 않으므로 각 개발자가 직접 생성해야 합니다.**
+## 기술 스택
 
-`parantier-api/src/main/resources/application-local.yml` 파일을 생성하고 다음 내용을 입력합니다:
+### 프론트엔드
+- React + TypeScript + Vite
+- TanStack Router, TanStack Query
+- Tailwind CSS, shadcn/ui
+- AG Grid, React Hook Form
+
+### 백엔드
+- Spring Boot 3 (Java 17)
+- Spring Security + JWT
+- PostgreSQL (Docker)
+- AWS S3
+
+---
+
+## 로컬 개발 환경 실행
+
+### 백엔드
+
+1. `application-local.yml` 생성 (Git 제외 파일 — 직접 만들어야 함)
+
+```
+parantier-api/src/main/resources/application-local.yml
+```
 
 ```yaml
-# Local Development Configuration
 aws:
   s3:
     access-key-id: YOUR_AWS_ACCESS_KEY_ID
@@ -18,61 +39,52 @@ aws:
     region: ap-northeast-2
 ```
 
-**참고:**
-- 이 파일은 `.gitignore`에 포함되어 있어 Git에 업로드되지 않습니다.
-- 팀원들에게 이 파일 생성이 필요하다는 것을 공유해야 합니다.
-- AWS 키는 개발 환경에서만 사용되는 키입니다.
-
-### 2. 백엔드 실행
+2. 실행
 
 ```bash
 cd parantier-api
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
-또는 환경 변수로 설정:
-
-```bash
-export SPRING_PROFILES_ACTIVE=local
-cd parantier-api
-./gradlew bootRun
-```
-
-## 프론트엔드 실행
-
-### 1. .env 파일 생성 (선택사항)
-
-프론트엔드는 현재 `.env` 파일이 필요하지 않지만, 향후 API URL 등을 설정하려면 다음 형식으로 생성할 수 있습니다:
-
-`parantier-front/.env` (또는 `.env.local`):
-
-```bash
-# API Configuration (예시)
-VITE_API_URL=http://localhost:8080/api
-
-# 기타 환경 변수...
-```
-
-### 2. 프론트엔드 실행
+### 프론트엔드
 
 ```bash
 cd parantier-front
+npm install
 npm run dev
 ```
 
-## 환경 설정 파일 구조
+로컬 API 주소: `http://localhost:8080/api`
+
+---
+
+## 배포
+
+| 항목 | 값 |
+|---|---|
+| 프론트엔드 | https://dxline-tallent.com |
+| 백엔드 API | https://api.dxline-tallent.com |
+| 헬스체크 | https://api.dxline-tallent.com/actuator/health |
+| S3 버킷 | `dxline-tallent-front` |
+| CloudFront ID | `E11NF3HMOB52NI` |
+| EC2 | `43.200.241.26` (ap-northeast-2) |
+
+### 자동 배포 (GitHub Actions)
+
+- `parantier-front/**` 변경 → S3 + CloudFront 자동 배포
+- `parantier-api/**` 변경 → EC2 자동 배포
+- GitHub Actions 탭에서 수동 트리거도 가능 (`workflow_dispatch`)
+
+자세한 배포 정보 → [`배포 가이드/배포_가이드.md`](배포%20가이드/배포_가이드.md)
+
+---
+
+## 프로젝트 구조
 
 ```
-parantier-api/
-├── src/main/resources/
-│   ├── application.yml          # 기본 설정 (환경 변수 플레이스홀더)
-│   └── application-local.yml    # 로컬 개발용 (Git 제외)
+mapo-palantier-project/
+├── parantier-front/       # React 프론트엔드
+├── parantier-api/         # Spring Boot 백엔드
+├── .github/workflows/     # GitHub Actions 배포 자동화
+└── 배포 가이드/            # 배포 관련 문서 모음
 ```
-
-## Spring Boot Profile 시스템
-
-- `application.yml`: 모든 환경에서 공통으로 사용되는 설정
-- `application-local.yml`: 로컬 개발 환경 전용
-- `application-prod.yml`: 프로덕션 환경 전용 (필요시)
-
-실행 시 `--spring.profiles.active=local`을 지정하면 `application-local.yml`이 `application.yml`을 오버라이드합니다.

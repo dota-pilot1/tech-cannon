@@ -1,75 +1,68 @@
 # Palantier Frontend
 
-React + TypeScript + Vite 기반 프론트엔드 애플리케이션
+React + TypeScript + Vite 기반 프로젝트 관리 플랫폼 프론트엔드
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 기술 스택
 
-Currently, two official plugins are available:
+- **React 18** + **TypeScript**
+- **Vite** (빌드 도구)
+- **TanStack Router** (파일 기반 라우팅)
+- **TanStack Query** (서버 상태 관리)
+- **React Hook Form** + **Zod** (폼 & 유효성 검사)
+- **AG Grid** (데이터 그리드)
+- **Tailwind CSS** + **shadcn/ui** (스타일)
+- **STOMP / WebSocket** (실시간 채팅)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 로컬 실행
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd parantier-front
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+> 기본 포트: http://localhost:5173
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 환경 변수
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| 변수 | 설명 | 기본값 |
+|------|------|--------|
+| `VITE_API_URL` | 백엔드 REST API URL | `http://localhost:8080/api` |
+| `VITE_WS_URL` | WebSocket URL | `ws://localhost:8080/ws` |
+
+로컬 개발 시 `.env.local` 파일 생성:
+
+```bash
+VITE_API_URL=http://localhost:8080/api
+VITE_WS_URL=ws://localhost:8080/ws
+```
+
+## 빌드
+
+```bash
+npm run build
+```
+
+빌드 결과물은 `dist/` 폴더에 생성됩니다.
+
+## 배포
+
+GitHub Actions를 통해 `main` 브랜치에 push 시 자동 배포됩니다.
+
+- **S3 버킷**: `dxline-tallent-front`
+- **CloudFront**: `https://dxline-tallent.com`
+
+수동 배포가 필요한 경우 GitHub Actions 탭 → `Deploy Frontend to S3 and CloudFront` → `Run workflow`
+
+## 프로젝트 구조
+
+```
+src/
+├── components/       # 공통 컴포넌트
+├── pages/            # 페이지 컴포넌트
+├── routes/           # TanStack Router 라우트
+├── hooks/            # 커스텀 훅
+├── api/              # API 호출 함수
+├── types/            # TypeScript 타입 정의
+└── lib/              # 유틸리티
 ```
