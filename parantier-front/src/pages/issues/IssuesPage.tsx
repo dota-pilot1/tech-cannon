@@ -204,8 +204,8 @@ export function IssuesPage() {
     // 수정된 행 자동 선택 (체크박스)
     params.node.setSelected(true)
 
-    // 상태 변경 시 정렬 재적용 (최신순 유지)
-    if (colDef.field === 'status') {
+    // 상태 또는 중요도 변경 시 정렬 재적용 (최신순 유지)
+    if (colDef.field === 'status' || colDef.field === 'priority') {
       // 모든 행 데이터 가져오기
       const allRowData: Issue[] = []
       params.api.forEachNode((node: any) => allRowData.push(node.data))
@@ -340,6 +340,21 @@ export function IssuesPage() {
     CLOSED: 'bg-green-100 text-green-700 hover:bg-green-100',
   }
 
+  // 우선순위별 배지 색상 (파스텔톤)
+  const priorityColors = {
+    CRITICAL: 'bg-red-100 text-red-700 hover:bg-red-100',
+    HIGH: 'bg-orange-100 text-orange-700 hover:bg-orange-100',
+    MEDIUM: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100',
+    LOW: 'bg-gray-100 text-gray-700 hover:bg-gray-100',
+  }
+
+  const priorityLabels: Record<IssuePriority, string> = {
+    LOW: '낮음',
+    MEDIUM: '보통',
+    HIGH: '높음',
+    CRITICAL: '긴급',
+  }
+
   // 컬럼 정의 (좌측 목록용 - 간소화)
   const columnDefs = useMemo<ColDef<Issue>[]>(
     () => [
@@ -357,8 +372,30 @@ export function IssuesPage() {
       {
         headerName: '제목',
         field: 'title',
-        width: 350,
+        width: 400,
         editable: true,
+      },
+      {
+        headerName: '중요도',
+        field: 'priority',
+        width: 80,
+        editable: true,
+        cellEditor: 'agSelectCellEditor',
+        cellEditorParams: {
+          values: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+        },
+        cellRenderer: (params: any) => {
+          const priority = params.value as IssuePriority
+          const label = priorityLabels[priority] || priority
+
+          return (
+            <div className="w-full h-full flex items-center justify-center">
+              <Badge className={priorityColors[priority]}>
+                {label}
+              </Badge>
+            </div>
+          )
+        },
       },
       {
         headerName: '상태',
@@ -423,7 +460,7 @@ export function IssuesPage() {
         },
       },
     ],
-    [statusColors]
+    [statusColors, priorityColors, priorityLabels]
   )
 
   const defaultColDef = useMemo<ColDef>(
@@ -921,28 +958,6 @@ export function IssuesPage() {
     }
   }
 
-  const getPriorityBadgeVariant = (priority: IssuePriority) => {
-    switch (priority) {
-      case 'CRITICAL':
-        return 'destructive'
-      case 'HIGH':
-        return 'destructive'
-      case 'MEDIUM':
-        return 'secondary'
-      case 'LOW':
-        return 'outline'
-      default:
-        return 'default'
-    }
-  }
-
-  const priorityLabels: Record<IssuePriority, string> = {
-    LOW: '낮음',
-    MEDIUM: '보통',
-    HIGH: '높음',
-    CRITICAL: '긴급',
-  }
-
   const categoryLabels: Record<IssueCategory, string> = {
     COMMON: '일반',
     BUG: '버그',
@@ -1110,6 +1125,9 @@ export function IssuesPage() {
               onCellValueChanged={onCellValueChanged}
               rowClassRules={rowClassRules}
               animateRows={true}
+              pagination={true}
+              paginationPageSize={20}
+              paginationPageSizeSelector={[10, 20, 50, 100]}
               theme={themeQuartz.withParams({
                 headerHeight: 40,
                 rowHeight: 40,
@@ -1307,8 +1325,7 @@ export function IssuesPage() {
                         <Popover>
                           <PopoverTrigger asChild>
                             <Badge
-                              variant={getPriorityBadgeVariant(issueDetail.priority)}
-                              className="cursor-pointer hover:opacity-80"
+                              className={`cursor-pointer ${priorityColors[issueDetail.priority]}`}
                             >
                               {priorityLabels[issueDetail.priority]}
                             </Badge>
