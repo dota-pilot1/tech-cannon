@@ -41,6 +41,7 @@ Thumbs.db
 # 배포 관련 민감정보
 배포 가이드/*.pem
 배포 가이드/**/*.pem
+배포 가이드/secrets.env
 *.pem
 *.key
 

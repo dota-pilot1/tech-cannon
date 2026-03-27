@@ -1,0 +1,100 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'parantier-api/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        working-directory: parantier-api
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        working-directory: parantier-api
+        run: ./gradlew build -x test
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Stop running application
+        continue-on-error: true
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "sudo systemctl stop palantier-api || pkill -f 'palantier-api' || true"
+
+      - name: Upload JAR to EC2
+        run: |
+          scp parantier-api/build/libs/*.jar \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/palantier-api.jar
+
+      - name: Create application.yml on EC2
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cat > /home/${{ secrets.EC2_USER }}/application.yml << 'YAML'
+          spring:
+            datasource:
+              url: jdbc:postgresql://${{ secrets.DB_HOST }}:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}
+              username: ${{ secrets.DB_USERNAME }}
+              password: ${{ secrets.DB_PASSWORD }}
+
+          jwt:
+            secret: ${{ secrets.JWT_SECRET }}
+            access-token-validity: 3600000
+            refresh-token-validity: 604800000
+
+          aws:
+            s3:
+              bucket-name: ${{ secrets.AWS_S3_BUCKET_NAME_BACKEND }}
+              region: ${{ secrets.AWS_REGION }}
+              access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+              secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          YAML
+          EOF
+
+      - name: Start application
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            nohup java -jar /home/${{ secrets.EC2_USER }}/palantier-api.jar \
+              --spring.config.location=/home/${{ secrets.EC2_USER }}/application.yml \
+              > /home/${{ secrets.EC2_USER }}/app.log 2>&1 &
+
+            # Wait for application to start
+            sleep 10
+
+            # Check if application is running
+            if curl -s http://localhost:8080/actuator/health | grep -q "UP"; then
+              echo "✅ Application started successfully"
+            else
+              echo "❌ Application failed to start"
+              tail -50 /home/${{ secrets.EC2_USER }}/app.log
+              exit 1
+            fi
+          EOF
+
+      - name: Deployment complete
+        run: |
+          echo "✅ Backend deployed successfully to EC2!"
+          echo "🖥️  Host: ${{ secrets.EC2_HOST }}"
+          echo "🔗 Health check: http://${{ secrets.EC2_HOST }}:8080/actuator/health"
