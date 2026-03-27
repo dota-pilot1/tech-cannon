@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, RowSelectedEvent } from 'ag-grid-community'
+import type { ColDef } from 'ag-grid-community'
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
@@ -25,20 +25,22 @@ import {
 } from '@/shared/ui/dialog'
 import { Checkbox } from '@/shared/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
-import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus, useUpdateIssueAssignee } from '@/features/issue/hooks/useIssues'
+import { useIssues, useIssue, useUpdateIssue, useCreateIssue, useDeleteIssue, useUpdateIssueStatus } from '@/features/issue/hooks/useIssues'
 import { useIssueImages, useUploadIssueImage, useDeleteIssueImage } from '@/features/issue/hooks/useIssueImages'
 import { useIssueAssignees, useUpdateIssueAssignees } from '@/features/issue/hooks/useIssueAssignees'
 import { useIssueChecklists, useCreateChecklist, useToggleChecklist, useDeleteChecklist } from '@/features/issue/hooks/useIssueChecklists'
 import { useIssueMindmaps, useCreateMindmap, useUpdateMindmap, useDeleteMindmap } from '@/features/issue/hooks/useIssueMindmaps'
-import { useIssueTasks, useLinkTask, useUnlinkTask } from '@/features/issue/hooks/useIssueTasks'
+// import { useIssueTasks, useLinkTask, useUnlinkTask } from '@/features/issue/hooks/useIssueTasks'
 import { useIssueDbTables, useCreateDbTable, useUpdateDbTable, useDeleteDbTable } from '@/features/issue/hooks/useIssueDbTables'
 import type { Issue, IssueStatus, IssuePriority, IssueCategory } from '@/entities/issue/types/issue'
 import type { DbTableContent } from '@/entities/issue/types/issueDbTable'
 import { parseDbTableContent, parseTsvToColumns } from '@/entities/issue/types/issueDbTable'
-import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, Users, ChevronRight, ChevronLeft, FileText, Database } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, Users, ChevronRight, ChevronLeft, FileText, Database, Eye } from 'lucide-react'
 import { useConfirm } from '@/shared/hooks/useConfirm'
 import { toast } from 'sonner'
+import { Mermaid } from '@/shared/ui/mermaid'
 import { useUsers } from '@/features/admin/hooks/useUsers'
+import mermaid from 'mermaid'
 
 // AG-Grid 모듈 등록
 ModuleRegistry.registerModules([AllCommunityModule])
@@ -80,7 +82,6 @@ export function IssuesPage() {
   const { mutate: updateIssue } = useUpdateIssue()
   const { mutate: deleteIssue } = useDeleteIssue()
   const { mutate: updateStatus } = useUpdateIssueStatus()
-  const { mutate: updateAssignee } = useUpdateIssueAssignee()
   const { confirm, ConfirmDialog } = useConfirm()
 
   // 사용자 목록 (담당자 선택용)
@@ -103,7 +104,6 @@ export function IssuesPage() {
   const [isPasteMode, setIsPasteMode] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const uploadAreaRef = useRef<HTMLDivElement>(null)
-  const mmdInputRef = useRef<HTMLInputElement>(null)
 
   // 체크리스트 관련
   const { data: checklists } = useIssueChecklists(selectedIssueId)
@@ -121,12 +121,15 @@ export function IssuesPage() {
   const [mindmapTitle, setMindmapTitle] = useState('')
   const [mindmapContent, setMindmapContent] = useState('')
   const [isMindmapDialogOpen, setIsMindmapDialogOpen] = useState(false)
+  const [isMindmapViewDialogOpen, setIsMindmapViewDialogOpen] = useState(false)
+  const [viewMindmapData, setViewMindmapData] = useState<{ title: string; content: string } | null>(null)
+  const [validationResult, setValidationResult] = useState<{ isValid: boolean; error?: string } | null>(null)
 
-  // 업무 연결 관련
-  const { data: linkedTasks } = useIssueTasks(selectedIssueId)
-  const { mutate: linkTask } = useLinkTask(selectedIssueId!)
-  const { mutate: unlinkTask } = useUnlinkTask(selectedIssueId!)
-  const [taskIdInput, setTaskIdInput] = useState('')
+  // 업무 연결 관련 (미래 기능용)
+  // const { data: linkedTasks } = useIssueTasks(selectedIssueId)
+  // const { mutate: linkTask } = useLinkTask(selectedIssueId!)
+  // const { mutate: unlinkTask } = useUnlinkTask(selectedIssueId!)
+  // const [taskIdInput, setTaskIdInput] = useState('')
 
   // DB 테이블 관련
   const { data: dbTables } = useIssueDbTables(selectedIssueId)
@@ -139,6 +142,7 @@ export function IssuesPage() {
     schema: '',
     category: '',
     description: '',
+    queryResult: '',
     columns: [],
   })
   const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false)
@@ -303,23 +307,26 @@ export function IssuesPage() {
       {
         headerName: '',
         width: 50,
+        maxWidth: 50,
+        minWidth: 50,
         checkboxSelection: true,
         headerCheckboxSelection: true,
         suppressMovable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
+        suppressSizeToFit: true,
+        resizable: false,
       },
       {
         headerName: '제목',
         field: 'title',
-        flex: 1,
-        minWidth: 200,
+        flex: 3,
+        minWidth: 150,
         editable: true,
-        cellStyle: { display: 'flex', alignItems: 'center' } as any,
       },
       {
         headerName: '상태',
         field: 'status',
-        width: 100,
+        flex: 1,
+        minWidth: 80,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
@@ -329,18 +336,18 @@ export function IssuesPage() {
           const status = params.value as IssueStatus
           return statusLabels[status] || status
         },
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
       },
       {
         headerName: '요청자',
         field: 'authorName',
-        width: 100,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
+        flex: 1,
+        minWidth: 80,
       },
       {
         headerName: '담당자',
         field: 'assigneeName',
-        width: 120,
+        flex: 1.2,
+        minWidth: 100,
         cellRenderer: (params: any) => {
           const handleClick = (e: React.MouseEvent) => {
             e.stopPropagation()
@@ -371,7 +378,6 @@ export function IssuesPage() {
             </div>
           )
         },
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 } as any,
       },
     ],
     []
@@ -600,6 +606,15 @@ export function IssuesPage() {
     })
   }
 
+  // 마인드맵 보기 다이얼로그 열기
+  const handleViewMindmap = (mindmapId: number) => {
+    const mindmap = mindmaps?.find((m) => m.id === mindmapId)
+    if (mindmap) {
+      setViewMindmapData({ title: mindmap.title, content: mindmap.content })
+      setIsMindmapViewDialogOpen(true)
+    }
+  }
+
   // 마인드맵 추가/수정 다이얼로그 열기
   const handleOpenMindmapDialog = (mindmapId?: number) => {
     if (mindmapId) {
@@ -614,6 +629,7 @@ export function IssuesPage() {
       setMindmapTitle('')
       setMindmapContent('')
     }
+    setValidationResult(null) // 검증 결과 초기화
     setIsMindmapDialogOpen(true)
   }
 
@@ -670,33 +686,53 @@ export function IssuesPage() {
     }
   }
 
-  // 업무 연결
-  const handleLinkTask = () => {
-    const taskPostId = parseInt(taskIdInput)
-    if (isNaN(taskPostId)) {
-      toast.error('올바른 업무 ID를 입력하세요')
+  // Mermaid 문법 검증
+  const handleValidateMermaid = async () => {
+    if (!mindmapContent.trim()) {
+      setValidationResult({ isValid: false, error: 'Mermaid 코드를 입력하세요' })
+      toast.error('Mermaid 코드를 입력하세요')
       return
     }
 
-    const orderNum = (linkedTasks?.length || 0)
-    linkTask({ taskPostId, orderNum })
-    setTaskIdInput('')
-  }
+    try {
+      await mermaid.parse(mindmapContent, { suppressErrors: false })
 
-  // 업무 연결 해제
-  const handleUnlinkTask = async (linkId: number) => {
-    const confirmed = await confirm({
-      title: '업무 연결 해제',
-      description: '이 업무와의 연결을 해제하시겠습니까?',
-      confirmText: '해제',
-      cancelText: '취소',
-      variant: 'destructive',
-    })
-
-    if (confirmed) {
-      unlinkTask(linkId)
+      setValidationResult({ isValid: true })
+      toast.success('✅ Mermaid 문법이 올바릅니다')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      setValidationResult({ isValid: false, error: errorMessage })
+      toast.error('❌ Mermaid 문법 오류가 있습니다')
     }
   }
+
+  // 업무 연결 (미래 기능용)
+  // const _handleLinkTask = () => {
+  //   const taskPostId = parseInt(taskIdInput)
+  //   if (isNaN(taskPostId)) {
+  //     toast.error('올바른 업무 ID를 입력하세요')
+  //     return
+  //   }
+  //
+  //   const orderNum = (linkedTasks?.length || 0)
+  //   linkTask({ taskPostId, orderNum })
+  //   setTaskIdInput('')
+  // }
+
+  // 업무 연결 해제 (미래 기능용)
+  // const _handleUnlinkTask = async (linkId: number) => {
+  //   const confirmed = await confirm({
+  //     title: '업무 연결 해제',
+  //     description: '이 업무와의 연결을 해제하시겠습니까?',
+  //     confirmText: '해제',
+  //     cancelText: '취소',
+  //     variant: 'destructive',
+  //   })
+  //
+  //   if (confirmed) {
+  //     unlinkTask(linkId)
+  //   }
+  // }
 
   // DB 테이블 다이얼로그 열기
   const handleOpenDbTableDialog = (dbTableId?: number) => {
@@ -885,6 +921,17 @@ export function IssuesPage() {
     QUESTION: '질문',
   }
 
+  // 상태별 카운트 계산
+  const statusCounts = useMemo(() => {
+    const allIssues = issuesData?.items || []
+    return {
+      OPEN: allIssues.filter((issue) => issue.status === 'OPEN').length,
+      IN_PROGRESS: allIssues.filter((issue) => issue.status === 'IN_PROGRESS').length,
+      CLOSED: allIssues.filter((issue) => issue.status === 'CLOSED').length,
+      ALL: allIssues.length,
+    }
+  }, [issuesData])
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* 헤더 */}
@@ -941,7 +988,43 @@ export function IssuesPage() {
       {/* 메인 컨텐츠: 좌우 분할 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측: 이슈 목록 */}
-        <div className="w-[55%] border-r border-border p-4 overflow-hidden flex flex-col">
+        <div className="w-1/2 border-r border-border p-4 overflow-hidden flex flex-col">
+          {/* 상태별 카운트 버튼 */}
+          <div className="flex gap-2 mb-3">
+            <Button
+              variant={filterStatus === 'ALL' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterStatus('ALL')}
+              className="flex-1"
+            >
+              전체 <span className="ml-2 font-bold">{statusCounts.ALL}</span>
+            </Button>
+            <Button
+              variant={filterStatus === 'OPEN' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterStatus('OPEN')}
+              className="flex-1"
+            >
+              진행 전 <span className="ml-2 font-bold">{statusCounts.OPEN}</span>
+            </Button>
+            <Button
+              variant={filterStatus === 'IN_PROGRESS' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterStatus('IN_PROGRESS')}
+              className="flex-1"
+            >
+              진행 중 <span className="ml-2 font-bold">{statusCounts.IN_PROGRESS}</span>
+            </Button>
+            <Button
+              variant={filterStatus === 'CLOSED' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterStatus('CLOSED')}
+              className="flex-1"
+            >
+              완료 <span className="ml-2 font-bold">{statusCounts.CLOSED}</span>
+            </Button>
+          </div>
+
           {/* Grid Toolbar */}
           <div className="flex justify-end gap-2 mb-2 pb-2 border-b">
             <Button onClick={handleAddRow} size="sm" variant="outline">
@@ -971,6 +1054,12 @@ export function IssuesPage() {
               onCellValueChanged={onCellValueChanged}
               rowClassRules={rowClassRules}
               animateRows={true}
+              onGridReady={(params) => {
+                params.api.sizeColumnsToFit()
+              }}
+              onGridSizeChanged={(params) => {
+                params.api.sizeColumnsToFit()
+              }}
               theme={themeQuartz.withParams({
                 headerHeight: 40,
                 rowHeight: 40,
@@ -985,7 +1074,7 @@ export function IssuesPage() {
         </div>
 
         {/* 우측: 이슈 상세 */}
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-6 overflow-y-auto bg-muted/30">
           {isEditing ? (
             /* 편집 모드 */
             <div>
@@ -1196,18 +1285,20 @@ export function IssuesPage() {
                     <tr className="border-b">
                       <td className="bg-muted px-4 py-2 font-medium">담당자</td>
                       <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          {issueAssignees && issueAssignees.length > 0 ? (
-                            <>
-                              {issueAssignees.map((assignee) => (
-                                <Badge key={assignee.userId} variant="outline">
-                                  {assignee.username}
-                                </Badge>
-                              ))}
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">미지정</span>
-                          )}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {issueAssignees && issueAssignees.length > 0 ? (
+                              <>
+                                {issueAssignees.map((assignee) => (
+                                  <Badge key={assignee.userId} variant="outline">
+                                    {assignee.username}
+                                  </Badge>
+                                ))}
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">미지정</span>
+                            )}
+                          </div>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1224,9 +1315,35 @@ export function IssuesPage() {
                     </tr>
                     <tr>
                       <td className="bg-muted px-4 py-2 font-medium">작성일</td>
-                      <td className="px-4 py-2">{new Date(issueDetail.createdAt).toLocaleString('ko-KR')}</td>
+                      <td className="px-4 py-2">
+                        {new Date(issueDetail.createdAt).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                        })}{' '}
+                        오전{' '}
+                        {new Date(issueDetail.createdAt).toLocaleTimeString('ko-KR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: false,
+                        })}
+                      </td>
                       <td className="bg-muted px-4 py-2 font-medium">수정일</td>
-                      <td className="px-4 py-2">{new Date(issueDetail.updatedAt).toLocaleString('ko-KR')}</td>
+                      <td className="px-4 py-2">
+                        {new Date(issueDetail.updatedAt).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                        })}{' '}
+                        오후{' '}
+                        {new Date(issueDetail.updatedAt).toLocaleTimeString('ko-KR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: false,
+                        })}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -1342,24 +1459,42 @@ export function IssuesPage() {
                         mindmaps.map((mindmap) => (
                           <div
                             key={mindmap.id}
-                            className="flex items-center justify-between p-3 border rounded hover:bg-accent group cursor-pointer"
-                            onClick={() => handleOpenMindmapDialog(mindmap.id)}
+                            className="flex items-center justify-between p-3 border rounded hover:bg-accent group"
                           >
                             <div className="flex items-center gap-2">
-                              <FileText className="w-5 h-5 text-muted-foreground" />
+                              <FileText className="w-4 h-4 text-muted-foreground" />
                               <span className="text-sm font-medium">{mindmap.title}</span>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="opacity-0 group-hover:opacity-100"
+                                variant="outline"
+                                className="h-7 px-2 opacity-0 group-hover:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleOpenMindmapDialog(mindmap.id)
+                                }}
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleDeleteMindmap(mindmap.id)
                                 }}
                               >
-                                <Trash2 className="w-4 h-4 text-destructive" />
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2"
+                                onClick={() => handleViewMindmap(mindmap.id)}
+                              >
+                                <Eye className="w-3.5 h-3.5" />
                               </Button>
                             </div>
                           </div>
@@ -1681,39 +1816,109 @@ export function IssuesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* DB 테이블/마인드맵 작성/편집 다이얼로그 */}
+      {/* Mermaid 다이어그램 작성/편집 다이얼로그 */}
       <Dialog open={isMindmapDialogOpen} onOpenChange={setIsMindmapDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selectedMindmapId ? 'DB 테이블/마인드맵 수정' : 'DB 테이블/마인드맵 추가'}</DialogTitle>
+            <DialogTitle>{selectedMindmapId ? 'Mermaid 다이어그램 수정' : 'Mermaid 다이어그램 추가'}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">제목</label>
-              <input
-                type="text"
-                value={mindmapTitle}
-                onChange={(e) => setMindmapTitle(e.target.value)}
-                placeholder="테이블명 또는 마인드맵 제목 입력"
-                className="w-full px-3 py-2 border border-input rounded-md text-sm"
-              />
+          <div className="grid grid-cols-2 gap-4">
+            {/* 왼쪽: 입력 영역 */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">제목</label>
+                <input
+                  type="text"
+                  value={mindmapTitle}
+                  onChange={(e) => setMindmapTitle(e.target.value)}
+                  placeholder="다이어그램 제목 입력"
+                  className="w-full px-3 py-2 border border-input rounded-md text-sm"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">
+                    Mermaid 코드
+                    <span className="text-muted-foreground font-normal ml-2">
+                      (실시간 미리보기로 확인하세요)
+                    </span>
+                  </label>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleValidateMermaid}
+                    className="h-7"
+                  >
+                    문법 검증
+                  </Button>
+                </div>
+
+                {validationResult && (
+                  <div
+                    className={`mb-2 p-2 rounded-md text-sm ${
+                      validationResult.isValid
+                        ? 'bg-green-50 border border-green-300 text-green-800'
+                        : 'bg-red-50 border border-red-300 text-red-800'
+                    }`}
+                  >
+                    {validationResult.isValid ? (
+                      <p className="flex items-center gap-1">
+                        <span className="font-semibold">✅ 문법이 올바릅니다</span>
+                      </p>
+                    ) : (
+                      <div>
+                        <p className="font-semibold mb-1">❌ 문법 오류</p>
+                        <pre className="text-xs whitespace-pre-wrap">{validationResult.error}</pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <textarea
+                  value={mindmapContent}
+                  onChange={(e) => {
+                    setMindmapContent(e.target.value)
+                    setValidationResult(null) // 내용 변경 시 검증 결과 초기화
+                  }}
+                  placeholder={`sequenceDiagram
+    actor User as 사용자
+    participant FE as Frontend
+    participant C as LoginController
+    participant S as AuthService
+    participant U as UserRepository
+    participant DB as Database
+
+    User->>FE: 아이디 / 비밀번호 입력
+    FE->>C: POST /login
+    C->>S: 로그인 요청 전달
+    S->>U: 사용자 조회
+    U->>DB: SELECT user
+    DB-->>U: 사용자 정보 반환
+    U-->>S: 사용자 엔티티 반환
+    S->>S: 비밀번호 검증
+    S-->>C: 로그인 성공 결과 반환
+    C-->>FE: JWT 또는 세션 반환
+    FE-->>User: 로그인 성공 화면 표시`}
+                  className="w-full px-3 py-2 border border-input rounded-md text-sm font-mono"
+                  rows={20}
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                내용
-                <span className="text-muted-foreground font-normal ml-2">
-                  (DB 테이블 정보 또는 마인드맵 형식으로 작성)
-                </span>
-              </label>
-              <textarea
-                value={mindmapContent}
-                onChange={(e) => setMindmapContent(e.target.value)}
-                placeholder={`DB 테이블 예시:\nCREATE TABLE users (\n  id BIGSERIAL PRIMARY KEY,\n  username VARCHAR(50) NOT NULL,\n  email VARCHAR(100) NOT NULL,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\n또는 마인드맵 예시:\n프로젝트\n  기획\n    요구사항 정의\n    화면 설계\n  개발\n    프론트엔드\n    백엔드`}
-                className="w-full px-3 py-2 border border-input rounded-md text-sm font-mono"
-                rows={15}
-              />
+            {/* 오른쪽: 실시간 미리보기 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium block">미리보기</label>
+              <div className="border rounded-md p-4 bg-gray-50 overflow-auto" style={{ height: 'calc(100% - 30px)' }}>
+                {mindmapContent.trim() ? (
+                  <Mermaid chart={mindmapContent} className="mermaid-preview" />
+                ) : (
+                  <p className="text-sm text-gray-400 text-center py-10">
+                    왼쪽에 Mermaid 코드를 입력하면 여기에 다이어그램이 표시됩니다
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1722,6 +1927,27 @@ export function IssuesPage() {
               취소
             </Button>
             <Button onClick={handleSaveMindmap}>저장</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mermaid 다이어그램 보기 다이얼로그 */}
+      <Dialog open={isMindmapViewDialogOpen} onOpenChange={setIsMindmapViewDialogOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{viewMindmapData?.title || 'Mermaid 다이어그램'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-auto border rounded-md p-4 bg-gray-50">
+            {viewMindmapData?.content ? (
+              <Mermaid chart={viewMindmapData.content} className="mermaid-view" />
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-10">다이어그램 데이터가 없습니다</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setIsMindmapViewDialogOpen(false)}>닫기</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

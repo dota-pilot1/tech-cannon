@@ -32,7 +32,7 @@ export function ChatRoomPage() {
   const { data: chatRoom } = useChatRoom(roomId ? Number(roomId) : null)
 
   // 채팅방 참가자 목록 로드
-  const { data: participants = [], isLoading: participantsLoading, error: participantsError } = useRoomMembers(
+  const { data: participants = [] } = useRoomMembers(
     roomId ? Number(roomId) : null
   )
 
@@ -175,7 +175,7 @@ export function ChatRoomPage() {
 
       const prevDate =
         index > 0 && messages[index - 1].createdAt
-          ? new Date(messages[index - 1].createdAt).toLocaleDateString('ko-KR', {
+          ? new Date(messages[index - 1].createdAt!).toLocaleDateString('ko-KR', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',

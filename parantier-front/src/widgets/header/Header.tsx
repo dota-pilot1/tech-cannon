@@ -2,7 +2,6 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
 import { authStore } from '@/entities/user/model/authStore'
 import { LoginForm } from '@/features/auth/login/LoginForm'
-import { LogoutButton } from '@/features/auth/logout/LogoutButton'
 import { SignupDialog } from '@/features/auth/signup/SignupDialog'
 import { useMenuTree } from '@/features/menu/hooks/useMenuTree'
 import {
@@ -128,7 +127,7 @@ export function Header() {
                   <DropdownMenuItem
                     className="cursor-pointer text-destructive focus:text-destructive"
                     onClick={() => {
-                      authStore.setState({ isAuthenticated: false, user: null })
+                      authStore.setState((prev) => ({ ...prev, isAuthenticated: false, user: null, accessToken: null, refreshToken: null }))
                       localStorage.removeItem('accessToken')
                       localStorage.removeItem('refreshToken')
                       navigate({ to: '/' })

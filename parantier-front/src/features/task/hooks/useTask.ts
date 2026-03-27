@@ -77,7 +77,7 @@ export function useTaskPostDetail(postId: number | null, enabled = true) {
 }
 
 export function useSaveTaskMutation(
-  folderId: number | null,
+  _folderId: number | null,
   postId: number | null,
   onSuccess?: (newId: number) => void
 ) {
@@ -95,7 +95,7 @@ export function useSaveTaskMutation(
   })
 }
 
-export function useDeleteTaskMutation(folderId: number | null, onSuccess?: () => void) {
+export function useDeleteTaskMutation(_folderId: number | null, onSuccess?: () => void) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => taskApi.deletePost(id),

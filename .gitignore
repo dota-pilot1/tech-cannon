@@ -37,3 +37,17 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 .env
+
+# 배포 관련 민감정보
+배포 가이드/*.pem
+배포 가이드/**/*.pem
+*.pem
+*.key
+
+# AWS 자격증명
+.aws/
+aws-credentials.txt
+
+# 데이터베이스 백업
+*.sql
+backup_*.sql

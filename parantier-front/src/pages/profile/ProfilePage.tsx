@@ -43,10 +43,11 @@ export function ProfilePage() {
       const updatedUser = await profileApi.updateProfile(username)
 
       // authStore 업데이트
-      authStore.setState({
+      authStore.setState((prev) => ({
+        ...prev,
         user: updatedUser,
         isAuthenticated: true,
-      })
+      }))
 
       toast.success('프로필이 업데이트되었습니다.')
       setIsEditing(false)

@@ -1,5 +1,6 @@
 import type { TaskPost } from '../types/task.types'
 import { TYPE_META, parseFileContent, parseDbTableContent } from '../types/task.types'
+import { Mermaid } from '@/shared/ui/mermaid'
 
 interface Props {
   post: TaskPost
@@ -56,9 +57,7 @@ export default function TaskBlockViewer({ post }: Props) {
 
                 {block.blockType === 'MMD' && (
                   <div className="p-4 bg-white">
-                    <pre className="text-sm bg-gray-50 p-3 rounded border">
-                      {block.content || <span className="text-gray-400">Mermaid 코드가 없습니다.</span>}
-                    </pre>
+                    <Mermaid chart={block.content} className="mermaid-diagram" />
                   </div>
                 )}
 

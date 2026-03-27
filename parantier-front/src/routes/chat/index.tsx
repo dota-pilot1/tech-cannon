@@ -81,7 +81,7 @@ export function ChatRoomsPage() {
     navigate({ to: '/chat/$roomId', params: { roomId: String(roomId) } })
   })
 
-  const joinRoomMutation = useJoinRoom((roomId) => {
+  const joinRoomMutation = useJoinRoom(() => {
     // 참가 성공 후 참가자 목록 갱신됨
   })
 
