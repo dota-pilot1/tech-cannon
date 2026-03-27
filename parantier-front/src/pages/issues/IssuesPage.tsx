@@ -333,15 +333,13 @@ export function IssuesPage() {
       {
         headerName: '제목',
         field: 'title',
-        flex: 3,
-        minWidth: 150,
+        width: 250,
         editable: true,
       },
       {
         headerName: '상태',
         field: 'status',
-        flex: 1,
-        minWidth: 80,
+        width: 110,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
@@ -370,14 +368,12 @@ export function IssuesPage() {
       {
         headerName: '요청자',
         field: 'authorName',
-        flex: 1,
-        minWidth: 80,
+        width: 100,
       },
       {
         headerName: '담당자',
         field: 'assigneeName',
-        flex: 1.2,
-        minWidth: 100,
+        width: 130,
         cellRenderer: (params: any) => {
           const handleClick = (e: React.MouseEvent) => {
             e.stopPropagation()
@@ -969,7 +965,7 @@ export function IssuesPage() {
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-3xl font-bold">이슈 관리</h1>
-            <p className="text-muted-foreground mt-1">프로젝트 이슈를 등록하고 관리할 수 있습니다.</p>
+            {/* <p className="text-muted-foreground mt-1">프로젝트 이슈를 등록하고 관리할 수 있습니다.</p> */}
           </div>
           <Button onClick={handleNew}>
             <Plus className="w-4 h-4 mr-2" />
@@ -1084,12 +1080,6 @@ export function IssuesPage() {
               onCellValueChanged={onCellValueChanged}
               rowClassRules={rowClassRules}
               animateRows={true}
-              onGridReady={(params) => {
-                params.api.sizeColumnsToFit()
-              }}
-              onGridSizeChanged={(params) => {
-                params.api.sizeColumnsToFit()
-              }}
               theme={themeQuartz.withParams({
                 headerHeight: 40,
                 rowHeight: 40,
