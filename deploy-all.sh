@@ -2,7 +2,7 @@
 set -e
 
 PROJECT_ROOT="/Users/terecal/mapo-palantier-project"
-PEM="/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem"
+PEM="/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem"
 EC2_HOST="ubuntu@43.200.241.26"
 
 echo "=========================================="
@@ -30,21 +30,30 @@ cd "$PROJECT_ROOT/parantier-api"
 ./gradlew clean bootJar
 
 echo "📝 시작 스크립트 생성 중..."
-cat > /tmp/start-backend.sh << 'EOF'
+
+# .env 파일에서 AWS 자격증명 로드
+if [ -f "$PROJECT_ROOT/parantier-api/.env" ]; then
+  source "$PROJECT_ROOT/parantier-api/.env"
+else
+  echo "⚠️  .env 파일을 찾을 수 없습니다. AWS 자격증명을 수동으로 설정하세요."
+  exit 1
+fi
+
+cat > /tmp/start-backend.sh << EOF
 #!/bin/bash
 pkill -f 'java -jar' || true
 sleep 2
 
-export AWS_ACCESS_KEY_ID=<YOUR_AWS_ACCESS_KEY_ID>
-export AWS_SECRET_ACCESS_KEY=<YOUR_AWS_SECRET_ACCESS_KEY>
-export AWS_S3_BUCKET_NAME=hibot-docu
-export AWS_S3_REGION=ap-northeast-2
+export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+export AWS_S3_BUCKET_NAME=$AWS_S3_BUCKET_NAME
+export AWS_S3_REGION=$AWS_S3_REGION
 
 nohup java -jar /home/ubuntu/parantier-api-0.0.1-SNAPSHOT.jar \
     --spring.profiles.active=prod \
     > /home/ubuntu/app.log 2>&1 &
 
-echo "Application started. PID: $!"
+echo "Application started. PID: \$!"
 EOF
 chmod +x /tmp/start-backend.sh
 

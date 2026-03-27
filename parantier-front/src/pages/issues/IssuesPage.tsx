@@ -1546,9 +1546,27 @@ export function IssuesPage() {
               <div className="border rounded-lg p-4 mb-6" onPaste={handlePaste}>
                 <Tabs defaultValue="images" className="w-full">
                   <TabsList className="mb-3">
-                    <TabsTrigger value="images">이미지</TabsTrigger>
-                    <TabsTrigger value="mmd">마인드맵 (MMD)</TabsTrigger>
-                    <TabsTrigger value="tasks">DB 테이블</TabsTrigger>
+                    <TabsTrigger value="images">
+                      이미지 {issueImages && issueImages.length > 0 && (
+                        <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                          {issueImages.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="mmd">
+                      마인드맵 (MMD) {mindmaps && mindmaps.length > 0 && (
+                        <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                          {mindmaps.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="tasks">
+                      DB 테이블 {dbTables && dbTables.length > 0 && (
+                        <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                          {dbTables.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
                   </TabsList>
 
                   {/* 이미지 탭 */}
