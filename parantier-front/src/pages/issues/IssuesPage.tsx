@@ -147,13 +147,21 @@ export function IssuesPage() {
   })
   const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false)
 
-  // 필터링된 이슈 목록
+  // 필터링 및 정렬된 이슈 목록
   const issues = useMemo(() => {
     const allIssues = issuesData?.items || []
-    if (filterStatus === 'ALL') {
-      return allIssues
-    }
-    return allIssues.filter((issue) => issue.status === filterStatus)
+
+    // 필터링
+    const filtered = filterStatus === 'ALL'
+      ? allIssues
+      : allIssues.filter((issue) => issue.status === filterStatus)
+
+    // 작성일 내림차순 정렬 (최신순)
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime()
+      const dateB = new Date(b.createdAt).getTime()
+      return dateB - dateA // 내림차순
+    })
   }, [issuesData, filterStatus])
 
   // 담당자 다이얼로그 열릴 때 현재 담당자 목록 로드
@@ -344,12 +352,6 @@ export function IssuesPage() {
           const label = statusLabels[status] || status
 
           // 상태별 색상 정의
-          const statusVariant = {
-            OPEN: 'default' as const,
-            IN_PROGRESS: 'secondary' as const,
-            CLOSED: 'outline' as const,
-          }
-
           const statusColors = {
             OPEN: 'bg-blue-100 text-blue-700 hover:bg-blue-100',
             IN_PROGRESS: 'bg-amber-100 text-amber-700 hover:bg-amber-100',
