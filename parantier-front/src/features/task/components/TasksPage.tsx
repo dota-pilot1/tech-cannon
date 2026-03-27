@@ -238,6 +238,7 @@ export default function TasksPage() {
 
   const handlePostClick = (post: TaskPost) => {
     setSelectedPostId(post.id);
+    setSelectedFolderId(null);
     setIsEditing(false);
   };
 
