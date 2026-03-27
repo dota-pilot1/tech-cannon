@@ -32,7 +32,7 @@ export function ChatPanel({ issueId }: ChatPanelProps) {
   }, [allMessages])
 
   const handleSend = (message: string) => {
-    if (!user) {
+    if (!user?.id) {
       console.error('User not logged in')
       return
     }
