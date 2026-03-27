@@ -90,8 +90,8 @@ export function IssuesPage() {
 
   // 담당자 관련
   const [assigneeDialogIssueId, setAssigneeDialogIssueId] = useState<number | null>(null)
-  const { data: issueAssignees } = useIssueAssignees(assigneeDialogIssueId || selectedIssueId)
-  const { mutate: updateAssignees } = useUpdateIssueAssignees(assigneeDialogIssueId || selectedIssueId!)
+  const { data: issueAssignees } = useIssueAssignees(selectedIssueId)
+  const { mutate: updateAssignees } = useUpdateIssueAssignees(selectedIssueId!)
   const [isAssigneeDialogOpen, setIsAssigneeDialogOpen] = useState(false)
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
   const [userSearchKeyword, setUserSearchKeyword] = useState('')
