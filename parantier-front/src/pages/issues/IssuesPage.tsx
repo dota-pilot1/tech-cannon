@@ -95,8 +95,8 @@ export function IssuesPage() {
   })
 
   const queryClient = useQueryClient()
-  const { mutate: createIssue, mutateAsync: createIssueAsync } = useCreateIssue()
-  const { mutate: updateIssue, mutateAsync: updateIssueAsync } = useUpdateIssue()
+  const { mutate: createIssue } = useCreateIssue()
+  const { mutate: updateIssue } = useUpdateIssue()
   const { mutate: deleteIssue } = useDeleteIssue()
   const { mutate: updateStatus } = useUpdateIssueStatus()
 
