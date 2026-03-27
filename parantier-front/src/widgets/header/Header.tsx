@@ -36,9 +36,9 @@ export function Header() {
     return userRole && menu.allowedRoles.includes(userRole)
   }
 
-  // 헤더 메뉴만 필터링 (HEADER 또는 CATEGORY 타입, parent_id가 null인 1차 메뉴)
+  // 헤더 메뉴만 필터링 (HEADER 타입, parent_id가 null인 1차 메뉴)
   const headerMenus = menus
-    .filter((menu) => menu.parentId === null && (menu.menuType === 'HEADER' || menu.menuType === 'CATEGORY'))
+    .filter((menu) => menu.parentId === null && menu.menuType === 'HEADER')
     .filter(isMenuAccessible)
     .map((menu) => ({
       ...menu,
@@ -62,8 +62,8 @@ export function Header() {
             </Link>
             <nav className="flex items-center gap-6">
               {headerMenus.map((menu) => {
-                // CATEGORY: 드롭다운 메뉴
-                if (menu.menuType === 'CATEGORY' && menu.children && menu.children.length > 0) {
+                // 하위 메뉴가 있으면 드롭다운
+                if (menu.children && menu.children.length > 0) {
                   return (
                     <DropdownMenu key={menu.id}>
                       <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors cursor-pointer outline-none">
@@ -86,7 +86,7 @@ export function Header() {
                   )
                 }
 
-                // HEADER: 직접 링크
+                // 하위 메뉴가 없으면 직접 링크
                 return (
                   <Link
                     key={menu.id}

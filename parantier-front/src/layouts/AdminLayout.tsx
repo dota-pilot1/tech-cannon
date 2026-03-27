@@ -6,8 +6,8 @@ export function AdminLayout() {
   const location = useLocation()
   const { data: menus = [] } = useMenuTree()
 
-  // SIDE 타입 메뉴만 필터링 (관리자 사이드바)
-  const sideMenus = menus.filter((menu) => menu.menuType === 'SIDE')
+  // 관리자 메뉴 필터링 (현재는 사용하지 않음)
+  const sideMenus = menus.filter((menu) => menu.menuType === 'SUB' && menu.path?.startsWith('/admin'))
 
   return (
     <div className="flex h-[calc(100vh-64px)]">

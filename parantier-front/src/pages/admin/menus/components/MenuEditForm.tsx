@@ -15,7 +15,7 @@ export function MenuEditForm({ menu, parentMenu, onSave, onDelete, onCancel }: M
     menu || {
       name: '',
       path: '',
-      menuType: 'SIDE' as MenuType,
+      menuType: 'HEADER' as MenuType,
       requiredRole: null,
       orderNum: 0,
       isActive: true,
@@ -29,7 +29,7 @@ export function MenuEditForm({ menu, parentMenu, onSave, onDelete, onCancel }: M
       menu || {
         name: '',
         path: '',
-        menuType: 'SIDE' as MenuType,
+        menuType: 'HEADER' as MenuType,
         requiredRole: null,
         orderNum: 0,
         isActive: true,
@@ -90,13 +90,12 @@ export function MenuEditForm({ menu, parentMenu, onSave, onDelete, onCancel }: M
         </label>
         <select
           required
-          value={formData.menuType || 'SIDE'}
+          value={formData.menuType || 'HEADER'}
           onChange={(e) => handleChange('menuType', e.target.value as MenuType)}
           className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
-          <option value="HEADER">HEADER</option>
-          <option value="SIDE">SIDE</option>
-          <option value="SUB">SUB</option>
+          <option value="HEADER">HEADER (최상위 메뉴)</option>
+          <option value="SUB">SUB (하위 메뉴)</option>
         </select>
       </div>
 

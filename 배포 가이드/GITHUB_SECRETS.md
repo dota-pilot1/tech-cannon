@@ -30,22 +30,22 @@ Value: ap-northeast-2
 
 #### AWS_S3_BUCKET_NAME
 ```
-Value: hibot-docu
+Value: dxline-tallent-front
 ```
-- 프론트엔드 빌드 결과물을 업로드할 S3 버킷
+- **프론트엔드 빌드 결과물**을 업로드할 S3 버킷
 
 #### AWS_S3_BUCKET_NAME_BACKEND
 ```
 Value: hibot-docu
 ```
-- 백엔드 이미지 업로드용 S3 버킷 (프론트엔드와 동일하거나 별도 버킷)
+- **백엔드 이미지 업로드**용 S3 버킷
 
 #### AWS_CLOUDFRONT_DISTRIBUTION_ID
 ```
-Value: (CloudFront 콘솔에서 확인)
+Value: E11NF3HMOB52NI
 ```
-- 위치: AWS Console → CloudFront → Distributions
-- 예시: E1234ABCD5678
+- 프론트엔드용 CloudFront Distribution
+- Domain: d1841s1y3ps0cj.cloudfront.net
 
 ---
 

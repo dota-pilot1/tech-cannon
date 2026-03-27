@@ -1,4 +1,4 @@
-export type MenuType = 'HEADER' | 'SIDE' | 'SUB' | 'CATEGORY' | 'PAGE'
+export type MenuType = 'HEADER' | 'SUB'
 
 export interface Menu {
   id: number

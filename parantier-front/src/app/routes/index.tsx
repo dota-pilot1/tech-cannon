@@ -18,6 +18,7 @@ import { ChatRoomsPage } from '@/routes/chat/index'
 import { ChatRoomPage } from '@/routes/chat/$roomId'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { IssuesPage } from '@/pages/issues/IssuesPage'
+import { NotePage } from '@/pages/notes/NotePage'
 import { authStore } from '@/entities/user/model/authStore'
 import { toast } from 'sonner'
 
@@ -196,6 +197,56 @@ const issuesRoute = createRoute({
   component: IssuesPage,
 })
 
+// 노트 페이지들 (로그인 필요)
+const notesFrontendRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/notes/frontend',
+  beforeLoad: () => requireAuth(),
+  component: () => <NotePage category="Frontend" title="Frontend Note" />,
+})
+
+const notesBackendRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/notes/backend',
+  beforeLoad: () => requireAuth(),
+  component: () => <NotePage category="Backend" title="Backend Note" />,
+})
+
+const notesSpringBootRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/notes/springboot',
+  beforeLoad: () => requireAuth(),
+  component: () => <NotePage category="Spring Boot" title="Spring Boot Note" />,
+})
+
+const notesUiUxRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/notes/uiux',
+  beforeLoad: () => requireAuth(),
+  component: () => <NotePage category="UI/UX" title="UI/UX Note" />,
+})
+
+const notesDevOpsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/notes/devops',
+  beforeLoad: () => requireAuth(),
+  component: () => <NotePage category="DevOps" title="DevOps Note" />,
+})
+
+const notesWebSocketRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/notes/websocket',
+  beforeLoad: () => requireAuth(),
+  component: () => <NotePage category="WebSocket" title="WebSocket Note" />,
+})
+
+const notesRnRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/notes/rn',
+  beforeLoad: () => requireAuth(),
+  component: () => <NotePage category="React Native" title="React Native Note" />,
+})
+
 // Route Tree
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -211,6 +262,13 @@ const routeTree = rootRoute.addChildren([
   chatRoomRoute,
   profileRoute,
   issuesRoute,
+  notesFrontendRoute,
+  notesBackendRoute,
+  notesSpringBootRoute,
+  notesUiUxRoute,
+  notesDevOpsRoute,
+  notesWebSocketRoute,
+  notesRnRoute,
 ])
 
 // Router 생성
