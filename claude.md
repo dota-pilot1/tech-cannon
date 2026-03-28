@@ -10,6 +10,29 @@ git commit -m "feat: 새 기능"
 git push
 ```
 
+> ⚠️ **GitHub Actions 트리거 조건**
+> - `parantier-front/**` 경로 변경 시 → 프론트 배포 자동 실행
+> - `parantier-api/**` 경로 변경 시 → 백엔드 배포 자동 실행
+> - 해당 경로 변경이 없으면 Actions가 트리거되지 않음 → 수동 배포 필요
+
+### 프론트 수동 배포 (GitHub Actions 미트리거 시)
+```bash
+cd parantier-front
+npm ci
+VITE_API_URL=https://api.dxline-tallent.com/api \
+VITE_WS_URL=wss://api.dxline-tallent.com/ws \
+npm run build
+
+# S3 업로드 + CloudFront 캐시 무효화
+aws s3 sync dist/ s3://dxline-tallent-front --delete
+aws cloudfront create-invalidation \
+  --distribution-id E11NF3HMOB52NI \
+  --paths "/*"
+```
+
+> ✅ CloudFront 캐시 무효화는 GitHub Actions 워크플로우에 이미 포함되어 있음
+> (`.github/workflows/deploy-frontend.yml` - `Invalidate CloudFront cache` 스텝)
+
 **배포 가이드 문서:**
 - [GitHub Actions 배포](/배포 가이드/GitHub_Actions_배포.md): ⭐ 자동 배포 (권장)
 - [배포 가이드](/배포 가이드/배포_가이드.md): 수동 배포 절차
@@ -356,6 +379,60 @@ apiClient.get('/api/tasks/folders')  // → http://localhost:8080/api/api/tasks/
 1. baseURL에는 공통 경로(`/api`)를 포함
 2. 개별 API 함수에서는 리소스 경로만 명시 (`/tasks/...`, `/users/...`)
 3. 절대 경로 형태가 필요한 경우 axios 인스턴스 대신 전체 URL 사용
+
+## 알려진 TypeScript 빌드 에러 패턴
+
+### ag-grid `cellStyle` 타입 오류
+
+**증상:**
+```
+Type '{ display: string; paddingLeft?: undefined; }' is not assignable to type 'CellStyle'.
+Property 'paddingLeft' is incompatible with index signature.
+  Type 'undefined' is not assignable to type 'string | number'.
+```
+
+**원인:**
+`CellStyle`의 인덱스 시그니처 `[key: string]: string | number`가 `undefined`를 허용하지 않는데,
+여러 `cellStyle` 객체를 배열에 섞으면 TypeScript가 optional 프로퍼티를 `undefined`로 추론함
+
+**해결:**
+```typescript
+import type { ColDef, CellStyle } from "ag-grid-community";
+
+// ✅ as CellStyle 캐스팅
+cellStyle: { display: "flex", alignItems: "center" } as CellStyle,
+cellStyle: { display: "flex", paddingLeft: "8px" } as CellStyle,
+```
+
+### `.sql` 파일 gitignore 문제
+
+**증상:** `git add` 시 `.gitignore`에 의해 무시됨
+```
+The following paths are ignored by one of your .gitignore files: *.sql
+```
+
+**원인:** 루트 `.gitignore`에 `*.sql` 패턴이 등록되어 있음
+
+**해결:** 강제 추가
+```bash
+git add -f parantier-api/src/main/resources/db/migration/Vxx__xxx.sql
+```
+
+### Flyway 마이그레이션 관련
+
+**배포 서버 DB 스키마 변경 시:**
+1. `parantier-api/src/main/resources/db/migration/` 아래 `Vxx__설명.sql` 파일 생성
+2. `git add -f`로 강제 추가 후 커밋 푸시
+3. 백엔드 배포 시 Spring Boot 시작 시점에 Flyway가 자동 실행
+
+**배포 서버 메뉴 추가:**
+```bash
+ssh -i "PEM파일" ubuntu@43.200.241.26 \
+  "PGPASSWORD=palantier_password psql -h localhost -p 5432 \
+   -U palantier_user -d palantier \
+   -c \"INSERT INTO menus (name, path, parent_id, menu_type, order_num, is_active) \
+        VALUES ('메뉴명', '/경로', NULL, 'HEADER', 순서, true);\""
+```
 
 ## Git Commit 규칙
 
