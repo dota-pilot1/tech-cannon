@@ -43,6 +43,11 @@ Container Name: palantier-postgres
 Image: postgres:16
 ```
 
+> ⚠️ **로컬 DB는 Docker 컨테이너(`palantier-postgres`)를 사용합니다.**
+> EC2 서버 DB는 호스트에 직접 설치된 PostgreSQL을 사용합니다 (컨테이너 아님).
+> - 로컬: `docker exec palantier-postgres psql -U palantier_user -d palantier`
+> - 서버: `PGPASSWORD=palantier_password psql -h localhost -p 5432 -U palantier_user -d palantier`
+
 **접속 정보:**
 ```bash
 Host: localhost
