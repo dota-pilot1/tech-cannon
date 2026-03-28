@@ -1,14 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/shared/lib/utils";
-import {
-  ArrowLeft,
-  ChevronRight,
-  ChevronDown,
-  Plus,
-  FilePlus,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, FilePlus, Pencil, Trash2 } from "lucide-react";
 import {
   useStudyCategoryTree,
   useStudyPosts,
@@ -244,12 +236,9 @@ function InlineRenameInput({
 
 interface CategorySectionProps {
   sub: StudyCategory;
-  isExpanded: boolean;
-  isActive: boolean;
   selectedPostId: number | null;
   renamingPostId: number | null;
-  inlineDocCategoryId: number | null; // 인라인 입력 열린 카테고리 ID
-  onToggle: () => void;
+  inlineDocCategoryId: number | null;
   onSelectPost: (id: number) => void;
   onCategoryContextMenu: (e: React.MouseEvent, cat: StudyCategory) => void;
   onPostContextMenu: (e: React.MouseEvent, post: StudyPost) => void;
@@ -261,12 +250,9 @@ interface CategorySectionProps {
 
 function CategorySection({
   sub,
-  isExpanded,
-  isActive,
   selectedPostId,
   renamingPostId,
   inlineDocCategoryId,
-  onToggle,
   onSelectPost,
   onCategoryContextMenu,
   onPostContextMenu,
@@ -275,126 +261,79 @@ function CategorySection({
   onInlineDocConfirm,
   onInlineDocCancel,
 }: CategorySectionProps) {
-  const { data: posts = [], isLoading } = useStudyPosts(
-    isExpanded ? sub.id : null,
-  );
+  const { data: posts = [], isLoading } = useStudyPosts(sub.id);
 
   return (
     <div>
-      {/* 2차 카테고리 헤더 */}
-      <div
-        onClick={onToggle}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onCategoryContextMenu(e, sub);
-        }}
-        className={cn(
-          "group flex items-center gap-2 px-3 py-2 cursor-pointer select-none",
-          "hover:bg-muted/50 transition-colors",
-          isActive && "bg-muted/30",
-        )}
-      >
-        <span className="shrink-0 text-muted-foreground">
-          {isExpanded ? (
-            <ChevronDown className="w-3.5 h-3.5" />
-          ) : (
-            <ChevronRight className="w-3.5 h-3.5" />
-          )}
-        </span>
-        <span className="shrink-0 text-base leading-none">
-          {sub.icon || "📁"}
-        </span>
-        <span className="flex-1 truncate text-sm font-medium text-foreground">
-          {sub.name}
-        </span>
-        {/* hover 시 + 버튼 */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onCategoryContextMenu(e, sub);
-          }}
-          className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded
-                     text-muted-foreground hover:text-primary transition-all"
-          title="문서 추가"
-        >
-          <Plus className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* 펼쳐진 경우: 게시글 목록 + 인라인 입력 */}
-      {isExpanded && (
-        <div>
-          {isLoading ? (
-            <div className="px-4 py-2 space-y-1.5">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-5 rounded bg-muted/40 animate-pulse"
-                />
-              ))}
-            </div>
-          ) : (
-            <>
-              {posts.map((post) => (
-                <div
-                  key={post.id}
-                  onClick={() => onSelectPost(post.id)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    onPostContextMenu(e, post);
-                  }}
-                  className={cn(
-                    "flex items-center gap-2 pl-9 pr-3 py-1.5",
-                    "text-sm cursor-pointer transition-colors select-none",
-                    selectedPostId === post.id
-                      ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
-                  )}
-                >
-                  <span className="shrink-0 text-[11px]">📄</span>
-                  {renamingPostId === post.id ? (
-                    <InlineRenameInput
-                      initialValue={post.title}
-                      onConfirm={(title) => onRenameConfirm(post.id, title)}
-                      onCancel={onRenameCancel}
-                    />
-                  ) : (
-                    <span className="truncate flex-1">{post.title}</span>
-                  )}
-                  {renamingPostId !== post.id && post.isPinned && (
-                    <span className="shrink-0 text-[10px]">📌</span>
-                  )}
-                </div>
-              ))}
-
-              {/* 인라인 문서 제목 입력창 */}
-              {inlineDocCategoryId === sub.id && (
-                <InlineDocInput
-                  depth={0}
-                  onConfirm={(title) => onInlineDocConfirm(sub.id, title)}
-                  onCancel={onInlineDocCancel}
-                />
-              )}
-
-              {/* 문서가 없고 인라인 입력도 없을 때 */}
-              {posts.length === 0 && inlineDocCategoryId !== sub.id && (
-                <div className="pl-9 pr-3 py-1.5">
-                  <button
-                    onClick={() =>
-                      onCategoryContextMenu(
-                        { clientX: 0, clientY: 0 } as React.MouseEvent,
-                        sub,
-                      )
-                    }
-                    className="text-xs text-muted-foreground hover:text-primary hover:underline transition-colors"
-                  >
-                    + 첫 문서 작성하기
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+      {/* 로딩 */}
+      {isLoading ? (
+        <div className="px-3 py-2 space-y-1.5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-5 rounded bg-muted/40 animate-pulse" />
+          ))}
         </div>
+      ) : (
+        <>
+          {posts.map((post) => (
+            <div
+              key={post.id}
+              onClick={() => onSelectPost(post.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                onPostContextMenu(e, post);
+              }}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5",
+                "text-sm cursor-pointer transition-colors select-none group",
+                selectedPostId === post.id
+                  ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+              )}
+            >
+              <span className="shrink-0 text-[11px] text-muted-foreground">
+                📄
+              </span>
+              {renamingPostId === post.id ? (
+                <InlineRenameInput
+                  initialValue={post.title}
+                  onConfirm={(title) => onRenameConfirm(post.id, title)}
+                  onCancel={onRenameCancel}
+                />
+              ) : (
+                <span className="truncate flex-1">{post.title}</span>
+              )}
+              {renamingPostId !== post.id && post.isPinned && (
+                <span className="shrink-0 text-[10px]">📌</span>
+              )}
+            </div>
+          ))}
+
+          {/* 인라인 문서 제목 입력창 */}
+          {inlineDocCategoryId === sub.id && (
+            <InlineDocInput
+              depth={0}
+              onConfirm={(title) => onInlineDocConfirm(sub.id, title)}
+              onCancel={onInlineDocCancel}
+            />
+          )}
+
+          {/* 문서가 없고 인라인 입력도 없을 때 */}
+          {posts.length === 0 && inlineDocCategoryId !== sub.id && (
+            <div className="px-3 py-3 text-center">
+              <button
+                onClick={() =>
+                  onCategoryContextMenu(
+                    { clientX: 0, clientY: 0 } as React.MouseEvent,
+                    sub,
+                  )
+                }
+                className="text-xs text-muted-foreground hover:text-primary hover:underline transition-colors"
+              >
+                + 첫 문서 작성하기
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -606,12 +545,9 @@ export function StudySidebar({
               <CategorySection
                 key={selectedSub.id}
                 sub={selectedSub}
-                isExpanded={true}
-                isActive={true}
                 selectedPostId={selectedPostId}
                 renamingPostId={renamingPostId}
                 inlineDocCategoryId={inlineDocCategoryId}
-                onToggle={() => {}}
                 onSelectPost={onSelectPost}
                 onCategoryContextMenu={openCategoryMenu}
                 onPostContextMenu={openPostMenu}
