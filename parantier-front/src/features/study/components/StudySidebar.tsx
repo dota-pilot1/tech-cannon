@@ -674,32 +674,12 @@ export function StudySidebar({
           목록으로
         </button>
 
-        {/* 주제 헤더 + 문서/폴더 추가 버튼 */}
+        {/* 주제 헤더 */}
         {selectedCat && (
           <div className="flex items-center gap-2 px-3 py-2 border-b shrink-0">
             <span className="text-sm font-medium text-foreground truncate flex-1">
               {selectedCat.icon || "📁"} {selectedCat.name}
             </span>
-            <button
-              onClick={() => {
-                setExpandedIds((p) => new Set([...p, selectedCat.id]));
-                setInlineState({ type: "doc", categoryId: selectedCat.id });
-              }}
-              className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted/60 transition-colors"
-              title="문서 추가"
-            >
-              <FilePlus className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => {
-                setExpandedIds((p) => new Set([...p, selectedCat.id]));
-                setInlineState({ type: "folder", parentId: selectedCat.id });
-              }}
-              className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted/60 transition-colors"
-              title="하위 폴더 추가"
-            >
-              <FolderPlus className="w-3.5 h-3.5" />
-            </button>
           </div>
         )}
 
