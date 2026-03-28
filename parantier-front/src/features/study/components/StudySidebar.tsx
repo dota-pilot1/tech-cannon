@@ -196,7 +196,7 @@ function InlineInput({
   return (
     <div
       className="flex items-center gap-1.5 py-1"
-      style={{ paddingLeft: `${depth * 12 + 8}px`, paddingRight: "8px" }}
+      style={{ paddingLeft: `${depth * 16 + 8}px`, paddingRight: "8px" }}
     >
       <input
         ref={ref}
@@ -330,7 +330,7 @@ function TreeNode({
   const isExpanded = expandedIds.has(cat.id);
   const { data: posts = [] } = useStudyPosts(isExpanded ? cat.id : null);
 
-  const pl = depth * 12 + 8;
+  const pl = depth * 16 + 8;
   const isRenamingThis = renamingCat?.id === cat.id;
 
   const openCtx = (e: React.MouseEvent) => {
@@ -448,7 +448,7 @@ function TreeNode({
                 setCtxMenu({ kind: "post", x, y, post });
               }}
               style={{
-                paddingLeft: `${(depth + 1) * 12 + 8}px`,
+                paddingLeft: `${(depth + 1) * 16 + 8}px`,
                 paddingRight: "8px",
               }}
               className={cn(
@@ -496,7 +496,7 @@ function TreeNode({
             inlineState?.type !== "folder" &&
             inlineState?.type !== "doc" && (
               <div
-                style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}
+                style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}
                 className="py-1.5"
               >
                 <button
