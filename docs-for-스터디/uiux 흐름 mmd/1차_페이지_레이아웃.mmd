@@ -1,0 +1,59 @@
+graph TD
+    subgraph 스터디_홈_페이지["스터디 홈 페이지 (/study)"]
+        Header["🔍 검색바 + ✏️ 글쓰기 버튼 (우측 상단)"]
+
+        Cat1["⚛️ React"]
+        Cat1_Line1["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+        Cat1_Cards["[React 훅 정리] [TanStack Query] [Vite 설정] [→ 더보기]"]
+
+        Cat2["☕ Java"]
+        Cat2_Line["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+        Cat2_Cards["[Spring Boot 설정] [MyBatis 패턴] [JPA 기초] [→ 더보기]"]
+
+        Cat3["🗄️ DB"]
+        Cat3_Line["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+        Cat3_Cards["[PostgreSQL 최적화] [인덱스 전략] [→ 더보기]"]
+
+        Cat4["🔧 DevOps"]
+        Cat4_Line["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+        Cat4_Cards["[Docker 기초] [GitHub Actions] [→ 더보기]"]
+
+        Cat5["...나머지 카테고리들..."]
+    end
+
+    subgraph 카드_구성["게시글 카드 구성"]
+        Card["📄 카드"]
+        Card --> CardTitle["제목 (truncate)"]
+        Card --> CardMeta["작성자 · 날짜"]
+        Card --> CardStats["👁 조회수  💬 댓글  👍 좋아요"]
+        Card --> CardPin["📌 (고정글만 표시)"]
+    end
+
+    Header --> Cat1
+    Cat1 --> Cat1_Line1
+    Cat1_Line1 --> Cat1_Cards
+
+    Cat1_Cards --> Cat2
+    Cat2 --> Cat2_Line
+    Cat2_Line --> Cat2_Cards
+
+    Cat2_Cards --> Cat3
+    Cat3 --> Cat3_Line
+    Cat3_Line --> Cat3_Cards
+
+    Cat3_Cards --> Cat4
+    Cat4 --> Cat4_Line
+    Cat4_Line --> Cat4_Cards
+
+    Cat1_Cards -->|"카드 클릭"| Page2["📖 페이지2: 문서 뷰 (/study?postId=123)"]
+    Header -->|"글쓰기 클릭"| NewPost["✏️ 페이지2: 새 글 작성 모드"]
+
+    style 스터디_홈_페이지 fill:#e1f5ff
+    style Cat1 fill:#fff4e1
+    style Cat2 fill:#ffe1f5
+    style Cat3 fill:#e1ffe1
+    style Cat4 fill:#f5e1ff
+    style Cat5 fill:#ffe1e1
+    style Page2 fill:#ffeb99
+    style NewPost fill:#ffeb99
+    style 카드_구성 fill:#f0f0f0

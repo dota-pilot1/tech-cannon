@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.study.StudyLikeMapper">
+
+    <select id="existsByPostAndUser" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM study_likes
+        WHERE post_id = #{postId} AND user_id = #{userId}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO study_likes (post_id, user_id) VALUES (#{postId}, #{userId})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM study_likes WHERE post_id = #{postId} AND user_id = #{userId}
+    </delete>
+
+    <select id="countByPost" resultType="long">
+        SELECT COUNT(*) FROM study_likes WHERE post_id = #{postId}
+    </select>
+
+</mapper>

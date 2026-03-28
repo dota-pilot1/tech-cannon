@@ -18,6 +18,7 @@ import { ChatRoomsPage } from "@/routes/chat/index";
 import { ChatRoomPage } from "@/routes/chat/$roomId";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { IssuesPage } from "@/pages/issues/IssuesPage";
+import { StudyPage } from "@/pages/study/StudyPage";
 import { NotePage } from "@/pages/notes/NotePage";
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -197,6 +198,14 @@ const issuesRoute = createRoute({
   component: IssuesPage,
 });
 
+// 스터디 페이지 (로그인 필요)
+const studyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/study",
+  beforeLoad: () => requireAuth(),
+  component: StudyPage,
+});
+
 // 노트 페이지들 (로그인 필요)
 const notesReactRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -308,6 +317,7 @@ const routeTree = rootRoute.addChildren([
   chatRoomRoute,
   profileRoute,
   issuesRoute,
+  studyRoute,
   notesReactRoute,
   notesJavaRoute,
   notesDbRoute,

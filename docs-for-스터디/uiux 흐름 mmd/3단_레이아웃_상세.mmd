@@ -1,0 +1,51 @@
+graph TD
+    subgraph 페이지2_문서뷰["페이지2: 문서 뷰 (/study?postId=123)"]
+        direction LR
+
+        subgraph 좌측_사이드바["좌측 사이드바 (240px)"]
+            S_Header["← 목록으로 돌아가기"]
+            S_Tree["카테고리 트리"]
+            S_Tree --> S_T1["⚛️ React (펼침)"]
+            S_T1 --> S_T1A["  └ 📄 React 훅 정리 ◀ 현재"]
+            S_T1 --> S_T1B["  └ 📄 TanStack Query"]
+            S_T1 --> S_T1C["  └ 📄 Vite 설정"]
+            S_Tree --> S_T2["☕ Java (접힘)"]
+            S_Tree --> S_T3["🗄️ DB (접힘)"]
+            S_Tree --> S_T4["🔧 DevOps (접힘)"]
+            S_T1A -->|"클릭"| 본문영역
+        end
+
+        subgraph 본문영역["우측 본문 영역 (flex-1)"]
+            B_Header["제목 + [편집] [삭제] 버튼 (작성자·관리자만)"]
+            B_Meta["작성자 · 날짜 · 👁 조회수"]
+            B_Content["Lexical Viewer (본문 렌더링)"]
+            B_Like["👍 좋아요 버튼 (좋아요 수)"]
+            B_Comment["댓글 목록"]
+            B_CommentInput["댓글 입력창 + 등록 버튼"]
+
+            B_Header --> B_Meta
+            B_Meta --> B_Content
+            B_Content --> B_Like
+            B_Like --> B_Comment
+            B_Comment --> B_CommentInput
+        end
+
+        subgraph 편집_모드["편집 모드 (편집 버튼 클릭 시)"]
+            E_Title["제목 입력 Input"]
+            E_Editor["Lexical Editor (리치 에디터)"]
+            E_Buttons["[저장] [취소]"]
+            E_Title --> E_Editor
+            E_Editor --> E_Buttons
+        end
+    end
+
+    좌측_사이드바 --> 본문영역
+    B_Header -->|"편집 버튼"| 편집_모드
+    편집_모드 -->|"저장"| 본문영역
+    편집_모드 -->|"취소"| 본문영역
+
+    style 페이지2_문서뷰 fill:#e1f5ff
+    style 좌측_사이드바 fill:#fff4e1
+    style 본문영역 fill:#e1ffe1
+    style 편집_모드 fill:#ffe1f5
+    style S_T1A fill:#d4edda

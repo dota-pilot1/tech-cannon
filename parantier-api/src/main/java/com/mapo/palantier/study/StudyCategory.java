@@ -1,0 +1,23 @@
+package com.mapo.palantier.study;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import lombok.Data;
+
+@Data
+public class StudyCategory {
+
+    private Long id;
+    private String name;
+    private Long parentId;
+    private String icon;
+    private String description;
+    private Integer orderNum;
+    private Boolean isActive;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    // 트리 구조용 (DB 컬럼 아님)
+    private Integer depth;
+    private List<StudyCategory> children;
+}

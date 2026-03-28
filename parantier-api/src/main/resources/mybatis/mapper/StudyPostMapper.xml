@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.study.StudyPostMapper">
+
+    <resultMap id="StudyPostResultMap" type="com.mapo.palantier.study.StudyPost">
+        <id property="id" column="id"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="isPublic" column="is_public"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="isPinned" column="is_pinned"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="commentCount" column="comment_count"/>
+        <result property="isLikedByMe" column="is_liked_by_me"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByCategory" resultMap="StudyPostResultMap">
+        SELECT
+            p.id,
+            p.category_id,
+            sc.name AS category_name,
+            p.title,
+            p.author_id,
+            u.username AS author_name,
+            p.is_public,
+            p.view_count,
+            p.is_pinned,
+            p.created_at,
+            p.updated_at,
+            (SELECT COUNT(*) FROM study_likes WHERE post_id = p.id) AS like_count,
+            (SELECT COUNT(*) FROM study_comments WHERE post_id = p.id) AS comment_count
+        FROM study_posts p
+        INNER JOIN study_categories sc ON p.category_id = sc.id
+        INNER JOIN users u ON p.author_id = u.id
+        WHERE p.category_id = #{categoryId}
+          AND (p.is_public = true OR p.author_id = #{currentUserId})
+        <if test="keyword != null and keyword != ''">
+          AND (p.title ILIKE CONCAT('%', #{keyword}, '%')
+            OR p.content ILIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY p.is_pinned DESC, p.created_at DESC
+    </select>
+
+    <select id="findById" resultMap="StudyPostResultMap">
+        SELECT
+            p.id,
+            p.category_id,
+            sc.name AS category_name,
+            p.title,
+            p.content,
+            p.author_id,
+            u.username AS author_name,
+            p.is_public,
+            p.view_count,
+            p.is_pinned,
+            p.created_at,
+            p.updated_at,
+            (SELECT COUNT(*) FROM study_likes WHERE post_id = p.id) AS like_count,
+            (SELECT COUNT(*) FROM study_comments WHERE post_id = p.id) AS comment_count,
+            <choose>
+                <when test="currentUserId != null">
+                    (SELECT COUNT(*) > 0 FROM study_likes WHERE post_id = p.id AND user_id = #{currentUserId}) AS is_liked_by_me
+                </when>
+                <otherwise>
+                    false AS is_liked_by_me
+                </otherwise>
+            </choose>
+        FROM study_posts p
+        INNER JOIN study_categories sc ON p.category_id = sc.id
+        INNER JOIN users u ON p.author_id = u.id
+        WHERE p.id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO study_posts (category_id, title, content, author_id, is_public)
+        VALUES (#{categoryId}, #{title}, #{content}, #{authorId}, #{isPublic})
+    </insert>
+
+    <update id="update">
+        UPDATE study_posts
+        SET title = #{title},
+            content = #{content},
+            is_public = #{isPublic},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM study_posts WHERE id = #{id}
+    </delete>
+
+    <update id="incrementViewCount">
+        UPDATE study_posts SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="updatePinned">
+        UPDATE study_posts SET is_pinned = #{isPinned}, updated_at = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
+</mapper>

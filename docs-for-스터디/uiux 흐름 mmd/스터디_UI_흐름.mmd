@@ -1,0 +1,50 @@
+graph LR
+    A[스터디 페이지 진입<br/>/study] --> B[페이지1: 홈 그리드]
+
+    subgraph 페이지1_홈그리드
+        B --> C[카테고리1 헤더<br/>─────────────]
+        C --> D[게시글 카드1]
+        C --> E[게시글 카드2]
+        C --> F[게시글 카드3]
+        B --> G[카테고리2 헤더<br/>─────────────]
+        G --> H[게시글 카드4]
+        G --> I[게시글 카드5]
+        B --> J[+ 글쓰기 버튼<br/>우측 상단 FAB]
+    end
+
+    D -->|카드 클릭| K[페이지2: 문서 뷰<br/>?postId=123]
+    J -->|클릭| L[페이지2: 새 글 작성<br/>?mode=new]
+
+    subgraph 페이지2_문서뷰
+        K --> M[좌측 사이드바<br/>240px]
+        K --> N[우측 본문 영역]
+
+        subgraph 사이드바
+            M --> M1[카테고리 트리<br/>아코디언]
+            M1 --> M2[▼ React<br/>  └ 훅 정리<br/>  └ TanStack]
+            M1 --> M3[▶ Java]
+            M1 --> M4[▶ DB]
+            M2 -->|게시글 클릭| N
+        end
+
+        subgraph 본문영역
+            N --> N1[제목 + 메타<br/>작성자·날짜·조회수]
+            N1 --> N2[Lexical 뷰어<br/>본문 렌더링]
+            N2 --> N3[👍 좋아요 버튼]
+            N3 --> N4[댓글 목록 + 작성]
+            N --> N5{편집 권한?}
+            N5 -->|작성자·관리자| N6[편집 버튼]
+            N6 --> N7[Lexical 에디터<br/>편집 모드]
+            N7 --> N8[저장 / 취소]
+        end
+    end
+
+    L --> M
+    L --> N7
+
+    style A fill:#e1f5ff
+    style B fill:#fff4e1
+    style K fill:#ffe1f5
+    style L fill:#ffe1f5
+    style M fill:#e1ffe1
+    style N fill:#f5e1ff
