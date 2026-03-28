@@ -1,0 +1,44 @@
+graph TD
+    subgraph 노트_관리_페이지_Layout
+        L1[좌측 사이드바<br/>240px]
+        L2[중앙 목록<br/>flex 40%]
+        L3[우측 에디터<br/>flex 60%]
+    end
+
+    subgraph 좌측_카테고리_트리
+        T1[🧱 Core]
+        T2[🎨 Client / UX]
+        T3[🌐 Server / API]
+        T4[☁️ Infra 확장]
+        T5[⚙️ 시스템 / 확장]
+
+        T1 --> T1A[Frontend]
+        T1 --> T1B[Backend]
+        T1 --> T1C[Database]
+
+        T2 --> T2A[Design]
+        T2 --> T2B[State Management]
+    end
+
+    subgraph 중앙_노트_주제_목록
+        N1[📄 React 19 새 기능]
+        N2[📄 TanStack Query 패턴]
+        N3[📄 shadcn/ui 커스텀]
+        N4[+ 새 노트 추가 버튼]
+    end
+
+    subgraph 우측_노트_본문
+        E1[제목 입력]
+        E2[Markdown 에디터]
+        E3[코드 블록 삽입]
+        E4[이미지 첨부]
+        E5[저장 버튼]
+    end
+
+    L1 -.-> 좌측_카테고리_트리
+    L2 -.-> 중앙_노트_주제_목록
+    L3 -.-> 우측_노트_본문
+
+    style L1 fill:#fff4e1
+    style L2 fill:#ffe1f5
+    style L3 fill:#e1ffe1
