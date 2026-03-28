@@ -279,7 +279,8 @@ export default function TasksPage() {
       toast.error("제목을 입력하세요");
       return;
     }
-    if (!selectedFolderId) return;
+    const folderId = selectedFolderId ?? postDetail?.folderId ?? null;
+    if (!folderId) return;
 
     const refinedBlocks = blocks.map((b) => ({
       blockType: b.blockType,
@@ -288,7 +289,7 @@ export default function TasksPage() {
 
     saveMutation.mutate({
       id: selectedPostId || undefined,
-      folderId: selectedFolderId,
+      folderId: folderId,
       title: formTitle,
       blocks: refinedBlocks,
     });
