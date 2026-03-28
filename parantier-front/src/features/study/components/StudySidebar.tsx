@@ -1,12 +1,23 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
-import { ArrowLeft, FilePlus, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  ChevronDown,
+  FilePlus,
+  FolderPlus,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import {
   useStudyCategoryTree,
   useStudyPosts,
   useCreateStudyPost,
   useDeleteStudyPost,
   useUpdateStudyPost,
+  useCreateStudyCategory,
+  useDeleteStudyCategory,
+  useUpdateStudyCategory,
 } from "../hooks/useStudy";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import type { StudyCategory, StudyPost } from "../types/study.types";
@@ -14,28 +25,17 @@ import type { StudyCategory, StudyPost } from "../types/study.types";
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface StudySidebarProps {
-  categoryId: number | null; // 현재 선택된 2차 카테고리 ID
+  categoryId: number | null;
   selectedPostId: number | null;
-  onSelectPost: (id: number) => void; // 문서 클릭 → 뷰어
-  onEditPost: (id: number) => void; // 문서 생성 직후 → 편집 모드
+  onSelectPost: (id: number) => void;
+  onEditPost: (id: number) => void;
   onGoHome: () => void;
   onPostDeleted?: () => void;
 }
 
-// ── 컨텍스트 메뉴 (공용) ──────────────────────────────────────────────────────
+// ── 컨텍스트 메뉴 공통 훅 ────────────────────────────────────────────────────
 
-interface MenuState {
-  x: number;
-  y: number;
-}
-interface CategoryMenuState extends MenuState {
-  category: StudyCategory;
-}
-interface PostMenuState extends MenuState {
-  post: StudyPost;
-}
-
-function useContextMenuClose(
+function useCtxClose(
   ref: React.RefObject<HTMLDivElement | null>,
   onClose: () => void,
 ) {
@@ -52,30 +52,41 @@ function useContextMenuClose(
       document.removeEventListener("mousedown", onMouse);
       document.removeEventListener("keydown", onKey);
     };
-  }, [ref, onClose]);
+  }, [onClose]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-// 2차 카테고리 우클릭 메뉴
-function CategoryContextMenu({
-  menu,
-  onAddDoc,
-  onClose,
-}: {
-  menu: CategoryMenuState;
-  onAddDoc: (cat: StudyCategory) => void;
+// ── 폴더(카테고리) 컨텍스트 메뉴 ─────────────────────────────────────────────
+
+interface FolderCtxProps {
+  x: number;
+  y: number;
+  onAddDoc: () => void;
+  onAddFolder: () => void;
+  onRename: () => void;
+  onDelete: () => void;
   onClose: () => void;
-}) {
+}
+
+function FolderContextMenu({
+  x,
+  y,
+  onAddDoc,
+  onAddFolder,
+  onRename,
+  onDelete,
+  onClose,
+}: FolderCtxProps) {
   const ref = useRef<HTMLDivElement>(null);
-  useContextMenuClose(ref, onClose);
+  useCtxClose(ref, onClose);
   return (
     <div
       ref={ref}
-      style={{ position: "fixed", top: menu.y, left: menu.x, zIndex: 9999 }}
+      style={{ position: "fixed", top: y, left: x, zIndex: 9999 }}
       className="min-w-[160px] bg-popover border border-border rounded-md shadow-lg py-1 text-sm"
     >
       <button
         onClick={() => {
-          onAddDoc(menu.category);
+          onAddDoc();
           onClose();
         }}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 text-foreground transition-colors"
@@ -83,46 +94,20 @@ function CategoryContextMenu({
         <FilePlus className="w-3.5 h-3.5 text-muted-foreground" />
         문서 추가
       </button>
-    </div>
-  );
-}
-
-// 문서 우클릭 메뉴
-function PostContextMenu({
-  menu,
-  onAddDoc,
-  onRename,
-  onDelete,
-  onClose,
-}: {
-  menu: PostMenuState;
-  onAddDoc: (post: StudyPost) => void;
-  onRename: (post: StudyPost) => void;
-  onDelete: (post: StudyPost) => void;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useContextMenuClose(ref, onClose);
-  return (
-    <div
-      ref={ref}
-      style={{ position: "fixed", top: menu.y, left: menu.x, zIndex: 9999 }}
-      className="min-w-[160px] bg-popover border border-border rounded-md shadow-lg py-1 text-sm"
-    >
       <button
         onClick={() => {
-          onAddDoc(menu.post);
+          onAddFolder();
           onClose();
         }}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 text-foreground transition-colors"
       >
-        <FilePlus className="w-3.5 h-3.5 text-muted-foreground" />
-        문서 추가
+        <FolderPlus className="w-3.5 h-3.5 text-muted-foreground" />
+        하위 폴더 추가
       </button>
       <div className="my-1 border-t border-border" />
       <button
         onClick={() => {
-          onRename(menu.post);
+          onRename();
           onClose();
         }}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 text-foreground transition-colors"
@@ -133,7 +118,7 @@ function PostContextMenu({
       <div className="my-1 border-t border-border" />
       <button
         onClick={() => {
-          onDelete(menu.post);
+          onDelete();
           onClose();
         }}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-destructive/10 text-destructive transition-colors"
@@ -145,26 +130,76 @@ function PostContextMenu({
   );
 }
 
-// ── 인라인 제목 입력창 ────────────────────────────────────────────────────────
+// ── 문서 컨텍스트 메뉴 ───────────────────────────────────────────────────────
 
-function InlineDocInput({
-  depth,
+interface PostCtxProps {
+  x: number;
+  y: number;
+  onRename: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}
+
+function PostContextMenu({ x, y, onRename, onDelete, onClose }: PostCtxProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useCtxClose(ref, onClose);
+  return (
+    <div
+      ref={ref}
+      style={{ position: "fixed", top: y, left: x, zIndex: 9999 }}
+      className="min-w-[150px] bg-popover border border-border rounded-md shadow-lg py-1 text-sm"
+    >
+      <button
+        onClick={() => {
+          onRename();
+          onClose();
+        }}
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 text-foreground transition-colors"
+      >
+        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+        이름 변경
+      </button>
+      <div className="my-1 border-t border-border" />
+      <button
+        onClick={() => {
+          onDelete();
+          onClose();
+        }}
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-destructive/10 text-destructive transition-colors"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+        삭제
+      </button>
+    </div>
+  );
+}
+
+// ── 인라인 입력창 (폴더명 / 문서 제목) ───────────────────────────────────────
+
+function InlineInput({
+  placeholder,
   onConfirm,
   onCancel,
+  depth,
 }: {
-  depth: number;
-  onConfirm: (title: string) => void;
+  placeholder: string;
+  onConfirm: (v: string) => void;
   onCancel: () => void;
+  depth: number;
 }) {
   const [value, setValue] = useState("");
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+
   return (
     <div
       className="flex items-center gap-1.5 py-1"
-      style={{ paddingLeft: `${(depth + 1) * 16 + 4}px`, paddingRight: "8px" }}
+      style={{ paddingLeft: `${depth * 12 + 8}px`, paddingRight: "8px" }}
     >
-      <span className="text-xs shrink-0">📝</span>
       <input
-        autoFocus
+        ref={ref}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
@@ -181,7 +216,7 @@ function InlineDocInput({
           if (v) onConfirm(v);
           else onCancel();
         }}
-        placeholder="제목 입력 후 Enter"
+        placeholder={placeholder}
         className="flex-1 border border-blue-400 rounded px-1.5 py-0.5 text-xs min-w-0
                    focus:outline-none focus:ring-1 focus:ring-blue-400 bg-background text-foreground"
       />
@@ -191,13 +226,13 @@ function InlineDocInput({
 
 // ── 인라인 이름 변경 입력창 ───────────────────────────────────────────────────
 
-function InlineRenameInput({
+function InlineRename({
   initialValue,
   onConfirm,
   onCancel,
 }: {
   initialValue: string;
-  onConfirm: (title: string) => void;
+  onConfirm: (v: string) => void;
   onCancel: () => void;
 }) {
   const [value, setValue] = useState(initialValue);
@@ -206,6 +241,7 @@ function InlineRenameInput({
     ref.current?.focus();
     ref.current?.select();
   }, []);
+
   return (
     <input
       ref={ref}
@@ -226,114 +262,254 @@ function InlineRenameInput({
         else onCancel();
       }}
       onClick={(e) => e.stopPropagation()}
-      className="flex-1 min-w-0 px-1 py-0 text-sm bg-background border border-ring rounded
-                 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      className="flex-1 min-w-0 px-1 py-0 text-xs bg-background border border-ring rounded
+                 text-foreground focus:outline-none"
     />
   );
 }
 
-// ── 2차 카테고리 섹션 ─────────────────────────────────────────────────────────
+// ── 재귀 트리 노드 ────────────────────────────────────────────────────────────
 
-interface CategorySectionProps {
-  sub: StudyCategory;
+interface TreeNodeProps {
+  cat: StudyCategory;
+  depth: number;
   selectedPostId: number | null;
-  renamingPostId: number | null;
-  inlineDocCategoryId: number | null;
+  // 공유 상태 (최상위에서 관리)
+  expandedIds: Set<number>;
+  onToggle: (id: number) => void;
+  inlineState: InlineState | null;
+  setInlineState: (s: InlineState | null) => void;
+  renamingPost: { id: number } | null;
+  setRenamingPost: (v: { id: number } | null) => void;
+  renamingCat: { id: number } | null;
+  setRenamingCat: (v: { id: number } | null) => void;
+  ctxMenu: CtxMenuState | null;
+  setCtxMenu: (v: CtxMenuState | null) => void;
+  // 액션
   onSelectPost: (id: number) => void;
-  onCategoryContextMenu: (e: React.MouseEvent, cat: StudyCategory) => void;
-  onPostContextMenu: (e: React.MouseEvent, post: StudyPost) => void;
-  onRenameConfirm: (id: number, title: string) => void;
-  onRenameCancel: () => void;
-  onInlineDocConfirm: (categoryId: number, title: string) => void;
-  onInlineDocCancel: () => void;
+  onEditPost: (id: number) => void;
+  onDeletePost: (post: StudyPost) => void;
+  onRenamePostConfirm: (id: number, title: string) => void;
+  onDeleteCat: (cat: StudyCategory) => void;
+  onRenameCatConfirm: (id: number, name: string) => void;
+  onCreateFolder: (parentId: number, name: string) => void;
+  onCreateDoc: (categoryId: number, title: string) => void;
 }
 
-function CategorySection({
-  sub,
+type InlineState =
+  | { type: "folder"; parentId: number }
+  | { type: "doc"; categoryId: number };
+
+type CtxMenuState =
+  | { kind: "folder"; x: number; y: number; cat: StudyCategory }
+  | { kind: "post"; x: number; y: number; post: StudyPost };
+
+function TreeNode({
+  cat,
+  depth,
   selectedPostId,
-  renamingPostId,
-  inlineDocCategoryId,
+  expandedIds,
+  onToggle,
+  inlineState,
+  setInlineState,
+  renamingPost,
+  setRenamingPost,
+  renamingCat,
+  setRenamingCat,
+  ctxMenu,
+  setCtxMenu,
   onSelectPost,
-  onCategoryContextMenu,
-  onPostContextMenu,
-  onRenameConfirm,
-  onRenameCancel,
-  onInlineDocConfirm,
-  onInlineDocCancel,
-}: CategorySectionProps) {
-  const { data: posts = [], isLoading } = useStudyPosts(sub.id);
+  onEditPost,
+  onDeletePost,
+  onRenamePostConfirm,
+  onDeleteCat,
+  onRenameCatConfirm,
+  onCreateFolder,
+  onCreateDoc,
+}: TreeNodeProps) {
+  const isExpanded = expandedIds.has(cat.id);
+  const { data: posts = [] } = useStudyPosts(isExpanded ? cat.id : null);
+
+  const pl = depth * 12 + 8;
+  const isRenamingThis = renamingCat?.id === cat.id;
+
+  const openCtx = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const x = Math.min(e.clientX, window.innerWidth - 170);
+    const y = Math.min(e.clientY, window.innerHeight - 160);
+    setCtxMenu({ kind: "folder", x, y, cat });
+  };
 
   return (
     <div>
-      {/* 로딩 */}
-      {isLoading ? (
-        <div className="px-3 py-2 space-y-1.5">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-5 rounded bg-muted/40 animate-pulse" />
+      {/* 폴더 행 */}
+      <div
+        onClick={() => onToggle(cat.id)}
+        onContextMenu={openCtx}
+        style={{ paddingLeft: `${pl}px`, paddingRight: "4px" }}
+        className="group flex items-center gap-1.5 py-1.5 cursor-pointer select-none
+                   hover:bg-muted/50 transition-colors"
+      >
+        <span className="shrink-0 text-muted-foreground w-3">
+          {isExpanded ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronRight className="w-3 h-3" />
+          )}
+        </span>
+        <span className="shrink-0 text-sm leading-none">
+          {cat.icon || "📁"}
+        </span>
+        {isRenamingThis ? (
+          <InlineRename
+            initialValue={cat.name}
+            onConfirm={(name) => {
+              onRenameCatConfirm(cat.id, name);
+              setRenamingCat(null);
+            }}
+            onCancel={() => setRenamingCat(null)}
+          />
+        ) : (
+          <span className="flex-1 truncate text-sm text-foreground">
+            {cat.name}
+          </span>
+        )}
+        {/* hover 액션 버튼 */}
+        {!isRenamingThis && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openCtx(e);
+            }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground
+                       hover:text-foreground transition-all shrink-0"
+          >
+            <span className="text-[10px]">•••</span>
+          </button>
+        )}
+      </div>
+
+      {/* 펼쳐진 내용 */}
+      {isExpanded && (
+        <div>
+          {/* 하위 폴더 재귀 */}
+          {(cat.children ?? []).map((child) => (
+            <TreeNode
+              key={child.id}
+              cat={child}
+              depth={depth + 1}
+              selectedPostId={selectedPostId}
+              expandedIds={expandedIds}
+              onToggle={onToggle}
+              inlineState={inlineState}
+              setInlineState={setInlineState}
+              renamingPost={renamingPost}
+              setRenamingPost={setRenamingPost}
+              renamingCat={renamingCat}
+              setRenamingCat={setRenamingCat}
+              ctxMenu={ctxMenu}
+              setCtxMenu={setCtxMenu}
+              onSelectPost={onSelectPost}
+              onEditPost={onEditPost}
+              onDeletePost={onDeletePost}
+              onRenamePostConfirm={onRenamePostConfirm}
+              onDeleteCat={onDeleteCat}
+              onRenameCatConfirm={onRenameCatConfirm}
+              onCreateFolder={onCreateFolder}
+              onCreateDoc={onCreateDoc}
+            />
           ))}
-        </div>
-      ) : (
-        <>
+
+          {/* 인라인 폴더 추가 입력 */}
+          {inlineState?.type === "folder" &&
+            inlineState.parentId === cat.id && (
+              <InlineInput
+                depth={depth + 1}
+                placeholder="폴더명 입력 후 Enter"
+                onConfirm={(name) => {
+                  onCreateFolder(cat.id, name);
+                  setInlineState(null);
+                }}
+                onCancel={() => setInlineState(null)}
+              />
+            )}
+
+          {/* 문서 목록 */}
           {posts.map((post) => (
             <div
               key={post.id}
               onClick={() => onSelectPost(post.id)}
               onContextMenu={(e) => {
                 e.preventDefault();
-                onPostContextMenu(e, post);
+                e.stopPropagation();
+                const x = Math.min(e.clientX, window.innerWidth - 160);
+                const y = Math.min(e.clientY, window.innerHeight - 100);
+                setCtxMenu({ kind: "post", x, y, post });
+              }}
+              style={{
+                paddingLeft: `${(depth + 1) * 12 + 8}px`,
+                paddingRight: "8px",
               }}
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5",
-                "text-sm cursor-pointer transition-colors select-none group",
+                "flex items-center gap-1.5 py-1.5 cursor-pointer select-none text-sm transition-colors",
                 selectedPostId === post.id
                   ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
               )}
             >
-              <span className="shrink-0 text-[11px] text-muted-foreground">
-                📄
-              </span>
-              {renamingPostId === post.id ? (
-                <InlineRenameInput
+              <span className="shrink-0 text-[10px]">📄</span>
+              {renamingPost?.id === post.id ? (
+                <InlineRename
                   initialValue={post.title}
-                  onConfirm={(title) => onRenameConfirm(post.id, title)}
-                  onCancel={onRenameCancel}
+                  onConfirm={(title) => {
+                    onRenamePostConfirm(post.id, title);
+                    setRenamingPost(null);
+                  }}
+                  onCancel={() => setRenamingPost(null)}
                 />
               ) : (
                 <span className="truncate flex-1">{post.title}</span>
               )}
-              {renamingPostId !== post.id && post.isPinned && (
+              {post.isPinned && renamingPost?.id !== post.id && (
                 <span className="shrink-0 text-[10px]">📌</span>
               )}
             </div>
           ))}
 
-          {/* 인라인 문서 제목 입력창 */}
-          {inlineDocCategoryId === sub.id && (
-            <InlineDocInput
-              depth={0}
-              onConfirm={(title) => onInlineDocConfirm(sub.id, title)}
-              onCancel={onInlineDocCancel}
+          {/* 인라인 문서 추가 입력 */}
+          {inlineState?.type === "doc" && inlineState.categoryId === cat.id && (
+            <InlineInput
+              depth={depth + 1}
+              placeholder="제목 입력 후 Enter"
+              onConfirm={(title) => {
+                onCreateDoc(cat.id, title);
+                setInlineState(null);
+              }}
+              onCancel={() => setInlineState(null)}
             />
           )}
 
-          {/* 문서가 없고 인라인 입력도 없을 때 */}
-          {posts.length === 0 && inlineDocCategoryId !== sub.id && (
-            <div className="px-3 py-3 text-center">
-              <button
-                onClick={() =>
-                  onCategoryContextMenu(
-                    { clientX: 0, clientY: 0 } as React.MouseEvent,
-                    sub,
-                  )
-                }
-                className="text-xs text-muted-foreground hover:text-primary hover:underline transition-colors"
+          {/* 아무것도 없을 때 */}
+          {(cat.children ?? []).length === 0 &&
+            posts.length === 0 &&
+            inlineState?.type !== "folder" &&
+            inlineState?.type !== "doc" && (
+              <div
+                style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}
+                className="py-1.5"
               >
-                + 첫 문서 작성하기
-              </button>
-            </div>
-          )}
-        </>
+                <button
+                  onClick={() => {
+                    setInlineState({ type: "doc", categoryId: cat.id });
+                  }}
+                  className="text-xs text-muted-foreground hover:text-primary hover:underline transition-colors"
+                >
+                  + 첫 문서 추가하기
+                </button>
+              </div>
+            )}
+        </div>
       )}
     </div>
   );
@@ -352,89 +528,81 @@ export function StudySidebar({
   const { data: allCategories = [] } = useStudyCategoryTree();
   const { confirm, ConfirmDialog } = useConfirm();
 
-  // 컨텍스트 메뉴 상태
-  const [categoryMenu, setCategoryMenu] = useState<CategoryMenuState | null>(
-    null,
-  );
-  const [postMenu, setPostMenu] = useState<PostMenuState | null>(null);
-
-  // 인라인 문서 입력 열린 카테고리 ID
-  const [inlineDocCategoryId, setInlineDocCategoryId] = useState<number | null>(
-    null,
-  );
-
-  // 이름 변경 중인 postId
-  const [renamingPostId, setRenamingPostId] = useState<number | null>(null);
-
-  // 현재 categoryId가 속한 형제 2차 카테고리 목록
-  const siblings: StudyCategory[] = (() => {
-    if (!categoryId) return [];
+  // 현재 선택된 2차 카테고리 찾기
+  const selectedCat = (() => {
+    if (!categoryId) return null;
     for (const root of allCategories) {
       const found = root.children?.find((c) => c.id === categoryId);
-      if (found) return root.children ?? [];
+      if (found) return found;
     }
-    const rootFound = allCategories.find((c) => c.id === categoryId);
-    if (rootFound) return rootFound.children ?? [];
-    return [];
+    return allCategories.find((c) => c.id === categoryId) ?? null;
   })();
+
+  // 트리 상태
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(
+    new Set(categoryId ? [categoryId] : []),
+  );
+  const [inlineState, setInlineState] = useState<InlineState | null>(null);
+  const [renamingPost, setRenamingPost] = useState<{ id: number } | null>(null);
+  const [renamingCat, setRenamingCat] = useState<{ id: number } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
+
+  const toggleExpand = (id: number) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   // ── mutations ──────────────────────────────────────────────────────────────
 
   const createPost = useCreateStudyPost((newId) => {
-    setInlineDocCategoryId(null);
-    onEditPost(newId); // 생성 후 바로 본문 편집 진입
+    setInlineState(null);
+    onEditPost(newId);
   });
 
   const deletePost = useDeleteStudyPost(() => {
     onPostDeleted?.();
   });
+  const updatePost = useUpdateStudyPost(renamingPost?.id ?? 0, () =>
+    setRenamingPost(null),
+  );
 
-  const updatePost = useUpdateStudyPost(renamingPostId ?? 0, () => {
-    setRenamingPostId(null);
-  });
+  const createCategory = useCreateStudyCategory();
+  const deleteCategory = useDeleteStudyCategory();
+  const updateCategory = useUpdateStudyCategory();
 
-  // ── 카테고리 컨텍스트 메뉴 ────────────────────────────────────────────────
+  // ── 핸들러 ────────────────────────────────────────────────────────────────
 
-  const openCategoryMenu = (e: React.MouseEvent, cat: StudyCategory) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.clientX === 0 && e.clientY === 0) {
-      setInlineDocCategoryId(cat.id);
-      return;
-    }
-    const x = Math.min(e.clientX, window.innerWidth - 170);
-    const y = Math.min(e.clientY, window.innerHeight - 80);
-    setCategoryMenu({ x, y, category: cat });
+  const handleCreateDoc = (catId: number, title: string) => {
+    setExpandedIds((p) => new Set([...p, catId]));
+    createPost.mutate({
+      categoryId: catId,
+      title,
+      content: "",
+      isPublic: true,
+    });
   };
 
-  const handleCategoryAddDoc = (cat: StudyCategory) => {
-    setInlineDocCategoryId(cat.id);
+  const handleCreateFolder = (parentId: number, name: string) => {
+    setExpandedIds((p) => new Set([...p, parentId]));
+    createCategory.mutate(
+      { name, parentId, orderNum: null },
+      { onSuccess: () => setInlineState(null) },
+    );
   };
 
-  // ── 문서 컨텍스트 메뉴 ────────────────────────────────────────────────────
-
-  const openPostMenu = (e: React.MouseEvent, post: StudyPost) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const x = Math.min(e.clientX, window.innerWidth - 170);
-    const y = Math.min(e.clientY, window.innerHeight - 120);
-    setPostMenu({ x, y, post });
-  };
-
-  const handlePostAddDoc = (post: StudyPost) => {
-    setInlineDocCategoryId(post.categoryId);
-  };
-
-  const handleRenameStart = (post: StudyPost) => {
-    setRenamingPostId(post.id);
-  };
-
-  const handleRenameConfirm = (id: number, title: string) => {
-    if (renamingPostId !== id) return;
+  const handleRenamePostConfirm = (_id: number, title: string) => {
     updatePost.mutate({ title });
   };
 
-  const handleRenameCancel = () => setRenamingPostId(null);
+  const handleRenameCatConfirm = (catId: number, name: string) => {
+    updateCategory.mutate(
+      { id: catId, req: { name } },
+      { onSuccess: () => setRenamingCat(null) },
+    );
+  };
 
   const handleDeletePost = async (post: StudyPost) => {
     const ok = await confirm({
@@ -448,19 +616,15 @@ export function StudySidebar({
     if (selectedPostId === post.id) onPostDeleted?.();
   };
 
-  // ── 인라인 문서 생성 ──────────────────────────────────────────────────────
-
-  const handleInlineDocConfirm = (catId: number, title: string) => {
-    createPost.mutate({
-      categoryId: catId,
-      title,
-      content: "",
-      isPublic: true,
+  const handleDeleteCat = async (cat: StudyCategory) => {
+    const ok = await confirm({
+      title: "폴더 삭제",
+      description: `"${cat.name}" 폴더와 하위 모든 문서가 삭제됩니다. 계속하시겠습니까?`,
+      confirmText: "삭제",
+      variant: "destructive",
     });
-  };
-
-  const handleInlineDocCancel = () => {
-    setInlineDocCategoryId(null);
+    if (!ok) return;
+    deleteCategory.mutate(cat.id);
   };
 
   // ── render ────────────────────────────────────────────────────────────────
@@ -469,21 +633,33 @@ export function StudySidebar({
     <>
       <ConfirmDialog />
 
-      {categoryMenu && (
-        <CategoryContextMenu
-          menu={categoryMenu}
-          onAddDoc={handleCategoryAddDoc}
-          onClose={() => setCategoryMenu(null)}
+      {/* 폴더 컨텍스트 메뉴 */}
+      {ctxMenu?.kind === "folder" && (
+        <FolderContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onAddDoc={() => {
+            setExpandedIds((p) => new Set([...p, ctxMenu.cat.id]));
+            setInlineState({ type: "doc", categoryId: ctxMenu.cat.id });
+          }}
+          onAddFolder={() => {
+            setExpandedIds((p) => new Set([...p, ctxMenu.cat.id]));
+            setInlineState({ type: "folder", parentId: ctxMenu.cat.id });
+          }}
+          onRename={() => setRenamingCat({ id: ctxMenu.cat.id })}
+          onDelete={() => handleDeleteCat(ctxMenu.cat)}
+          onClose={() => setCtxMenu(null)}
         />
       )}
 
-      {postMenu && (
+      {/* 문서 컨텍스트 메뉴 */}
+      {ctxMenu?.kind === "post" && (
         <PostContextMenu
-          menu={postMenu}
-          onAddDoc={handlePostAddDoc}
-          onRename={handleRenameStart}
-          onDelete={handleDeletePost}
-          onClose={() => setPostMenu(null)}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onRename={() => setRenamingPost({ id: ctxMenu.post.id })}
+          onDelete={() => handleDeletePost(ctxMenu.post)}
+          onClose={() => setCtxMenu(null)}
         />
       )}
 
@@ -498,55 +674,66 @@ export function StudySidebar({
           목록으로
         </button>
 
-        {/* 주제명 + 문서 추가 버튼 */}
-        {(() => {
-          const selectedSub = siblings.find((s) => s.id === categoryId);
-          if (!selectedSub) return null;
-          return (
-            <div className="flex items-center justify-between px-3 py-2 border-b shrink-0">
-              <span className="text-sm font-medium text-foreground truncate">
-                {selectedSub.icon || "📁"} {selectedSub.name}
-              </span>
-              <button
-                onClick={() => setInlineDocCategoryId(selectedSub.id)}
-                className="shrink-0 p-1 rounded text-muted-foreground hover:text-primary
-                           hover:bg-muted/60 transition-colors"
-                title="문서 추가"
-              >
-                <FilePlus className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          );
-        })()}
+        {/* 주제 헤더 + 문서/폴더 추가 버튼 */}
+        {selectedCat && (
+          <div className="flex items-center gap-2 px-3 py-2 border-b shrink-0">
+            <span className="text-sm font-medium text-foreground truncate flex-1">
+              {selectedCat.icon || "📁"} {selectedCat.name}
+            </span>
+            <button
+              onClick={() => {
+                setExpandedIds((p) => new Set([...p, selectedCat.id]));
+                setInlineState({ type: "doc", categoryId: selectedCat.id });
+              }}
+              className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted/60 transition-colors"
+              title="문서 추가"
+            >
+              <FilePlus className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => {
+                setExpandedIds((p) => new Set([...p, selectedCat.id]));
+                setInlineState({ type: "folder", parentId: selectedCat.id });
+              }}
+              className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted/60 transition-colors"
+              title="하위 폴더 추가"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
-        {/* 선택된 2차 카테고리 하위 문서 목록만 표시 */}
+        {/* 트리 목록 */}
         <div className="flex-1 overflow-y-auto py-1">
-          {(() => {
-            const selectedSub = siblings.find((s) => s.id === categoryId);
-            if (!selectedSub) {
-              return (
-                <p className="text-xs text-muted-foreground text-center py-6">
-                  카테고리를 선택하세요.
-                </p>
-              );
-            }
-            return (
-              <CategorySection
-                key={selectedSub.id}
-                sub={selectedSub}
-                selectedPostId={selectedPostId}
-                renamingPostId={renamingPostId}
-                inlineDocCategoryId={inlineDocCategoryId}
-                onSelectPost={onSelectPost}
-                onCategoryContextMenu={openCategoryMenu}
-                onPostContextMenu={openPostMenu}
-                onRenameConfirm={handleRenameConfirm}
-                onRenameCancel={handleRenameCancel}
-                onInlineDocConfirm={handleInlineDocConfirm}
-                onInlineDocCancel={handleInlineDocCancel}
-              />
-            );
-          })()}
+          {!selectedCat ? (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              카테고리를 선택하세요.
+            </p>
+          ) : (
+            <TreeNode
+              cat={selectedCat}
+              depth={0}
+              selectedPostId={selectedPostId}
+              expandedIds={expandedIds}
+              onToggle={toggleExpand}
+              inlineState={inlineState}
+              setInlineState={setInlineState}
+              renamingPost={renamingPost}
+              setRenamingPost={setRenamingPost}
+              renamingCat={renamingCat}
+              setRenamingCat={setRenamingCat}
+              ctxMenu={ctxMenu}
+              setCtxMenu={setCtxMenu}
+              onSelectPost={onSelectPost}
+              onEditPost={onEditPost}
+              onDeletePost={handleDeletePost}
+              onRenamePostConfirm={handleRenamePostConfirm}
+              onDeleteCat={handleDeleteCat}
+              onRenameCatConfirm={handleRenameCatConfirm}
+              onCreateFolder={handleCreateFolder}
+              onCreateDoc={handleCreateDoc}
+            />
+          )}
         </div>
       </aside>
     </>
