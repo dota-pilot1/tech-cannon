@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
 import { ArrowLeft, FilePlus, Pencil, Trash2 } from "lucide-react";
 import {
@@ -366,18 +366,16 @@ export function StudySidebar({
   // 이름 변경 중인 postId
   const [renamingPostId, setRenamingPostId] = useState<number | null>(null);
 
-  // 현재 categoryId가 속한 1차 카테고리 & 형제 2차 카테고리
-  const { parentCategory, siblings } = (() => {
-    if (!categoryId)
-      return { parentCategory: null, siblings: [] as StudyCategory[] };
+  // 현재 categoryId가 속한 형제 2차 카테고리 목록
+  const siblings: StudyCategory[] = (() => {
+    if (!categoryId) return [];
     for (const root of allCategories) {
       const found = root.children?.find((c) => c.id === categoryId);
-      if (found) return { parentCategory: root, siblings: root.children ?? [] };
+      if (found) return root.children ?? [];
     }
     const rootFound = allCategories.find((c) => c.id === categoryId);
-    if (rootFound)
-      return { parentCategory: rootFound, siblings: rootFound.children ?? [] };
-    return { parentCategory: null, siblings: [] as StudyCategory[] };
+    if (rootFound) return rootFound.children ?? [];
+    return [];
   })();
 
   // ── mutations ──────────────────────────────────────────────────────────────
@@ -397,86 +395,73 @@ export function StudySidebar({
 
   // ── 카테고리 컨텍스트 메뉴 ────────────────────────────────────────────────
 
-  const openCategoryMenu = useCallback(
-    (e: React.MouseEvent, cat: StudyCategory) => {
-      e.preventDefault();
-      e.stopPropagation();
-      // + 버튼 클릭 시 직접 인라인 열기
-      if (e.clientX === 0 && e.clientY === 0) {
-        setInlineDocCategoryId(cat.id);
-        return;
-      }
-      const x = Math.min(e.clientX, window.innerWidth - 170);
-      const y = Math.min(e.clientY, window.innerHeight - 80);
-      setCategoryMenu({ x, y, category: cat });
-    },
-    [],
-  );
+  const openCategoryMenu = (e: React.MouseEvent, cat: StudyCategory) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.clientX === 0 && e.clientY === 0) {
+      setInlineDocCategoryId(cat.id);
+      return;
+    }
+    const x = Math.min(e.clientX, window.innerWidth - 170);
+    const y = Math.min(e.clientY, window.innerHeight - 80);
+    setCategoryMenu({ x, y, category: cat });
+  };
 
-  const handleCategoryAddDoc = useCallback((cat: StudyCategory) => {
+  const handleCategoryAddDoc = (cat: StudyCategory) => {
     setInlineDocCategoryId(cat.id);
-  }, []);
+  };
 
   // ── 문서 컨텍스트 메뉴 ────────────────────────────────────────────────────
 
-  const openPostMenu = useCallback((e: React.MouseEvent, post: StudyPost) => {
+  const openPostMenu = (e: React.MouseEvent, post: StudyPost) => {
     e.preventDefault();
     e.stopPropagation();
     const x = Math.min(e.clientX, window.innerWidth - 170);
     const y = Math.min(e.clientY, window.innerHeight - 120);
     setPostMenu({ x, y, post });
-  }, []);
+  };
 
-  const handlePostAddDoc = useCallback((post: StudyPost) => {
+  const handlePostAddDoc = (post: StudyPost) => {
     setInlineDocCategoryId(post.categoryId);
-  }, []);
+  };
 
-  const handleRenameStart = useCallback((post: StudyPost) => {
+  const handleRenameStart = (post: StudyPost) => {
     setRenamingPostId(post.id);
-  }, []);
+  };
 
-  const handleRenameConfirm = useCallback(
-    (id: number, title: string) => {
-      if (renamingPostId !== id) return;
-      updatePost.mutate({ title });
-    },
-    [renamingPostId, updatePost],
-  );
+  const handleRenameConfirm = (id: number, title: string) => {
+    if (renamingPostId !== id) return;
+    updatePost.mutate({ title });
+  };
 
-  const handleRenameCancel = useCallback(() => setRenamingPostId(null), []);
+  const handleRenameCancel = () => setRenamingPostId(null);
 
-  const handleDeletePost = useCallback(
-    async (post: StudyPost) => {
-      const ok = await confirm({
-        title: "문서 삭제",
-        description: `"${post.title}"을(를) 삭제하시겠습니까?`,
-        confirmText: "삭제",
-        variant: "destructive",
-      });
-      if (!ok) return;
-      deletePost.mutate(post.id);
-      if (selectedPostId === post.id) onPostDeleted?.();
-    },
-    [confirm, deletePost, selectedPostId, onPostDeleted],
-  );
+  const handleDeletePost = async (post: StudyPost) => {
+    const ok = await confirm({
+      title: "문서 삭제",
+      description: `"${post.title}"을(를) 삭제하시겠습니까?`,
+      confirmText: "삭제",
+      variant: "destructive",
+    });
+    if (!ok) return;
+    deletePost.mutate(post.id);
+    if (selectedPostId === post.id) onPostDeleted?.();
+  };
 
   // ── 인라인 문서 생성 ──────────────────────────────────────────────────────
 
-  const handleInlineDocConfirm = useCallback(
-    (catId: number, title: string) => {
-      createPost.mutate({
-        categoryId: catId,
-        title,
-        content: "",
-        isPublic: true,
-      });
-    },
-    [createPost],
-  );
+  const handleInlineDocConfirm = (catId: number, title: string) => {
+    createPost.mutate({
+      categoryId: catId,
+      title,
+      content: "",
+      isPublic: true,
+    });
+  };
 
-  const handleInlineDocCancel = useCallback(() => {
+  const handleInlineDocCancel = () => {
     setInlineDocCategoryId(null);
-  }, []);
+  };
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -513,22 +498,26 @@ export function StudySidebar({
           목록으로
         </button>
 
-        {/* 상단 브레드크럼: 1차 카테고리 → 2차 카테고리 */}
-        {parentCategory && (
-          <div className="px-4 py-2.5 border-b bg-muted/30 shrink-0">
-            <p className="text-xs text-muted-foreground mb-0.5">
-              {parentCategory.icon || "📁"} {parentCategory.name}
-            </p>
-            {(() => {
-              const selectedSub = siblings.find((s) => s.id === categoryId);
-              return selectedSub ? (
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {selectedSub.icon || "📁"} {selectedSub.name}
-                </p>
-              ) : null;
-            })()}
-          </div>
-        )}
+        {/* 주제명 + 문서 추가 버튼 */}
+        {(() => {
+          const selectedSub = siblings.find((s) => s.id === categoryId);
+          if (!selectedSub) return null;
+          return (
+            <div className="flex items-center justify-between px-3 py-2 border-b shrink-0">
+              <span className="text-sm font-medium text-foreground truncate">
+                {selectedSub.icon || "📁"} {selectedSub.name}
+              </span>
+              <button
+                onClick={() => setInlineDocCategoryId(selectedSub.id)}
+                className="shrink-0 p-1 rounded text-muted-foreground hover:text-primary
+                           hover:bg-muted/60 transition-colors"
+                title="문서 추가"
+              >
+                <FilePlus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        })()}
 
         {/* 선택된 2차 카테고리 하위 문서 목록만 표시 */}
         <div className="flex-1 overflow-y-auto py-1">
