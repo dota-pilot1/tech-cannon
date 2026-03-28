@@ -674,15 +674,6 @@ export function StudySidebar({
           목록으로
         </button>
 
-        {/* 주제 헤더 */}
-        {selectedCat && (
-          <div className="flex items-center gap-2 px-3 py-2 border-b shrink-0">
-            <span className="text-sm font-medium text-foreground truncate flex-1">
-              {selectedCat.icon || "📁"} {selectedCat.name}
-            </span>
-          </div>
-        )}
-
         {/* 트리 목록 */}
         <div className="flex-1 overflow-y-auto py-1">
           {!selectedCat ? (
