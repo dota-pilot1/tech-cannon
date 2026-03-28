@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
-import { Plus, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreHorizontal, X } from "lucide-react";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
 import {
@@ -21,12 +21,12 @@ interface CtxMenu {
 
 function ContextMenu({
   menu,
-  onRename,
+  onEdit,
   onDelete,
   onClose,
 }: {
   menu: CtxMenu;
-  onRename: (cat: StudyCategory) => void;
+  onEdit: (cat: StudyCategory) => void;
   onDelete: (cat: StudyCategory) => void;
   onClose: () => void;
 }) {
@@ -55,13 +55,13 @@ function ContextMenu({
     >
       <button
         onClick={() => {
-          onRename(menu.target);
+          onEdit(menu.target);
           onClose();
         }}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 text-foreground transition-colors"
       >
         <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-        이름 변경
+        편집
       </button>
       <div className="my-1 border-t border-border" />
       <button
@@ -74,6 +74,132 @@ function ContextMenu({
         <Trash2 className="w-3.5 h-3.5" />
         삭제
       </button>
+    </div>
+  );
+}
+
+// ── 편집 모달 ─────────────────────────────────────────────────────────────────
+
+function EditCategoryModal({
+  category,
+  onConfirm,
+  onClose,
+}: {
+  category: StudyCategory;
+  onConfirm: (
+    id: number,
+    req: { name: string; icon?: string | null; description?: string | null },
+  ) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(category.name);
+  const [icon, setIcon] = useState(category.icon ?? "");
+  const [description, setDescription] = useState(category.description ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onConfirm(category.id, {
+      name: name.trim(),
+      icon: icon.trim() || null,
+      description: description.trim() || null,
+    });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="bg-popover border border-border rounded-xl shadow-xl w-80 p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-foreground">
+            {category.parentId === null ? "카테고리 편집" : "주제 편집"}
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-0.5 rounded hover:bg-muted/60 text-muted-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* 이름 */}
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              이름 <span className="text-destructive">*</span>
+            </label>
+            <input
+              ref={inputRef}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="이름 입력"
+              className="w-full border border-input rounded-md px-3 py-1.5 text-sm
+                         bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          {/* 아이콘 */}
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              아이콘 (이모지)
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-xl w-8 text-center">{icon || "📁"}</span>
+              <input
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+                placeholder="예: 📝 🔖 ⚙️"
+                className="flex-1 border border-input rounded-md px-3 py-1.5 text-sm
+                           bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          {/* 설명 */}
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              설명
+            </label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="간단한 설명 (선택)"
+              className="w-full border border-input rounded-md px-3 py-1.5 text-sm
+                         bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          {/* 버튼 */}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="submit"
+              disabled={!name.trim()}
+              className="flex-1 py-1.5 text-sm bg-primary text-primary-foreground rounded-md
+                         hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              저장
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-1.5 text-sm bg-muted text-muted-foreground rounded-md
+                         hover:bg-muted/70 transition-colors"
+            >
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -196,7 +322,7 @@ function SubCategoryCard({
         )}
       </button>
 
-      {/* hover 시 더보기 버튼 (어드민만) */}
+      {/* hover 시 더보기(편집) 버튼 (어드민만) */}
       {isAdmin && !isRenaming && (
         <button
           onClick={(e) => {
@@ -206,7 +332,7 @@ function SubCategoryCard({
           className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100
                      p-0.5 rounded hover:bg-muted/70 text-muted-foreground
                      hover:text-foreground transition-all"
-          title="더보기"
+          title="편집"
         >
           <MoreHorizontal className="w-3.5 h-3.5" />
         </button>
@@ -254,9 +380,14 @@ export function StudyCategorySection({
 
   // 인라인 편집 상태
   const [renamingId, setRenamingId] = useState<number | null>(null);
-  const [addingSubTo, setAddingSubTo] = useState<number | null>(null); // 1차 카테고리 ID
+  const [addingSubTo, setAddingSubTo] = useState<number | null>(null);
   const [isRenamingRoot, setIsRenamingRoot] = useState(false);
   const [isAddingRoot, setIsAddingRoot] = useState(false);
+
+  // 편집 모달
+  const [editingCategory, setEditingCategory] = useState<StudyCategory | null>(
+    null,
+  );
 
   // mutations
   const createCategory = useCreateStudyCategory();
@@ -271,7 +402,25 @@ export function StudyCategorySection({
     setCtxMenu({ x, y, target: cat });
   };
 
-  // 이름 변경
+  // 편집 모달 열기
+  const handleEditOpen = (cat: StudyCategory) => {
+    setEditingCategory(cat);
+  };
+
+  // 편집 모달 저장
+  const handleEditConfirm = (
+    id: number,
+    req: { name: string; icon?: string | null; description?: string | null },
+  ) => {
+    updateCategory.mutate(
+      { id, req },
+      {
+        onSuccess: () => setEditingCategory(null),
+      },
+    );
+  };
+
+  // 인라인 이름 변경 (서브카테고리 카드 내부 - 하위호환)
   const handleRenameConfirm = (id: number, name: string) => {
     updateCategory.mutate(
       { id, req: { name } },
@@ -328,12 +477,20 @@ export function StudyCategorySection({
       {ctxMenu && (
         <ContextMenu
           menu={ctxMenu}
-          onRename={(cat) => {
-            if (cat.id === category.id) setIsRenamingRoot(true);
-            else setRenamingId(cat.id);
+          onEdit={(cat) => {
+            setCtxMenu(null);
+            handleEditOpen(cat);
           }}
           onDelete={handleDelete}
           onClose={() => setCtxMenu(null)}
+        />
+      )}
+
+      {editingCategory && (
+        <EditCategoryModal
+          category={editingCategory}
+          onConfirm={handleEditConfirm}
+          onClose={() => setEditingCategory(null)}
         />
       )}
 
@@ -368,12 +525,12 @@ export function StudyCategorySection({
               <Plus className="w-3.5 h-3.5" />
               주제 추가
             </button>
-            {/* 이름 변경 */}
+            {/* 편집 */}
             <button
-              onClick={() => setIsRenamingRoot(true)}
+              onClick={() => handleEditOpen(category)}
               className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60
                          rounded transition-colors"
-              title="이름 변경"
+              title="편집"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>

@@ -6,6 +6,12 @@ spring:
   profiles:
     active: local
 
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
   # Database Configuration
   datasource:
     url: jdbc:postgresql://localhost:5432/palantier
@@ -22,12 +28,6 @@ mybatis:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   mapper-locations: classpath:mybatis/mapper/**/*.xml
   type-aliases-package: com.mapo.palantier
-
-# Flyway Configuration
-flyway:
-  enabled: true  # 리프레시 토큰 테이블 생성을 위해 활성화
-  locations: classpath:db/migration
-  baseline-on-migrate: true
 
 # Actuator Configuration
 management:
@@ -55,7 +55,7 @@ springdoc:
 # JWT Configuration
 jwt:
   secret: your-256-bit-secret-key-change-this-in-production-please-make-it-long-enough
-  access-token-expiration: 3600000   # 1시간 (밀리초)
+  access-token-expiration: 3600000 # 1시간 (밀리초)
   refresh-token-expiration: 604800000 # 7일 (밀리초)
 
 # AWS S3 Configuration

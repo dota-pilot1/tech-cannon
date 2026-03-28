@@ -57,15 +57,17 @@
         )
     </insert>
 
-    <!-- 카테고리 수정 -->
+    <!-- 카테고리 수정 - null인 필드는 기존값 유지 -->
     <update id="update">
         UPDATE study_categories
-        SET name        = #{name},
-            parent_id   = #{parentId},
-            icon        = #{icon},
-            description = #{description},
-            order_num   = #{orderNum},
-            updated_at  = CURRENT_TIMESTAMP
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="icon != null">icon = #{icon},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="orderNum != null">order_num = #{orderNum},</if>
+            updated_at = CURRENT_TIMESTAMP
+        </set>
         WHERE id = #{id}
     </update>
 
