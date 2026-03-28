@@ -458,17 +458,21 @@ export function IssuesPage() {
         suppressMovable: true,
         suppressSizeToFit: true,
         resizable: false,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       },
       {
         headerName: '제목',
         field: 'title',
-        width: 400,
+        flex: 1,
+        minWidth: 200,
         editable: true,
+        cellStyle: { display: 'flex', alignItems: 'center', paddingLeft: '8px' },
       },
       {
         headerName: '중요도',
         field: 'priority',
-        width: 80,
+        width: 75,
+        headerClass: 'ag-header-cell-center',
         editable: false, // Popover로 변경하므로 AG Grid 편집 비활성화
         cellRenderer: (params: any) => {
           const PriorityCell = () => {
@@ -526,7 +530,8 @@ export function IssuesPage() {
       {
         headerName: '상태',
         field: 'status',
-        width: 110,
+        width: 85,
+        headerClass: 'ag-header-cell-center',
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
@@ -548,13 +553,16 @@ export function IssuesPage() {
       {
         headerName: '요청자',
         field: 'authorName',
-        width: 100,
+        width: 70,
+        headerClass: 'ag-header-cell-center',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' },
         editable: false, // 요청자는 수정 불가 (로그인한 사람 고정)
       },
       {
         headerName: '담당자',
         field: 'assigneeName',
-        width: 130,
+        width: 90,
+        headerClass: 'ag-header-cell-center',
         cellRenderer: (params: any) => {
           const handleClick = (e: React.MouseEvent) => {
             e.stopPropagation()
@@ -1186,9 +1194,9 @@ export function IssuesPage() {
       {/* 메인 컨텐츠: 좌우 분할 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측: 이슈 목록 */}
-        <div className="w-1/2 border-r border-border p-4 overflow-hidden flex flex-col">
+        <div className="w-1/2 border-r border-border p-2 overflow-hidden flex flex-col">
           {/* 상태별 카운트 버튼 */}
-          <div className="flex gap-2 mb-3">
+          <div className="flex gap-1.5 mb-2">
             <Button
               variant={filterStatus === 'ALL' ? 'default' : 'outline'}
               size="sm"
@@ -1224,7 +1232,7 @@ export function IssuesPage() {
           </div>
 
           {/* Grid Toolbar */}
-          <div className="flex justify-end gap-2 mb-2 pb-2 border-b">
+          <div className="flex justify-end gap-1.5 mb-1.5 pb-1.5 border-b">
             <Button onClick={handleAddRow} size="sm" variant="outline">
               <Plus className="w-4 h-4 mr-1" />
               행 추가
