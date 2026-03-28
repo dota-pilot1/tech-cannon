@@ -441,19 +441,6 @@ export function StudySidebar({
     return { parentCategory: null, siblings: [] as StudyCategory[] };
   })();
 
-  // 펼침 상태 - 초기 마운트 시 categoryId만 열고 이후 toggle로 자유롭게 제어
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(
-    new Set(categoryId ? [categoryId] : []),
-  );
-
-  const toggle = (id: number) =>
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
   // ── mutations ──────────────────────────────────────────────────────────────
 
   const createPost = useCreateStudyPost((newId) => {
@@ -477,7 +464,6 @@ export function StudySidebar({
       e.stopPropagation();
       // + 버튼 클릭 시 직접 인라인 열기
       if (e.clientX === 0 && e.clientY === 0) {
-        setExpandedIds((p) => new Set([...p, cat.id]));
         setInlineDocCategoryId(cat.id);
         return;
       }
@@ -489,7 +475,6 @@ export function StudySidebar({
   );
 
   const handleCategoryAddDoc = useCallback((cat: StudyCategory) => {
-    setExpandedIds((p) => new Set([...p, cat.id]));
     setInlineDocCategoryId(cat.id);
   }, []);
 
@@ -504,7 +489,6 @@ export function StudySidebar({
   }, []);
 
   const handlePostAddDoc = useCallback((post: StudyPost) => {
-    setExpandedIds((p) => new Set([...p, post.categoryId]));
     setInlineDocCategoryId(post.categoryId);
   }, []);
 
@@ -590,35 +574,44 @@ export function StudySidebar({
           목록으로
         </button>
 
-        {/* 1차 카테고리 헤더 */}
+        {/* 상단 브레드크럼: 1차 카테고리 → 2차 카테고리 */}
         {parentCategory && (
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-muted/30 shrink-0">
-            <span className="text-base leading-none">
-              {parentCategory.icon || "📁"}
-            </span>
-            <span className="text-sm font-semibold text-foreground truncate">
-              {parentCategory.name}
-            </span>
+          <div className="px-4 py-2.5 border-b bg-muted/30 shrink-0">
+            <p className="text-xs text-muted-foreground mb-0.5">
+              {parentCategory.icon || "📁"} {parentCategory.name}
+            </p>
+            {(() => {
+              const selectedSub = siblings.find((s) => s.id === categoryId);
+              return selectedSub ? (
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {selectedSub.icon || "📁"} {selectedSub.name}
+                </p>
+              ) : null;
+            })()}
           </div>
         )}
 
-        {/* 2차 카테고리 + 문서 목록 */}
+        {/* 선택된 2차 카테고리 하위 문서 목록만 표시 */}
         <div className="flex-1 overflow-y-auto py-1">
-          {siblings.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-6">
-              하위 카테고리가 없습니다.
-            </p>
-          ) : (
-            siblings.map((sub) => (
+          {(() => {
+            const selectedSub = siblings.find((s) => s.id === categoryId);
+            if (!selectedSub) {
+              return (
+                <p className="text-xs text-muted-foreground text-center py-6">
+                  카테고리를 선택하세요.
+                </p>
+              );
+            }
+            return (
               <CategorySection
-                key={sub.id}
-                sub={sub}
-                isExpanded={expandedIds.has(sub.id)}
-                isActive={sub.id === categoryId}
+                key={selectedSub.id}
+                sub={selectedSub}
+                isExpanded={true}
+                isActive={true}
                 selectedPostId={selectedPostId}
                 renamingPostId={renamingPostId}
                 inlineDocCategoryId={inlineDocCategoryId}
-                onToggle={() => toggle(sub.id)}
+                onToggle={() => {}}
                 onSelectPost={onSelectPost}
                 onCategoryContextMenu={openCategoryMenu}
                 onPostContextMenu={openPostMenu}
@@ -627,8 +620,8 @@ export function StudySidebar({
                 onInlineDocConfirm={handleInlineDocConfirm}
                 onInlineDocCancel={handleInlineDocCancel}
               />
-            ))
-          )}
+            );
+          })()}
         </div>
       </aside>
     </>
