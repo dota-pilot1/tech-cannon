@@ -1,31 +1,31 @@
-import { useMemo, useRef, useState, useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { AgGridReact } from 'ag-grid-react'
-import type { ColDef } from 'ag-grid-community'
-import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community'
-import { Button } from '@/shared/ui/button'
-import { Badge } from '@/shared/ui/badge'
+import { useMemo, useRef, useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { AgGridReact } from "ag-grid-react";
+import type { ColDef, CellStyle } from "ag-grid-community";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+} from "ag-grid-community";
+import { Button } from "@/shared/ui/button";
+import { Badge } from "@/shared/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/shared/ui/select'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/shared/ui/popover'
+} from "@/shared/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/shared/ui/dialog'
-import { Checkbox } from '@/shared/ui/checkbox'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+} from "@/shared/ui/dialog";
+import { Checkbox } from "@/shared/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
   useIssues,
   useIssue,
@@ -35,117 +35,173 @@ import {
   useUpdateIssueStatus,
   useCreateIssueSilent,
   useUpdateIssueSilent,
-} from '@/features/issue/hooks/useIssues'
-import { useIssueImages, useUploadIssueImage, useDeleteIssueImage } from '@/features/issue/hooks/useIssueImages'
-import { useIssueAssignees, useUpdateIssueAssignees } from '@/features/issue/hooks/useIssueAssignees'
-import { useIssueChecklists, useCreateChecklist, useToggleChecklist, useDeleteChecklist } from '@/features/issue/hooks/useIssueChecklists'
-import { useIssueMindmaps, useCreateMindmap, useUpdateMindmap, useDeleteMindmap } from '@/features/issue/hooks/useIssueMindmaps'
+} from "@/features/issue/hooks/useIssues";
+import {
+  useIssueImages,
+  useUploadIssueImage,
+  useDeleteIssueImage,
+} from "@/features/issue/hooks/useIssueImages";
+import {
+  useIssueAssignees,
+  useUpdateIssueAssignees,
+} from "@/features/issue/hooks/useIssueAssignees";
+import {
+  useIssueChecklists,
+  useCreateChecklist,
+  useToggleChecklist,
+  useDeleteChecklist,
+} from "@/features/issue/hooks/useIssueChecklists";
+import {
+  useIssueMindmaps,
+  useCreateMindmap,
+  useUpdateMindmap,
+  useDeleteMindmap,
+} from "@/features/issue/hooks/useIssueMindmaps";
 // import { useIssueTasks, useLinkTask, useUnlinkTask } from '@/features/issue/hooks/useIssueTasks'
-import { useIssueDbTables, useCreateDbTable, useUpdateDbTable, useDeleteDbTable } from '@/features/issue/hooks/useIssueDbTables'
-import { ChatPanel } from '@/features/issue/components/ChatPanel'
-import type { Issue, IssueStatus, IssuePriority, IssueCategory } from '@/entities/issue/types/issue'
-import type { DbTableContent } from '@/entities/issue/types/issueDbTable'
-import { parseDbTableContent, parseTsvToColumns } from '@/entities/issue/types/issueDbTable'
-import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, Users, ChevronRight, ChevronLeft, FileText, Database, Eye } from 'lucide-react'
-import { useConfirm } from '@/shared/hooks/useConfirm'
-import { toast } from 'sonner'
-import { Mermaid } from '@/shared/ui/mermaid'
-import { useUsers } from '@/features/admin/hooks/useUsers'
-import mermaid from 'mermaid'
-import { useStore } from '@tanstack/react-store'
-import { authStore } from '@/entities/user/model/authStore'
-import { useNavigate } from '@tanstack/react-router'
+import {
+  useIssueDbTables,
+  useCreateDbTable,
+  useUpdateDbTable,
+  useDeleteDbTable,
+} from "@/features/issue/hooks/useIssueDbTables";
+import { ChatPanel } from "@/features/issue/components/ChatPanel";
+import type {
+  Issue,
+  IssueStatus,
+  IssuePriority,
+  IssueCategory,
+} from "@/entities/issue/types/issue";
+import type { DbTableContent } from "@/entities/issue/types/issueDbTable";
+import {
+  parseDbTableContent,
+  parseTsvToColumns,
+} from "@/entities/issue/types/issueDbTable";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  Upload,
+  Image as ImageIcon,
+  Users,
+  ChevronRight,
+  ChevronLeft,
+  FileText,
+  Database,
+  Eye,
+} from "lucide-react";
+import { useConfirm } from "@/shared/hooks/useConfirm";
+import { toast } from "sonner";
+import { Mermaid } from "@/shared/ui/mermaid";
+import { useUsers } from "@/features/admin/hooks/useUsers";
+import mermaid from "mermaid";
+import { useStore } from "@tanstack/react-store";
+import { authStore } from "@/entities/user/model/authStore";
+import { useNavigate } from "@tanstack/react-router";
 
 // AG-Grid 모듈 등록
-ModuleRegistry.registerModules([AllCommunityModule])
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 export function IssuesPage() {
-  const gridRef = useRef<AgGridReact>(null)
-  const navigate = useNavigate()
-  const currentUser = useStore(authStore, (state) => state.user)
+  const gridRef = useRef<AgGridReact>(null);
+  const navigate = useNavigate();
+  const currentUser = useStore(authStore, (state) => state.user);
 
   // 상태 관리
-  const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
+  const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // 수정된 행 추적
-  const [modifiedRowIds, setModifiedRowIds] = useState<Set<number>>(new Set())
+  const [modifiedRowIds, setModifiedRowIds] = useState<Set<number>>(new Set());
 
   // 필터 상태
-  const [filterStatus, setFilterStatus] = useState<string>('ALL')
-  const [filterCategory, setFilterCategory] = useState<string>('ALL')
-  const [searchKeyword, setSearchKeyword] = useState('')
+  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [filterCategory, setFilterCategory] = useState<string>("ALL");
+  const [searchKeyword, setSearchKeyword] = useState("");
 
   // 폼 데이터
-  const [formTitle, setFormTitle] = useState('')
-  const [formContent, setFormContent] = useState('')
-  const [formCategory, setFormCategory] = useState<IssueCategory>('COMMON')
-  const [formStatus, setFormStatus] = useState<IssueStatus>('OPEN')
-  const [formPriority, setFormPriority] = useState<IssuePriority>('MEDIUM')
+  const [formTitle, setFormTitle] = useState("");
+  const [formContent, setFormContent] = useState("");
+  const [formCategory, setFormCategory] = useState<IssueCategory>("COMMON");
+  const [formStatus, setFormStatus] = useState<IssueStatus>("OPEN");
+  const [formPriority, setFormPriority] = useState<IssuePriority>("MEDIUM");
 
   // API 호출
   const { data: issuesData } = useIssues({
     // 상태 필터는 프론트엔드에서 처리 (statusCounts 계산을 위해 전체 데이터 필요)
-    category: filterCategory === 'ALL' ? undefined : (filterCategory as IssueCategory),
+    category:
+      filterCategory === "ALL" ? undefined : (filterCategory as IssueCategory),
     keyword: searchKeyword || undefined,
-    sortBy: 'created', // 작성일 기준 정렬 (최신순)
-  })
+    sortBy: "created", // 작성일 기준 정렬 (최신순)
+  });
 
   const { data: issueDetail } = useIssue(selectedIssueId!, {
     enabled: !!selectedIssueId && !isEditing,
-  })
+  });
 
-  const queryClient = useQueryClient()
-  const { mutate: createIssue } = useCreateIssue()
-  const { mutate: updateIssue } = useUpdateIssue()
-  const { mutate: deleteIssue } = useDeleteIssue()
-  const { mutate: updateStatus } = useUpdateIssueStatus()
+  const queryClient = useQueryClient();
+  const { mutate: createIssue } = useCreateIssue();
+  const { mutate: updateIssue } = useUpdateIssue();
+  const { mutate: deleteIssue } = useDeleteIssue();
+  const { mutate: updateStatus } = useUpdateIssueStatus();
 
   // 일괄 저장용 (toast/invalidate 없음)
-  const { mutateAsync: createIssueSilent } = useCreateIssueSilent()
-  const { mutateAsync: updateIssueSilent } = useUpdateIssueSilent()
-  const { confirm, ConfirmDialog } = useConfirm()
+  const { mutateAsync: createIssueSilent } = useCreateIssueSilent();
+  const { mutateAsync: updateIssueSilent } = useUpdateIssueSilent();
+  const { confirm, ConfirmDialog } = useConfirm();
 
   // 사용자 목록 (담당자 선택용)
-  const { data: usersData } = useUsers()
-  const users = usersData || []
+  const { data: usersData } = useUsers();
+  const users = usersData || [];
 
   // 담당자 관련
-  const [assigneeDialogIssueId, setAssigneeDialogIssueId] = useState<number | null>(null)
-  const { data: issueAssignees } = useIssueAssignees(selectedIssueId)
-  const { mutate: updateAssignees } = useUpdateIssueAssignees(selectedIssueId!)
-  const [isAssigneeDialogOpen, setIsAssigneeDialogOpen] = useState(false)
-  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
-  const [userSearchKeyword, setUserSearchKeyword] = useState('')
+  const [assigneeDialogIssueId, setAssigneeDialogIssueId] = useState<
+    number | null
+  >(null);
+  const { data: issueAssignees } = useIssueAssignees(selectedIssueId);
+  const { mutate: updateAssignees } = useUpdateIssueAssignees(selectedIssueId!);
+  const [isAssigneeDialogOpen, setIsAssigneeDialogOpen] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [userSearchKeyword, setUserSearchKeyword] = useState("");
 
   // 이미지 관련
-  const { data: issueImages } = useIssueImages(selectedIssueId)
-  const { mutate: uploadImage, isPending: isUploading } = useUploadIssueImage(selectedIssueId!)
-  const { mutate: deleteImage } = useDeleteIssueImage(selectedIssueId!)
-  const [isDragging, setIsDragging] = useState(false)
-  const [isPasteMode, setIsPasteMode] = useState(false)
-  const imageInputRef = useRef<HTMLInputElement>(null)
-  const uploadAreaRef = useRef<HTMLDivElement>(null)
+  const { data: issueImages } = useIssueImages(selectedIssueId);
+  const { mutate: uploadImage, isPending: isUploading } = useUploadIssueImage(
+    selectedIssueId!,
+  );
+  const { mutate: deleteImage } = useDeleteIssueImage(selectedIssueId!);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPasteMode, setIsPasteMode] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const uploadAreaRef = useRef<HTMLDivElement>(null);
 
   // 체크리스트 관련
-  const { data: checklists } = useIssueChecklists(selectedIssueId)
-  const { mutate: createChecklist } = useCreateChecklist(selectedIssueId!)
-  const { mutate: toggleChecklist } = useToggleChecklist(selectedIssueId!)
-  const { mutate: deleteChecklist } = useDeleteChecklist(selectedIssueId!)
-  const [newChecklistContent, setNewChecklistContent] = useState('')
+  const { data: checklists } = useIssueChecklists(selectedIssueId);
+  const { mutate: createChecklist } = useCreateChecklist(selectedIssueId!);
+  const { mutate: toggleChecklist } = useToggleChecklist(selectedIssueId!);
+  const { mutate: deleteChecklist } = useDeleteChecklist(selectedIssueId!);
+  const [newChecklistContent, setNewChecklistContent] = useState("");
 
   // 마인드맵 관련
-  const { data: mindmaps } = useIssueMindmaps(selectedIssueId)
-  const { mutate: createMindmap } = useCreateMindmap(selectedIssueId!)
-  const { mutate: updateMindmap } = useUpdateMindmap(selectedIssueId!)
-  const { mutate: deleteMindmap } = useDeleteMindmap(selectedIssueId!)
-  const [selectedMindmapId, setSelectedMindmapId] = useState<number | null>(null)
-  const [mindmapTitle, setMindmapTitle] = useState('')
-  const [mindmapContent, setMindmapContent] = useState('')
-  const [isMindmapDialogOpen, setIsMindmapDialogOpen] = useState(false)
-  const [isMindmapViewDialogOpen, setIsMindmapViewDialogOpen] = useState(false)
-  const [viewMindmapData, setViewMindmapData] = useState<{ title: string; content: string } | null>(null)
-  const [validationResult, setValidationResult] = useState<{ isValid: boolean; error?: string } | null>(null)
+  const { data: mindmaps } = useIssueMindmaps(selectedIssueId);
+  const { mutate: createMindmap } = useCreateMindmap(selectedIssueId!);
+  const { mutate: updateMindmap } = useUpdateMindmap(selectedIssueId!);
+  const { mutate: deleteMindmap } = useDeleteMindmap(selectedIssueId!);
+  const [selectedMindmapId, setSelectedMindmapId] = useState<number | null>(
+    null,
+  );
+  const [mindmapTitle, setMindmapTitle] = useState("");
+  const [mindmapContent, setMindmapContent] = useState("");
+  const [isMindmapDialogOpen, setIsMindmapDialogOpen] = useState(false);
+  const [isMindmapViewDialogOpen, setIsMindmapViewDialogOpen] = useState(false);
+  const [viewMindmapData, setViewMindmapData] = useState<{
+    title: string;
+    content: string;
+  } | null>(null);
+  const [validationResult, setValidationResult] = useState<{
+    isValid: boolean;
+    error?: string;
+  } | null>(null);
 
   // 업무 연결 관련 (미래 기능용)
   // const { data: linkedTasks } = useIssueTasks(selectedIssueId)
@@ -154,241 +210,266 @@ export function IssuesPage() {
   // const [taskIdInput, setTaskIdInput] = useState('')
 
   // DB 테이블 관련
-  const { data: dbTables } = useIssueDbTables(selectedIssueId)
-  const { mutate: createDbTable } = useCreateDbTable(selectedIssueId!)
-  const { mutate: updateDbTable } = useUpdateDbTable(selectedIssueId!)
-  const { mutate: deleteDbTable } = useDeleteDbTable(selectedIssueId!)
-  const [selectedDbTableId, setSelectedDbTableId] = useState<number | null>(null)
+  const { data: dbTables } = useIssueDbTables(selectedIssueId);
+  const { mutate: createDbTable } = useCreateDbTable(selectedIssueId!);
+  const { mutate: updateDbTable } = useUpdateDbTable(selectedIssueId!);
+  const { mutate: deleteDbTable } = useDeleteDbTable(selectedIssueId!);
+  const [selectedDbTableId, setSelectedDbTableId] = useState<number | null>(
+    null,
+  );
   const [dbTableContent, setDbTableContent] = useState<DbTableContent>({
-    tableName: '',
-    schema: '',
-    category: '',
-    description: '',
-    queryResult: '',
+    tableName: "",
+    schema: "",
+    category: "",
+    description: "",
+    queryResult: "",
     columns: [],
-  })
-  const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false)
+  });
+  const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false);
 
   // 필터링된 이슈 목록 (서버 정렬 순서 유지)
   const issues = useMemo(() => {
-    const allIssues = issuesData?.items || []
+    const allIssues = issuesData?.items || [];
 
     // 필터링만 수행 (정렬은 서버에서 이미 처리됨)
-    return filterStatus === 'ALL'
+    return filterStatus === "ALL"
       ? allIssues
-      : allIssues.filter((issue) => issue.status === filterStatus)
-  }, [issuesData, filterStatus])
+      : allIssues.filter((issue) => issue.status === filterStatus);
+  }, [issuesData, filterStatus]);
 
   // 담당자 다이얼로그 열릴 때 현재 담당자 목록 로드
   useEffect(() => {
     if (isAssigneeDialogOpen && issueAssignees) {
-      const currentAssigneeIds = issueAssignees.map((a) => a.userId)
-      setSelectedUserIds(currentAssigneeIds)
-      setUserSearchKeyword('') // 검색어 초기화
+      const currentAssigneeIds = issueAssignees.map((a) => a.userId);
+      setSelectedUserIds(currentAssigneeIds);
+      setUserSearchKeyword(""); // 검색어 초기화
     }
-  }, [isAssigneeDialogOpen, issueAssignees])
+  }, [isAssigneeDialogOpen, issueAssignees]);
 
   // AG-Grid 한국어 로케일
   const localeText = useMemo(
     () => ({
-      page: '페이지',
-      of: '/',
-      to: '-',
-      pageSizeSelectorLabel: '페이지당',
-      pageSizeSelectorLabelText: '행',
+      page: "페이지",
+      of: "/",
+      to: "-",
+      pageSizeSelectorLabel: "페이지당",
+      pageSizeSelectorLabelText: "행",
     }),
-    []
-  )
+    [],
+  );
 
   // 상태 레이블
   const statusLabels: Record<IssueStatus, string> = {
-    OPEN: '진행 전',
-    IN_PROGRESS: '진행 중',
-    CLOSED: '완료',
-  }
+    OPEN: "진행 전",
+    IN_PROGRESS: "진행 중",
+    CLOSED: "완료",
+  };
 
   // 셀 값 변경 핸들러 (수정 플래그만 설정, 저장은 안함)
   const onCellValueChanged = (params: any) => {
-    const { data, newValue, oldValue, colDef } = params
+    const { data, newValue, oldValue, colDef } = params;
 
-    console.log('🔄 Cell changed:', { field: colDef.field, oldValue, newValue, issueId: data.id })
+    console.log("🔄 Cell changed:", {
+      field: colDef.field,
+      oldValue,
+      newValue,
+      issueId: data.id,
+    });
 
-    if (newValue === oldValue) return
+    if (newValue === oldValue) return;
 
     // 수정된 행 ID 추가
-    setModifiedRowIds((prev) => new Set(prev).add(data.id))
+    setModifiedRowIds((prev) => new Set(prev).add(data.id));
 
     // 수정된 행 자동 선택 (체크박스)
-    params.node.setSelected(true)
+    params.node.setSelected(true);
 
     // 상태 또는 중요도 변경 시 정렬 재적용 (최신순 유지)
-    if (colDef.field === 'status' || colDef.field === 'priority') {
-      console.log('📊 Re-sorting by createdAt...')
+    if (colDef.field === "status" || colDef.field === "priority") {
+      console.log("📊 Re-sorting by createdAt...");
 
       // 모든 행 데이터 가져오기
-      const allRowData: Issue[] = []
-      params.api.forEachNode((node: any) => allRowData.push(node.data))
+      const allRowData: Issue[] = [];
+      params.api.forEachNode((node: any) => allRowData.push(node.data));
 
-      console.log('Before sort:', allRowData.map(r => ({ id: r.id, title: r.title, createdAt: r.createdAt })))
+      console.log(
+        "Before sort:",
+        allRowData.map((r) => ({
+          id: r.id,
+          title: r.title,
+          createdAt: r.createdAt,
+        })),
+      );
 
       // 작성일 내림차순 정렬
       const sortedData = allRowData.sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime()
-        const dateB = new Date(b.createdAt).getTime()
-        return dateB - dateA
-      })
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
 
-      console.log('After sort:', sortedData.map(r => ({ id: r.id, title: r.title, createdAt: r.createdAt })))
+      console.log(
+        "After sort:",
+        sortedData.map((r) => ({
+          id: r.id,
+          title: r.title,
+          createdAt: r.createdAt,
+        })),
+      );
 
       // 정렬된 데이터로 그리드 업데이트
-      params.api.setGridOption('rowData', sortedData)
-      console.log('✅ Grid updated with sorted data')
+      params.api.setGridOption("rowData", sortedData);
+      console.log("✅ Grid updated with sorted data");
     } else {
       // 그리드 행 스타일 업데이트를 위해 리프레시
-      params.api.refreshCells({ rowNodes: [params.node], force: true })
+      params.api.refreshCells({ rowNodes: [params.node], force: true });
     }
-  }
+  };
 
   // 새 행 추가
   const handleAddRow = () => {
     // 로그인 확인
     if (!currentUser) {
-      toast.error('로그인이 필요합니다')
-      navigate({ to: '/dashboard' })
-      return
+      toast.error("로그인이 필요합니다");
+      navigate({ to: "/dashboard" });
+      return;
     }
 
     const newRow: Partial<Issue> = {
-      id: -(Date.now()), // 음수 ID = 신규
-      title: '',
-      content: '',
-      category: 'COMMON',
-      status: 'OPEN',
-      priority: 'MEDIUM',
+      id: -Date.now(), // 음수 ID = 신규
+      title: "",
+      content: "",
+      category: "COMMON",
+      status: "OPEN",
+      priority: "MEDIUM",
       authorId: currentUser.id,
       authorName: currentUser.username,
       authorEmail: currentUser.email,
-      assigneeName: '',
-    }
+      assigneeName: "",
+    };
 
-    gridRef.current?.api.applyTransaction({ add: [newRow as Issue], addIndex: 0 })
-    setModifiedRowIds((prev) => new Set(prev).add(newRow.id!))
-  }
+    gridRef.current?.api.applyTransaction({
+      add: [newRow as Issue],
+      addIndex: 0,
+    });
+    setModifiedRowIds((prev) => new Set(prev).add(newRow.id!));
+  };
 
   // 선택된 행 삭제
   const handleDeleteSelected = async () => {
-    const selectedRows = gridRef.current?.api.getSelectedRows() || []
+    const selectedRows = gridRef.current?.api.getSelectedRows() || [];
 
     if (selectedRows.length === 0) {
-      toast.info('삭제할 행을 선택하세요.')
-      return
+      toast.info("삭제할 행을 선택하세요.");
+      return;
     }
 
     const confirmed = await confirm({
-      title: '행 삭제',
+      title: "행 삭제",
       description: `선택한 ${selectedRows.length}개 행을 삭제하시겠습니까?`,
-      confirmText: '삭제',
-      cancelText: '취소',
-      variant: 'destructive',
-    })
+      confirmText: "삭제",
+      cancelText: "취소",
+      variant: "destructive",
+    });
 
-    if (!confirmed) return
+    if (!confirmed) return;
 
     // 기존 이슈 삭제 (API 호출)
-    const existingIssues = selectedRows.filter((r) => r.id > 0)
+    const existingIssues = selectedRows.filter((r) => r.id > 0);
     for (const row of existingIssues) {
-      await deleteIssue(row.id)
+      await deleteIssue(row.id);
     }
 
     // 그리드에서 제거
-    gridRef.current?.api.applyTransaction({ remove: selectedRows })
+    gridRef.current?.api.applyTransaction({ remove: selectedRows });
 
     // 수정 플래그에서 제거
-    const idsToRemove = selectedRows.map((r) => r.id)
+    const idsToRemove = selectedRows.map((r) => r.id);
     setModifiedRowIds((prev) => {
-      const newSet = new Set(prev)
-      idsToRemove.forEach((id) => newSet.delete(id))
-      return newSet
-    })
+      const newSet = new Set(prev);
+      idsToRemove.forEach((id) => newSet.delete(id));
+      return newSet;
+    });
 
-    toast.success(`${selectedRows.length}개 항목이 삭제되었습니다.`)
-  }
+    toast.success(`${selectedRows.length}개 항목이 삭제되었습니다.`);
+  };
 
   // 수정/신규 행 일괄 저장
   const handleSaveModified = async () => {
     if (modifiedRowIds.size === 0) {
-      toast.info('수정된 항목이 없습니다.')
-      return
+      toast.info("수정된 항목이 없습니다.");
+      return;
     }
 
-    const modifiedRows: Issue[] = []
+    const modifiedRows: Issue[] = [];
     gridRef.current?.api.forEachNode((node) => {
       if (modifiedRowIds.has(node.data.id)) {
-        modifiedRows.push(node.data)
+        modifiedRows.push(node.data);
       }
-    })
+    });
 
     // 신규/수정 구분
-    const newRows = modifiedRows.filter((r) => r.id < 0)
-    const updatedRows = modifiedRows.filter((r) => r.id > 0)
+    const newRows = modifiedRows.filter((r) => r.id < 0);
+    const updatedRows = modifiedRows.filter((r) => r.id > 0);
 
     // 유효성 검사: 필수 값 확인
-    const invalidRows: string[] = []
+    const invalidRows: string[] = [];
 
     modifiedRows.forEach((row) => {
-      const missing: string[] = []
+      const missing: string[] = [];
 
-      if (!row.title || row.title.trim() === '') {
-        missing.push('제목')
+      if (!row.title || row.title.trim() === "") {
+        missing.push("제목");
       }
       if (!row.category) {
-        missing.push('카테고리')
+        missing.push("카테고리");
       }
       if (!row.status) {
-        missing.push('상태')
+        missing.push("상태");
       }
       if (!row.priority) {
-        missing.push('중요도')
+        missing.push("중요도");
       }
-      if (!row.authorName || row.authorName.trim() === '') {
-        missing.push('요청자')
+      if (!row.authorName || row.authorName.trim() === "") {
+        missing.push("요청자");
       }
 
       if (missing.length > 0) {
-        const rowLabel = row.id < 0 ? '신규 행' : `"${row.title || '(제목 없음)'}"`
-        invalidRows.push(`${rowLabel}: ${missing.join(', ')} 필요`)
+        const rowLabel =
+          row.id < 0 ? "신규 행" : `"${row.title || "(제목 없음)"}"`;
+        invalidRows.push(`${rowLabel}: ${missing.join(", ")} 필요`);
       }
-    })
+    });
 
     if (invalidRows.length > 0) {
       const message = [
-        '다음 항목에 필수 값이 누락되었습니다:',
-        '',
+        "다음 항목에 필수 값이 누락되었습니다:",
+        "",
         ...invalidRows.map((msg) => `• ${msg}`),
-        '',
-        '계속 진행하시겠습니까?',
-      ].join('\n')
+        "",
+        "계속 진행하시겠습니까?",
+      ].join("\n");
 
       const confirmed = await confirm({
-        title: '필수 항목 누락',
+        title: "필수 항목 누락",
         description: message,
-        confirmText: '계속',
-        cancelText: '취소',
-      })
+        confirmText: "계속",
+        cancelText: "취소",
+      });
 
-      if (!confirmed) return
+      if (!confirmed) return;
     }
 
     try {
       // 신규 행 생성 (toast/invalidate 없는 버전 사용)
       for (const row of newRows) {
         await createIssueSilent({
-          title: row.title || '제목 없음',
-          content: row.content || '',
-          category: row.category || 'COMMON',
-          status: row.status || 'OPEN',
-          priority: row.priority || 'MEDIUM',
-        })
+          title: row.title || "제목 없음",
+          content: row.content || "",
+          category: row.category || "COMMON",
+          status: row.status || "OPEN",
+          priority: row.priority || "MEDIUM",
+        });
       }
 
       // 수정된 행 업데이트 (toast/invalidate 없는 버전 사용)
@@ -402,54 +483,56 @@ export function IssuesPage() {
             status: row.status,
             priority: row.priority,
           },
-        })
+        });
       }
 
       // 저장 후 그리드에서 음수 ID 행 제거
       if (newRows.length > 0) {
-        gridRef.current?.api.applyTransaction({ remove: newRows })
+        gridRef.current?.api.applyTransaction({ remove: newRows });
       }
 
       // 수정 플래그 초기화
-      setModifiedRowIds(new Set())
+      setModifiedRowIds(new Set());
 
       // 모든 업데이트 완료 후 한 번만 재조회
-      await queryClient.invalidateQueries({ queryKey: ['issues'] })
+      await queryClient.invalidateQueries({ queryKey: ["issues"] });
 
-      toast.success(`신규 ${newRows.length}개, 수정 ${updatedRows.length}개 항목이 저장되었습니다.`)
+      toast.success(
+        `신규 ${newRows.length}개, 수정 ${updatedRows.length}개 항목이 저장되었습니다.`,
+      );
     } catch (error) {
-      toast.error('저장 중 오류가 발생했습니다.')
-      console.error(error)
+      toast.error("저장 중 오류가 발생했습니다.");
+      console.error(error);
     }
-  }
+  };
 
   // 상태별 배지 색상 (그리드/상세뷰 공통)
   const statusColors = {
-    OPEN: 'bg-blue-100 text-blue-700 hover:bg-blue-100',
-    IN_PROGRESS: 'bg-amber-100 text-amber-700 hover:bg-amber-100',
-    CLOSED: 'bg-green-100 text-green-700 hover:bg-green-100',
-  }
+    OPEN: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+    IN_PROGRESS: "bg-amber-100 text-amber-700 hover:bg-amber-100",
+    CLOSED: "bg-green-100 text-green-700 hover:bg-green-100",
+  };
 
   // 우선순위별 배지 색상 (파스텔톤)
   const priorityColors = {
-    CRITICAL: 'bg-red-100 text-red-700 hover:bg-red-100',
-    HIGH: 'bg-orange-100 text-orange-700 hover:bg-orange-100',
-    MEDIUM: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100',
-    LOW: 'bg-gray-100 text-gray-700 hover:bg-gray-100',
-  }
+    CRITICAL: "bg-red-100 text-red-700 hover:bg-red-100",
+    HIGH: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+    MEDIUM: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
+    LOW: "bg-gray-100 text-gray-700 hover:bg-gray-100",
+  };
 
   const priorityLabels: Record<IssuePriority, string> = {
-    LOW: '낮음',
-    MEDIUM: '보통',
-    HIGH: '높음',
-    CRITICAL: '긴급',
-  }
+    LOW: "낮음",
+    MEDIUM: "보통",
+    HIGH: "높음",
+    CRITICAL: "긴급",
+  };
 
   // 컬럼 정의 (좌측 목록용 - 간소화)
   const columnDefs = useMemo<ColDef<Issue>[]>(
     () => [
       {
-        headerName: '',
+        headerName: "",
         width: 50,
         maxWidth: 50,
         minWidth: 50,
@@ -458,59 +541,67 @@ export function IssuesPage() {
         suppressMovable: true,
         suppressSizeToFit: true,
         resizable: false,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        } as CellStyle,
       },
       {
-        headerName: '제목',
-        field: 'title',
+        headerName: "제목",
+        field: "title",
         flex: 1,
         minWidth: 200,
         editable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', paddingLeft: '8px' },
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          paddingLeft: "8px",
+        } as CellStyle,
       },
       {
-        headerName: '중요도',
-        field: 'priority',
+        headerName: "중요도",
+        field: "priority",
         width: 75,
-        headerClass: 'ag-header-cell-center',
+        headerClass: "ag-header-cell-center",
         editable: false, // Popover로 변경하므로 AG Grid 편집 비활성화
         cellRenderer: (params: any) => {
           const PriorityCell = () => {
-            const [open, setOpen] = useState(false)
-            const priority = params.value as IssuePriority
-            const label = priorityLabels[priority] || priority
+            const [open, setOpen] = useState(false);
+            const priority = params.value as IssuePriority;
+            const label = priorityLabels[priority] || priority;
 
             const handlePriorityChange = (newPriority: IssuePriority) => {
               // 로컬 데이터만 업데이트
-              params.data.priority = newPriority
+              params.data.priority = newPriority;
 
               // 수정된 행으로 표시 (노란 배경)
-              setModifiedRowIds((prev) => new Set(prev).add(params.data.id))
+              setModifiedRowIds((prev) => new Set(prev).add(params.data.id));
 
               // 행 선택 (체크박스)
-              params.node.setSelected(true)
+              params.node.setSelected(true);
 
               // 그리드 셀 리프레시
-              params.api.refreshCells({ rowNodes: [params.node], force: true })
+              params.api.refreshCells({ rowNodes: [params.node], force: true });
 
-              setOpen(false)
-            }
+              setOpen(false);
+            };
 
             return (
               <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                   <div className="w-full h-full flex items-center justify-center cursor-pointer">
-                    <Badge className={priorityColors[priority]}>
-                      {label}
-                    </Badge>
+                    <Badge className={priorityColors[priority]}>{label}</Badge>
                   </div>
                 </PopoverTrigger>
                 <PopoverContent className="w-32 p-2" align="center">
                   <div className="flex flex-col gap-1">
-                    {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as IssuePriority[]).map((p) => (
+                    {(
+                      ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as IssuePriority[]
+                    ).map((p) => (
                       <Button
                         key={p}
-                        variant={p === priority ? 'default' : 'ghost'}
+                        variant={p === priority ? "default" : "ghost"}
                         size="sm"
                         className="justify-start h-8"
                         onClick={() => handlePriorityChange(p)}
@@ -521,68 +612,75 @@ export function IssuesPage() {
                   </div>
                 </PopoverContent>
               </Popover>
-            )
-          }
+            );
+          };
 
-          return <PriorityCell />
+          return <PriorityCell />;
         },
       },
       {
-        headerName: '상태',
-        field: 'status',
+        headerName: "상태",
+        field: "status",
         width: 85,
-        headerClass: 'ag-header-cell-center',
+        headerClass: "ag-header-cell-center",
         editable: true,
-        cellEditor: 'agSelectCellEditor',
+        cellEditor: "agSelectCellEditor",
         cellEditorParams: {
-          values: ['OPEN', 'IN_PROGRESS', 'CLOSED'],
+          values: ["OPEN", "IN_PROGRESS", "CLOSED"],
         },
         cellRenderer: (params: any) => {
-          const status = params.value as IssueStatus
-          const label = statusLabels[status] || status
+          const status = params.value as IssueStatus;
+          const label = statusLabels[status] || status;
 
           return (
             <div className="w-full h-full flex items-center justify-center">
-              <Badge className={statusColors[status]}>
-                {label}
-              </Badge>
+              <Badge className={statusColors[status]}>{label}</Badge>
             </div>
-          )
+          );
         },
       },
       {
-        headerName: '요청자',
-        field: 'authorName',
+        headerName: "요청자",
+        field: "authorName",
         width: 70,
-        headerClass: 'ag-header-cell-center',
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' },
+        headerClass: "ag-header-cell-center",
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "13px",
+        } as CellStyle,
         editable: false, // 요청자는 수정 불가 (로그인한 사람 고정)
       },
       {
-        headerName: '담당자',
-        field: 'assigneeName',
+        headerName: "담당자",
+        field: "assigneeName",
         width: 90,
-        headerClass: 'ag-header-cell-center',
+        headerClass: "ag-header-cell-center",
         cellRenderer: (params: any) => {
           const handleClick = (e: React.MouseEvent) => {
-            e.stopPropagation()
-            setAssigneeDialogIssueId(params.data.id)
-            setIsAssigneeDialogOpen(true)
-          }
+            e.stopPropagation();
+            setAssigneeDialogIssueId(params.data.id);
+            setIsAssigneeDialogOpen(true);
+          };
 
           // 담당자 정보 조회 (useQuery 대신 간단하게 표시)
           const AssigneeCell = () => {
-            const { data: assignees } = useIssueAssignees(params.data.id)
-            const count = assignees?.length || 0
+            const { data: assignees } = useIssueAssignees(params.data.id);
+            const count = assignees?.length || 0;
 
             if (count === 0) {
-              return <span className="text-muted-foreground">미지정</span>
+              return <span className="text-muted-foreground">미지정</span>;
             } else if (count === 1) {
-              return <span>{assignees![0].username}</span>
+              return <span>{assignees![0].username}</span>;
             } else {
-              return <span>{assignees![0].username} 외 {count - 1}명</span>
+              return (
+                <span>
+                  {assignees![0].username} 외 {count - 1}명
+                </span>
+              );
             }
-          }
+          };
 
           return (
             <div
@@ -591,67 +689,67 @@ export function IssuesPage() {
             >
               <AssigneeCell />
             </div>
-          )
+          );
         },
       },
     ],
-    [statusColors, priorityColors, priorityLabels]
-  )
+    [statusColors, priorityColors, priorityLabels],
+  );
 
   const defaultColDef = useMemo<ColDef>(
     () => ({
       sortable: true,
       resizable: true,
     }),
-    []
-  )
+    [],
+  );
 
   // 수정된 행 및 선택된 행에 스타일 적용
   const rowClassRules = useMemo(
     () => ({
-      'bg-yellow-50': (params: any) => modifiedRowIds.has(params.data.id),
-      'bg-blue-50': (params: any) => params.data.id === selectedIssueId,
+      "bg-yellow-50": (params: any) => modifiedRowIds.has(params.data.id),
+      "bg-blue-50": (params: any) => params.data.id === selectedIssueId,
     }),
-    [modifiedRowIds, selectedIssueId]
-  )
+    [modifiedRowIds, selectedIssueId],
+  );
 
   // 행 클릭 이벤트 (상세 보기)
   const onRowClicked = (event: any) => {
-    setSelectedIssueId(event.data.id)
-    setIsEditing(false)
-  }
+    setSelectedIssueId(event.data.id);
+    setIsEditing(false);
+  };
 
   // 신규 작성
   const handleNew = () => {
-    setSelectedIssueId(null)
-    setFormTitle('')
-    setFormContent('')
-    setFormCategory('COMMON')
-    setFormStatus('OPEN')
-    setFormPriority('MEDIUM')
-    setIsEditing(true)
-  }
+    setSelectedIssueId(null);
+    setFormTitle("");
+    setFormContent("");
+    setFormCategory("COMMON");
+    setFormStatus("OPEN");
+    setFormPriority("MEDIUM");
+    setIsEditing(true);
+  };
 
   // 수정 모드로 전환
   const handleEdit = () => {
-    if (!issueDetail) return
-    setFormTitle(issueDetail.title)
-    setFormContent(issueDetail.content)
-    setFormCategory(issueDetail.category)
-    setFormStatus(issueDetail.status)
-    setFormPriority(issueDetail.priority)
-    setIsEditing(true)
-  }
+    if (!issueDetail) return;
+    setFormTitle(issueDetail.title);
+    setFormContent(issueDetail.content);
+    setFormCategory(issueDetail.category);
+    setFormStatus(issueDetail.status);
+    setFormPriority(issueDetail.priority);
+    setIsEditing(true);
+  };
 
   // 저장
   const handleSave = () => {
     if (!formTitle.trim()) {
-      toast.error('제목을 입력하세요')
-      return
+      toast.error("제목을 입력하세요");
+      return;
     }
     if (!formContent.trim()) {
-      toast.error('내용을 입력하세요')
-      return
+      toast.error("내용을 입력하세요");
+      return;
     }
 
     const data = {
@@ -660,67 +758,71 @@ export function IssuesPage() {
       category: formCategory,
       status: formStatus,
       priority: formPriority,
-    }
+    };
 
     if (selectedIssueId) {
       // 수정
-      updateIssue({ id: selectedIssueId, request: data }, {
-        onSuccess: () => {
-          setIsEditing(false)
+      updateIssue(
+        { id: selectedIssueId, request: data },
+        {
+          onSuccess: () => {
+            setIsEditing(false);
+          },
         },
-      })
+      );
     } else {
       // 신규 생성
       createIssue(data, {
         onSuccess: () => {
-          setIsEditing(false)
-          setSelectedIssueId(null)
+          setIsEditing(false);
+          setSelectedIssueId(null);
         },
-      })
+      });
     }
-  }
+  };
 
   // 취소
   const handleCancel = () => {
     if (selectedIssueId) {
-      setIsEditing(false)
+      setIsEditing(false);
     } else {
-      setIsEditing(false)
-      setSelectedIssueId(null)
+      setIsEditing(false);
+      setSelectedIssueId(null);
     }
-  }
+  };
 
   // 삭제
   const handleDelete = async () => {
-    if (!selectedIssueId) return
+    if (!selectedIssueId) return;
 
     const confirmed = await confirm({
-      title: '이슈 삭제',
-      description: '정말로 이 이슈를 삭제하시겠습니까? 모든 댓글과 체크리스트도 함께 삭제됩니다.',
-      confirmText: '삭제',
-      cancelText: '취소',
-      variant: 'destructive',
-    })
+      title: "이슈 삭제",
+      description:
+        "정말로 이 이슈를 삭제하시겠습니까? 모든 댓글과 체크리스트도 함께 삭제됩니다.",
+      confirmText: "삭제",
+      cancelText: "취소",
+      variant: "destructive",
+    });
 
     if (confirmed) {
       deleteIssue(selectedIssueId, {
         onSuccess: () => {
-          setSelectedIssueId(null)
-          setIsEditing(false)
+          setSelectedIssueId(null);
+          setIsEditing(false);
         },
-      })
+      });
     }
-  }
+  };
 
   // 상태 변경
   const handleStatusChange = (newStatus: IssueStatus) => {
-    if (!selectedIssueId) return
-    updateStatus({ id: selectedIssueId, status: newStatus })
-  }
+    if (!selectedIssueId) return;
+    updateStatus({ id: selectedIssueId, status: newStatus });
+  };
 
   // 우선순위 변경
   const handlePriorityChange = (newPriority: IssuePriority) => {
-    if (!selectedIssueId || !issueDetail) return
+    if (!selectedIssueId || !issueDetail) return;
     updateIssue({
       id: selectedIssueId,
       request: {
@@ -730,12 +832,12 @@ export function IssuesPage() {
         status: issueDetail.status,
         priority: newPriority,
       },
-    })
-  }
+    });
+  };
 
   // 카테고리 변경
   const handleCategoryChange = (newCategory: IssueCategory) => {
-    if (!selectedIssueId || !issueDetail) return
+    if (!selectedIssueId || !issueDetail) return;
     updateIssue({
       id: selectedIssueId,
       request: {
@@ -745,123 +847,125 @@ export function IssuesPage() {
         status: issueDetail.status,
         priority: issueDetail.priority,
       },
-    })
-  }
+    });
+  };
 
   // 담당자 Dialog 열기
   const openAssigneeDialog = () => {
-    if (!selectedIssueId) return
+    if (!selectedIssueId) return;
     // 현재 담당자 목록으로 초기화
-    const currentAssigneeIds = issueAssignees?.map((a) => a.userId) || []
-    setSelectedUserIds(currentAssigneeIds)
-    setIsAssigneeDialogOpen(true)
-  }
+    const currentAssigneeIds = issueAssignees?.map((a) => a.userId) || [];
+    setSelectedUserIds(currentAssigneeIds);
+    setIsAssigneeDialogOpen(true);
+  };
 
   // 담당자 변경 저장
   const handleSaveAssignees = () => {
-    const targetIssueId = assigneeDialogIssueId || selectedIssueId
-    if (!targetIssueId) return
+    const targetIssueId = assigneeDialogIssueId || selectedIssueId;
+    if (!targetIssueId) return;
     updateAssignees(selectedUserIds, {
       onSuccess: () => {
-        setIsAssigneeDialogOpen(false)
-        setAssigneeDialogIssueId(null)
+        setIsAssigneeDialogOpen(false);
+        setAssigneeDialogIssueId(null);
       },
-    })
-  }
+    });
+  };
 
   // 담당자 추가 (왼쪽 → 오른쪽)
   const addAssignee = (userId: number) => {
-    setSelectedUserIds((prev) => [...prev, userId])
-  }
+    setSelectedUserIds((prev) => [...prev, userId]);
+  };
 
   // 담당자 제거 (오른쪽 → 왼쪽)
   const removeAssignee = (userId: number) => {
-    setSelectedUserIds((prev) => prev.filter((id) => id !== userId))
-  }
+    setSelectedUserIds((prev) => prev.filter((id) => id !== userId));
+  };
 
   // 체크리스트 추가
   const handleAddChecklist = () => {
     if (!newChecklistContent.trim()) {
-      toast.error('체크리스트 내용을 입력하세요')
-      return
+      toast.error("체크리스트 내용을 입력하세요");
+      return;
     }
 
-    const orderNum = (checklists?.length || 0)
-    createChecklist({ content: newChecklistContent, orderNum })
-    setNewChecklistContent('')
-  }
+    const orderNum = checklists?.length || 0;
+    createChecklist({ content: newChecklistContent, orderNum });
+    setNewChecklistContent("");
+  };
 
   // 체크리스트 삭제
   const handleDeleteChecklistItem = async (checklistId: number) => {
     const confirmed = await confirm({
-      title: '체크리스트 삭제',
-      description: '이 항목을 삭제하시겠습니까?',
-      confirmText: '삭제',
-      cancelText: '취소',
-      variant: 'destructive',
-    })
+      title: "체크리스트 삭제",
+      description: "이 항목을 삭제하시겠습니까?",
+      confirmText: "삭제",
+      cancelText: "취소",
+      variant: "destructive",
+    });
 
     if (confirmed) {
-      deleteChecklist(checklistId)
+      deleteChecklist(checklistId);
     }
-  }
+  };
 
   // 이미지 업로드 핸들러
   const handleImageUpload = (files: FileList | File[]) => {
-    const fileArray = Array.from(files)
-    const imageFiles = fileArray.filter((file) => file.type.startsWith('image/'))
+    const fileArray = Array.from(files);
+    const imageFiles = fileArray.filter((file) =>
+      file.type.startsWith("image/"),
+    );
 
     if (imageFiles.length === 0) {
-      toast.error('이미지 파일만 업로드 가능합니다.')
-      return
+      toast.error("이미지 파일만 업로드 가능합니다.");
+      return;
     }
 
     imageFiles.forEach((file) => {
-      uploadImage({ file, fileType: 'image' })
-    })
-  }
+      uploadImage({ file, fileType: "image" });
+    });
+  };
 
   // 마인드맵 보기 다이얼로그 열기
   const handleViewMindmap = (mindmapId: number) => {
-    const mindmap = mindmaps?.find((m) => m.id === mindmapId)
+    const mindmap = mindmaps?.find((m) => m.id === mindmapId);
     if (mindmap) {
-      setViewMindmapData({ title: mindmap.title, content: mindmap.content })
-      setIsMindmapViewDialogOpen(true)
+      setViewMindmapData({ title: mindmap.title, content: mindmap.content });
+      setIsMindmapViewDialogOpen(true);
     }
-  }
+  };
 
   // 마인드맵 추가/수정 다이얼로그 열기
   const handleOpenMindmapDialog = (mindmapId?: number) => {
     if (mindmapId) {
-      const mindmap = mindmaps?.find((m) => m.id === mindmapId)
+      const mindmap = mindmaps?.find((m) => m.id === mindmapId);
       if (mindmap) {
-        setSelectedMindmapId(mindmapId)
-        setMindmapTitle(mindmap.title)
-        setMindmapContent(mindmap.content)
+        setSelectedMindmapId(mindmapId);
+        setMindmapTitle(mindmap.title);
+        setMindmapContent(mindmap.content);
       }
     } else {
-      setSelectedMindmapId(null)
-      setMindmapTitle('')
-      setMindmapContent('')
+      setSelectedMindmapId(null);
+      setMindmapTitle("");
+      setMindmapContent("");
     }
-    setValidationResult(null) // 검증 결과 초기화
-    setIsMindmapDialogOpen(true)
-  }
+    setValidationResult(null); // 검증 결과 초기화
+    setIsMindmapDialogOpen(true);
+  };
 
   // 마인드맵 저장
   const handleSaveMindmap = () => {
     if (!mindmapTitle.trim()) {
-      toast.error('제목을 입력하세요')
-      return
+      toast.error("제목을 입력하세요");
+      return;
     }
     if (!mindmapContent.trim()) {
-      toast.error('내용을 입력하세요')
-      return
+      toast.error("내용을 입력하세요");
+      return;
     }
 
     if (selectedMindmapId) {
       // 수정
-      const mindmap = mindmaps?.find((m) => m.id === selectedMindmapId)
+      const mindmap = mindmaps?.find((m) => m.id === selectedMindmapId);
       updateMindmap({
         mindmapId: selectedMindmapId,
         request: {
@@ -869,57 +973,61 @@ export function IssuesPage() {
           content: mindmapContent,
           orderNum: mindmap?.orderNum || 0,
         },
-      })
+      });
     } else {
       // 새로 추가
-      const orderNum = (mindmaps?.length || 0)
+      const orderNum = mindmaps?.length || 0;
       createMindmap({
         title: mindmapTitle,
         content: mindmapContent,
         orderNum,
-      })
+      });
     }
 
-    setIsMindmapDialogOpen(false)
-    setMindmapTitle('')
-    setMindmapContent('')
-    setSelectedMindmapId(null)
-  }
+    setIsMindmapDialogOpen(false);
+    setMindmapTitle("");
+    setMindmapContent("");
+    setSelectedMindmapId(null);
+  };
 
   // 마인드맵 삭제
   const handleDeleteMindmap = async (mindmapId: number) => {
     const confirmed = await confirm({
-      title: '마인드맵 삭제',
-      description: '이 마인드맵을 삭제하시겠습니까?',
-      confirmText: '삭제',
-      cancelText: '취소',
-      variant: 'destructive',
-    })
+      title: "마인드맵 삭제",
+      description: "이 마인드맵을 삭제하시겠습니까?",
+      confirmText: "삭제",
+      cancelText: "취소",
+      variant: "destructive",
+    });
 
     if (confirmed) {
-      deleteMindmap(mindmapId)
+      deleteMindmap(mindmapId);
     }
-  }
+  };
 
   // Mermaid 문법 검증
   const handleValidateMermaid = async () => {
     if (!mindmapContent.trim()) {
-      setValidationResult({ isValid: false, error: 'Mermaid 코드를 입력하세요' })
-      toast.error('Mermaid 코드를 입력하세요')
-      return
+      setValidationResult({
+        isValid: false,
+        error: "Mermaid 코드를 입력하세요",
+      });
+      toast.error("Mermaid 코드를 입력하세요");
+      return;
     }
 
     try {
-      await mermaid.parse(mindmapContent, { suppressErrors: false })
+      await mermaid.parse(mindmapContent, { suppressErrors: false });
 
-      setValidationResult({ isValid: true })
-      toast.success('✅ Mermaid 문법이 올바릅니다')
+      setValidationResult({ isValid: true });
+      toast.success("✅ Mermaid 문법이 올바릅니다");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      setValidationResult({ isValid: false, error: errorMessage })
-      toast.error('❌ Mermaid 문법 오류가 있습니다')
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      setValidationResult({ isValid: false, error: errorMessage });
+      toast.error("❌ Mermaid 문법 오류가 있습니다");
     }
-  }
+  };
 
   // 업무 연결 (미래 기능용)
   // const _handleLinkTask = () => {
@@ -952,55 +1060,55 @@ export function IssuesPage() {
   // DB 테이블 다이얼로그 열기
   const handleOpenDbTableDialog = (dbTableId?: number) => {
     if (dbTableId) {
-      const dbTable = dbTables?.find((t) => t.id === dbTableId)
+      const dbTable = dbTables?.find((t) => t.id === dbTableId);
       if (dbTable) {
-        setSelectedDbTableId(dbTableId)
-        const content = parseDbTableContent(dbTable.tableInfo)
-        setDbTableContent(content)
+        setSelectedDbTableId(dbTableId);
+        const content = parseDbTableContent(dbTable.tableInfo);
+        setDbTableContent(content);
       }
     } else {
-      setSelectedDbTableId(null)
+      setSelectedDbTableId(null);
       setDbTableContent({
-        tableName: '',
-        schema: '',
-        category: '',
-        description: '',
-        queryResult: '',
+        tableName: "",
+        schema: "",
+        category: "",
+        description: "",
+        queryResult: "",
         columns: [],
-      })
+      });
     }
-    setIsDbTableDialogOpen(true)
-  }
+    setIsDbTableDialogOpen(true);
+  };
 
   // DB 테이블 저장
   const handleSaveDbTable = () => {
     if (!dbTableContent.tableName.trim()) {
-      toast.error('테이블명을 입력하세요')
-      return
+      toast.error("테이블명을 입력하세요");
+      return;
     }
     if (!dbTableContent.queryResult.trim()) {
-      toast.error('쿼리 결과를 입력하세요')
-      return
+      toast.error("쿼리 결과를 입력하세요");
+      return;
     }
 
     // 쿼리 결과 파싱
-    const parsedColumns = parseTsvToColumns(dbTableContent.queryResult)
+    const parsedColumns = parseTsvToColumns(dbTableContent.queryResult);
     if (parsedColumns.length === 0) {
-      toast.error('유효한 쿼리 결과를 입력하세요')
-      return
+      toast.error("유효한 쿼리 결과를 입력하세요");
+      return;
     }
 
     // columns 추가해서 저장
     const contentToSave = {
       ...dbTableContent,
       columns: parsedColumns,
-    }
+    };
 
-    const tableInfo = JSON.stringify(contentToSave)
-    const tableName = dbTableContent.tableName
+    const tableInfo = JSON.stringify(contentToSave);
+    const tableName = dbTableContent.tableName;
 
     if (selectedDbTableId) {
-      const dbTable = dbTables?.find((t) => t.id === selectedDbTableId)
+      const dbTable = dbTables?.find((t) => t.id === selectedDbTableId);
       updateDbTable({
         dbTableId: selectedDbTableId,
         request: {
@@ -1008,109 +1116,113 @@ export function IssuesPage() {
           tableInfo,
           orderNum: dbTable?.orderNum || 0,
         },
-      })
+      });
     } else {
-      const orderNum = (dbTables?.length || 0)
+      const orderNum = dbTables?.length || 0;
       createDbTable({
         tableName,
         tableInfo,
         orderNum,
-      })
+      });
     }
 
-    setIsDbTableDialogOpen(false)
+    setIsDbTableDialogOpen(false);
     setDbTableContent({
-      tableName: '',
-      schema: '',
-      category: '',
-      description: '',
-      queryResult: '',
+      tableName: "",
+      schema: "",
+      category: "",
+      description: "",
+      queryResult: "",
       columns: [],
-    })
-    setSelectedDbTableId(null)
-  }
-
+    });
+    setSelectedDbTableId(null);
+  };
 
   // DB 테이블 삭제
   const handleDeleteDbTable = async (dbTableId: number) => {
     const confirmed = await confirm({
-      title: 'DB 테이블 삭제',
-      description: '이 DB 테이블 정보를 삭제하시겠습니까?',
-      confirmText: '삭제',
-      cancelText: '취소',
-      variant: 'destructive',
-    })
+      title: "DB 테이블 삭제",
+      description: "이 DB 테이블 정보를 삭제하시겠습니까?",
+      confirmText: "삭제",
+      cancelText: "취소",
+      variant: "destructive",
+    });
 
     if (confirmed) {
-      deleteDbTable(dbTableId)
+      deleteDbTable(dbTableId);
     }
-  }
+  };
 
   // 드래그앤드롭 핸들러
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
+    e.preventDefault();
+    setIsDragging(true);
+  };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }
+    e.preventDefault();
+    setIsDragging(false);
+  };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
+    e.preventDefault();
+    setIsDragging(false);
 
     if (e.dataTransfer.files) {
-      handleImageUpload(e.dataTransfer.files)
+      handleImageUpload(e.dataTransfer.files);
     }
-  }
+  };
 
   // 업로드 영역 클릭 (활성화)
   const handleUploadAreaClick = () => {
-    setIsPasteMode(true)
-    uploadAreaRef.current?.focus()
-  }
+    setIsPasteMode(true);
+    uploadAreaRef.current?.focus();
+  };
 
   // 포커스를 잃으면 비활성화
   const handleUploadAreaBlur = () => {
-    setIsPasteMode(false)
-  }
+    setIsPasteMode(false);
+  };
 
   // 붙여넣기 핸들러 (활성화 상태일 때만)
   const handlePaste = (e: React.ClipboardEvent) => {
-    if (!isPasteMode) return
+    if (!isPasteMode) return;
 
-    const items = e.clipboardData?.items
-    if (!items) return
+    const items = e.clipboardData?.items;
+    if (!items) return;
 
-    const imageItems = Array.from(items).filter((item) => item.type.startsWith('image/'))
-    if (imageItems.length === 0) return
+    const imageItems = Array.from(items).filter((item) =>
+      item.type.startsWith("image/"),
+    );
+    if (imageItems.length === 0) return;
 
-    const files = imageItems.map((item) => item.getAsFile()).filter((file): file is File => file !== null)
+    const files = imageItems
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file !== null);
     if (files.length > 0) {
-      handleImageUpload(files)
+      handleImageUpload(files);
     }
-  }
+  };
 
   const categoryLabels: Record<IssueCategory, string> = {
-    COMMON: '일반',
-    BUG: '버그',
-    FEATURE: '기능',
-    IMPROVEMENT: '개선',
-    QUESTION: '질문',
-  }
+    COMMON: "일반",
+    BUG: "버그",
+    FEATURE: "기능",
+    IMPROVEMENT: "개선",
+    QUESTION: "질문",
+  };
 
   // 상태별 카운트 계산
   const statusCounts = useMemo(() => {
-    const allIssues = issuesData?.items || []
+    const allIssues = issuesData?.items || [];
     return {
-      OPEN: allIssues.filter((issue) => issue.status === 'OPEN').length,
-      IN_PROGRESS: allIssues.filter((issue) => issue.status === 'IN_PROGRESS').length,
-      CLOSED: allIssues.filter((issue) => issue.status === 'CLOSED').length,
+      OPEN: allIssues.filter((issue) => issue.status === "OPEN").length,
+      IN_PROGRESS: allIssues.filter((issue) => issue.status === "IN_PROGRESS")
+        .length,
+      CLOSED: allIssues.filter((issue) => issue.status === "CLOSED").length,
       ALL: allIssues.length,
-    }
-  }, [issuesData])
+    };
+  }, [issuesData]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -1122,8 +1234,7 @@ export function IssuesPage() {
             {/* <p className="text-muted-foreground mt-1">프로젝트 이슈를 등록하고 관리할 수 있습니다.</p> */}
           </div>
           <Button onClick={handleNew}>
-            <Plus className="w-4 h-4 mr-2" />
-            새 이슈
+            <Plus className="w-4 h-4 mr-2" />새 이슈
           </Button>
         </div>
 
@@ -1131,50 +1242,50 @@ export function IssuesPage() {
         <div className="flex gap-3 items-center">
           <div className="flex gap-1.5">
             <Button
-              variant={filterCategory === 'ALL' ? 'default' : 'outline'}
+              variant={filterCategory === "ALL" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterCategory('ALL')}
+              onClick={() => setFilterCategory("ALL")}
               className="h-8 px-3 text-xs"
             >
               전체
             </Button>
             <div className="w-px bg-border mx-1" />
             <Button
-              variant={filterCategory === 'COMMON' ? 'default' : 'outline'}
+              variant={filterCategory === "COMMON" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterCategory('COMMON')}
+              onClick={() => setFilterCategory("COMMON")}
               className="h-8 px-3 text-xs"
             >
               일반
             </Button>
             <Button
-              variant={filterCategory === 'BUG' ? 'default' : 'outline'}
+              variant={filterCategory === "BUG" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterCategory('BUG')}
+              onClick={() => setFilterCategory("BUG")}
               className="h-8 px-3 text-xs"
             >
               버그
             </Button>
             <Button
-              variant={filterCategory === 'FEATURE' ? 'default' : 'outline'}
+              variant={filterCategory === "FEATURE" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterCategory('FEATURE')}
+              onClick={() => setFilterCategory("FEATURE")}
               className="h-8 px-3 text-xs"
             >
               기능
             </Button>
             <Button
-              variant={filterCategory === 'IMPROVEMENT' ? 'default' : 'outline'}
+              variant={filterCategory === "IMPROVEMENT" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterCategory('IMPROVEMENT')}
+              onClick={() => setFilterCategory("IMPROVEMENT")}
               className="h-8 px-3 text-xs"
             >
               개선
             </Button>
             <Button
-              variant={filterCategory === 'QUESTION' ? 'default' : 'outline'}
+              variant={filterCategory === "QUESTION" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterCategory('QUESTION')}
+              onClick={() => setFilterCategory("QUESTION")}
               className="h-8 px-3 text-xs"
             >
               질문
@@ -1198,33 +1309,35 @@ export function IssuesPage() {
           {/* 상태별 카운트 버튼 */}
           <div className="flex gap-1.5 mb-2">
             <Button
-              variant={filterStatus === 'ALL' ? 'default' : 'outline'}
+              variant={filterStatus === "ALL" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus('ALL')}
+              onClick={() => setFilterStatus("ALL")}
               className="flex-1"
             >
               전체 <span className="ml-2 font-bold">{statusCounts.ALL}</span>
             </Button>
             <Button
-              variant={filterStatus === 'OPEN' ? 'default' : 'outline'}
+              variant={filterStatus === "OPEN" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus('OPEN')}
+              onClick={() => setFilterStatus("OPEN")}
               className="flex-1"
             >
-              진행 전 <span className="ml-2 font-bold">{statusCounts.OPEN}</span>
+              진행 전{" "}
+              <span className="ml-2 font-bold">{statusCounts.OPEN}</span>
             </Button>
             <Button
-              variant={filterStatus === 'IN_PROGRESS' ? 'default' : 'outline'}
+              variant={filterStatus === "IN_PROGRESS" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus('IN_PROGRESS')}
+              onClick={() => setFilterStatus("IN_PROGRESS")}
               className="flex-1"
             >
-              진행 중 <span className="ml-2 font-bold">{statusCounts.IN_PROGRESS}</span>
+              진행 중{" "}
+              <span className="ml-2 font-bold">{statusCounts.IN_PROGRESS}</span>
             </Button>
             <Button
-              variant={filterStatus === 'CLOSED' ? 'default' : 'outline'}
+              variant={filterStatus === "CLOSED" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus('CLOSED')}
+              onClick={() => setFilterStatus("CLOSED")}
               className="flex-1"
             >
               완료 <span className="ml-2 font-bold">{statusCounts.CLOSED}</span>
@@ -1234,21 +1347,24 @@ export function IssuesPage() {
           {/* Grid Toolbar */}
           <div className="flex justify-end gap-1.5 mb-1.5 pb-1.5 border-b">
             <Button onClick={handleAddRow} size="sm" variant="outline">
-              <Plus className="w-4 h-4 mr-1" />
-              행 추가
+              <Plus className="w-4 h-4 mr-1" />행 추가
             </Button>
             {modifiedRowIds.size > 0 && (
               <Button onClick={handleSaveModified} size="sm" variant="default">
                 저장 ({modifiedRowIds.size})
               </Button>
             )}
-            <Button onClick={handleDeleteSelected} size="sm" variant="destructive">
+            <Button
+              onClick={handleDeleteSelected}
+              size="sm"
+              variant="destructive"
+            >
               <Trash2 className="w-4 h-4 mr-1" />
               삭제
             </Button>
           </div>
 
-          <div className="flex-1" style={{ height: '100%' }}>
+          <div className="flex-1" style={{ height: "100%" }}>
             <AgGridReact<Issue>
               ref={gridRef}
               rowData={issues}
@@ -1283,7 +1399,7 @@ export function IssuesPage() {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">
-                  {selectedIssueId ? '이슈 수정' : '새 이슈 작성'}
+                  {selectedIssueId ? "이슈 수정" : "새 이슈 작성"}
                 </h2>
                 <div className="flex gap-2">
                   <Button onClick={handleSave}>저장</Button>
@@ -1297,8 +1413,13 @@ export function IssuesPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">카테고리</label>
-                    <Select value={formCategory} onValueChange={(v) => setFormCategory(v as IssueCategory)}>
+                    <label className="block text-sm font-medium mb-2">
+                      카테고리
+                    </label>
+                    <Select
+                      value={formCategory}
+                      onValueChange={(v) => setFormCategory(v as IssueCategory)}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1313,8 +1434,13 @@ export function IssuesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">상태</label>
-                    <Select value={formStatus} onValueChange={(v) => setFormStatus(v as IssueStatus)}>
+                    <label className="block text-sm font-medium mb-2">
+                      상태
+                    </label>
+                    <Select
+                      value={formStatus}
+                      onValueChange={(v) => setFormStatus(v as IssueStatus)}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1328,8 +1454,13 @@ export function IssuesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">우선순위</label>
-                  <Select value={formPriority} onValueChange={(v) => setFormPriority(v as IssuePriority)}>
+                  <label className="block text-sm font-medium mb-2">
+                    우선순위
+                  </label>
+                  <Select
+                    value={formPriority}
+                    onValueChange={(v) => setFormPriority(v as IssuePriority)}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -1343,7 +1474,9 @@ export function IssuesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">제목 *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    제목 *
+                  </label>
                   <input
                     type="text"
                     value={formTitle}
@@ -1354,7 +1487,9 @@ export function IssuesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">내용 *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    내용 *
+                  </label>
                   <textarea
                     value={formContent}
                     onChange={(e) => setFormContent(e.target.value)}
@@ -1370,13 +1505,19 @@ export function IssuesPage() {
             <div>
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">{issueDetail.title}</h2>
+                  <h2 className="text-2xl font-bold mb-2">
+                    {issueDetail.title}
+                  </h2>
                   <div className="flex gap-2 items-center text-sm text-muted-foreground">
                     <span>#{issueDetail.id}</span>
                     <span>•</span>
                     <span>{issueDetail.authorName}</span>
                     <span>•</span>
-                    <span>{new Date(issueDetail.createdAt).toLocaleDateString('ko-KR')}</span>
+                    <span>
+                      {new Date(issueDetail.createdAt).toLocaleDateString(
+                        "ko-KR",
+                      )}
+                    </span>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -1396,7 +1537,9 @@ export function IssuesPage() {
                 <table className="w-full text-sm">
                   <tbody>
                     <tr className="border-b">
-                      <td className="bg-muted px-4 py-2 font-medium w-32">카테고리</td>
+                      <td className="bg-muted px-4 py-2 font-medium w-32">
+                        카테고리
+                      </td>
                       <td className="px-4 py-2">
                         <Popover>
                           <PopoverTrigger asChild>
@@ -1409,11 +1552,15 @@ export function IssuesPage() {
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
                             <div className="space-y-1">
-                              {(Object.keys(categoryLabels) as IssueCategory[]).map((cat) => (
+                              {(
+                                Object.keys(categoryLabels) as IssueCategory[]
+                              ).map((cat) => (
                                 <div
                                   key={cat}
                                   className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
-                                    cat === issueDetail.category ? 'bg-accent' : ''
+                                    cat === issueDetail.category
+                                      ? "bg-accent"
+                                      : ""
                                   }`}
                                   onClick={() => handleCategoryChange(cat)}
                                 >
@@ -1424,7 +1571,9 @@ export function IssuesPage() {
                           </PopoverContent>
                         </Popover>
                       </td>
-                      <td className="bg-muted px-4 py-2 font-medium w-32">작성자</td>
+                      <td className="bg-muted px-4 py-2 font-medium w-32">
+                        작성자
+                      </td>
                       <td className="px-4 py-2">{issueDetail.authorName}</td>
                     </tr>
                     <tr className="border-b">
@@ -1440,22 +1589,28 @@ export function IssuesPage() {
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
                             <div className="space-y-1">
-                              {(Object.keys(statusLabels) as IssueStatus[]).map((status) => (
-                                <div
-                                  key={status}
-                                  className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
-                                    status === issueDetail.status ? 'bg-accent' : ''
-                                  }`}
-                                  onClick={() => handleStatusChange(status)}
-                                >
-                                  {statusLabels[status]}
-                                </div>
-                              ))}
+                              {(Object.keys(statusLabels) as IssueStatus[]).map(
+                                (status) => (
+                                  <div
+                                    key={status}
+                                    className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
+                                      status === issueDetail.status
+                                        ? "bg-accent"
+                                        : ""
+                                    }`}
+                                    onClick={() => handleStatusChange(status)}
+                                  >
+                                    {statusLabels[status]}
+                                  </div>
+                                ),
+                              )}
                             </div>
                           </PopoverContent>
                         </Popover>
                       </td>
-                      <td className="bg-muted px-4 py-2 font-medium">우선순위</td>
+                      <td className="bg-muted px-4 py-2 font-medium">
+                        우선순위
+                      </td>
                       <td className="px-4 py-2">
                         <Popover>
                           <PopoverTrigger asChild>
@@ -1467,11 +1622,15 @@ export function IssuesPage() {
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
                             <div className="space-y-1">
-                              {(Object.keys(priorityLabels) as IssuePriority[]).map((priority) => (
+                              {(
+                                Object.keys(priorityLabels) as IssuePriority[]
+                              ).map((priority) => (
                                 <div
                                   key={priority}
                                   className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
-                                    priority === issueDetail.priority ? 'bg-accent' : ''
+                                    priority === issueDetail.priority
+                                      ? "bg-accent"
+                                      : ""
                                   }`}
                                   onClick={() => handlePriorityChange(priority)}
                                 >
@@ -1491,13 +1650,18 @@ export function IssuesPage() {
                             {issueAssignees && issueAssignees.length > 0 ? (
                               <>
                                 {issueAssignees.map((assignee) => (
-                                  <Badge key={assignee.userId} variant="outline">
+                                  <Badge
+                                    key={assignee.userId}
+                                    variant="outline"
+                                  >
                                     {assignee.username}
                                   </Badge>
                                 ))}
                               </>
                             ) : (
-                              <span className="text-muted-foreground">미지정</span>
+                              <span className="text-muted-foreground">
+                                미지정
+                              </span>
                             )}
                           </div>
                           <Button
@@ -1512,38 +1676,52 @@ export function IssuesPage() {
                         </div>
                       </td>
                       <td className="bg-muted px-4 py-2 font-medium">폴더</td>
-                      <td className="px-4 py-2">{issueDetail.folderId || '-'}</td>
+                      <td className="px-4 py-2">
+                        {issueDetail.folderId || "-"}
+                      </td>
                     </tr>
                     <tr>
                       <td className="bg-muted px-4 py-2 font-medium">작성일</td>
                       <td className="px-4 py-2">
-                        {new Date(issueDetail.createdAt).toLocaleDateString('ko-KR', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                        })}{' '}
-                        오전{' '}
-                        {new Date(issueDetail.createdAt).toLocaleTimeString('ko-KR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: false,
-                        })}
+                        {new Date(issueDetail.createdAt).toLocaleDateString(
+                          "ko-KR",
+                          {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                          },
+                        )}{" "}
+                        오전{" "}
+                        {new Date(issueDetail.createdAt).toLocaleTimeString(
+                          "ko-KR",
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            hour12: false,
+                          },
+                        )}
                       </td>
                       <td className="bg-muted px-4 py-2 font-medium">수정일</td>
                       <td className="px-4 py-2">
-                        {new Date(issueDetail.updatedAt).toLocaleDateString('ko-KR', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                        })}{' '}
-                        오후{' '}
-                        {new Date(issueDetail.updatedAt).toLocaleTimeString('ko-KR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: false,
-                        })}
+                        {new Date(issueDetail.updatedAt).toLocaleDateString(
+                          "ko-KR",
+                          {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                          },
+                        )}{" "}
+                        오후{" "}
+                        {new Date(issueDetail.updatedAt).toLocaleTimeString(
+                          "ko-KR",
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            hour12: false,
+                          },
+                        )}
                       </td>
                     </tr>
                   </tbody>
@@ -1555,21 +1733,24 @@ export function IssuesPage() {
                 <Tabs defaultValue="images" className="w-full">
                   <TabsList className="mb-3">
                     <TabsTrigger value="images">
-                      이미지 {issueImages && issueImages.length > 0 && (
+                      이미지{" "}
+                      {issueImages && issueImages.length > 0 && (
                         <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                           {issueImages.length}
                         </span>
                       )}
                     </TabsTrigger>
                     <TabsTrigger value="mmd">
-                      마인드맵 (MMD) {mindmaps && mindmaps.length > 0 && (
+                      마인드맵 (MMD){" "}
+                      {mindmaps && mindmaps.length > 0 && (
                         <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                           {mindmaps.length}
                         </span>
                       )}
                     </TabsTrigger>
                     <TabsTrigger value="tasks">
-                      DB 테이블 {dbTables && dbTables.length > 0 && (
+                      DB 테이블{" "}
+                      {dbTables && dbTables.length > 0 && (
                         <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                           {dbTables.length}
                         </span>
@@ -1588,7 +1769,7 @@ export function IssuesPage() {
                         disabled={isUploading}
                       >
                         <Upload className="w-4 h-4 mr-2" />
-                        {isUploading ? '업로드 중...' : '이미지 추가'}
+                        {isUploading ? "업로드 중..." : "이미지 추가"}
                       </Button>
                       <input
                         ref={imageInputRef}
@@ -1596,7 +1777,9 @@ export function IssuesPage() {
                         accept="image/*"
                         multiple
                         className="hidden"
-                        onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
+                        onChange={(e) =>
+                          e.target.files && handleImageUpload(e.target.files)
+                        }
                       />
                     </div>
 
@@ -1606,10 +1789,10 @@ export function IssuesPage() {
                       tabIndex={0}
                       className={`border-2 border-dashed rounded-lg p-6 transition-all cursor-pointer outline-none ${
                         isPasteMode
-                          ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                          ? "border-primary bg-primary/10 ring-2 ring-primary/20"
                           : isDragging
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
                       }`}
                       onClick={handleUploadAreaClick}
                       onBlur={handleUploadAreaBlur}
@@ -1617,30 +1800,40 @@ export function IssuesPage() {
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
                     >
-                      {issueImages && issueImages.filter((img) => img.fileType === 'image' || !img.fileType).length > 0 ? (
+                      {issueImages &&
+                      issueImages.filter(
+                        (img) => img.fileType === "image" || !img.fileType,
+                      ).length > 0 ? (
                         <div className="grid grid-cols-3 gap-2">
-                          {issueImages.filter((img) => img.fileType === 'image' || !img.fileType).map((image) => (
-                            <div
-                              key={image.id}
-                              className="relative group aspect-square rounded overflow-hidden border bg-gray-100"
-                            >
-                              <img
-                                src={image.url}
-                                alt={image.filename}
-                                className="w-full h-full object-cover cursor-pointer"
-                                onClick={() => window.open(image.url, '_blank')}
-                              />
-                              <button
-                                onClick={() => deleteImage(image.id)}
-                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity leading-none"
+                          {issueImages
+                            .filter(
+                              (img) =>
+                                img.fileType === "image" || !img.fileType,
+                            )
+                            .map((image) => (
+                              <div
+                                key={image.id}
+                                className="relative group aspect-square rounded overflow-hidden border bg-gray-100"
                               >
-                                ✕
-                              </button>
-                              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate opacity-0 group-hover:opacity-100 transition-opacity">
-                                {image.filename}
+                                <img
+                                  src={image.url}
+                                  alt={image.filename}
+                                  className="w-full h-full object-cover cursor-pointer"
+                                  onClick={() =>
+                                    window.open(image.url, "_blank")
+                                  }
+                                />
+                                <button
+                                  onClick={() => deleteImage(image.id)}
+                                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity leading-none"
+                                >
+                                  ✕
+                                </button>
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {image.filename}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       ) : (
                         <div className="text-center py-8 text-muted-foreground">
@@ -1651,7 +1844,8 @@ export function IssuesPage() {
                             </p>
                           ) : (
                             <p className="text-sm">
-                              이미지를 드래그하여 놓거나, 클릭하여 활성화 후 Ctrl+V로 붙여넣으세요
+                              이미지를 드래그하여 놓거나, 클릭하여 활성화 후
+                              Ctrl+V로 붙여넣으세요
                             </p>
                           )}
                         </div>
@@ -1682,7 +1876,9 @@ export function IssuesPage() {
                           >
                             <div className="flex items-center gap-2">
                               <FileText className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-sm font-medium">{mindmap.title}</span>
+                              <span className="text-sm font-medium">
+                                {mindmap.title}
+                              </span>
                             </div>
                             <div className="flex items-center gap-1">
                               <Button
@@ -1690,8 +1886,8 @@ export function IssuesPage() {
                                 variant="outline"
                                 className="h-7 px-2 opacity-0 group-hover:opacity-100"
                                 onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleOpenMindmapDialog(mindmap.id)
+                                  e.stopPropagation();
+                                  handleOpenMindmapDialog(mindmap.id);
                                 }}
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -1701,8 +1897,8 @@ export function IssuesPage() {
                                 variant="outline"
                                 className="h-7 px-2 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
                                 onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDeleteMindmap(mindmap.id)
+                                  e.stopPropagation();
+                                  handleDeleteMindmap(mindmap.id);
                                 }}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1744,7 +1940,9 @@ export function IssuesPage() {
                     <div className="space-y-4">
                       {dbTables && dbTables.length > 0 ? (
                         dbTables.map((dbTable) => {
-                          const content = parseDbTableContent(dbTable.tableInfo)
+                          const content = parseDbTableContent(
+                            dbTable.tableInfo,
+                          );
                           return (
                             <div
                               key={dbTable.id}
@@ -1755,7 +1953,9 @@ export function IssuesPage() {
                                 <div className="flex items-center gap-3">
                                   <Database className="w-5 h-5 text-blue-600" />
                                   <div>
-                                    <h4 className="font-semibold text-base">{content.tableName}</h4>
+                                    <h4 className="font-semibold text-base">
+                                      {content.tableName}
+                                    </h4>
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                                       {content.schema && (
                                         <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
@@ -1774,14 +1974,18 @@ export function IssuesPage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => handleOpenDbTableDialog(dbTable.id)}
+                                    onClick={() =>
+                                      handleOpenDbTableDialog(dbTable.id)
+                                    }
                                   >
                                     <Edit2 className="w-4 h-4" />
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => handleDeleteDbTable(dbTable.id)}
+                                    onClick={() =>
+                                      handleDeleteDbTable(dbTable.id)
+                                    }
                                   >
                                     <Trash2 className="w-4 h-4 text-destructive" />
                                   </Button>
@@ -1801,12 +2005,24 @@ export function IssuesPage() {
                                   <table className="w-full text-sm">
                                     <thead className="bg-gray-700 text-white">
                                       <tr>
-                                        <th className="px-3 py-2 text-left">column_name</th>
-                                        <th className="px-3 py-2 text-left">data_type</th>
-                                        <th className="px-3 py-2 text-center w-20">nullable</th>
-                                        <th className="px-3 py-2 text-center w-12">pk</th>
-                                        <th className="px-3 py-2 text-center w-12">fk</th>
-                                        <th className="px-3 py-2 text-center w-16">unique_key</th>
+                                        <th className="px-3 py-2 text-left">
+                                          column_name
+                                        </th>
+                                        <th className="px-3 py-2 text-left">
+                                          data_type
+                                        </th>
+                                        <th className="px-3 py-2 text-center w-20">
+                                          nullable
+                                        </th>
+                                        <th className="px-3 py-2 text-center w-12">
+                                          pk
+                                        </th>
+                                        <th className="px-3 py-2 text-center w-12">
+                                          fk
+                                        </th>
+                                        <th className="px-3 py-2 text-center w-16">
+                                          unique_key
+                                        </th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -1814,7 +2030,7 @@ export function IssuesPage() {
                                         <tr
                                           key={idx}
                                           className={`border-t hover:bg-blue-50 ${
-                                            col.pk === 'PK' ? 'bg-amber-50' : ''
+                                            col.pk === "PK" ? "bg-amber-50" : ""
                                           }`}
                                         >
                                           <td className="px-3 py-2 font-medium font-mono text-sm">
@@ -1827,13 +2043,25 @@ export function IssuesPage() {
                                             {col.nullable}
                                           </td>
                                           <td className="px-3 py-2 text-center">
-                                            {col.pk === 'PK' && <span className="text-amber-600">✓</span>}
+                                            {col.pk === "PK" && (
+                                              <span className="text-amber-600">
+                                                ✓
+                                              </span>
+                                            )}
                                           </td>
                                           <td className="px-3 py-2 text-center">
-                                            {col.fk === 'FK' && <span className="text-green-600">✓</span>}
+                                            {col.fk === "FK" && (
+                                              <span className="text-green-600">
+                                                ✓
+                                              </span>
+                                            )}
                                           </td>
                                           <td className="px-3 py-2 text-center">
-                                            {col.unique_key === 'UQ' && <span className="text-purple-600">✓</span>}
+                                            {col.unique_key === "UQ" && (
+                                              <span className="text-purple-600">
+                                                ✓
+                                              </span>
+                                            )}
                                           </td>
                                         </tr>
                                       ))}
@@ -1850,10 +2078,12 @@ export function IssuesPage() {
 
                               {/* 푸터 */}
                               <div className="px-4 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
-                                {content.columns.length > 0 ? `${content.columns.length}개 컬럼` : '원본 데이터'}
+                                {content.columns.length > 0
+                                  ? `${content.columns.length}개 컬럼`
+                                  : "원본 데이터"}
                               </div>
                             </div>
-                          )
+                          );
                         })
                       ) : (
                         <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
@@ -1870,12 +2100,18 @@ export function IssuesPage() {
               <div className="border rounded-lg p-4 mb-6">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="font-bold">내용</h3>
-                  <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsEditing(true)}
+                  >
                     <Edit2 className="w-4 h-4 mr-1" />
                     편집
                   </Button>
                 </div>
-                <div className="whitespace-pre-wrap text-sm">{issueDetail.content}</div>
+                <div className="whitespace-pre-wrap text-sm">
+                  {issueDetail.content}
+                </div>
               </div>
 
               {/* 체크리스트 */}
@@ -1886,12 +2122,17 @@ export function IssuesPage() {
                 <div className="space-y-2 mb-3">
                   {checklists && checklists.length > 0 ? (
                     checklists.map((item) => (
-                      <div key={item.id} className="flex items-center gap-2 p-2 hover:bg-accent rounded group">
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-2 p-2 hover:bg-accent rounded group"
+                      >
                         <Checkbox
                           checked={item.checked}
                           onCheckedChange={() => toggleChecklist(item.id)}
                         />
-                        <span className={`flex-1 text-sm ${item.checked ? 'line-through text-muted-foreground' : ''}`}>
+                        <span
+                          className={`flex-1 text-sm ${item.checked ? "line-through text-muted-foreground" : ""}`}
+                        >
                           {item.content}
                         </span>
                         <Button
@@ -1917,7 +2158,9 @@ export function IssuesPage() {
                     type="text"
                     value={newChecklistContent}
                     onChange={(e) => setNewChecklistContent(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddChecklist()}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && handleAddChecklist()
+                    }
                     placeholder="새 항목 추가..."
                     className="flex-1 px-3 py-2 border border-input rounded-md text-sm"
                   />
@@ -1946,7 +2189,10 @@ export function IssuesPage() {
       <ConfirmDialog />
 
       {/* 담당자 선택 Dialog */}
-      <Dialog open={isAssigneeDialogOpen} onOpenChange={setIsAssigneeDialogOpen}>
+      <Dialog
+        open={isAssigneeDialogOpen}
+        onOpenChange={setIsAssigneeDialogOpen}
+      >
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>담당자 선택</DialogTitle>
@@ -1966,8 +2212,12 @@ export function IssuesPage() {
                       onClick={() => removeAssignee(user.id)}
                     >
                       <div className="flex-1">
-                        <div className="font-medium text-sm">{user.username}</div>
-                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                        <div className="font-medium text-sm">
+                          {user.username}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {user.email}
+                        </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </div>
@@ -1982,7 +2232,11 @@ export function IssuesPage() {
 
             {/* 가운데: 화살표 버튼 */}
             <div className="flex flex-col justify-center gap-2">
-              <div className="text-muted-foreground text-xs text-center">클릭하여<br />이동</div>
+              <div className="text-muted-foreground text-xs text-center">
+                클릭하여
+                <br />
+                이동
+              </div>
             </div>
 
             {/* 오른쪽: 선택 가능한 사용자 */}
@@ -2002,12 +2256,12 @@ export function IssuesPage() {
                 {users
                   .filter((user) => !selectedUserIds.includes(user.id))
                   .filter((user) => {
-                    if (!userSearchKeyword) return true
-                    const keyword = userSearchKeyword.toLowerCase()
+                    if (!userSearchKeyword) return true;
+                    const keyword = userSearchKeyword.toLowerCase();
                     return (
                       user.username.toLowerCase().includes(keyword) ||
                       user.email.toLowerCase().includes(keyword)
-                    )
+                    );
                   })
                   .map((user) => (
                     <div
@@ -2017,8 +2271,12 @@ export function IssuesPage() {
                     >
                       <ChevronLeft className="w-4 h-4 text-muted-foreground" />
                       <div className="flex-1 ml-2">
-                        <div className="font-medium text-sm">{user.username}</div>
-                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                        <div className="font-medium text-sm">
+                          {user.username}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {user.email}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2027,7 +2285,10 @@ export function IssuesPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssigneeDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsAssigneeDialogOpen(false)}
+            >
               취소
             </Button>
             <Button onClick={handleSaveAssignees}>저장</Button>
@@ -2039,7 +2300,11 @@ export function IssuesPage() {
       <Dialog open={isMindmapDialogOpen} onOpenChange={setIsMindmapDialogOpen}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selectedMindmapId ? 'Mermaid 다이어그램 수정' : 'Mermaid 다이어그램 추가'}</DialogTitle>
+            <DialogTitle>
+              {selectedMindmapId
+                ? "Mermaid 다이어그램 수정"
+                : "Mermaid 다이어그램 추가"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="grid grid-cols-2 gap-4">
@@ -2078,18 +2343,22 @@ export function IssuesPage() {
                   <div
                     className={`mb-2 p-2 rounded-md text-sm ${
                       validationResult.isValid
-                        ? 'bg-green-50 border border-green-300 text-green-800'
-                        : 'bg-red-50 border border-red-300 text-red-800'
+                        ? "bg-green-50 border border-green-300 text-green-800"
+                        : "bg-red-50 border border-red-300 text-red-800"
                     }`}
                   >
                     {validationResult.isValid ? (
                       <p className="flex items-center gap-1">
-                        <span className="font-semibold">✅ 문법이 올바릅니다</span>
+                        <span className="font-semibold">
+                          ✅ 문법이 올바릅니다
+                        </span>
                       </p>
                     ) : (
                       <div>
                         <p className="font-semibold mb-1">❌ 문법 오류</p>
-                        <pre className="text-xs whitespace-pre-wrap">{validationResult.error}</pre>
+                        <pre className="text-xs whitespace-pre-wrap">
+                          {validationResult.error}
+                        </pre>
                       </div>
                     )}
                   </div>
@@ -2098,8 +2367,8 @@ export function IssuesPage() {
                 <textarea
                   value={mindmapContent}
                   onChange={(e) => {
-                    setMindmapContent(e.target.value)
-                    setValidationResult(null) // 내용 변경 시 검증 결과 초기화
+                    setMindmapContent(e.target.value);
+                    setValidationResult(null); // 내용 변경 시 검증 결과 초기화
                   }}
                   placeholder={`sequenceDiagram
     actor User as 사용자
@@ -2129,12 +2398,16 @@ export function IssuesPage() {
             {/* 오른쪽: 실시간 미리보기 */}
             <div className="space-y-2">
               <label className="text-sm font-medium block">미리보기</label>
-              <div className="border rounded-md p-4 bg-gray-50 overflow-auto" style={{ height: 'calc(100% - 30px)' }}>
+              <div
+                className="border rounded-md p-4 bg-gray-50 overflow-auto"
+                style={{ height: "calc(100% - 30px)" }}
+              >
                 {mindmapContent.trim() ? (
                   <Mermaid chart={mindmapContent} className="mermaid-preview" />
                 ) : (
                   <p className="text-sm text-gray-400 text-center py-10">
-                    왼쪽에 Mermaid 코드를 입력하면 여기에 다이어그램이 표시됩니다
+                    왼쪽에 Mermaid 코드를 입력하면 여기에 다이어그램이
+                    표시됩니다
                   </p>
                 )}
               </div>
@@ -2142,7 +2415,10 @@ export function IssuesPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMindmapDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsMindmapDialogOpen(false)}
+            >
               취소
             </Button>
             <Button onClick={handleSaveMindmap}>저장</Button>
@@ -2151,22 +2427,34 @@ export function IssuesPage() {
       </Dialog>
 
       {/* Mermaid 다이어그램 보기 다이얼로그 */}
-      <Dialog open={isMindmapViewDialogOpen} onOpenChange={setIsMindmapViewDialogOpen}>
+      <Dialog
+        open={isMindmapViewDialogOpen}
+        onOpenChange={setIsMindmapViewDialogOpen}
+      >
         <DialogContent className="max-w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>{viewMindmapData?.title || 'Mermaid 다이어그램'}</DialogTitle>
+            <DialogTitle>
+              {viewMindmapData?.title || "Mermaid 다이어그램"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 overflow-auto border rounded-md p-4 bg-gray-50">
             {viewMindmapData?.content ? (
-              <Mermaid chart={viewMindmapData.content} className="mermaid-view" />
+              <Mermaid
+                chart={viewMindmapData.content}
+                className="mermaid-view"
+              />
             ) : (
-              <p className="text-sm text-gray-400 text-center py-10">다이어그램 데이터가 없습니다</p>
+              <p className="text-sm text-gray-400 text-center py-10">
+                다이어그램 데이터가 없습니다
+              </p>
             )}
           </div>
 
           <DialogFooter>
-            <Button onClick={() => setIsMindmapViewDialogOpen(false)}>닫기</Button>
+            <Button onClick={() => setIsMindmapViewDialogOpen(false)}>
+              닫기
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2175,7 +2463,11 @@ export function IssuesPage() {
       <Dialog open={isDbTableDialogOpen} onOpenChange={setIsDbTableDialogOpen}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>{selectedDbTableId ? 'DB 테이블 정보 수정' : 'DB 테이블 정보 추가'}</DialogTitle>
+            <DialogTitle>
+              {selectedDbTableId
+                ? "DB 테이블 정보 수정"
+                : "DB 테이블 정보 추가"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-4 pr-2">
@@ -2188,17 +2480,29 @@ export function IssuesPage() {
                 <input
                   type="text"
                   value={dbTableContent.tableName}
-                  onChange={(e) => setDbTableContent((prev) => ({ ...prev, tableName: e.target.value }))}
+                  onChange={(e) =>
+                    setDbTableContent((prev) => ({
+                      ...prev,
+                      tableName: e.target.value,
+                    }))
+                  }
                   placeholder="예: users, task_posts"
                   className="w-full px-3 py-2 border border-input rounded-md text-sm"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">스키마</label>
+                <label className="text-sm font-medium mb-1.5 block">
+                  스키마
+                </label>
                 <input
                   type="text"
                   value={dbTableContent.schema}
-                  onChange={(e) => setDbTableContent((prev) => ({ ...prev, schema: e.target.value }))}
+                  onChange={(e) =>
+                    setDbTableContent((prev) => ({
+                      ...prev,
+                      schema: e.target.value,
+                    }))
+                  }
                   placeholder="예: public"
                   className="w-full px-3 py-2 border border-input rounded-md text-sm"
                 />
@@ -2208,7 +2512,12 @@ export function IssuesPage() {
                 <input
                   type="text"
                   value={dbTableContent.category}
-                  onChange={(e) => setDbTableContent((prev) => ({ ...prev, category: e.target.value }))}
+                  onChange={(e) =>
+                    setDbTableContent((prev) => ({
+                      ...prev,
+                      category: e.target.value,
+                    }))
+                  }
                   placeholder="예: 사용자, 업무"
                   className="w-full px-3 py-2 border border-input rounded-md text-sm"
                 />
@@ -2216,11 +2525,18 @@ export function IssuesPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block">테이블 설명</label>
+              <label className="text-sm font-medium mb-1.5 block">
+                테이블 설명
+              </label>
               <input
                 type="text"
                 value={dbTableContent.description}
-                onChange={(e) => setDbTableContent((prev) => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setDbTableContent((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
                 placeholder="이 테이블이 무엇을 저장하는지 설명하세요"
                 className="w-full px-3 py-2 border border-input rounded-md text-sm"
               />
@@ -2236,75 +2552,97 @@ export function IssuesPage() {
               </label>
               <textarea
                 value={dbTableContent.queryResult}
-                onChange={(e) => setDbTableContent((prev) => ({ ...prev, queryResult: e.target.value }))}
+                onChange={(e) =>
+                  setDbTableContent((prev) => ({
+                    ...prev,
+                    queryResult: e.target.value,
+                  }))
+                }
                 placeholder={`DBeaver에서 PostgreSQL 쿼리 결과를 복사해서 붙여넣으세요:\n\ncolumn_name\tdata_type\tnullable\tpk\tfk\tunique_key\nuser_id\tbigint\tNO\tPK\tFK\t\nauthority_id\tbigint\tNO\tPK\tFK\t\ncreated_at\ttimestamp without time zone\tYES\t\t\t`}
                 className="w-full px-3 py-2 border border-input rounded-md text-sm font-mono"
                 rows={8}
               />
               <p className="text-xs text-muted-foreground mt-1.5">
-                PostgreSQL 쿼리 결과를 붙여넣으면 아래에서 미리보기를 확인할 수 있습니다
+                PostgreSQL 쿼리 결과를 붙여넣으면 아래에서 미리보기를 확인할 수
+                있습니다
               </p>
             </div>
 
             {/* 파싱 미리보기 */}
-            {dbTableContent.queryResult && (() => {
-              const previewColumns = parseTsvToColumns(dbTableContent.queryResult)
-              return previewColumns.length > 0 ? (
-                <div className="border rounded-md overflow-hidden">
-                  <div className="bg-gray-100 px-3 py-2 border-b">
-                    <h4 className="text-sm font-semibold">미리보기</h4>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-700 text-white">
-                        <tr>
-                          <th className="px-3 py-2 text-left">column_name</th>
-                          <th className="px-3 py-2 text-left">data_type</th>
-                          <th className="px-3 py-2 text-center w-20">nullable</th>
-                          <th className="px-3 py-2 text-center w-12">pk</th>
-                          <th className="px-3 py-2 text-center w-12">fk</th>
-                          <th className="px-3 py-2 text-center w-16">unique_key</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {previewColumns.map((col, idx) => (
-                          <tr
-                            key={idx}
-                            className={`border-t ${col.pk === 'PK' ? 'bg-amber-50' : ''}`}
-                          >
-                            <td className="px-3 py-2 font-medium font-mono text-sm">
-                              {col.column_name}
-                            </td>
-                            <td className="px-3 py-2 font-mono text-xs text-blue-600">
-                              {col.data_type}
-                            </td>
-                            <td className="px-3 py-2 text-center text-muted-foreground">
-                              {col.nullable}
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              {col.pk === 'PK' && <span className="text-amber-600">✓</span>}
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              {col.fk === 'FK' && <span className="text-green-600">✓</span>}
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              {col.unique_key === 'UQ' && <span className="text-purple-600">✓</span>}
-                            </td>
+            {dbTableContent.queryResult &&
+              (() => {
+                const previewColumns = parseTsvToColumns(
+                  dbTableContent.queryResult,
+                );
+                return previewColumns.length > 0 ? (
+                  <div className="border rounded-md overflow-hidden">
+                    <div className="bg-gray-100 px-3 py-2 border-b">
+                      <h4 className="text-sm font-semibold">미리보기</h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-700 text-white">
+                          <tr>
+                            <th className="px-3 py-2 text-left">column_name</th>
+                            <th className="px-3 py-2 text-left">data_type</th>
+                            <th className="px-3 py-2 text-center w-20">
+                              nullable
+                            </th>
+                            <th className="px-3 py-2 text-center w-12">pk</th>
+                            <th className="px-3 py-2 text-center w-12">fk</th>
+                            <th className="px-3 py-2 text-center w-16">
+                              unique_key
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {previewColumns.map((col, idx) => (
+                            <tr
+                              key={idx}
+                              className={`border-t ${col.pk === "PK" ? "bg-amber-50" : ""}`}
+                            >
+                              <td className="px-3 py-2 font-medium font-mono text-sm">
+                                {col.column_name}
+                              </td>
+                              <td className="px-3 py-2 font-mono text-xs text-blue-600">
+                                {col.data_type}
+                              </td>
+                              <td className="px-3 py-2 text-center text-muted-foreground">
+                                {col.nullable}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                {col.pk === "PK" && (
+                                  <span className="text-amber-600">✓</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                {col.fk === "FK" && (
+                                  <span className="text-green-600">✓</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                {col.unique_key === "UQ" && (
+                                  <span className="text-purple-600">✓</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="px-3 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
+                      {previewColumns.length}개 컬럼 감지됨
+                    </div>
                   </div>
-                  <div className="px-3 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
-                    {previewColumns.length}개 컬럼 감지됨
-                  </div>
-                </div>
-              ) : null
-            })()}
+                ) : null;
+              })()}
           </div>
 
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setIsDbTableDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsDbTableDialogOpen(false)}
+            >
               취소
             </Button>
             <Button onClick={handleSaveDbTable}>저장</Button>
@@ -2314,5 +2652,5 @@ export function IssuesPage() {
 
       <ConfirmDialog />
     </div>
-  )
+  );
 }
