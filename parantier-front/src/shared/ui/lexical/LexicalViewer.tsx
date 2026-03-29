@@ -78,7 +78,7 @@ interface HtmlPart {
 function splitHtmlByCodeBlocks(html: string): HtmlPart[] {
   const parts: HtmlPart[] = [];
   // Lexical CodeNode → <code class="...">...</code> 단독 태그로 렌더링됨
-  const codeRegex = /<code([^>]*)>([\s\S]*?)<\/code>/gi;
+  const codeRegex = /<pre([^>]*)>([\s\S]*?)<\/pre>/gi;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -87,7 +87,7 @@ function splitHtmlByCodeBlocks(html: string): HtmlPart[] {
     if (match.index > lastIndex) {
       parts.push({ type: "html", content: html.slice(lastIndex, match.index) });
     }
-    // code 태그 자체
+    // pre 태그 자체
     parts.push({ type: "code", content: match[0] });
     lastIndex = match.index + match[0].length;
   }
@@ -148,7 +148,7 @@ export function LexicalViewer({ content }: { content: string }) {
       {parts.map((part, idx) => {
         if (part.type === "code") {
           const plainText = extractTextFromHtml(
-            part.content.replace(/<code[^>]*>([\s\S]*?)<\/code>/i, "$1"),
+            part.content.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/i, "$1"),
           );
           return (
             <div key={idx} className="relative my-2 group">
