@@ -70,6 +70,13 @@ import {
   useUpdateDbTable,
   useDeleteDbTable,
 } from "@/features/issue/hooks/useIssueDbTables";
+import {
+  useIssueFigmas,
+  useCreateFigma,
+  useUpdateFigma,
+  useDeleteFigma,
+} from "@/features/issue/hooks/useIssueFigmas";
+
 import { issueApi } from "@/entities/issue/api/issueApi";
 import { ChatPanel } from "@/features/issue/components/ChatPanel";
 import { SubIssueSection } from "@/features/issue/components/SubIssueSection";
@@ -97,6 +104,8 @@ import {
   FileText,
   Database,
   Eye,
+  Figma,
+  ExternalLink,
 } from "lucide-react";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
@@ -270,6 +279,19 @@ export function IssuesPage() {
     columns: [],
   });
   const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false);
+
+  // 피그마 관련
+  const { data: figmas } = useIssueFigmas(selectedIssueId);
+  const { mutate: createFigma } = useCreateFigma(selectedIssueId!);
+  const { mutate: updateFigma } = useUpdateFigma(selectedIssueId!);
+  const { mutate: deleteFigma } = useDeleteFigma(selectedIssueId!);
+  const [selectedFigmaId, setSelectedFigmaId] = useState<number | null>(null);
+  const [figmaForm, setFigmaForm] = useState({
+    title: "",
+    url: "",
+    description: "",
+  });
+  const [isFigmaDialogOpen, setIsFigmaDialogOpen] = useState(false);
 
   // 필터링된 이슈 목록 (서버 정렬 순서 유지)
   const issues = useMemo(() => {
@@ -1263,6 +1285,83 @@ export function IssuesPage() {
     }
   };
 
+  // 피그마 다이얼로그 열기 (추가/수정)
+  const handleOpenFigmaDialog = (figmaId?: number) => {
+    if (figmaId) {
+      const figma = figmas?.find((f) => f.id === figmaId);
+      if (figma) {
+        setSelectedFigmaId(figmaId);
+        setFigmaForm({
+          title: figma.title,
+          url: figma.url,
+          description: figma.description || "",
+        });
+      }
+    } else {
+      setSelectedFigmaId(null);
+      setFigmaForm({ title: "", url: "", description: "" });
+    }
+    setIsFigmaDialogOpen(true);
+  };
+
+  // 피그마 저장
+  const handleSaveFigma = () => {
+    if (!figmaForm.title.trim()) {
+      toast.error("제목을 입력하세요.");
+      return;
+    }
+    if (!figmaForm.url.trim()) {
+      toast.error("피그마 URL을 입력하세요.");
+      return;
+    }
+
+    if (selectedFigmaId) {
+      updateFigma(
+        {
+          figmaId: selectedFigmaId,
+          request: {
+            title: figmaForm.title,
+            url: figmaForm.url,
+            description: figmaForm.description,
+            orderNum:
+              figmas?.find((f) => f.id === selectedFigmaId)?.orderNum ?? 0,
+          },
+        },
+        {
+          onSuccess: () => setIsFigmaDialogOpen(false),
+        },
+      );
+    } else {
+      const orderNum = figmas ? figmas.length : 0;
+      createFigma(
+        {
+          title: figmaForm.title,
+          url: figmaForm.url,
+          description: figmaForm.description,
+          orderNum,
+        },
+        {
+          onSuccess: () => setIsFigmaDialogOpen(false),
+        },
+      );
+    }
+  };
+
+  // 피그마 삭제
+  const handleDeleteFigma = async (figmaId: number) => {
+    const confirmed = await confirm({
+      title: "피그마 삭제",
+      description: "이 피그마 링크를 삭제하시겠습니까?",
+      confirmText: "삭제",
+      cancelText: "취소",
+      variant: "destructive",
+    });
+
+    if (confirmed) {
+      deleteFigma(figmaId);
+    }
+  };
+
   // 드래그앤드롭 핸들러
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -2018,6 +2117,14 @@ export function IssuesPage() {
                           </span>
                         )}
                       </TabsTrigger>
+                      <TabsTrigger value="figmas">
+                        피그마{" "}
+                        {figmas && figmas.length > 0 && (
+                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                            {figmas.length}
+                          </span>
+                        )}
+                      </TabsTrigger>
                     </TabsList>
 
                     {/* 이미지 탭 */}
@@ -2359,6 +2466,82 @@ export function IssuesPage() {
                           </div>
                         )}
                       </div>
+                    </TabsContent>
+
+                    {/* 피그마 탭 */}
+                    <TabsContent value="figmas">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-semibold">피그마 링크</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenFigmaDialog()}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          피그마 추가
+                        </Button>
+                      </div>
+
+                      {figmas && figmas.length > 0 ? (
+                        <div className="space-y-2">
+                          {figmas.map((figma) => (
+                            <div
+                              key={figma.id}
+                              className="flex items-start justify-between border rounded-lg p-3 hover:bg-muted/30 transition-colors"
+                            >
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <Figma className="w-5 h-5 text-[#F24E1E] shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {figma.title}
+                                  </p>
+                                  {figma.description && (
+                                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                      {figma.description}
+                                    </p>
+                                  )}
+                                  <a
+                                    href={figma.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-primary hover:underline flex items-center gap-1 mt-1 truncate"
+                                  >
+                                    <ExternalLink className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">
+                                      {figma.url}
+                                    </span>
+                                  </a>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 ml-2 shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() =>
+                                    handleOpenFigmaDialog(figma.id)
+                                  }
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteFigma(figma.id)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                          <Figma className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                          <p className="text-sm">피그마 링크를 추가하세요</p>
+                        </div>
+                      )}
                     </TabsContent>
                   </Tabs>
                 </div>
@@ -2927,6 +3110,71 @@ export function IssuesPage() {
               취소
             </Button>
             <Button onClick={handleSaveDbTable}>저장</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 피그마 추가/수정 다이얼로그 */}
+      <Dialog open={isFigmaDialogOpen} onOpenChange={setIsFigmaDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedFigmaId ? "피그마 수정" : "피그마 추가"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">제목 *</label>
+              <input
+                type="text"
+                placeholder="예) 메인 화면 디자인"
+                value={figmaForm.title}
+                onChange={(e) =>
+                  setFigmaForm((prev) => ({ ...prev, title: e.target.value }))
+                }
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">피그마 URL *</label>
+              <input
+                type="url"
+                placeholder="https://www.figma.com/file/..."
+                value={figmaForm.url}
+                onChange={(e) =>
+                  setFigmaForm((prev) => ({ ...prev, url: e.target.value }))
+                }
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">설명</label>
+              <textarea
+                placeholder="피그마 링크에 대한 설명을 입력하세요"
+                value={figmaForm.description}
+                onChange={(e) =>
+                  setFigmaForm((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                rows={3}
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsFigmaDialogOpen(false)}
+            >
+              취소
+            </Button>
+            <Button onClick={handleSaveFigma}>저장</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

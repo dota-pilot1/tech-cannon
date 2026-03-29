@@ -5,6 +5,7 @@ import com.mapo.palantier.issue.domain.Issue;
 import com.mapo.palantier.issue.domain.IssueAssignee;
 import com.mapo.palantier.issue.domain.IssueChecklist;
 import com.mapo.palantier.issue.domain.IssueDbTable;
+import com.mapo.palantier.issue.domain.IssueFigma;
 import com.mapo.palantier.issue.domain.IssueImage;
 import com.mapo.palantier.issue.domain.IssueMindmap;
 import com.mapo.palantier.issue.domain.IssueTaskLink;
@@ -12,6 +13,7 @@ import com.mapo.palantier.issue.domain.SubIssue;
 import com.mapo.palantier.issue.infrastructure.IssueAssigneeMapper;
 import com.mapo.palantier.issue.infrastructure.IssueChecklistMapper;
 import com.mapo.palantier.issue.infrastructure.IssueDbTableMapper;
+import com.mapo.palantier.issue.infrastructure.IssueFigmaMapper;
 import com.mapo.palantier.issue.infrastructure.IssueImageMapper;
 import com.mapo.palantier.issue.infrastructure.IssueMindmapMapper;
 import com.mapo.palantier.issue.infrastructure.IssueTaskLinkMapper;
@@ -40,6 +42,7 @@ public class IssueController {
     private final IssueMindmapMapper issueMindmapMapper;
     private final IssueTaskLinkMapper issueTaskLinkMapper;
     private final IssueDbTableMapper issueDbTableMapper;
+    private final IssueFigmaMapper issueFigmaMapper;
     private final SubIssueMapper subIssueMapper;
 
     public IssueController(
@@ -51,6 +54,7 @@ public class IssueController {
         IssueMindmapMapper issueMindmapMapper,
         IssueTaskLinkMapper issueTaskLinkMapper,
         IssueDbTableMapper issueDbTableMapper,
+        IssueFigmaMapper issueFigmaMapper,
         SubIssueMapper subIssueMapper
     ) {
         this.issueService = issueService;
@@ -61,6 +65,7 @@ public class IssueController {
         this.issueMindmapMapper = issueMindmapMapper;
         this.issueTaskLinkMapper = issueTaskLinkMapper;
         this.issueDbTableMapper = issueDbTableMapper;
+        this.issueFigmaMapper = issueFigmaMapper;
         this.subIssueMapper = subIssueMapper;
     }
 
@@ -550,6 +555,71 @@ public class IssueController {
     public record UpdateDbTableRequest(
         String tableName,
         String tableInfo,
+        Integer orderNum
+    ) {}
+
+    // ── 피그마 ────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/{issueId}/figmas")
+    public ResponseEntity<List<IssueFigma>> getFigmas(
+        @PathVariable Long issueId
+    ) {
+        return ResponseEntity.ok(issueFigmaMapper.findByIssueId(issueId));
+    }
+
+    @PostMapping("/{issueId}/figmas")
+    public ResponseEntity<IssueFigma> createFigma(
+        @PathVariable Long issueId,
+        @RequestBody CreateFigmaRequest request
+    ) {
+        IssueFigma figma = IssueFigma.builder()
+            .issueId(issueId)
+            .title(request.title())
+            .url(request.url())
+            .description(request.description())
+            .orderNum(request.orderNum() != null ? request.orderNum() : 0)
+            .build();
+        issueFigmaMapper.insert(figma);
+        return ResponseEntity.ok(figma);
+    }
+
+    @PutMapping("/{issueId}/figmas/{figmaId}")
+    public ResponseEntity<Void> updateFigma(
+        @PathVariable Long issueId,
+        @PathVariable Long figmaId,
+        @RequestBody UpdateFigmaRequest request
+    ) {
+        IssueFigma figma = IssueFigma.builder()
+            .id(figmaId)
+            .title(request.title())
+            .url(request.url())
+            .description(request.description())
+            .orderNum(request.orderNum())
+            .build();
+        issueFigmaMapper.update(figma);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{issueId}/figmas/{figmaId}")
+    public ResponseEntity<Void> deleteFigma(
+        @PathVariable Long issueId,
+        @PathVariable Long figmaId
+    ) {
+        issueFigmaMapper.delete(figmaId);
+        return ResponseEntity.ok().build();
+    }
+
+    public record CreateFigmaRequest(
+        String title,
+        String url,
+        String description,
+        Integer orderNum
+    ) {}
+
+    public record UpdateFigmaRequest(
+        String title,
+        String url,
+        String description,
         Integer orderNum
     ) {}
 
