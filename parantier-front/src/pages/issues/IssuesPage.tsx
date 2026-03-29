@@ -2334,8 +2334,7 @@ export function IssuesPage() {
               </div>
 
               {/* 채팅 섹션 */}
-              <div className="border rounded-lg p-4">
-                <h3 className="font-bold mb-3">채팅</h3>
+              <div className="border rounded-lg overflow-hidden">
                 <ChatPanel issueId={issueDetail.id} />
               </div>
             </div>
