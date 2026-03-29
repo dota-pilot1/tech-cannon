@@ -553,7 +553,7 @@ export default function TasksPage() {
 
       <div className="bg-card rounded border mb-4">
         <div className="p-3 border-b bg-muted/30">
-          <h1 className="text-lg font-bold text-foreground">Task 관리</h1>
+          <h1 className="text-lg font-bold text-foreground">문서 관리</h1>
         </div>
       </div>
 
@@ -722,14 +722,14 @@ export default function TasksPage() {
         </div>
 
         {/* 우: 상세 */}
-        <div className="flex-1 min-w-0 bg-white rounded border">
-          <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+        <div className="flex-1 min-w-0 bg-card rounded border">
+          <div className="flex items-center justify-between p-3 border-b bg-muted/30">
             <span className="font-medium text-sm">
               {isEditing
                 ? selectedPostId
-                  ? "Task 편집"
-                  : "새 Task"
-                : "Task 상세"}
+                  ? "문서 편집"
+                  : "새 문서"
+                : "문서 상세"}
             </span>
             <div className="flex gap-1">
               {isEditing ? (
@@ -737,13 +737,13 @@ export default function TasksPage() {
                   <button
                     onClick={handleSave}
                     disabled={saveMutation.isPending}
-                    className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
+                    className="px-3 py-1 text-xs bg-foreground text-background rounded hover:opacity-80 disabled:opacity-50"
                   >
                     저장
                   </button>
                   <button
                     onClick={() => setIsEditing(false)}
-                    className="px-3 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500"
+                    className="px-3 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/70"
                   >
                     취소
                   </button>
@@ -752,13 +752,13 @@ export default function TasksPage() {
                 <>
                   <button
                     onClick={handleEdit}
-                    className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                    className="px-3 py-1 text-xs bg-foreground text-background rounded hover:opacity-80"
                   >
                     편집
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                    className="px-3 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:bg-destructive/90"
                   >
                     삭제
                   </button>
@@ -778,9 +778,9 @@ export default function TasksPage() {
             ) : postDetail ? (
               <TaskBlockViewer post={postDetail} />
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
                 {selectedFolderId
-                  ? "폴더 우클릭 또는 + 버튼으로 새 문서 추가"
+                  ? "폴더 hover 후 + 버튼으로 새 문서 추가"
                   : "좌측에서 폴더를 선택하세요."}
               </div>
             )}
