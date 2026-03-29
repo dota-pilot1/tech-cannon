@@ -88,7 +88,7 @@ export const authActions = {
       // 네트워크 오류, 서버 오류(5xx) 등은 기존 토큰 유지
       const status = (error as { response?: { status?: number } })?.response
         ?.status;
-      if (status === 401) {
+      if (status === 401 || status === 403) {
         // 리프레시 토큰으로 재발급 시도
         try {
           const response = await fetch(

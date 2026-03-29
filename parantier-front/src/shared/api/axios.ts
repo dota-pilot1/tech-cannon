@@ -80,22 +80,31 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch {
         isHandling401 = false;
+        const wasAuthenticated = authStore.state.isAuthenticated;
         authActions.logout();
-        toast.error("세션이 만료됐습니다.", {
-          description:
-            "보안을 위해 자동 로그아웃됐습니다. 다시 로그인해주세요.",
-          duration: 5000,
-          action: {
-            label: "로그인",
-            onClick: () => window.location.replace("/"),
-          },
-        });
+        // 실제로 로그인 상태였을 때만 세션 만료 안내
+        if (wasAuthenticated) {
+          toast.error("세션이 만료됐습니다.", {
+            description:
+              "보안을 위해 자동 로그아웃됐습니다. 다시 로그인해주세요.",
+            duration: 5000,
+            action: {
+              label: "로그인",
+              onClick: () => window.location.replace("/"),
+            },
+          });
+        }
         return Promise.reject(error);
       }
     }
 
     // ── 403 Forbidden ─────────────────────────────────────────────
     if (status === 403) {
+      const isAuthenticated = authStore.state.isAuthenticated;
+      if (!isAuthenticated) {
+        // 비로그인 상태의 403은 조용히 무시 (로그인 안내는 라우터 가드에서 처리)
+        return Promise.reject(error);
+      }
       toast.error("접근 권한이 없습니다.", {
         description: "해당 기능을 사용할 권한이 없습니다.",
       });
