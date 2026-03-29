@@ -63,20 +63,20 @@ function FolderContextMenu({
       <button
         className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
         onClick={() => {
-          onAddDoc(menu.folderId);
-          onClose();
-        }}
-      >
-        <span>📄</span> 새 문서 추가
-      </button>
-      <button
-        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
-        onClick={() => {
           onAddSubFolder(menu.folderId);
           onClose();
         }}
       >
         <span>📁</span> 하위 폴더 추가
+      </button>
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
+        onClick={() => {
+          onAddDoc(menu.folderId);
+          onClose();
+        }}
+      >
+        <span>📄</span> 새 문서 추가
       </button>
       <div className="border-t my-1" />
       <button

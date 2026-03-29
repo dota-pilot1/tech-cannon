@@ -89,16 +89,6 @@ function FolderContextMenu({
     >
       <button
         onClick={() => {
-          onAddDoc();
-          onClose();
-        }}
-        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 text-foreground transition-colors"
-      >
-        <FilePlus className="w-3.5 h-3.5 text-muted-foreground" />
-        문서 추가
-      </button>
-      <button
-        onClick={() => {
           onAddFolder();
           onClose();
         }}
@@ -106,6 +96,16 @@ function FolderContextMenu({
       >
         <FolderPlus className="w-3.5 h-3.5 text-muted-foreground" />
         하위 폴더 추가
+      </button>
+      <button
+        onClick={() => {
+          onAddDoc();
+          onClose();
+        }}
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 text-foreground transition-colors"
+      >
+        <FilePlus className="w-3.5 h-3.5 text-muted-foreground" />
+        문서 추가
       </button>
       <div className="my-1 border-t border-border" />
       <button
