@@ -12,6 +12,7 @@ const initialState: AuthState = {
   accessToken,
   refreshToken,
   isAuthenticated: !!(accessToken && refreshToken), // 토큰이 둘 다 있으면 인증된 것으로 간주
+  isRestored: false, // restoreAuth 완료 전
 };
 
 // 인증 스토어 생성
@@ -41,6 +42,7 @@ export const authActions = {
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      isRestored: true,
     }));
   },
 
@@ -66,6 +68,7 @@ export const authActions = {
     const refreshToken = localStorage.getItem("refreshToken");
 
     if (!accessToken || !refreshToken) {
+      authStore.setState((state) => ({ ...state, isRestored: true }));
       return;
     }
 
@@ -82,6 +85,7 @@ export const authActions = {
         accessToken,
         refreshToken,
         isAuthenticated: true,
+        isRestored: true,
       }));
     } catch (error: unknown) {
       // 401 Unauthorized일 때만 로그아웃 (토큰 만료/무효)
@@ -110,16 +114,20 @@ export const authActions = {
               ...state,
               user: { ...user, roles, authorities },
               isAuthenticated: true,
+              isRestored: true,
             }));
           } else {
             // 리프레시도 실패하면 로그아웃
             authActions.logout();
+            authStore.setState((state) => ({ ...state, isRestored: true }));
           }
         } catch {
           authActions.logout();
+          authStore.setState((state) => ({ ...state, isRestored: true }));
         }
       }
       // 그 외 오류(네트워크, 5xx 등)는 로컬 토큰 유지 — 서버 재시작 후에도 로그인 유지
+      authStore.setState((state) => ({ ...state, isRestored: true }));
     }
   },
 };

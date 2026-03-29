@@ -24,25 +24,25 @@ import { NotePage } from "@/pages/notes/NotePage";
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
 
+// restoreAuth 완료까지 대기 (최대 5초)
+const waitForRestore = async () => {
+  if (authStore.state.isRestored) return;
+  for (let i = 0; i < 50; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    if (authStore.state.isRestored) return;
+  }
+};
+
 // Role 기반 권한 체크 (관리자 페이지 접근용)
 const requireRole = async (requiredRole: string) => {
+  // restoreAuth 완료 대기
+  await waitForRestore();
+
   const auth = authStore.state;
 
   if (!auth.isAuthenticated) {
     toast.error("로그인이 필요합니다");
     throw redirect({ to: "/dashboard" });
-  }
-
-  // 인증 상태가 복원될 때까지 기다림 (user 정보가 없으면)
-  if (!auth.user) {
-    // 짧은 대기 후 재확인 (최대 3초)
-    for (let i = 0; i < 30; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const currentAuth = authStore.state;
-      if (currentAuth.user) {
-        break;
-      }
-    }
   }
 
   // 다시 확인
@@ -142,26 +142,12 @@ const workRoute = createRoute({
 
 // 인증 체크 (로그인 필요)
 const requireAuth = async () => {
-  const auth = authStore.state;
-
-  if (!auth.isAuthenticated) {
-    toast.error("로그인이 필요합니다");
-    throw redirect({ to: "/dashboard" });
-  }
-
-  // 인증 상태가 복원될 때까지 기다림
-  if (!auth.user) {
-    for (let i = 0; i < 30; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const currentAuth = authStore.state;
-      if (currentAuth.user) {
-        break;
-      }
-    }
-  }
+  // restoreAuth 완료 대기
+  await waitForRestore();
 
   const finalAuth = authStore.state;
-  if (!finalAuth.user) {
+
+  if (!finalAuth.isAuthenticated || !finalAuth.user) {
     toast.error("로그인이 필요합니다");
     throw redirect({ to: "/dashboard" });
   }
