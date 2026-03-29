@@ -568,8 +568,7 @@ public class IssueController {
         @RequestBody CreateSubIssueRequest request,
         Authentication authentication
     ) {
-        String email = authentication.getName();
-        Long authorId = authService.getUserByEmail(email).getId();
+        Long authorId = Long.parseLong(authentication.getName());
 
         SubIssue subIssue = new SubIssue();
         subIssue.setParentIssueId(issueId);
