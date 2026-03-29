@@ -152,8 +152,10 @@ export function IssuesPage() {
       issueApi.reorderIssues(items),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["issues"] });
+      toast.success("순서가 저장되었습니다", { position: "bottom-right" });
     },
-    onError: () => toast.error("순서 변경에 실패했습니다"),
+    onError: () =>
+      toast.error("순서 변경에 실패했습니다", { position: "bottom-right" }),
   });
 
   const { mutate: createIssue } = useCreateIssue();
