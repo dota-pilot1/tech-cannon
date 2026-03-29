@@ -2265,7 +2265,7 @@ export function IssuesPage() {
               </div>
 
               {/* 체크리스트 */}
-              <div className="border rounded-lg p-4 mb-6">
+              <div className="border rounded-lg p-4 mb-3">
                 <h3 className="font-bold mb-3">체크리스트</h3>
 
                 {/* 체크리스트 목록 */}
@@ -2322,8 +2322,15 @@ export function IssuesPage() {
               </div>
 
               {/* 부가 이슈 섹션 */}
-              <div className="border rounded-lg p-4 mb-3">
-                <SubIssueSection issueId={issueDetail.id} />
+              <div className="border rounded-lg overflow-hidden mb-3">
+                <div className="bg-amber-50 dark:bg-amber-950/30 border-b px-4 py-2.5 flex items-center justify-between">
+                  <span className="font-bold text-sm text-amber-800 dark:text-amber-300">
+                    부가 이슈
+                  </span>
+                </div>
+                <div className="p-4">
+                  <SubIssueSection issueId={issueDetail.id} />
+                </div>
               </div>
 
               {/* 채팅 섹션 */}

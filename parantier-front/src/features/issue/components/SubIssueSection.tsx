@@ -67,10 +67,9 @@ export function SubIssueSection({ issueId }: SubIssueSectionProps) {
   };
 
   return (
-    <div className="mt-3">
+    <div>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-sm">부가 이슈</h3>
           {total > 0 && (
             <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
               {resolved}/{total} 해결
