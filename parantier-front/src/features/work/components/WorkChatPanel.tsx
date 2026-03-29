@@ -1,44 +1,51 @@
-import { useEffect, useRef, useMemo } from 'react'
-import { useWorkMessages } from '../hooks/useWorkMessages'
-import { useWorkChat } from '../hooks/useWorkChat'
-import { ChatMessage } from '@/features/issue/components/ChatMessage'
-import { ChatInput } from '@/features/issue/components/ChatInput'
-import { Loader2, WifiOff, AlertCircle } from 'lucide-react'
-import { useStore } from '@tanstack/react-store'
-import { authStore } from '@/entities/user/model/authStore'
-import type { MessageWithUser } from '@/entities/issue/types/issueMessage'
+import { useEffect, useRef, useMemo } from "react";
+import { useWorkMessages } from "../hooks/useWorkMessages";
+import { useWorkChat } from "../hooks/useWorkChat";
+import { ChatMessage } from "@/features/issue/components/ChatMessage";
+import { ChatInput } from "@/features/issue/components/ChatInput";
+import { Loader2, WifiOff, AlertCircle } from "lucide-react";
+import { useStore } from "@tanstack/react-store";
+import { authStore } from "@/entities/user/model/authStore";
+import type { MessageWithUser } from "@/entities/issue/types/issueMessage";
 
 interface WorkChatPanelProps {
-  workId: number
+  workId: number;
 }
 
 export function WorkChatPanel({ workId }: WorkChatPanelProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const user = useStore(authStore, (state) => state.user)
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const user = useStore(authStore, (state) => state.user);
+  const isAuthenticated = useStore(authStore, (state) => state.isAuthenticated);
 
   // REST API: 과거 메시지 가져오기
-  const { data: history = [], isLoading } = useWorkMessages(workId)
+  const { data: history = [], isLoading } = useWorkMessages(workId);
 
   // WebSocket: 실시간 메시지
-  const { messages: realtime, isConnected, sendMessage } = useWorkChat({ workId })
+  const {
+    messages: realtime,
+    isConnected,
+    sendMessage,
+  } = useWorkChat({ workId });
 
   // 과거 + 실시간 메시지 합치기 (ChatMessage가 MessageWithUser 타입을 기대하므로 캐스팅)
   const allMessages = useMemo(() => {
-    return [...history, ...realtime] as unknown as MessageWithUser[]
-  }, [history, realtime])
+    return [...history, ...realtime] as unknown as MessageWithUser[];
+  }, [history, realtime]);
 
   // 새 메시지가 추가되면 자동 스크롤
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [allMessages])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [allMessages]);
 
   const handleSend = (message: string) => {
     if (!user?.id) {
-      console.error('User not logged in')
-      return
+      console.error("User not logged in");
+      return;
     }
-    sendMessage(message, user.id, user.username)
-  }
+    sendMessage(message, user.id, user.username);
+  };
+
+  const isUserReady = isAuthenticated && !!user?.id;
 
   if (isLoading) {
     return (
@@ -46,7 +53,7 @@ export function WorkChatPanel({ workId }: WorkChatPanelProps) {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">메시지를 불러오는 중...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -73,7 +80,9 @@ export function WorkChatPanel({ workId }: WorkChatPanelProps) {
       <div className="flex-1 overflow-y-auto p-4">
         {allMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground">아직 메시지가 없습니다.</p>
+            <p className="text-sm text-muted-foreground">
+              아직 메시지가 없습니다.
+            </p>
           </div>
         ) : (
           <>
@@ -90,13 +99,26 @@ export function WorkChatPanel({ workId }: WorkChatPanelProps) {
         <div className="px-4 pb-2">
           <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
             <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
-            <p className="text-xs text-destructive">실시간 연결이 끊어졌습니다. 재연결 중...</p>
+            <p className="text-xs text-destructive">
+              실시간 연결이 끊어졌습니다. 재연결 중...
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 사용자 정보 로딩 중 안내 */}
+      {!isUserReady && (
+        <div className="px-4 pb-2">
+          <div className="flex items-center gap-2 p-3 bg-muted border rounded-lg">
+            <p className="text-xs text-muted-foreground">
+              사용자 정보를 불러오는 중입니다...
+            </p>
           </div>
         </div>
       )}
 
       {/* Input */}
-      <ChatInput onSend={handleSend} disabled={!isConnected} />
+      <ChatInput onSend={handleSend} disabled={!isConnected || !isUserReady} />
     </div>
-  )
+  );
 }

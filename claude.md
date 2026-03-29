@@ -66,10 +66,23 @@ Container Name: palantier-postgres
 Image: postgres:16
 ```
 
-> ⚠️ **로컬 DB는 Docker 컨테이너(`palantier-postgres`)를 사용합니다.**
-> EC2 서버 DB는 호스트에 직접 설치된 PostgreSQL을 사용합니다 (컨테이너 아님).
-> - 로컬: `docker exec palantier-postgres psql -U palantier_user -d palantier`
-> - 서버: `PGPASSWORD=palantier_password psql -h localhost -p 5432 -U palantier_user -d palantier`
+> ✅ **로컬 DB는 Docker 컨테이너(`palantier-postgres`)를 사용합니다.**
+> - 컨테이너가 `localhost:5432`로 포트 포워딩되어 있어서, `psql -h localhost`로 접속해도 실제론 Docker 컨테이너 DB에 연결됩니다.
+> - 아래 두 가지 방법 모두 동일한 DB에 접속합니다.
+>
+> **로컬 접속 방법 (둘 다 동일):**
+> ```bash
+> # 방법 1: docker exec (컨테이너 직접)
+> docker exec -i palantier-postgres psql -U palantier_user -d palantier
+>
+> # 방법 2: psql -h localhost (포트 포워딩 경유, 결과 동일)
+> PGPASSWORD=palantier_password psql -h localhost -U palantier_user -d palantier
+> ```
+>
+> **서버 접속 (EC2 호스트에 직접 설치된 PostgreSQL):**
+> ```bash
+> PGPASSWORD=palantier_password psql -h localhost -p 5432 -U palantier_user -d palantier
+> ```
 
 **접속 정보:**
 ```bash
