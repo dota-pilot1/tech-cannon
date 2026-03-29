@@ -133,86 +133,89 @@ export function SubIssueSection({ issueId }: SubIssueSectionProps) {
       {/* 새 부가 이슈 입력 폼 */}
       {isAdding && (
         <div className="mt-3 border rounded-lg bg-muted/30 overflow-hidden">
-          {/* 이미지 업로드 영역 */}
-          <div
-            className="relative border-b bg-muted/50 min-h-[120px] flex items-center justify-center cursor-pointer hover:bg-muted/70 transition-colors"
-            onClick={() => !newImagePreview && fileInputRef.current?.click()}
-          >
-            {newImagePreview ? (
-              <div className="relative w-full">
-                <img
-                  src={newImagePreview}
-                  alt="미리보기"
-                  className="w-full max-h-48 object-contain"
-                />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
+          <div className="flex gap-3 p-3">
+            {/* 왼쪽: 정사각형 이미지 업로드 */}
+            <div
+              className="relative shrink-0 w-24 h-24 rounded-lg border-2 border-dashed bg-muted/50 flex items-center justify-center cursor-pointer hover:bg-muted/70 transition-colors overflow-hidden"
+              onClick={() => !newImagePreview && fileInputRef.current?.click()}
+            >
+              {newImagePreview ? (
+                <>
+                  <img
+                    src={newImagePreview}
+                    alt="미리보기"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNewImageUrl("");
+                      setNewImagePreview("");
+                    }}
+                    className="absolute top-1 right-1 p-0.5 bg-black/50 rounded-full text-white hover:bg-black/70"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </>
+              ) : isUploading ? (
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                  <ImagePlus className="w-6 h-6" />
+                  <span className="text-[10px] text-center leading-tight">
+                    이미지
+                    <br />
+                    업로드
+                  </span>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file);
+                }}
+              />
+            </div>
+
+            {/* 오른쪽: 설명 + 버튼 */}
+            <div className="flex-1 flex flex-col gap-2">
+              <textarea
+                autoFocus
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="설명을 입력하세요..."
+                rows={3}
+                className="flex-1 w-full text-sm bg-background border rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setIsAdding(false);
+                    setNewDescription("");
                     setNewImageUrl("");
                     setNewImagePreview("");
                   }}
-                  className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70"
                 >
-                  <X className="w-4 h-4" />
-                </button>
+                  취소
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleCreate}
+                  disabled={
+                    (!newDescription.trim() && !newImageUrl) ||
+                    createMutation.isPending ||
+                    isUploading
+                  }
+                >
+                  추가
+                </Button>
               </div>
-            ) : isUploading ? (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs">업로드 중...</span>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <ImagePlus className="w-8 h-8" />
-                <span className="text-xs">클릭하여 이미지 업로드</span>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImageUpload(file);
-              }}
-            />
-          </div>
-
-          {/* 설명 입력 */}
-          <div className="p-3 space-y-3">
-            <textarea
-              autoFocus
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-              placeholder="설명을 입력하세요..."
-              rows={2}
-              className="w-full text-sm bg-background border rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-            />
-            <div className="flex gap-2 justify-end">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setIsAdding(false);
-                  setNewDescription("");
-                  setNewImageUrl("");
-                  setNewImagePreview("");
-                }}
-              >
-                취소
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleCreate}
-                disabled={
-                  (!newDescription.trim() && !newImageUrl) ||
-                  createMutation.isPending ||
-                  isUploading
-                }
-              >
-                추가
-              </Button>
             </div>
           </div>
         </div>
@@ -280,12 +283,6 @@ function SubIssueItem({
   };
 
   // 미리보기: 이미지 또는 설명 앞 30자
-  const preview = sub.imageUrl
-    ? "🖼️ 이미지 첨부됨"
-    : sub.content
-      ? sub.content.slice(0, 40) + (sub.content.length > 40 ? "..." : "")
-      : "내용 없음";
-
   return (
     <div
       className={cn(
@@ -293,153 +290,161 @@ function SubIssueItem({
         sub.isResolved ? "bg-muted/30 border-muted" : "bg-card",
       )}
     >
-      {/* 헤더 행 */}
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <button onClick={onToggleResolved} className="shrink-0">
-          {sub.isResolved ? (
-            <CheckCircle2 className="w-4 h-4 text-primary" />
-          ) : (
-            <Circle className="w-4 h-4 text-muted-foreground" />
-          )}
-        </button>
-        <span
-          className={cn(
-            "flex-1 text-sm truncate",
-            sub.isResolved && "line-through text-muted-foreground",
-          )}
-        >
-          {preview}
-        </span>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={() => {
-              setIsEditing(!isEditing);
-              if (!isExpanded) onToggleExpand();
-            }}
-            className="p-1 hover:bg-muted rounded"
-          >
-            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-          <button onClick={onDelete} className="p-1 hover:bg-muted rounded">
-            <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-          </button>
-          <button
-            onClick={onToggleExpand}
-            className="p-1 hover:bg-muted rounded"
-          >
-            {isExpanded ? (
-              <ChevronUp className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* 펼쳐진 뷰 */}
-      {isExpanded && !isEditing && (
-        <div className="border-t">
-          {sub.imageUrl && (
+      {/* 카드 행: 정사각형 이미지 + 설명 */}
+      <div className="flex gap-3 p-3">
+        {/* 왼쪽: 정사각형 이미지 썸네일 */}
+        <div className="shrink-0 w-16 h-16 rounded-lg border bg-muted/40 overflow-hidden flex items-center justify-center">
+          {sub.imageUrl ? (
             <img
               src={sub.imageUrl}
               alt="첨부 이미지"
-              className="w-full max-h-64 object-contain bg-muted/30"
-              onError={(e) => (e.currentTarget.style.display = "none")}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
             />
+          ) : (
+            <ImagePlus className="w-5 h-5 text-muted-foreground/40" />
           )}
-          {sub.content && (
-            <div className="px-4 py-3">
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {sub.content}
-              </p>
-            </div>
-          )}
-          <div className="px-4 pb-2">
-            <p className="text-xs text-muted-foreground">
-              {sub.authorName} ·{" "}
-              {new Date(
-                sub.createdAt.endsWith("Z")
-                  ? sub.createdAt
-                  : sub.createdAt + "Z",
-              ).toLocaleDateString("ko-KR")}
+        </div>
+
+        {/* 오른쪽: 설명 + 액션 */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between">
+          <div className="flex items-start gap-1">
+            <button onClick={onToggleResolved} className="shrink-0 mt-0.5">
+              {sub.isResolved ? (
+                <CheckCircle2 className="w-4 h-4 text-primary" />
+              ) : (
+                <Circle className="w-4 h-4 text-muted-foreground" />
+              )}
+            </button>
+            <p
+              className={cn(
+                "flex-1 text-sm leading-snug",
+                sub.isResolved
+                  ? "line-through text-muted-foreground"
+                  : "text-foreground",
+              )}
+            >
+              {sub.content || (
+                <span className="text-muted-foreground/50 italic">
+                  설명 없음
+                </span>
+              )}
             </p>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button
+                onClick={() => {
+                  setIsEditing(!isEditing);
+                  if (!isExpanded) onToggleExpand();
+                }}
+                className="p-1 hover:bg-muted rounded"
+              >
+                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+              <button onClick={onDelete} className="p-1 hover:bg-muted rounded">
+                <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+              </button>
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground mt-1 pl-5">
+            {sub.authorName} ·{" "}
+            {new Date(
+              sub.createdAt.endsWith("Z") ? sub.createdAt : sub.createdAt + "Z",
+            ).toLocaleDateString("ko-KR")}
+          </p>
+        </div>
+      </div>
+
+      {/* 펼쳐진 뷰 - 이미지 크게 보기 */}
+      {isExpanded && !isEditing && sub.imageUrl && (
+        <div className="border-t">
+          <img
+            src={sub.imageUrl}
+            alt="첨부 이미지"
+            className="w-full max-h-64 object-contain bg-muted/30"
+            onError={(e) => (e.currentTarget.style.display = "none")}
+          />
         </div>
       )}
 
       {/* 편집 뷰 */}
       {isEditing && (
-        <div className="border-t">
-          {/* 이미지 업로드 */}
-          <div
-            className="relative border-b bg-muted/50 min-h-[100px] flex items-center justify-center cursor-pointer hover:bg-muted/70 transition-colors"
-            onClick={() => !editImagePreview && fileInputRef.current?.click()}
-          >
-            {editImagePreview ? (
-              <div className="relative w-full">
-                <img
-                  src={editImagePreview}
-                  alt="미리보기"
-                  className="w-full max-h-48 object-contain"
-                />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditImageUrl("");
-                    setEditImagePreview("");
-                  }}
-                  className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : isUploading ? (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+        <div className="border-t p-3">
+          <div className="flex gap-3">
+            {/* 왼쪽: 정사각형 이미지 편집 */}
+            <div
+              className="relative shrink-0 w-24 h-24 rounded-lg border-2 border-dashed bg-muted/50 flex items-center justify-center cursor-pointer hover:bg-muted/70 transition-colors overflow-hidden"
+              onClick={() => !editImagePreview && fileInputRef.current?.click()}
+            >
+              {editImagePreview ? (
+                <>
+                  <img
+                    src={editImagePreview}
+                    alt="미리보기"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditImageUrl("");
+                      setEditImagePreview("");
+                    }}
+                    className="absolute top-1 right-1 p-0.5 bg-black/50 rounded-full text-white hover:bg-black/70"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </>
+              ) : isUploading ? (
                 <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs">업로드 중...</span>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <ImagePlus className="w-6 h-6" />
-                <span className="text-xs">클릭하여 이미지 변경</span>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImageUpload(file);
-              }}
-            />
-          </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                  <ImagePlus className="w-6 h-6" />
+                  <span className="text-[10px] text-center leading-tight">
+                    이미지
+                    <br />
+                    변경
+                  </span>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file);
+                }}
+              />
+            </div>
 
-          {/* 설명 편집 */}
-          <div className="p-3 space-y-2">
-            <textarea
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              rows={2}
-              className="w-full text-sm bg-background border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-              placeholder="설명"
-            />
-            <div className="flex gap-2 justify-end">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsEditing(false)}
-              >
-                취소
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleUpdate}
-                disabled={updateMutation.isPending || isUploading}
-              >
-                저장
-              </Button>
+            {/* 오른쪽: 설명 편집 + 버튼 */}
+            <div className="flex-1 flex flex-col gap-2">
+              <textarea
+                autoFocus
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+                className="flex-1 w-full text-sm bg-background border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                placeholder="설명"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsEditing(false)}
+                >
+                  취소
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleUpdate}
+                  disabled={updateMutation.isPending || isUploading}
+                >
+                  저장
+                </Button>
+              </div>
             </div>
           </div>
         </div>
