@@ -2,12 +2,12 @@ package com.mapo.palantier.issue.application;
 
 import com.mapo.palantier.issue.domain.Issue;
 import com.mapo.palantier.issue.infrastructure.IssueMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
+import com.mapo.palantier.issue.presentation.dto.IssueReorderItem;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
@@ -19,10 +19,18 @@ public class IssueService {
         this.issueMapper = issueMapper;
     }
 
-    public List<Issue> getAllIssues(String status, String category, String priority,
-                                     Long assigneeId, Long authorId, Long folderId,
-                                     String keyword, String sortBy,
-                                     Integer page, Integer limit) {
+    public List<Issue> getAllIssues(
+        String status,
+        String category,
+        String priority,
+        Long assigneeId,
+        Long authorId,
+        Long folderId,
+        String keyword,
+        String sortBy,
+        Integer page,
+        Integer limit
+    ) {
         Map<String, Object> params = new HashMap<>();
         params.put("status", status);
         params.put("category", category);
@@ -45,9 +53,15 @@ public class IssueService {
         return issueMapper.findById(id);
     }
 
-    public int getTotalCount(String status, String category, String priority,
-                              Long assigneeId, Long authorId, Long folderId,
-                              String keyword) {
+    public int getTotalCount(
+        String status,
+        String category,
+        String priority,
+        Long assigneeId,
+        Long authorId,
+        Long folderId,
+        String keyword
+    ) {
         Map<String, Object> params = new HashMap<>();
         params.put("status", status);
         params.put("category", category);
@@ -91,5 +105,12 @@ public class IssueService {
     @Transactional
     public void updatePriority(Long id, String priority) {
         issueMapper.updatePriority(id, priority);
+    }
+
+    @Transactional
+    public void reorderIssues(List<IssueReorderItem> items) {
+        for (IssueReorderItem item : items) {
+            issueMapper.updateOrderNum(item.getId(), item.getOrderNum());
+        }
     }
 }

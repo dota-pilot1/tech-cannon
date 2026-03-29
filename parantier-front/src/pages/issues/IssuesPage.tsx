@@ -1,7 +1,12 @@
-import { useMemo, useRef, useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
-import type { ColDef, CellStyle } from "ag-grid-community";
+import type {
+  ColDef,
+  CellStyle,
+  RowDragEndEvent,
+  IRowNode,
+} from "ag-grid-community";
 import {
   ModuleRegistry,
   AllCommunityModule,
@@ -64,6 +69,7 @@ import {
   useUpdateDbTable,
   useDeleteDbTable,
 } from "@/features/issue/hooks/useIssueDbTables";
+import { issueApi } from "@/entities/issue/api/issueApi";
 import { ChatPanel } from "@/features/issue/components/ChatPanel";
 import type {
   Issue,
@@ -140,6 +146,16 @@ export function IssuesPage() {
   });
 
   const queryClient = useQueryClient();
+
+  const reorderMutation = useMutation({
+    mutationFn: (items: { id: number; orderNum: number }[]) =>
+      issueApi.reorderIssues(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+    onError: () => toast.error("순서 변경에 실패했습니다"),
+  });
+
   const { mutate: createIssue } = useCreateIssue();
   const { mutate: updateIssue } = useUpdateIssue();
   const { mutate: deleteIssue } = useDeleteIssue();
@@ -528,6 +544,22 @@ export function IssuesPage() {
     CRITICAL: "긴급",
   };
 
+  const onRowDragEnd = useCallback(
+    (event: RowDragEndEvent<Issue>) => {
+      const { api } = event;
+      const reorderItems: { id: number; orderNum: number }[] = [];
+      api.forEachNodeAfterFilterAndSort(
+        (node: IRowNode<Issue>, index: number) => {
+          if (node.data) {
+            reorderItems.push({ id: node.data.id, orderNum: index });
+          }
+        },
+      );
+      reorderMutation.mutate(reorderItems);
+    },
+    [reorderMutation],
+  );
+
   // 컬럼 정의 (좌측 목록용 - 간소화)
   const columnDefs = useMemo<ColDef<Issue>[]>(
     () => [
@@ -541,6 +573,7 @@ export function IssuesPage() {
         suppressMovable: true,
         suppressSizeToFit: true,
         resizable: false,
+        rowDrag: true,
         cellStyle: {
           display: "flex",
           alignItems: "center",
@@ -1375,6 +1408,8 @@ export function IssuesPage() {
               onRowClicked={onRowClicked}
               onCellValueChanged={onCellValueChanged}
               rowClassRules={rowClassRules}
+              rowDragManaged={true}
+              onRowDragEnd={onRowDragEnd}
               animateRows={true}
               pagination={true}
               paginationPageSize={20}

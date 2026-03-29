@@ -3,6 +3,7 @@ package com.mapo.palantier.issue.domain;
 import java.time.LocalDateTime;
 
 public class Issue {
+
     private Long id;
     private String title;
     private String content;
@@ -17,6 +18,7 @@ public class Issue {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer orderNum;
 
     // Author/Assignee 정보 (JOIN용)
     private String authorName;
@@ -154,5 +156,13 @@ public class Issue {
 
     public void setAssigneeEmail(String assigneeEmail) {
         this.assigneeEmail = assigneeEmail;
+    }
+
+    public Integer getOrderNum() {
+        return orderNum;
+    }
+
+    public void setOrderNum(Integer orderNum) {
+        this.orderNum = orderNum;
     }
 }
