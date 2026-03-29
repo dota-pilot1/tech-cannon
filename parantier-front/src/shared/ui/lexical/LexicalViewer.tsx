@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { createEditor } from "lexical";
 import { $generateHtmlFromNodes } from "@lexical/html";
 import { HeadingNode } from "@lexical/rich-text";
@@ -6,114 +6,9 @@ import { ListNode, ListItemNode } from "@lexical/list";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
 import { editorTheme } from "./theme";
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  return (
-    <button
-      onClick={handleCopy}
-      className={`
-        flex items-center gap-1.5 px-2 py-1 text-xs rounded border
-        transition-all duration-150 select-none font-sans
-        ${
-          copied
-            ? "bg-green-800 border-green-600 text-green-200"
-            : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-500 hover:text-white"
-        }
-      `}
-      title="코드 복사"
-    >
-      {copied ? (
-        <>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          복사됨
-        </>
-      ) : (
-        <>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-          복사
-        </>
-      )}
-    </button>
-  );
-}
-
-interface HtmlPart {
-  type: "html" | "code";
-  content: string;
-}
-
-function splitHtmlByCodeBlocks(html: string): HtmlPart[] {
-  const parts: HtmlPart[] = [];
-  // Lexical CodeNode → <code class="...">...</code> 단독 태그로 렌더링됨
-  const codeRegex = /<pre([^>]*)>([\s\S]*?)<\/pre>/gi;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = codeRegex.exec(html)) !== null) {
-    // code 태그 앞 HTML
-    if (match.index > lastIndex) {
-      parts.push({ type: "html", content: html.slice(lastIndex, match.index) });
-    }
-    // pre 태그 자체
-    parts.push({ type: "code", content: match[0] });
-    lastIndex = match.index + match[0].length;
-  }
-
-  // 나머지 HTML
-  if (lastIndex < html.length) {
-    parts.push({ type: "html", content: html.slice(lastIndex) });
-  }
-
-  return parts;
-}
-
-function extractTextFromHtml(html: string): string {
-  // br 태그를 먼저 줄바꿈으로 변환
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ");
-}
-
 export function LexicalViewer({ content }: { content: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const html = useMemo(() => {
     if (!content) return "";
     try {
@@ -140,32 +35,84 @@ export function LexicalViewer({ content }: { content: string }) {
     }
   }, [content]);
 
-  const parts = useMemo(() => splitHtmlByCodeBlocks(html), [html]);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // pre 태그 찾기
+    const preEls = container.querySelectorAll<HTMLElement>("pre");
+    preEls.forEach((pre) => {
+      // 이미 처리된 경우 스킵
+      if (pre.parentElement?.classList.contains("code-wrapper")) return;
+
+      // 래퍼 div 생성
+      const wrapper = document.createElement("div");
+      wrapper.className = "code-wrapper relative my-2";
+
+      // 복사 버튼 생성
+      const btn = document.createElement("button");
+      btn.className =
+        "absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 text-xs rounded " +
+        "bg-gray-700 border border-gray-600 text-gray-300 hover:bg-gray-500 hover:text-white transition-colors select-none";
+      btn.innerHTML =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        "<span>복사</span>";
+
+      btn.addEventListener("click", () => {
+        // br → \n 변환 후 텍스트 추출
+        const clone = pre.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll("br").forEach((br) => {
+          br.replaceWith("\n");
+        });
+        const text = clone.innerText || clone.textContent || "";
+
+        navigator.clipboard.writeText(text).then(() => {
+          btn.innerHTML =
+            '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+            "<span>복사됨</span>";
+          btn.classList.add(
+            "bg-green-800",
+            "border-green-600",
+            "text-green-200",
+          );
+          btn.classList.remove(
+            "bg-gray-700",
+            "border-gray-600",
+            "text-gray-300",
+          );
+
+          setTimeout(() => {
+            btn.innerHTML =
+              '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+              "<span>복사</span>";
+            btn.classList.remove(
+              "bg-green-800",
+              "border-green-600",
+              "text-green-200",
+            );
+            btn.classList.add(
+              "bg-gray-700",
+              "border-gray-600",
+              "text-gray-300",
+            );
+          }, 2000);
+        });
+      });
+
+      // pre를 wrapper로 감싸고 버튼 추가
+      pre.parentNode?.insertBefore(wrapper, pre);
+      wrapper.appendChild(pre);
+      wrapper.appendChild(btn);
+    });
+  }, [html]);
 
   if (!content) return null;
 
   return (
-    <div className="lexical-viewer text-sm">
-      {parts.map((part, idx) => {
-        if (part.type === "code") {
-          const plainText = extractTextFromHtml(
-            part.content.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/i, "$1"),
-          );
-          return (
-            <div key={idx} className="relative my-2 group">
-              {/* 복사 버튼 - 항상 우상단 고정 */}
-              <div className="absolute top-2 right-2 z-10">
-                <CopyButton text={plainText} />
-              </div>
-              {/* 코드 블록 */}
-              <div dangerouslySetInnerHTML={{ __html: part.content }} />
-            </div>
-          );
-        }
-        return (
-          <div key={idx} dangerouslySetInnerHTML={{ __html: part.content }} />
-        );
-      })}
-    </div>
+    <div
+      ref={containerRef}
+      className="lexical-viewer text-sm"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }
