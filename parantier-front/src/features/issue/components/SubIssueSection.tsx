@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Plus,
   Trash2,
@@ -7,6 +7,8 @@ import {
   ChevronDown,
   ChevronUp,
   Pencil,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import {
   useSubIssues,
@@ -15,6 +17,7 @@ import {
   useDeleteSubIssue,
   useUpdateSubIssue,
 } from "../hooks/useSubIssues";
+import { issueImageApi } from "@/entities/issue/api/issueImageApi";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
 import type { SubIssue } from "@/entities/issue/types/subIssue";
@@ -30,28 +33,48 @@ export function SubIssueSection({ issueId }: SubIssueSectionProps) {
   const deleteMutation = useDeleteSubIssue(issueId);
 
   const [isAdding, setIsAdding] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newContent, setNewContent] = useState("");
+  const [newDescription, setNewDescription] = useState("");
   const [newImageUrl, setNewImageUrl] = useState("");
+  const [newImagePreview, setNewImagePreview] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resolved = subIssues.filter((s) => s.isResolved).length;
   const total = subIssues.length;
 
+  const handleImageUpload = async (file: File) => {
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const { presignedUrl, publicUrl } = await issueImageApi.getPresignedUrl(
+        file.name,
+        file.type || "image/*",
+      );
+      await issueImageApi.uploadToS3(presignedUrl, file);
+      setNewImageUrl(publicUrl);
+      setNewImagePreview(URL.createObjectURL(file));
+    } catch {
+      // silent
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleCreate = () => {
-    if (!newTitle.trim()) return;
+    if (!newDescription.trim() && !newImageUrl) return;
     createMutation.mutate(
       {
-        title: newTitle.trim(),
-        content: newContent.trim() || undefined,
-        imageUrl: newImageUrl.trim() || undefined,
+        title: "",
+        content: newDescription.trim() || undefined,
+        imageUrl: newImageUrl || undefined,
       },
       {
         onSuccess: () => {
           setIsAdding(false);
-          setNewTitle("");
-          setNewContent("");
+          setNewDescription("");
           setNewImageUrl("");
+          setNewImagePreview("");
         },
       },
     );
@@ -109,46 +132,88 @@ export function SubIssueSection({ issueId }: SubIssueSectionProps) {
 
       {/* 새 부가 이슈 입력 폼 */}
       {isAdding && (
-        <div className="mt-3 border rounded-lg p-4 bg-muted/30 space-y-3">
-          <input
-            autoFocus
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreate();
-              if (e.key === "Escape") setIsAdding(false);
-            }}
-            placeholder="부가 이슈 제목..."
-            className="w-full text-sm bg-background border rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <textarea
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-            placeholder="내용 (선택사항)"
-            rows={2}
-            className="w-full text-sm bg-background border rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-          />
-          <input
-            value={newImageUrl}
-            onChange={(e) => setNewImageUrl(e.target.value)}
-            placeholder="이미지 URL (선택사항)"
-            className="w-full text-sm bg-background border rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <div className="flex gap-2 justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsAdding(false)}
-            >
-              취소
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleCreate}
-              disabled={!newTitle.trim() || createMutation.isPending}
-            >
-              추가
-            </Button>
+        <div className="mt-3 border rounded-lg bg-muted/30 overflow-hidden">
+          {/* 이미지 업로드 영역 */}
+          <div
+            className="relative border-b bg-muted/50 min-h-[120px] flex items-center justify-center cursor-pointer hover:bg-muted/70 transition-colors"
+            onClick={() => !newImagePreview && fileInputRef.current?.click()}
+          >
+            {newImagePreview ? (
+              <div className="relative w-full">
+                <img
+                  src={newImagePreview}
+                  alt="미리보기"
+                  className="w-full max-h-48 object-contain"
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNewImageUrl("");
+                    setNewImagePreview("");
+                  }}
+                  className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : isUploading ? (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs">업로드 중...</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <ImagePlus className="w-8 h-8" />
+                <span className="text-xs">클릭하여 이미지 업로드</span>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageUpload(file);
+              }}
+            />
+          </div>
+
+          {/* 설명 입력 */}
+          <div className="p-3 space-y-3">
+            <textarea
+              autoFocus
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="설명을 입력하세요..."
+              rows={2}
+              className="w-full text-sm bg-background border rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIsAdding(false);
+                  setNewDescription("");
+                  setNewImageUrl("");
+                  setNewImagePreview("");
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleCreate}
+                disabled={
+                  (!newDescription.trim() && !newImageUrl) ||
+                  createMutation.isPending ||
+                  isUploading
+                }
+              >
+                추가
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -178,16 +243,35 @@ function SubIssueItem({
   onDelete: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(sub.title);
-  const [editContent, setEditContent] = useState(sub.content || "");
+  const [editDescription, setEditDescription] = useState(sub.content || "");
   const [editImageUrl, setEditImageUrl] = useState(sub.imageUrl || "");
+  const [editImagePreview, setEditImagePreview] = useState(sub.imageUrl || "");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const updateMutation = useUpdateSubIssue(issueId, sub.id);
+
+  const handleImageUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const { presignedUrl, publicUrl } = await issueImageApi.getPresignedUrl(
+        file.name,
+        file.type || "image/*",
+      );
+      await issueImageApi.uploadToS3(presignedUrl, file);
+      setEditImageUrl(publicUrl);
+      setEditImagePreview(URL.createObjectURL(file));
+    } catch {
+      // silent
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleUpdate = () => {
     updateMutation.mutate(
       {
-        title: editTitle,
-        content: editContent || undefined,
+        title: "",
+        content: editDescription || undefined,
         imageUrl: editImageUrl || undefined,
         isResolved: sub.isResolved,
       },
@@ -195,13 +279,21 @@ function SubIssueItem({
     );
   };
 
+  // 미리보기: 이미지 또는 설명 앞 30자
+  const preview = sub.imageUrl
+    ? "🖼️ 이미지 첨부됨"
+    : sub.content
+      ? sub.content.slice(0, 40) + (sub.content.length > 40 ? "..." : "")
+      : "내용 없음";
+
   return (
     <div
       className={cn(
-        "border rounded-lg transition-colors",
+        "border rounded-lg transition-colors overflow-hidden",
         sub.isResolved ? "bg-muted/30 border-muted" : "bg-card",
       )}
     >
+      {/* 헤더 행 */}
       <div className="flex items-center gap-2 px-3 py-2.5">
         <button onClick={onToggleResolved} className="shrink-0">
           {sub.isResolved ? (
@@ -212,17 +304,17 @@ function SubIssueItem({
         </button>
         <span
           className={cn(
-            "flex-1 text-sm",
+            "flex-1 text-sm truncate",
             sub.isResolved && "line-through text-muted-foreground",
           )}
         >
-          {sub.title}
+          {preview}
         </span>
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => {
               setIsEditing(!isEditing);
-              onToggleExpand();
+              if (!isExpanded) onToggleExpand();
             }}
             className="p-1 hover:bg-muted rounded"
           >
@@ -244,63 +336,111 @@ function SubIssueItem({
         </div>
       </div>
 
+      {/* 펼쳐진 뷰 */}
       {isExpanded && !isEditing && (
-        <div className="px-9 pb-3 space-y-2">
-          {sub.content && (
-            <p className="text-sm text-muted-foreground">{sub.content}</p>
-          )}
+        <div className="border-t">
           {sub.imageUrl && (
             <img
               src={sub.imageUrl}
               alt="첨부 이미지"
-              className="max-w-sm rounded border"
+              className="w-full max-h-64 object-contain bg-muted/30"
               onError={(e) => (e.currentTarget.style.display = "none")}
             />
           )}
-          <p className="text-xs text-muted-foreground">
-            {sub.authorName} ·{" "}
-            {new Date(
-              sub.createdAt.endsWith("Z") ? sub.createdAt : sub.createdAt + "Z",
-            ).toLocaleDateString("ko-KR")}
-          </p>
+          {sub.content && (
+            <div className="px-4 py-3">
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {sub.content}
+              </p>
+            </div>
+          )}
+          <div className="px-4 pb-2">
+            <p className="text-xs text-muted-foreground">
+              {sub.authorName} ·{" "}
+              {new Date(
+                sub.createdAt.endsWith("Z")
+                  ? sub.createdAt
+                  : sub.createdAt + "Z",
+              ).toLocaleDateString("ko-KR")}
+            </p>
+          </div>
         </div>
       )}
 
+      {/* 편집 뷰 */}
       {isEditing && (
-        <div className="px-9 pb-3 space-y-2">
-          <input
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            className="w-full text-sm bg-background border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <textarea
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            rows={2}
-            className="w-full text-sm bg-background border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-            placeholder="내용"
-          />
-          <input
-            value={editImageUrl}
-            onChange={(e) => setEditImageUrl(e.target.value)}
-            className="w-full text-sm bg-background border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="이미지 URL"
-          />
-          <div className="flex gap-2 justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsEditing(false)}
-            >
-              취소
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleUpdate}
-              disabled={updateMutation.isPending}
-            >
-              저장
-            </Button>
+        <div className="border-t">
+          {/* 이미지 업로드 */}
+          <div
+            className="relative border-b bg-muted/50 min-h-[100px] flex items-center justify-center cursor-pointer hover:bg-muted/70 transition-colors"
+            onClick={() => !editImagePreview && fileInputRef.current?.click()}
+          >
+            {editImagePreview ? (
+              <div className="relative w-full">
+                <img
+                  src={editImagePreview}
+                  alt="미리보기"
+                  className="w-full max-h-48 object-contain"
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditImageUrl("");
+                    setEditImagePreview("");
+                  }}
+                  className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : isUploading ? (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs">업로드 중...</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <ImagePlus className="w-6 h-6" />
+                <span className="text-xs">클릭하여 이미지 변경</span>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageUpload(file);
+              }}
+            />
+          </div>
+
+          {/* 설명 편집 */}
+          <div className="p-3 space-y-2">
+            <textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              rows={2}
+              className="w-full text-sm bg-background border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              placeholder="설명"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsEditing(false)}
+              >
+                취소
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleUpdate}
+                disabled={updateMutation.isPending || isUploading}
+              >
+                저장
+              </Button>
+            </div>
           </div>
         </div>
       )}
