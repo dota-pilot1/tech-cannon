@@ -5,6 +5,8 @@ import {
   ChevronDown,
   FilePlus,
   FolderPlus,
+  FolderOpen,
+  FileText,
   Pencil,
   Trash2,
   Search,
@@ -348,28 +350,26 @@ function TreeNode({
   };
 
   return (
-    <div>
+    <div className={depth > 0 ? "ml-4" : ""}>
       {/* 폴더 행 */}
       <div
         onClick={() => onToggle(cat.id)}
         onContextMenu={openCtx}
-        style={{ paddingLeft: `${pl}px`, paddingRight: "4px" }}
         className={cn(
-          "group flex items-center gap-1 py-1.5 cursor-pointer rounded text-sm transition-colors",
+          "group flex items-center gap-2 py-2 px-3 rounded cursor-pointer transition-colors",
           isSelected
-            ? "bg-primary/10 text-primary"
-            : "text-foreground hover:bg-muted/50",
+            ? "bg-primary text-primary-foreground font-medium"
+            : "hover:bg-accent",
         )}
       >
-        <span className="shrink-0 text-muted-foreground w-3">
-          {isExpanded ? (
-            <ChevronDown className="w-3 h-3" />
-          ) : (
-            <ChevronRight className="w-3 h-3" />
-          )}
-        </span>
-        <span className="shrink-0 text-sm leading-none">
-          {cat.icon || "📁"}
+        <span className="shrink-0 text-sm">{isExpanded ? "▼" : "▶"}</span>
+        <span className="shrink-0">
+          <FolderOpen
+            className={cn(
+              "w-4 h-4",
+              isSelected ? "text-primary-foreground" : "text-muted-foreground",
+            )}
+          />
         </span>
         {isRenamingThis ? (
           <InlineRename
@@ -381,7 +381,9 @@ function TreeNode({
             onCancel={() => setRenamingCat(null)}
           />
         ) : (
-          <span className="flex-1 truncate text-sm">{cat.name}</span>
+          <div className="flex-1 flex items-center gap-1 min-w-0">
+            <span className="truncate text-sm">{cat.name}</span>
+          </div>
         )}
         {/* hover 액션 버튼 */}
         {!isRenamingThis && (
@@ -393,7 +395,12 @@ function TreeNode({
                 if (!expandedIds.has(cat.id)) onToggle(cat.id);
                 setInlineState({ type: "doc", categoryId: cat.id });
               }}
-              className="text-xs text-muted-foreground hover:text-primary px-1"
+              className={cn(
+                "text-xs px-1 rounded",
+                isSelected
+                  ? "text-primary-foreground/70 hover:text-primary-foreground"
+                  : "text-muted-foreground hover:text-primary",
+              )}
               title="새 문서"
             >
               +
@@ -403,7 +410,12 @@ function TreeNode({
                 e.stopPropagation();
                 setRenamingCat({ id: cat.id });
               }}
-              className="text-xs text-muted-foreground hover:text-foreground px-1"
+              className={cn(
+                "text-xs px-1 rounded",
+                isSelected
+                  ? "text-primary-foreground/70 hover:text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
               title="이름 변경"
             >
               ✏️
@@ -413,7 +425,12 @@ function TreeNode({
                 e.stopPropagation();
                 onDeleteCat(cat);
               }}
-              className="text-xs text-muted-foreground hover:text-destructive px-1"
+              className={cn(
+                "text-xs px-1 rounded",
+                isSelected
+                  ? "text-primary-foreground/70 hover:text-destructive"
+                  : "text-muted-foreground hover:text-destructive",
+              )}
               title="삭제"
             >
               🗑️
@@ -481,18 +498,21 @@ function TreeNode({
                 const y = Math.min(e.clientY, window.innerHeight - 100);
                 setCtxMenu({ kind: "post", x, y, post });
               }}
-              style={{
-                paddingLeft: `${(depth + 1) * 14 + 8}px`,
-                paddingRight: "8px",
-              }}
               className={cn(
-                "flex items-center gap-1.5 py-1.5 cursor-pointer select-none text-sm transition-colors",
+                "ml-4 flex items-center gap-2 py-2 px-3 rounded cursor-pointer select-none text-sm transition-colors",
                 selectedPostId === post.id
-                  ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "hover:bg-accent text-foreground",
               )}
             >
-              <span className="shrink-0 text-[10px]">📄</span>
+              <FileText
+                className={cn(
+                  "w-4 h-4 shrink-0",
+                  selectedPostId === post.id
+                    ? "text-primary-foreground"
+                    : "text-muted-foreground",
+                )}
+              />
               {renamingPost?.id === post.id ? (
                 <InlineRename
                   initialValue={post.title}
