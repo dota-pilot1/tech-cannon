@@ -1,19 +1,38 @@
-import type { Menu } from '@/types/menu'
-import { InlineMenuInput } from './InlineMenuInput'
+import type { Menu } from "@/types/menu";
+import { InlineMenuInput } from "./InlineMenuInput";
+import { useSortable } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
+import { useState } from "react";
 
 interface TreeNodeProps {
-  menu: Menu
-  depth: number
-  allMenus: Menu[]
-  expandedIds: Set<number>
-  selectedId: number | null
-  addingChildToId: number | null
-  highlightedIds: Set<number>
-  onSelect: (menu: Menu) => void
-  onToggle: (id: number) => void
-  onContextMenu: (x: number, y: number, menu: Menu) => void
-  onInlineSubmit: (parentId: number, name: string) => void
-  onInlineCancel: () => void
+  menu: Menu;
+  depth: number;
+  allMenus: Menu[];
+  expandedIds: Set<number>;
+  selectedId: number | null;
+  addingChildToId: number | null;
+  highlightedIds: Set<number>;
+  onSelect: (menu: Menu) => void;
+  onToggle: (id: number) => void;
+  onContextMenu: (x: number, y: number, menu: Menu) => void;
+  onInlineSubmit: (parentId: number, name: string) => void;
+  onInlineCancel: () => void;
+  onReorder: (items: { id: number; orderNum: number }[]) => void;
 }
 
 export function TreeNode({
@@ -29,43 +48,104 @@ export function TreeNode({
   onContextMenu,
   onInlineSubmit,
   onInlineCancel,
+  onReorder,
 }: TreeNodeProps) {
-  const children = allMenus.filter((m) => m.parentId === menu.id)
-  const hasChildren = children.length > 0
-  const isExpanded = expandedIds.has(menu.id)
-  const isSelected = menu.id === selectedId
-  const isHighlighted = highlightedIds.has(menu.id)
+  const children = allMenus
+    .filter((m) => m.parentId === menu.id)
+    .sort((a, b) => a.orderNum - b.orderNum);
+
+  const hasChildren = children.length > 0;
+  const isExpanded = expandedIds.has(menu.id);
+  const isSelected = menu.id === selectedId;
+  const isHighlighted = highlightedIds.has(menu.id);
+
+  const [activeChildId, setActiveChildId] = useState<number | null>(null);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: menu.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  };
 
   const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    onContextMenu(e.clientX, e.clientY, menu)
-  }
+    e.preventDefault();
+    e.stopPropagation();
+    onContextMenu(e.clientX, e.clientY, menu);
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleChildDragStart = (event: DragStartEvent) => {
+    setActiveChildId(event.active.id as number);
+  };
+
+  const handleChildDragEnd = (event: DragEndEvent) => {
+    setActiveChildId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeChild = children.find((m) => m.id === active.id);
+    const overChild = children.find((m) => m.id === over.id);
+    if (!activeChild || !overChild) return;
+
+    const oldIndex = children.findIndex((m) => m.id === active.id);
+    const newIndex = children.findIndex((m) => m.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(children, oldIndex, newIndex);
+    const updates = reordered.map((m, idx) => ({ id: m.id, orderNum: idx }));
+    onReorder(updates);
+  };
+
+  const activeChildMenu = activeChildId
+    ? allMenus.find((m) => m.id === activeChildId)
+    : null;
 
   return (
-    <div>
+    <div ref={setNodeRef} style={style}>
       <div
         className={`flex cursor-pointer items-center rounded px-3 py-2 transition-colors hover:bg-gray-100 ${
           isSelected
-            ? 'bg-blue-50 font-semibold text-blue-700'
+            ? "bg-blue-50 font-semibold text-blue-700"
             : isHighlighted
-              ? 'bg-yellow-50 font-medium'
-              : ''
+              ? "bg-yellow-50 font-medium"
+              : ""
         }`}
         style={{ paddingLeft: `${depth * 20 + 12}px` }}
         onClick={() => onSelect(menu)}
         onContextMenu={handleContextMenu}
       >
+        {/* 드래그 핸들 */}
+        <span
+          className="mr-1 flex cursor-grab items-center text-gray-400 hover:text-gray-600 active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={14} />
+        </span>
+
         {/* 확장/축소 토글 */}
         {hasChildren && (
           <button
             className="mr-1 flex h-4 w-4 items-center justify-center text-gray-500 hover:text-gray-700"
             onClick={(e) => {
-              e.stopPropagation()
-              onToggle(menu.id)
+              e.stopPropagation();
+              onToggle(menu.id);
             }}
           >
-            {isExpanded ? '▼' : '▶'}
+            {isExpanded ? "▼" : "▶"}
           </button>
         )}
 
@@ -74,7 +154,7 @@ export function TreeNode({
 
         {/* 아이콘 */}
         <span className="mr-2 text-base">
-          {menu.menuType === 'HEADER' ? '📁' : '📄'}
+          {menu.menuType === "HEADER" ? "📁" : "📄"}
         </span>
 
         {/* 메뉴명 */}
@@ -88,27 +168,47 @@ export function TreeNode({
         )}
       </div>
 
-      {/* 자식 노드들 (재귀) */}
+      {/* 자식 노드들 (재귀, DndContext + SortableContext 적용) */}
       {hasChildren && isExpanded && (
-        <div>
-          {children.map((child) => (
-            <TreeNode
-              key={child.id}
-              menu={child}
-              depth={depth + 1}
-              allMenus={allMenus}
-              expandedIds={expandedIds}
-              selectedId={selectedId}
-              addingChildToId={addingChildToId}
-              highlightedIds={highlightedIds}
-              onSelect={onSelect}
-              onToggle={onToggle}
-              onContextMenu={onContextMenu}
-              onInlineSubmit={onInlineSubmit}
-              onInlineCancel={onInlineCancel}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleChildDragStart}
+          onDragEnd={handleChildDragEnd}
+        >
+          <SortableContext
+            items={children.map((m) => m.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div>
+              {children.map((child) => (
+                <TreeNode
+                  key={child.id}
+                  menu={child}
+                  depth={depth + 1}
+                  allMenus={allMenus}
+                  expandedIds={expandedIds}
+                  selectedId={selectedId}
+                  addingChildToId={addingChildToId}
+                  highlightedIds={highlightedIds}
+                  onSelect={onSelect}
+                  onToggle={onToggle}
+                  onContextMenu={onContextMenu}
+                  onInlineSubmit={onInlineSubmit}
+                  onInlineCancel={onInlineCancel}
+                  onReorder={onReorder}
+                />
+              ))}
+            </div>
+          </SortableContext>
+          <DragOverlay>
+            {activeChildMenu && (
+              <div className="bg-card border rounded px-3 py-2 text-sm shadow-lg opacity-90">
+                {activeChildMenu.name}
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* 인라인 입력 (하위 메뉴 추가) */}
@@ -120,5 +220,5 @@ export function TreeNode({
         />
       )}
     </div>
-  )
+  );
 }

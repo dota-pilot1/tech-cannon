@@ -15,4 +15,5 @@ public interface MenuRepository {
     void save(Menu menu);
     void update(Menu menu);
     void deleteById(Long id);
+    void updateOrderNum(Long id, Integer orderNum);
 }

@@ -109,4 +109,9 @@
         DELETE FROM menus WHERE id = #{id}
     </delete>
 
+    <!-- 순서 변경 -->
+    <update id="updateOrderNum">
+        UPDATE menus SET order_num = #{orderNum}, updated_at = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
 </mapper>

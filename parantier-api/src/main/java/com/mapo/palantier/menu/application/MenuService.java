@@ -2,17 +2,18 @@ package com.mapo.palantier.menu.application;
 
 import com.mapo.palantier.menu.domain.Menu;
 import com.mapo.palantier.menu.domain.MenuRepository;
+import com.mapo.palantier.menu.presentation.dto.MenuReorderRequest;
+import java.util.*;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MenuService {
+
     private final MenuRepository menuRepository;
 
     public List<Menu> getMenusByRole(String role) {
@@ -67,8 +68,9 @@ public class MenuService {
     }
 
     public Menu getMenuById(Long id) {
-        return menuRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Menu not found: " + id));
+        return menuRepository
+            .findById(id)
+            .orElseThrow(() -> new RuntimeException("Menu not found: " + id));
     }
 
     @Transactional
@@ -88,6 +90,13 @@ public class MenuService {
         menuRepository.deleteById(id);
     }
 
+    @Transactional
+    public void reorderMenus(List<MenuReorderRequest> requests) {
+        for (MenuReorderRequest req : requests) {
+            menuRepository.updateOrderNum(req.getId(), req.getOrderNum());
+        }
+    }
+
     /**
      * 각 메뉴에 접근 가능한 역할 목록 설정
      */
@@ -95,7 +104,9 @@ public class MenuService {
         for (Menu menu : menus) {
             if (menu.getRequiredRole() != null) {
                 // requiredRole이 있는 경우, 해당 역할과 상위 역할들을 조회
-                List<String> allowedRoles = menuRepository.findAllowedRoles(menu.getRequiredRole());
+                List<String> allowedRoles = menuRepository.findAllowedRoles(
+                    menu.getRequiredRole()
+                );
                 menu.setAllowedRoles(allowedRoles);
             } else {
                 // requiredRole이 null이면 모든 역할이 접근 가능 (빈 리스트로 표시하거나 null)

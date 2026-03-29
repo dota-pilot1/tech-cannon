@@ -2,15 +2,15 @@ package com.mapo.palantier.menu.infrastructure;
 
 import com.mapo.palantier.menu.domain.Menu;
 import com.mapo.palantier.menu.domain.MenuRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
 public class MenuRepositoryImpl implements MenuRepository {
+
     private final MenuMapper menuMapper;
 
     @Override
@@ -51,5 +51,10 @@ public class MenuRepositoryImpl implements MenuRepository {
     @Override
     public void deleteById(Long id) {
         menuMapper.deleteById(id);
+    }
+
+    @Override
+    public void updateOrderNum(Long id, Integer orderNum) {
+        menuMapper.updateOrderNum(id, orderNum);
     }
 }
