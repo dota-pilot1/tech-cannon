@@ -565,15 +565,31 @@ export function IssuesPage() {
     () => [
       {
         headerName: "",
-        width: 50,
-        maxWidth: 50,
-        minWidth: 50,
+        width: 28,
+        maxWidth: 28,
+        minWidth: 28,
+        suppressMovable: true,
+        suppressSizeToFit: true,
+        resizable: false,
+        rowDrag: true,
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "grab",
+          color: "#aaa",
+        } as CellStyle,
+      },
+      {
+        headerName: "",
+        width: 40,
+        maxWidth: 40,
+        minWidth: 40,
         checkboxSelection: true,
         headerCheckboxSelection: true,
         suppressMovable: true,
         suppressSizeToFit: true,
         resizable: false,
-        rowDrag: true,
         cellStyle: {
           display: "flex",
           alignItems: "center",
@@ -1411,9 +1427,6 @@ export function IssuesPage() {
               rowDragManaged={true}
               onRowDragEnd={onRowDragEnd}
               animateRows={true}
-              pagination={true}
-              paginationPageSize={20}
-              paginationPageSizeSelector={[10, 20, 50, 100]}
               theme={themeQuartz.withParams({
                 headerHeight: 40,
                 rowHeight: 40,
