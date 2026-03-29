@@ -196,6 +196,7 @@ export default function TasksPage() {
     (newId) => {
       setInlineDocInput(null);
       setInlineDocTitle("");
+      setSelectedFolderId(null);
       setSelectedPostId(newId);
       setIsEditing(false);
     },

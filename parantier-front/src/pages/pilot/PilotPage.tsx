@@ -144,7 +144,7 @@ export function PilotPage() {
   // 확장된 폴더들의 posts 조회
   const postsQueries = useQueries({
     queries: Array.from(expandedFolders).map((folderId) => ({
-      queryKey: ["taskPosts", folderId],
+      queryKey: ["pilotPosts", folderId],
       queryFn: () => taskApi.getPostsByFolder(folderId),
       staleTime: 30000, // 30초 동안 캐시 유지
     })),
@@ -200,6 +200,7 @@ export function PilotPage() {
     (newId) => {
       setInlineDocInput(null);
       setInlineDocTitle("");
+      setSelectedFolderId(null);
       setSelectedPostId(newId);
       setIsEditing(false);
     },
