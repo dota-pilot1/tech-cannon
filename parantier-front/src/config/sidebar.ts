@@ -1,4 +1,4 @@
-import { Users, Building2, Shield, Menu as MenuIcon } from "lucide-react";
+import { Users, Building2, Shield } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface SidebarItem {
@@ -41,12 +41,6 @@ export const sidebarConfig: Record<string, SidebarSection[]> = {
           path: "/admin/authorities",
           icon: Shield,
           authority: "AUTHORITY:READ",
-        },
-        {
-          label: "문서 관리",
-          path: "/admin/workspace",
-          icon: MenuIcon,
-          authority: "WORKSPACE:READ",
         },
       ],
     },

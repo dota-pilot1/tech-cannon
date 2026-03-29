@@ -9,7 +9,7 @@ import { Header } from "@/widgets/header/Header";
 import { MainPage } from "@/pages/main/MainPage";
 import { UsersPage } from "@/pages/admin/users/UsersPage";
 import { MenusPage } from "@/pages/admin/menus/MenusPage";
-import { WorkspacePage } from "@/pages/admin/workspace/WorkspacePage";
+
 import { AuthoritiesPage } from "@/pages/admin/authorities/AuthoritiesPage";
 import { OrganizationsPage } from "@/pages/admin/organizations/OrganizationsPage";
 import { RolesPage } from "@/pages/admin/roles/RolesPage";
@@ -98,14 +98,6 @@ const adminMenusRoute = createRoute({
   path: "/admin/menus",
   beforeLoad: () => requireRole("ROLE_ADMIN"),
   component: MenusPage,
-});
-
-// 업무 관리 (ROLE_ADMIN으로 페이지 접근 제어)
-const adminWorkspaceRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/admin/workspace",
-  beforeLoad: () => requireRole("ROLE_ADMIN"),
-  component: WorkspacePage,
 });
 
 // 권한 관리 (ROLE_ADMIN으로 페이지 접근 제어)
@@ -308,7 +300,7 @@ const routeTree = rootRoute.addChildren([
   dashboardAliasRoute,
   adminUsersRoute,
   adminMenusRoute,
-  adminWorkspaceRoute,
+
   adminAuthoritiesRoute,
   adminOrganizationsRoute,
   adminRolesRoute,
