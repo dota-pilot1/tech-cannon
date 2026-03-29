@@ -124,10 +124,10 @@ const adminRolesRoute = createRoute({
   component: RolesPage,
 });
 
-// 업무 관리 (ROLE_USER 이상)
+// 문서 관리 (ROLE_USER 이상)
 const tasksRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/tasks",
+  path: "/docs",
   component: TasksPage,
 });
 
