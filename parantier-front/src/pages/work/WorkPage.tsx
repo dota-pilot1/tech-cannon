@@ -69,6 +69,12 @@ import {
   useDeleteWorkDbTable,
 } from "@/features/work/hooks/useWorkDbTables";
 import {
+  useWorkFigmas,
+  useCreateWorkFigma,
+  useUpdateWorkFigma,
+  useDeleteWorkFigma,
+} from "@/features/work/hooks/useWorkFigmas";
+import {
   useWorkLinkedIssues,
   useLinkIssue,
   useUnlinkIssue,
@@ -99,6 +105,7 @@ import {
   Eye,
   Link,
   Unlink,
+  ExternalLink,
 } from "lucide-react";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
@@ -314,6 +321,17 @@ export function WorkPage() {
     columns: [],
   });
   const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false);
+
+  // 피그마 관련
+  const { data: figmas } = useWorkFigmas(selectedWorkId);
+  const { mutate: createFigma } = useCreateWorkFigma(selectedWorkId!);
+  const { mutate: updateFigma } = useUpdateWorkFigma(selectedWorkId!);
+  const { mutate: deleteFigma } = useDeleteWorkFigma(selectedWorkId!);
+  const [isFigmaDialogOpen, setIsFigmaDialogOpen] = useState(false);
+  const [selectedFigmaId, setSelectedFigmaId] = useState<number | null>(null);
+  const [figmaTitle, setFigmaTitle] = useState("");
+  const [figmaUrl, setFigmaUrl] = useState("");
+  const [figmaDescription, setFigmaDescription] = useState("");
 
   // 연결 이슈 관련
   const { data: linkedIssues } = useWorkLinkedIssues(selectedWorkId);
@@ -1378,6 +1396,67 @@ export function WorkPage() {
     setSelectedDbTableId(null);
   };
 
+  const handleOpenFigmaDialog = (figmaId?: number) => {
+    if (figmaId) {
+      const figma = figmas?.find((f) => f.id === figmaId);
+      if (figma) {
+        setSelectedFigmaId(figmaId);
+        setFigmaTitle(figma.title);
+        setFigmaUrl(figma.url);
+        setFigmaDescription(figma.description || "");
+      }
+    } else {
+      setSelectedFigmaId(null);
+      setFigmaTitle("");
+      setFigmaUrl("");
+      setFigmaDescription("");
+    }
+    setIsFigmaDialogOpen(true);
+  };
+
+  const handleSaveFigma = () => {
+    if (!figmaTitle.trim()) {
+      toast.error("제목을 입력하세요");
+      return;
+    }
+    if (!figmaUrl.trim()) {
+      toast.error("URL을 입력하세요");
+      return;
+    }
+    const orderNum = figmas?.length || 0;
+    if (selectedFigmaId) {
+      const figma = figmas?.find((f) => f.id === selectedFigmaId);
+      updateFigma({
+        figmaId: selectedFigmaId,
+        request: {
+          title: figmaTitle,
+          url: figmaUrl,
+          description: figmaDescription,
+          orderNum: figma?.orderNum || 0,
+        },
+      });
+    } else {
+      createFigma({
+        title: figmaTitle,
+        url: figmaUrl,
+        description: figmaDescription,
+        orderNum,
+      });
+    }
+    setIsFigmaDialogOpen(false);
+  };
+
+  const handleDeleteFigma = async (figmaId: number) => {
+    const confirmed = await confirm({
+      title: "피그마 삭제",
+      description: "이 피그마 링크를 삭제하시겠습니까?",
+      confirmText: "삭제",
+      cancelText: "취소",
+      variant: "destructive",
+    });
+    if (confirmed) deleteFigma(figmaId);
+  };
+
   const handleDeleteDbTable = async (dbTableId: number) => {
     const confirmed = await confirm({
       title: "DB 테이블 삭제",
@@ -2131,6 +2210,14 @@ export function WorkPage() {
                           </span>
                         )}
                       </TabsTrigger>
+                      <TabsTrigger value="figmas">
+                        피그마
+                        {figmas && figmas.length > 0 && (
+                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                            {figmas.length}
+                          </span>
+                        )}
+                      </TabsTrigger>
                     </TabsList>
 
                     {/* 이미지 탭 */}
@@ -2469,6 +2556,141 @@ export function WorkPage() {
                       </div>
                     </TabsContent>
 
+                    {/* 피그마 탭 */}
+                    <TabsContent value="figmas">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-semibold text-sm">피그마 링크</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenFigmaDialog()}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          피그마 추가
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {figmas && figmas.length > 0 ? (
+                          figmas.map((figma) => (
+                            <div
+                              key={figma.id}
+                              className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent group"
+                            >
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <svg
+                                  className="w-5 h-5 flex-shrink-0"
+                                  viewBox="0 0 38 57"
+                                  fill="none"
+                                >
+                                  <path
+                                    d="M19 28.5A9.5 9.5 0 1 1 28.5 19 9.5 9.5 0 0 1 19 28.5z"
+                                    fill="#1ABCFE"
+                                  />
+                                  <path
+                                    d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 0 1-19 0z"
+                                    fill="#0ACF83"
+                                  />
+                                  <path
+                                    d="M19 0v19h9.5a9.5 9.5 0 0 0 0-19z"
+                                    fill="#FF7262"
+                                  />
+                                  <path
+                                    d="M0 9.5a9.5 9.5 0 0 0 9.5 9.5H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"
+                                    fill="#F24E1E"
+                                  />
+                                  <path
+                                    d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"
+                                    fill="#A259FF"
+                                  />
+                                </svg>
+                                <div className="min-w-0">
+                                  <a
+                                    href={figma.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-medium text-sm hover:text-primary hover:underline truncate block"
+                                  >
+                                    {figma.title}
+                                  </a>
+                                  {figma.description && (
+                                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                      {figma.description}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground/60 truncate">
+                                    {figma.url}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 flex-shrink-0 ml-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() =>
+                                    handleOpenFigmaDialog(figma.id)
+                                  }
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 hover:bg-destructive/10"
+                                  onClick={() => handleDeleteFigma(figma.id)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                </Button>
+                                <a
+                                  href={figma.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </Button>
+                                </a>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                            <svg
+                              className="w-12 h-12 mx-auto mb-2 opacity-30"
+                              viewBox="0 0 38 57"
+                              fill="none"
+                            >
+                              <path
+                                d="M19 28.5A9.5 9.5 0 1 1 28.5 19 9.5 9.5 0 0 1 19 28.5z"
+                                fill="currentColor"
+                              />
+                              <path
+                                d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 0 1-19 0z"
+                                fill="currentColor"
+                              />
+                              <path
+                                d="M19 0v19h9.5a9.5 9.5 0 0 0 0-19z"
+                                fill="currentColor"
+                              />
+                              <path
+                                d="M0 9.5a9.5 9.5 0 0 0 9.5 9.5H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"
+                                fill="currentColor"
+                              />
+                              <path
+                                d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                            <p className="text-sm">피그마 링크를 추가하세요</p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
                     {/* 부가 업무 탭 */}
                     <TabsContent value="linkedissues">
                       <div className="flex justify-between items-center mb-3">
@@ -2784,6 +3006,63 @@ export function WorkPage() {
       </div>
 
       <ConfirmDialog />
+
+      {/* 피그마 다이얼로그 */}
+      <Dialog open={isFigmaDialogOpen} onOpenChange={setIsFigmaDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedFigmaId ? "피그마 수정" : "피그마 추가"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">제목 *</label>
+              <input
+                type="text"
+                value={figmaTitle}
+                onChange={(e) => setFigmaTitle(e.target.value)}
+                placeholder="피그마 화면 제목"
+                className="w-full px-3 py-2 border border-input rounded-md text-sm"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">
+                Figma URL *
+              </label>
+              <input
+                type="url"
+                value={figmaUrl}
+                onChange={(e) => setFigmaUrl(e.target.value)}
+                placeholder="https://www.figma.com/file/..."
+                className="w-full px-3 py-2 border border-input rounded-md text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">
+                설명 (선택)
+              </label>
+              <textarea
+                value={figmaDescription}
+                onChange={(e) => setFigmaDescription(e.target.value)}
+                placeholder="간단한 설명"
+                rows={2}
+                className="w-full px-3 py-2 border border-input rounded-md text-sm resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsFigmaDialogOpen(false)}
+            >
+              취소
+            </Button>
+            <Button onClick={handleSaveFigma}>저장</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Mermaid 다이어그램 작성/편집 다이얼로그 */}
       <Dialog open={isMindmapDialogOpen} onOpenChange={setIsMindmapDialogOpen}>

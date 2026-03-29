@@ -4,11 +4,13 @@ import com.mapo.palantier.work.application.WorkService;
 import com.mapo.palantier.work.domain.Work;
 import com.mapo.palantier.work.domain.WorkChecklist;
 import com.mapo.palantier.work.domain.WorkDbTable;
+import com.mapo.palantier.work.domain.WorkFigma;
 import com.mapo.palantier.work.domain.WorkImage;
 import com.mapo.palantier.work.domain.WorkLinkedIssue;
 import com.mapo.palantier.work.domain.WorkMindmap;
 import com.mapo.palantier.work.infrastructure.WorkChecklistMapper;
 import com.mapo.palantier.work.infrastructure.WorkDbTableMapper;
+import com.mapo.palantier.work.infrastructure.WorkFigmaMapper;
 import com.mapo.palantier.work.infrastructure.WorkImageMapper;
 import com.mapo.palantier.work.infrastructure.WorkLinkedIssueMapper;
 import com.mapo.palantier.work.infrastructure.WorkMindmapMapper;
@@ -34,6 +36,7 @@ public class WorkController {
     private final WorkMindmapMapper workMindmapMapper;
     private final WorkDbTableMapper workDbTableMapper;
     private final WorkLinkedIssueMapper workLinkedIssueMapper;
+    private final WorkFigmaMapper workFigmaMapper;
 
     public WorkController(
         WorkService workService,
@@ -41,7 +44,8 @@ public class WorkController {
         WorkChecklistMapper workChecklistMapper,
         WorkMindmapMapper workMindmapMapper,
         WorkDbTableMapper workDbTableMapper,
-        WorkLinkedIssueMapper workLinkedIssueMapper
+        WorkLinkedIssueMapper workLinkedIssueMapper,
+        WorkFigmaMapper workFigmaMapper
     ) {
         this.workService = workService;
         this.workImageMapper = workImageMapper;
@@ -49,6 +53,7 @@ public class WorkController {
         this.workMindmapMapper = workMindmapMapper;
         this.workDbTableMapper = workDbTableMapper;
         this.workLinkedIssueMapper = workLinkedIssueMapper;
+        this.workFigmaMapper = workFigmaMapper;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -462,6 +467,73 @@ public class WorkController {
     public record UpdateDbTableRequest(
         String tableName,
         String tableInfo,
+        Integer orderNum
+    ) {}
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 피그마 링크
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/{workId}/figmas")
+    public ResponseEntity<List<WorkFigma>> getFigmas(
+        @PathVariable Long workId
+    ) {
+        return ResponseEntity.ok(workFigmaMapper.findByWorkId(workId));
+    }
+
+    @PostMapping("/{workId}/figmas")
+    public ResponseEntity<WorkFigma> createFigma(
+        @PathVariable Long workId,
+        @RequestBody CreateFigmaRequest request
+    ) {
+        WorkFigma figma = WorkFigma.builder()
+            .workId(workId)
+            .title(request.title())
+            .url(request.url())
+            .description(request.description())
+            .orderNum(request.orderNum() != null ? request.orderNum() : 0)
+            .build();
+        workFigmaMapper.insert(figma);
+        return ResponseEntity.ok(figma);
+    }
+
+    @PutMapping("/{workId}/figmas/{figmaId}")
+    public ResponseEntity<Void> updateFigma(
+        @PathVariable Long workId,
+        @PathVariable Long figmaId,
+        @RequestBody UpdateFigmaRequest request
+    ) {
+        WorkFigma figma = WorkFigma.builder()
+            .id(figmaId)
+            .title(request.title())
+            .url(request.url())
+            .description(request.description())
+            .orderNum(request.orderNum())
+            .build();
+        workFigmaMapper.update(figma);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{workId}/figmas/{figmaId}")
+    public ResponseEntity<Void> deleteFigma(
+        @PathVariable Long workId,
+        @PathVariable Long figmaId
+    ) {
+        workFigmaMapper.delete(figmaId);
+        return ResponseEntity.noContent().build();
+    }
+
+    public record CreateFigmaRequest(
+        String title,
+        String url,
+        String description,
+        Integer orderNum
+    ) {}
+
+    public record UpdateFigmaRequest(
+        String title,
+        String url,
+        String description,
         Integer orderNum
     ) {}
 
