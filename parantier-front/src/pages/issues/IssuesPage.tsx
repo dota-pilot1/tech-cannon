@@ -1879,454 +1879,469 @@ export function IssuesPage() {
               </div>
 
               {/* 첨부 파일 */}
-              <div className="border rounded-lg p-4 mb-6" onPaste={handlePaste}>
-                <Tabs defaultValue="images" className="w-full">
-                  <TabsList className="mb-3">
-                    <TabsTrigger value="images">
-                      이미지{" "}
-                      {issueImages && issueImages.length > 0 && (
-                        <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                          {issueImages.length}
-                        </span>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="mmd">
-                      마인드맵 (MMD){" "}
-                      {mindmaps && mindmaps.length > 0 && (
-                        <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                          {mindmaps.length}
-                        </span>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="tasks">
-                      DB 테이블{" "}
-                      {dbTables && dbTables.length > 0 && (
-                        <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                          {dbTables.length}
-                        </span>
-                      )}
-                    </TabsTrigger>
-                  </TabsList>
+              <div
+                className="border rounded-lg overflow-hidden mb-3"
+                onPaste={handlePaste}
+              >
+                <div className="bg-muted/30 border-b px-4 py-2.5">
+                  <span className="font-bold text-sm">첨부 파일</span>
+                </div>
+                <div className="p-4">
+                  <Tabs defaultValue="images" className="w-full">
+                    <TabsList className="mb-3">
+                      <TabsTrigger value="images">
+                        이미지{" "}
+                        {issueImages && issueImages.length > 0 && (
+                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                            {issueImages.length}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger value="mmd">
+                        마인드맵 (MMD){" "}
+                        {mindmaps && mindmaps.length > 0 && (
+                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                            {mindmaps.length}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger value="tasks">
+                        DB 테이블{" "}
+                        {dbTables && dbTables.length > 0 && (
+                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                            {dbTables.length}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
 
-                  {/* 이미지 탭 */}
-                  <TabsContent value="images">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-semibold">이미지 첨부</h3>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => imageInputRef.current?.click()}
-                        disabled={isUploading}
+                    {/* 이미지 탭 */}
+                    <TabsContent value="images">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-semibold">이미지 첨부</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => imageInputRef.current?.click()}
+                          disabled={isUploading}
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          {isUploading ? "업로드 중..." : "이미지 추가"}
+                        </Button>
+                        <input
+                          ref={imageInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) =>
+                            e.target.files && handleImageUpload(e.target.files)
+                          }
+                        />
+                      </div>
+
+                      {/* 드래그앤드롭 영역 */}
+                      <div
+                        ref={uploadAreaRef}
+                        tabIndex={0}
+                        className={`border-2 border-dashed rounded-lg p-6 transition-all cursor-pointer outline-none ${
+                          isPasteMode
+                            ? "border-primary bg-primary/10 ring-2 ring-primary/20"
+                            : isDragging
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50"
+                        }`}
+                        onClick={handleUploadAreaClick}
+                        onBlur={handleUploadAreaBlur}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
                       >
-                        <Upload className="w-4 h-4 mr-2" />
-                        {isUploading ? "업로드 중..." : "이미지 추가"}
-                      </Button>
-                      <input
-                        ref={imageInputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={(e) =>
-                          e.target.files && handleImageUpload(e.target.files)
-                        }
-                      />
-                    </div>
-
-                    {/* 드래그앤드롭 영역 */}
-                    <div
-                      ref={uploadAreaRef}
-                      tabIndex={0}
-                      className={`border-2 border-dashed rounded-lg p-6 transition-all cursor-pointer outline-none ${
-                        isPasteMode
-                          ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-                          : isDragging
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                      }`}
-                      onClick={handleUploadAreaClick}
-                      onBlur={handleUploadAreaBlur}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                    >
-                      {issueImages &&
-                      issueImages.filter(
-                        (img) => img.fileType === "image" || !img.fileType,
-                      ).length > 0 ? (
-                        <div className="grid grid-cols-3 gap-2">
-                          {issueImages
-                            .filter(
-                              (img) =>
-                                img.fileType === "image" || !img.fileType,
-                            )
-                            .map((image) => (
-                              <div
-                                key={image.id}
-                                className="relative group aspect-square rounded overflow-hidden border bg-gray-100"
-                              >
-                                <img
-                                  src={image.url}
-                                  alt={image.filename}
-                                  className="w-full h-full object-cover cursor-pointer"
-                                  onClick={() =>
-                                    window.open(image.url, "_blank")
-                                  }
-                                />
-                                <button
-                                  onClick={() => deleteImage(image.id)}
-                                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity leading-none"
+                        {issueImages &&
+                        issueImages.filter(
+                          (img) => img.fileType === "image" || !img.fileType,
+                        ).length > 0 ? (
+                          <div className="grid grid-cols-3 gap-2">
+                            {issueImages
+                              .filter(
+                                (img) =>
+                                  img.fileType === "image" || !img.fileType,
+                              )
+                              .map((image) => (
+                                <div
+                                  key={image.id}
+                                  className="relative group aspect-square rounded overflow-hidden border bg-gray-100"
                                 >
-                                  ✕
-                                </button>
-                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {image.filename}
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                          {isPasteMode ? (
-                            <p className="text-sm text-primary font-medium">
-                              Ctrl+V로 이미지를 붙여넣으세요
-                            </p>
-                          ) : (
-                            <p className="text-sm">
-                              이미지를 드래그하여 놓거나, 클릭하여 활성화 후
-                              Ctrl+V로 붙여넣으세요
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-
-                  {/* MMD 탭 */}
-                  <TabsContent value="mmd">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-semibold">마인드맵 (MMD)</h3>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenMindmapDialog()}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        마인드맵 추가
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                      {mindmaps && mindmaps.length > 0 ? (
-                        mindmaps.map((mindmap) => (
-                          <div
-                            key={mindmap.id}
-                            className="flex items-center justify-between p-3 border rounded hover:bg-accent group"
-                          >
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-sm font-medium">
-                                {mindmap.title}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 px-2 opacity-0 group-hover:opacity-100"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenMindmapDialog(mindmap.id);
-                                }}
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 px-2 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteMindmap(mindmap.id);
-                                }}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 px-2"
-                                onClick={() => handleViewMindmap(mindmap.id)}
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                          <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">마인드맵을 추가하세요</p>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-
-                  {/* DB 테이블 탭 */}
-                  <TabsContent value="tasks">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-semibold">DB 테이블 정보</h3>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenDbTableDialog()}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        테이블 정보 추가
-                      </Button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {dbTables && dbTables.length > 0 ? (
-                        dbTables.map((dbTable) => {
-                          const content = parseDbTableContent(
-                            dbTable.tableInfo,
-                          );
-                          return (
-                            <div
-                              key={dbTable.id}
-                              className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"
-                            >
-                              {/* 테이블 헤더 */}
-                              <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <Database className="w-5 h-5 text-blue-600" />
-                                  <div>
-                                    <h4 className="font-semibold text-base">
-                                      {content.tableName}
-                                    </h4>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                      {content.schema && (
-                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                                          {content.schema}
-                                        </span>
-                                      )}
-                                      {content.category && (
-                                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
-                                          {content.category}
-                                        </span>
-                                      )}
-                                    </div>
+                                  <img
+                                    src={image.url}
+                                    alt={image.filename}
+                                    className="w-full h-full object-cover cursor-pointer"
+                                    onClick={() =>
+                                      window.open(image.url, "_blank")
+                                    }
+                                  />
+                                  <button
+                                    onClick={() => deleteImage(image.id)}
+                                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity leading-none"
+                                  >
+                                    ✕
+                                  </button>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {image.filename}
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      handleOpenDbTableDialog(dbTable.id)
-                                    }
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      handleDeleteDbTable(dbTable.id)
-                                    }
-                                  >
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                </div>
+                              ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            {isPasteMode ? (
+                              <p className="text-sm text-primary font-medium">
+                                Ctrl+V로 이미지를 붙여넣으세요
+                              </p>
+                            ) : (
+                              <p className="text-sm">
+                                이미지를 드래그하여 놓거나, 클릭하여 활성화 후
+                                Ctrl+V로 붙여넣으세요
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    {/* MMD 탭 */}
+                    <TabsContent value="mmd">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-semibold">마인드맵 (MMD)</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenMindmapDialog()}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          마인드맵 추가
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {mindmaps && mindmaps.length > 0 ? (
+                          mindmaps.map((mindmap) => (
+                            <div
+                              key={mindmap.id}
+                              className="flex items-center justify-between p-3 border rounded hover:bg-accent group"
+                            >
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">
+                                  {mindmap.title}
+                                </span>
                               </div>
-
-                              {/* 테이블 설명 */}
-                              {content.description && (
-                                <div className="px-4 py-2 bg-blue-50 border-b text-sm text-blue-900">
-                                  💬 {content.description}
-                                </div>
-                              )}
-
-                              {/* 컬럼 테이블 */}
-                              {content.columns && content.columns.length > 0 ? (
-                                <div className="overflow-x-auto">
-                                  <table className="w-full text-sm">
-                                    <thead className="bg-gray-700 text-white">
-                                      <tr>
-                                        <th className="px-3 py-2 text-left">
-                                          column_name
-                                        </th>
-                                        <th className="px-3 py-2 text-left">
-                                          data_type
-                                        </th>
-                                        <th className="px-3 py-2 text-center w-20">
-                                          nullable
-                                        </th>
-                                        <th className="px-3 py-2 text-center w-12">
-                                          pk
-                                        </th>
-                                        <th className="px-3 py-2 text-center w-12">
-                                          fk
-                                        </th>
-                                        <th className="px-3 py-2 text-center w-16">
-                                          unique_key
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {content.columns.map((col, idx) => (
-                                        <tr
-                                          key={idx}
-                                          className={`border-t hover:bg-blue-50 ${
-                                            col.pk === "PK" ? "bg-amber-50" : ""
-                                          }`}
-                                        >
-                                          <td className="px-3 py-2 font-medium font-mono text-sm">
-                                            {col.column_name}
-                                          </td>
-                                          <td className="px-3 py-2 font-mono text-xs text-blue-600">
-                                            {col.data_type}
-                                          </td>
-                                          <td className="px-3 py-2 text-center text-muted-foreground">
-                                            {col.nullable}
-                                          </td>
-                                          <td className="px-3 py-2 text-center">
-                                            {col.pk === "PK" && (
-                                              <span className="text-amber-600">
-                                                ✓
-                                              </span>
-                                            )}
-                                          </td>
-                                          <td className="px-3 py-2 text-center">
-                                            {col.fk === "FK" && (
-                                              <span className="text-green-600">
-                                                ✓
-                                              </span>
-                                            )}
-                                          </td>
-                                          <td className="px-3 py-2 text-center">
-                                            {col.unique_key === "UQ" && (
-                                              <span className="text-purple-600">
-                                                ✓
-                                              </span>
-                                            )}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              ) : (
-                                <div className="p-4">
-                                  <pre className="bg-gray-50 border rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre">
-                                    {content.queryResult}
-                                  </pre>
-                                </div>
-                              )}
-
-                              {/* 푸터 */}
-                              <div className="px-4 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
-                                {content.columns.length > 0
-                                  ? `${content.columns.length}개 컬럼`
-                                  : "원본 데이터"}
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 opacity-0 group-hover:opacity-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenMindmapDialog(mindmap.id);
+                                  }}
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteMindmap(mindmap.id);
+                                  }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2"
+                                  onClick={() => handleViewMindmap(mindmap.id)}
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </Button>
                               </div>
                             </div>
-                          );
-                        })
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                          <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">DB 테이블 정보를 추가하세요</p>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                          ))
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                            <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">마인드맵을 추가하세요</p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    {/* DB 테이블 탭 */}
+                    <TabsContent value="tasks">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-semibold">DB 테이블 정보</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenDbTableDialog()}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          테이블 정보 추가
+                        </Button>
+                      </div>
+
+                      <div className="space-y-4">
+                        {dbTables && dbTables.length > 0 ? (
+                          dbTables.map((dbTable) => {
+                            const content = parseDbTableContent(
+                              dbTable.tableInfo,
+                            );
+                            return (
+                              <div
+                                key={dbTable.id}
+                                className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"
+                              >
+                                {/* 테이블 헤더 */}
+                                <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <Database className="w-5 h-5 text-blue-600" />
+                                    <div>
+                                      <h4 className="font-semibold text-base">
+                                        {content.tableName}
+                                      </h4>
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                        {content.schema && (
+                                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                            {content.schema}
+                                          </span>
+                                        )}
+                                        {content.category && (
+                                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                            {content.category}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() =>
+                                        handleOpenDbTableDialog(dbTable.id)
+                                      }
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() =>
+                                        handleDeleteDbTable(dbTable.id)
+                                      }
+                                    >
+                                      <Trash2 className="w-4 h-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                {/* 테이블 설명 */}
+                                {content.description && (
+                                  <div className="px-4 py-2 bg-blue-50 border-b text-sm text-blue-900">
+                                    💬 {content.description}
+                                  </div>
+                                )}
+
+                                {/* 컬럼 테이블 */}
+                                {content.columns &&
+                                content.columns.length > 0 ? (
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead className="bg-gray-700 text-white">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left">
+                                            column_name
+                                          </th>
+                                          <th className="px-3 py-2 text-left">
+                                            data_type
+                                          </th>
+                                          <th className="px-3 py-2 text-center w-20">
+                                            nullable
+                                          </th>
+                                          <th className="px-3 py-2 text-center w-12">
+                                            pk
+                                          </th>
+                                          <th className="px-3 py-2 text-center w-12">
+                                            fk
+                                          </th>
+                                          <th className="px-3 py-2 text-center w-16">
+                                            unique_key
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {content.columns.map((col, idx) => (
+                                          <tr
+                                            key={idx}
+                                            className={`border-t hover:bg-blue-50 ${
+                                              col.pk === "PK"
+                                                ? "bg-amber-50"
+                                                : ""
+                                            }`}
+                                          >
+                                            <td className="px-3 py-2 font-medium font-mono text-sm">
+                                              {col.column_name}
+                                            </td>
+                                            <td className="px-3 py-2 font-mono text-xs text-blue-600">
+                                              {col.data_type}
+                                            </td>
+                                            <td className="px-3 py-2 text-center text-muted-foreground">
+                                              {col.nullable}
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                              {col.pk === "PK" && (
+                                                <span className="text-amber-600">
+                                                  ✓
+                                                </span>
+                                              )}
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                              {col.fk === "FK" && (
+                                                <span className="text-green-600">
+                                                  ✓
+                                                </span>
+                                              )}
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                              {col.unique_key === "UQ" && (
+                                                <span className="text-purple-600">
+                                                  ✓
+                                                </span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <div className="p-4">
+                                    <pre className="bg-gray-50 border rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre">
+                                      {content.queryResult}
+                                    </pre>
+                                  </div>
+                                )}
+
+                                {/* 푸터 */}
+                                <div className="px-4 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
+                                  {content.columns.length > 0
+                                    ? `${content.columns.length}개 컬럼`
+                                    : "원본 데이터"}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                            <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">
+                              DB 테이블 정보를 추가하세요
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </div>
               </div>
 
               {/* 내용 */}
-              <div className="border rounded-lg p-4 mb-6">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-bold">내용</h3>
+              <div className="border rounded-lg overflow-hidden mb-3">
+                <div className="bg-muted/30 border-b px-4 py-2.5 flex items-center justify-between">
+                  <span className="font-bold text-sm">내용</span>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
                     onClick={() => setIsEditing(true)}
                   >
-                    <Edit2 className="w-4 h-4 mr-1" />
+                    <Edit2 className="w-3.5 h-3.5 mr-1" />
                     편집
                   </Button>
                 </div>
-                <div className="whitespace-pre-wrap text-sm">
+                <div className="p-4 whitespace-pre-wrap text-sm">
                   {issueDetail.content}
                 </div>
               </div>
 
               {/* 체크리스트 */}
-              <div className="border rounded-lg p-4 mb-3">
-                <h3 className="font-bold mb-3">체크리스트</h3>
-
-                {/* 체크리스트 목록 */}
-                <div className="space-y-2 mb-3">
-                  {checklists && checklists.length > 0 ? (
-                    checklists.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-2 p-2 hover:bg-accent rounded group"
-                      >
-                        <Checkbox
-                          checked={item.checked}
-                          onCheckedChange={() => toggleChecklist(item.id)}
-                        />
-                        <span
-                          className={`flex-1 text-sm ${item.checked ? "line-through text-muted-foreground" : ""}`}
-                        >
-                          {item.content}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="opacity-0 group-hover:opacity-100"
-                          onClick={() => handleDeleteChecklistItem(item.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      체크리스트가 없습니다
-                    </p>
-                  )}
+              <div className="border rounded-lg overflow-hidden mb-3">
+                <div className="bg-muted/30 border-b px-4 py-2.5">
+                  <span className="font-bold text-sm">체크리스트</span>
                 </div>
+                <div className="p-4">
+                  {/* 체크리스트 목록 */}
+                  <div className="space-y-2 mb-3">
+                    {checklists && checklists.length > 0 ? (
+                      checklists.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 p-2 hover:bg-accent rounded group"
+                        >
+                          <Checkbox
+                            checked={item.checked}
+                            onCheckedChange={() => toggleChecklist(item.id)}
+                          />
+                          <span
+                            className={`flex-1 text-sm ${item.checked ? "line-through text-muted-foreground" : ""}`}
+                          >
+                            {item.content}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="opacity-0 group-hover:opacity-100"
+                            onClick={() => handleDeleteChecklistItem(item.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        체크리스트가 없습니다
+                      </p>
+                    )}
+                  </div>
 
-                {/* 새 항목 추가 */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newChecklistContent}
-                    onChange={(e) => setNewChecklistContent(e.target.value)}
-                    onKeyPress={(e) =>
-                      e.key === "Enter" && handleAddChecklist()
-                    }
-                    placeholder="새 항목 추가..."
-                    className="flex-1 px-3 py-2 border border-input rounded-md text-sm"
-                  />
-                  <Button size="sm" onClick={handleAddChecklist}>
-                    <Plus className="w-4 h-4 mr-1" />
-                    추가
-                  </Button>
+                  {/* 새 항목 추가 */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newChecklistContent}
+                      onChange={(e) => setNewChecklistContent(e.target.value)}
+                      onKeyPress={(e) =>
+                        e.key === "Enter" && handleAddChecklist()
+                      }
+                      placeholder="새 항목 추가..."
+                      className="flex-1 px-3 py-2 border border-input rounded-md text-sm"
+                    />
+                    <Button size="sm" onClick={handleAddChecklist}>
+                      <Plus className="w-4 h-4 mr-1" />
+                      추가
+                    </Button>
+                  </div>
                 </div>
               </div>
 
               {/* 부가 이슈 섹션 */}
               <div className="border rounded-lg overflow-hidden mb-3">
-                <div className="bg-amber-50 dark:bg-amber-950/30 border-b px-4 py-2.5 flex items-center justify-between">
-                  <span className="font-bold text-sm text-amber-800 dark:text-amber-300">
-                    부가 이슈
-                  </span>
+                <div className="bg-muted/30 border-b px-4 py-2.5">
+                  <span className="font-bold text-sm">부가 이슈</span>
                 </div>
                 <div className="p-4">
                   <SubIssueSection issueId={issueDetail.id} />
