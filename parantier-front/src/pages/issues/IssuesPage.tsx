@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
+import { cn } from "@/shared/lib/utils";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
 import type {
@@ -125,6 +126,7 @@ export function IssuesPage() {
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [isBackupTab, setIsBackupTab] = useState(false);
 
   // 폼 데이터
   const [formTitle, setFormTitle] = useState("");
@@ -140,6 +142,7 @@ export function IssuesPage() {
       filterCategory === "ALL" ? undefined : (filterCategory as IssueCategory),
     keyword: searchKeyword || undefined,
     sortBy: "created", // 작성일 기준 정렬 (최신순)
+    isArchived: isBackupTab ? true : false,
   });
 
   const { data: issueDetail } = useIssue(selectedIssueId!, {
@@ -157,6 +160,26 @@ export function IssuesPage() {
     },
     onError: () =>
       toast.error("순서 변경에 실패했습니다", { position: "bottom-right" }),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: (ids: number[]) => issueApi.archiveIssues(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+      toast.success("백업 완료", { position: "bottom-right" });
+      setSelectedIssueId(null);
+    },
+    onError: () => toast.error("백업 실패", { position: "bottom-right" }),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (ids: number[]) => issueApi.restoreIssues(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+      toast.success("복원 완료", { position: "bottom-right" });
+      setSelectedIssueId(null);
+    },
+    onError: () => toast.error("복원 실패", { position: "bottom-right" }),
   });
 
   const { mutate: createIssue } = useCreateIssue();
@@ -411,6 +434,26 @@ export function IssuesPage() {
     });
 
     toast.success(`${selectedRows.length}개 항목이 삭제되었습니다.`);
+  };
+
+  const handleArchive = () => {
+    const selectedNodes = gridRef.current?.api?.getSelectedNodes() ?? [];
+    const ids = selectedNodes.map((n: IRowNode<Issue>) => n.data!.id);
+    if (ids.length === 0) {
+      toast.error("선택된 이슈가 없습니다");
+      return;
+    }
+    archiveMutation.mutate(ids);
+  };
+
+  const handleRestore = () => {
+    const selectedNodes = gridRef.current?.api?.getSelectedNodes() ?? [];
+    const ids = selectedNodes.map((n: IRowNode<Issue>) => n.data!.id);
+    if (ids.length === 0) {
+      toast.error("선택된 이슈가 없습니다");
+      return;
+    }
+    restoreMutation.mutate(ids);
   };
 
   // 수정/신규 행 일괄 저장
@@ -1371,16 +1414,24 @@ export function IssuesPage() {
             <Button
               variant={filterStatus === "ALL" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus("ALL")}
+              onClick={() => {
+                setFilterStatus("ALL");
+                setIsBackupTab(false);
+              }}
               className="flex-1"
+              disabled={isBackupTab}
             >
               전체 <span className="ml-2 font-bold">{statusCounts.ALL}</span>
             </Button>
             <Button
               variant={filterStatus === "OPEN" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus("OPEN")}
+              onClick={() => {
+                setFilterStatus("OPEN");
+                setIsBackupTab(false);
+              }}
               className="flex-1"
+              disabled={isBackupTab}
             >
               진행 전{" "}
               <span className="ml-2 font-bold">{statusCounts.OPEN}</span>
@@ -1388,8 +1439,12 @@ export function IssuesPage() {
             <Button
               variant={filterStatus === "IN_PROGRESS" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus("IN_PROGRESS")}
+              onClick={() => {
+                setFilterStatus("IN_PROGRESS");
+                setIsBackupTab(false);
+              }}
               className="flex-1"
+              disabled={isBackupTab}
             >
               진행 중{" "}
               <span className="ml-2 font-bold">{statusCounts.IN_PROGRESS}</span>
@@ -1397,31 +1452,66 @@ export function IssuesPage() {
             <Button
               variant={filterStatus === "CLOSED" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus("CLOSED")}
+              onClick={() => {
+                setFilterStatus("CLOSED");
+                setIsBackupTab(false);
+              }}
               className="flex-1"
+              disabled={isBackupTab}
             >
               완료 <span className="ml-2 font-bold">{statusCounts.CLOSED}</span>
             </Button>
+            <div className="w-px bg-border mx-0.5" />
+            <button
+              onClick={() => {
+                setIsBackupTab(!isBackupTab);
+                setSelectedIssueId(null);
+              }}
+              className={cn(
+                "px-4 py-2 text-sm font-medium rounded transition-colors",
+                isBackupTab
+                  ? "bg-amber-500 text-white"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80",
+              )}
+            >
+              🗄️ 백업
+            </button>
           </div>
 
           {/* Grid Toolbar */}
           <div className="flex justify-end gap-1.5 mb-1.5 pb-1.5 border-b">
-            <Button onClick={handleAddRow} size="sm" variant="outline">
-              <Plus className="w-4 h-4 mr-1" />행 추가
-            </Button>
-            {modifiedRowIds.size > 0 && (
-              <Button onClick={handleSaveModified} size="sm" variant="default">
-                저장 ({modifiedRowIds.size})
+            {!isBackupTab && (
+              <>
+                <Button onClick={handleAddRow} size="sm" variant="outline">
+                  <Plus className="w-4 h-4 mr-1" />행 추가
+                </Button>
+                {modifiedRowIds.size > 0 && (
+                  <Button
+                    onClick={handleSaveModified}
+                    size="sm"
+                    variant="default"
+                  >
+                    저장 ({modifiedRowIds.size})
+                  </Button>
+                )}
+                <Button
+                  onClick={handleDeleteSelected}
+                  size="sm"
+                  variant="destructive"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  삭제
+                </Button>
+                <Button onClick={handleArchive} size="sm" variant="outline">
+                  🗄️ 백업
+                </Button>
+              </>
+            )}
+            {isBackupTab && (
+              <Button onClick={handleRestore} size="sm" variant="outline">
+                ↩️ 복원
               </Button>
             )}
-            <Button
-              onClick={handleDeleteSelected}
-              size="sm"
-              variant="destructive"
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              삭제
-            </Button>
           </div>
 
           <div className="flex-1" style={{ height: "100%" }}>

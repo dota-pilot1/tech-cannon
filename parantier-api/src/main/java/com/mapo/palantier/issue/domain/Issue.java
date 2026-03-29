@@ -19,6 +19,7 @@ public class Issue {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Integer orderNum;
+    private Boolean isArchived;
 
     // Author/Assignee 정보 (JOIN용)
     private String authorName;
@@ -164,5 +165,13 @@ public class Issue {
 
     public void setOrderNum(Integer orderNum) {
         this.orderNum = orderNum;
+    }
+
+    public Boolean getIsArchived() {
+        return isArchived;
+    }
+
+    public void setIsArchived(Boolean isArchived) {
+        this.isArchived = isArchived;
     }
 }

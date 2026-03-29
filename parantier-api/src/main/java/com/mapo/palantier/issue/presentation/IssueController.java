@@ -70,7 +70,8 @@ public class IssueController {
         @RequestParam(required = false) String keyword,
         @RequestParam(required = false, defaultValue = "created") String sortBy,
         @RequestParam(required = false, defaultValue = "0") Integer page,
-        @RequestParam(required = false, defaultValue = "20") Integer limit
+        @RequestParam(required = false, defaultValue = "20") Integer limit,
+        @RequestParam(required = false) Boolean isArchived
     ) {
         List<Issue> issues = issueService.getAllIssues(
             status,
@@ -82,7 +83,8 @@ public class IssueController {
             keyword,
             sortBy,
             page,
-            limit
+            limit,
+            isArchived
         );
 
         int total = issueService.getTotalCount(
@@ -92,7 +94,8 @@ public class IssueController {
             assigneeId,
             authorId,
             folderId,
-            keyword
+            keyword,
+            isArchived
         );
 
         List<IssueResponse> issueResponses = issues
@@ -183,6 +186,20 @@ public class IssueController {
         @RequestBody List<IssueReorderItem> items
     ) {
         issueService.reorderIssues(items);
+        return ResponseEntity.ok().build();
+    }
+
+    @io.swagger.v3.oas.annotations.Operation(summary = "이슈 백업(아카이브)")
+    @PatchMapping("/archive")
+    public ResponseEntity<Void> archiveIssues(@RequestBody List<Long> ids) {
+        issueService.archiveIssues(ids);
+        return ResponseEntity.ok().build();
+    }
+
+    @io.swagger.v3.oas.annotations.Operation(summary = "이슈 복원")
+    @PatchMapping("/restore")
+    public ResponseEntity<Void> restoreIssues(@RequestBody List<Long> ids) {
+        issueService.restoreIssues(ids);
         return ResponseEntity.ok().build();
     }
 

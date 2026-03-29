@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.issue.infrastructure.IssueBackupMapper">
+
+    <resultMap id="IssueBackupResultMap" type="com.mapo.palantier.issue.domain.IssueBackup">
+        <id property="id" column="id"/>
+        <result property="originalId" column="original_id"/>
+        <result property="snapshot" column="snapshot"/>
+        <result property="backedUpBy" column="backed_up_by"/>
+        <result property="backedUpAt" column="backed_up_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO issues_backup (original_id, snapshot, backed_up_by)
+        VALUES (#{originalId}, #{snapshot}::jsonb, #{backedUpBy})
+    </insert>
+
+    <select id="findAll" resultMap="IssueBackupResultMap">
+        SELECT * FROM issues_backup ORDER BY backed_up_at DESC
+    </select>
+
+    <select id="findById" resultMap="IssueBackupResultMap">
+        SELECT * FROM issues_backup WHERE id = #{id}
+    </select>
+
+</mapper>

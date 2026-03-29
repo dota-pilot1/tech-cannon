@@ -29,7 +29,8 @@ public class IssueService {
         String keyword,
         String sortBy,
         Integer page,
-        Integer limit
+        Integer limit,
+        Boolean isArchived
     ) {
         Map<String, Object> params = new HashMap<>();
         params.put("status", status);
@@ -40,6 +41,7 @@ public class IssueService {
         params.put("folderId", folderId);
         params.put("keyword", keyword);
         params.put("sortBy", sortBy);
+        params.put("isArchived", isArchived);
 
         if (page != null && limit != null) {
             params.put("offset", page * limit);
@@ -60,7 +62,8 @@ public class IssueService {
         Long assigneeId,
         Long authorId,
         Long folderId,
-        String keyword
+        String keyword,
+        Boolean isArchived
     ) {
         Map<String, Object> params = new HashMap<>();
         params.put("status", status);
@@ -70,6 +73,7 @@ public class IssueService {
         params.put("authorId", authorId);
         params.put("folderId", folderId);
         params.put("keyword", keyword);
+        params.put("isArchived", isArchived);
 
         return issueMapper.count(params);
     }
@@ -112,5 +116,15 @@ public class IssueService {
         for (IssueReorderItem item : items) {
             issueMapper.updateOrderNum(item.getId(), item.getOrderNum());
         }
+    }
+
+    @Transactional
+    public void archiveIssues(List<Long> ids) {
+        issueMapper.updateArchivedBatch(ids, true);
+    }
+
+    @Transactional
+    public void restoreIssues(List<Long> ids) {
+        issueMapper.updateArchivedBatch(ids, false);
     }
 }

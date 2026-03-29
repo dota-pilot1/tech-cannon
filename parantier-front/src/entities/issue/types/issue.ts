@@ -25,6 +25,7 @@ export interface Issue {
 
   folderId?: number;
   orderNum?: number;
+  isArchived?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,4 +58,5 @@ export interface IssueFilters {
   folderId?: number;
   keyword?: string;
   sortBy?: "created" | "priority" | "status";
+  isArchived?: boolean;
 }

@@ -36,4 +36,14 @@ public interface IssueMapper {
         @Param("id") Long id,
         @Param("orderNum") Integer orderNum
     );
+
+    void updateArchived(
+        @Param("id") Long id,
+        @Param("isArchived") Boolean isArchived
+    );
+
+    void updateArchivedBatch(
+        @Param("ids") List<Long> ids,
+        @Param("isArchived") Boolean isArchived
+    );
 }

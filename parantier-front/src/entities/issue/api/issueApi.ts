@@ -68,4 +68,14 @@ export const issueApi = {
   ): Promise<void> => {
     await apiClient.patch("/issues/reorder", items);
   },
+
+  // 이슈 백업(아카이브)
+  archiveIssues: async (ids: number[]): Promise<void> => {
+    await apiClient.patch("/issues/archive", ids);
+  },
+
+  // 이슈 복원
+  restoreIssues: async (ids: number[]): Promise<void> => {
+    await apiClient.patch("/issues/restore", ids);
+  },
 };
