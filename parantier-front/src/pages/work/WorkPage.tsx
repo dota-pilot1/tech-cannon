@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
+import { WorkChatPanel } from "@/features/work/components/WorkChatPanel";
 import { cn } from "@/shared/lib/utils";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
@@ -2994,6 +2995,11 @@ export function WorkPage() {
                       : null}
                   </div>
                 </div>
+              </div>
+
+              {/* 채팅 섹션 */}
+              <div className="border rounded-lg overflow-hidden mt-3">
+                <WorkChatPanel workId={workDetail.id} />
               </div>
             </div>
           ) : (

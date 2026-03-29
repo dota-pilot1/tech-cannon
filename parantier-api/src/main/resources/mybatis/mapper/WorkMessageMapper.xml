@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.work.infrastructure.WorkMessageMapper">
+
+    <!-- WorkMessage ResultMap -->
+    <resultMap id="WorkMessageResultMap" type="com.mapo.palantier.work.domain.WorkMessage">
+        <id property="id" column="id"/>
+        <result property="workId" column="work_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="message" column="message"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- WorkMessageWithUser ResultMap (JOIN용) -->
+    <resultMap id="WorkMessageWithUserResultMap" type="com.mapo.palantier.work.domain.WorkMessageWithUser">
+        <id property="id" column="id"/>
+        <result property="workId" column="work_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="message" column="message"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="username" column="username"/>
+        <result property="userEmail" column="user_email"/>
+    </resultMap>
+
+    <!-- 특정 업무의 메시지 목록 조회 (작성자 정보 포함) -->
+    <select id="findByWorkId" resultMap="WorkMessageWithUserResultMap">
+        SELECT
+            wm.id,
+            wm.work_id,
+            wm.user_id,
+            wm.message,
+            wm.is_deleted,
+            wm.created_at,
+            wm.updated_at,
+            u.username,
+            u.email AS user_email
+        FROM work_messages wm
+        LEFT JOIN users u ON wm.user_id = u.id
+        WHERE wm.work_id = #{workId}
+          AND wm.is_deleted = false
+        ORDER BY wm.created_at ASC
+    </select>
+
+    <!-- 메시지 ID로 단일 메시지 조회 -->
+    <select id="findById" resultMap="WorkMessageResultMap">
+        SELECT
+            id,
+            work_id,
+            user_id,
+            message,
+            is_deleted,
+            created_at,
+            updated_at
+        FROM work_messages
+        WHERE id = #{id}
+    </select>
+
+    <!-- 메시지 생성 -->
+    <insert id="insert" parameterType="com.mapo.palantier.work.domain.WorkMessage"
+            useGeneratedKeys="true" keyProperty="id,createdAt,updatedAt"
+            keyColumn="id,created_at,updated_at">
+        INSERT INTO work_messages (
+            work_id,
+            user_id,
+            message,
+            is_deleted,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{workId},
+            #{userId},
+            #{message},
+            false,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 메시지 수정 -->
+    <update id="update">
+        UPDATE work_messages
+        SET
+            message    = #{message},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 메시지 삭제 (소프트 삭제) -->
+    <update id="softDelete">
+        UPDATE work_messages
+        SET
+            is_deleted = true,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 특정 업무의 전체 메시지 개수 조회 -->
+    <select id="countByWorkId" resultType="int">
+        SELECT COUNT(*)
+        FROM work_messages
+        WHERE work_id = #{workId}
+          AND is_deleted = false
+    </select>
+
+</mapper>
