@@ -2321,8 +2321,8 @@ export function IssuesPage() {
                 </div>
               </div>
 
-              {/* 하위 이슈 섹션 */}
-              <div className="border rounded-lg p-4 mb-6">
+              {/* 부가 이슈 섹션 */}
+              <div className="border rounded-lg p-4 mb-3">
                 <SubIssueSection issueId={issueDetail.id} />
               </div>
 
