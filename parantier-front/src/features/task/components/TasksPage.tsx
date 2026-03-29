@@ -27,6 +27,14 @@ type FolderCtxMenu = {
   folderName: string;
 } | null;
 
+// 문서 컨텍스트 메뉴
+type PostCtxMenu = {
+  x: number;
+  y: number;
+  postId: number;
+  postTitle: string;
+} | null;
+
 function FolderContextMenu({
   menu,
   onClose,
@@ -101,6 +109,46 @@ function FolderContextMenu({
   );
 }
 
+function PostContextMenu({
+  menu,
+  onClose,
+  onDelete,
+}: {
+  menu: PostCtxMenu;
+  onClose: () => void;
+  onDelete: (id: number, title: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  if (!menu) return null;
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 bg-white border rounded shadow-xl py-1 min-w-[160px] text-sm"
+      style={{ top: menu.y, left: menu.x }}
+    >
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
+        onClick={() => {
+          onDelete(menu.postId, menu.postTitle);
+          onClose();
+        }}
+      >
+        <span>🗑️</span> 문서 삭제
+      </button>
+    </div>
+  );
+}
+
 export default function TasksPage() {
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -136,6 +184,7 @@ export default function TasksPage() {
   } | null>(null);
   const [inlineDocTitle, setInlineDocTitle] = useState("");
   const [folderCtxMenu, setFolderCtxMenu] = useState<FolderCtxMenu>(null);
+  const [postCtxMenu, setPostCtxMenu] = useState<PostCtxMenu>(null);
 
   // 확장된 폴더들의 posts 조회
   const postsQueries = useQueries({
@@ -512,6 +561,16 @@ export default function TasksPage() {
                 <div
                   key={post.id}
                   onClick={() => handlePostClick(post)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPostCtxMenu({
+                      x: Math.min(e.clientX, window.innerWidth - 180),
+                      y: Math.min(e.clientY, window.innerHeight - 80),
+                      postId: post.id,
+                      postTitle: post.title,
+                    });
+                  }}
                   className={cn(
                     "ml-4 flex items-center gap-2 py-2 px-3 rounded cursor-pointer text-sm transition-colors",
                     selectedPostId === post.id
@@ -540,6 +599,24 @@ export default function TasksPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <ConfirmDialog />
+      <PostContextMenu
+        menu={postCtxMenu}
+        onClose={() => setPostCtxMenu(null)}
+        onDelete={async (id, title) => {
+          const ok = await confirm({
+            title: "문서 삭제",
+            description: `"${title}" 문서를 삭제하시겠습니까?`,
+            variant: "destructive",
+          });
+          if (ok) {
+            deleteMutation.mutate(id);
+            if (selectedPostId === id) {
+              setSelectedPostId(null);
+              setIsEditing(false);
+            }
+          }
+        }}
+      />
       <FolderContextMenu
         menu={folderCtxMenu}
         onClose={() => setFolderCtxMenu(null)}
