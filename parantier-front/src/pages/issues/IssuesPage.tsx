@@ -110,6 +110,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 export function IssuesPage() {
   const gridRef = useRef<AgGridReact>(null);
+  const gridWrapperRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const currentUser = useStore(authStore, (state) => state.user);
 
@@ -753,9 +754,35 @@ export function IssuesPage() {
 
   // 행 클릭 이벤트 (상세 보기)
   const onRowClicked = (event: any) => {
+    // 셀 편집 중이면 먼저 중단
+    if (gridRef.current?.api) {
+      gridRef.current.api.stopEditing(true); // true = cancel
+    }
     setSelectedIssueId(event.data.id);
     setIsEditing(false);
   };
+
+  // 그리드 외부 클릭 시 셀 편집 중단
+  const onGridBlur = useCallback(() => {
+    if (gridRef.current?.api) {
+      gridRef.current.api.stopEditing(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (
+        gridWrapperRef.current &&
+        !gridWrapperRef.current.contains(e.target as Node)
+      ) {
+        if (gridRef.current?.api) {
+          gridRef.current.api.stopEditing(true);
+        }
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, []);
 
   // 편집 모드에서 외부 클릭 시 취소
   useEffect(() => {
@@ -1424,7 +1451,11 @@ export function IssuesPage() {
             </Button>
           </div>
 
-          <div className="flex-1" style={{ height: "100%" }}>
+          <div
+            className="flex-1"
+            style={{ height: "100%" }}
+            ref={gridWrapperRef}
+          >
             <AgGridReact<Issue>
               ref={gridRef}
               rowData={issues}
