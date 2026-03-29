@@ -101,8 +101,9 @@ function splitHtmlByCodeBlocks(html: string): HtmlPart[] {
 }
 
 function extractTextFromHtml(html: string): string {
-  // span 태그 제거 후 텍스트만 추출
+  // br 태그를 먼저 줄바꿈으로 변환
   return html
+    .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, "")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
