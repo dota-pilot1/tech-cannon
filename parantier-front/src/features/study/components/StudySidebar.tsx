@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
 import {
-  ArrowLeft,
   ChevronRight,
   ChevronDown,
   FilePlus,
   FolderPlus,
   Pencil,
   Trash2,
+  Search,
+  X,
 } from "lucide-react";
 import {
   useStudyCategoryTree,
@@ -29,7 +30,7 @@ interface StudySidebarProps {
   selectedPostId: number | null;
   onSelectPost: (id: number) => void;
   onEditPost: (id: number) => void;
-  onGoHome: () => void;
+  onGoHome?: () => void;
   onPostDeleted?: () => void;
 }
 
@@ -277,6 +278,7 @@ interface TreeNodeProps {
   // 공유 상태 (최상위에서 관리)
   expandedIds: Set<number>;
   onToggle: (id: number) => void;
+  setExpandedIds: (fn: (prev: Set<number>) => Set<number>) => void;
   inlineState: InlineState | null;
   setInlineState: (s: InlineState | null) => void;
   renamingPost: { id: number } | null;
@@ -294,6 +296,8 @@ interface TreeNodeProps {
   onRenameCatConfirm: (id: number, name: string) => void;
   onCreateFolder: (parentId: number, name: string) => void;
   onCreateDoc: (categoryId: number, title: string) => void;
+  // 현재 선택된 카테고리
+  selectedCatId?: number | null;
 }
 
 type InlineState =
@@ -310,6 +314,7 @@ function TreeNode({
   selectedPostId,
   expandedIds,
   onToggle,
+  setExpandedIds,
   inlineState,
   setInlineState,
   renamingPost,
@@ -326,12 +331,14 @@ function TreeNode({
   onRenameCatConfirm,
   onCreateFolder,
   onCreateDoc,
+  selectedCatId,
 }: TreeNodeProps) {
   const isExpanded = expandedIds.has(cat.id);
   const { data: posts = [] } = useStudyPosts(isExpanded ? cat.id : null);
 
-  const pl = depth * 16 + 8;
+  const pl = depth * 14 + 8;
   const isRenamingThis = renamingCat?.id === cat.id;
+  const isSelected = selectedCatId === cat.id;
 
   const openCtx = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -348,8 +355,12 @@ function TreeNode({
         onClick={() => onToggle(cat.id)}
         onContextMenu={openCtx}
         style={{ paddingLeft: `${pl}px`, paddingRight: "4px" }}
-        className="group flex items-center gap-1.5 py-1.5 cursor-pointer select-none
-                   hover:bg-muted/50 transition-colors"
+        className={cn(
+          "group flex items-center gap-1 py-1.5 cursor-pointer rounded text-sm transition-colors",
+          isSelected
+            ? "bg-primary/10 text-primary"
+            : "text-foreground hover:bg-muted/50",
+        )}
       >
         <span className="shrink-0 text-muted-foreground w-3">
           {isExpanded ? (
@@ -371,22 +382,44 @@ function TreeNode({
             onCancel={() => setRenamingCat(null)}
           />
         ) : (
-          <span className="flex-1 truncate text-sm text-foreground">
-            {cat.name}
-          </span>
+          <span className="flex-1 truncate text-sm">{cat.name}</span>
         )}
         {/* hover 액션 버튼 */}
         {!isRenamingThis && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openCtx(e);
-            }}
-            className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground
-                       hover:text-foreground transition-all shrink-0"
-          >
-            <span className="text-[10px]">•••</span>
-          </button>
+          <div className="hidden group-hover:flex gap-0.5 shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedIds((p) => new Set([...p, cat.id]));
+                if (!expandedIds.has(cat.id)) onToggle(cat.id);
+                setInlineState({ type: "doc", categoryId: cat.id });
+              }}
+              className="text-xs text-muted-foreground hover:text-primary px-1"
+              title="새 문서"
+            >
+              +
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setRenamingCat({ id: cat.id });
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground px-1"
+              title="이름 변경"
+            >
+              ✏️
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteCat(cat);
+              }}
+              className="text-xs text-muted-foreground hover:text-destructive px-1"
+              title="삭제"
+            >
+              🗑️
+            </button>
+          </div>
         )}
       </div>
 
@@ -418,6 +451,8 @@ function TreeNode({
               onRenameCatConfirm={onRenameCatConfirm}
               onCreateFolder={onCreateFolder}
               onCreateDoc={onCreateDoc}
+              selectedCatId={selectedCatId}
+              setExpandedIds={setExpandedIds}
             />
           ))}
 
@@ -448,7 +483,7 @@ function TreeNode({
                 setCtxMenu({ kind: "post", x, y, post });
               }}
               style={{
-                paddingLeft: `${(depth + 1) * 16 + 8}px`,
+                paddingLeft: `${(depth + 1) * 14 + 8}px`,
                 paddingRight: "8px",
               }}
               className={cn(
@@ -489,26 +524,6 @@ function TreeNode({
               onCancel={() => setInlineState(null)}
             />
           )}
-
-          {/* 아무것도 없을 때 */}
-          {(cat.children ?? []).length === 0 &&
-            posts.length === 0 &&
-            inlineState?.type !== "folder" &&
-            inlineState?.type !== "doc" && (
-              <div
-                style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}
-                className="py-1.5"
-              >
-                <button
-                  onClick={() => {
-                    setInlineState({ type: "doc", categoryId: cat.id });
-                  }}
-                  className="text-xs text-muted-foreground hover:text-primary hover:underline transition-colors"
-                >
-                  + 첫 문서 추가하기
-                </button>
-              </div>
-            )}
         </div>
       )}
     </div>
@@ -528,15 +543,9 @@ export function StudySidebar({
   const { data: allCategories = [] } = useStudyCategoryTree();
   const { confirm, ConfirmDialog } = useConfirm();
 
-  // 현재 선택된 2차 카테고리 찾기
-  const selectedCat = (() => {
-    if (!categoryId) return null;
-    for (const root of allCategories) {
-      const found = root.children?.find((c) => c.id === categoryId);
-      if (found) return found;
-    }
-    return allCategories.find((c) => c.id === categoryId) ?? null;
-  })();
+  // 검색
+  const [inputValue, setInputValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // 트리 상태
   const [expandedIds, setExpandedIds] = useState<Set<number>>(
@@ -629,6 +638,17 @@ export function StudySidebar({
 
   // ── render ────────────────────────────────────────────────────────────────
 
+  // 검색 결과: 카테고리명 + 문서 제목 필터링
+  const flattenCategories = (cats: StudyCategory[]): StudyCategory[] =>
+    cats.flatMap((c) => [c, ...flattenCategories(c.children ?? [])]);
+
+  const q = searchQuery.trim().toLowerCase();
+  const matchedCats = q
+    ? flattenCategories(allCategories).filter((c) =>
+        c.name.toLowerCase().includes(q),
+      )
+    : [];
+
   return (
     <>
       <ConfirmDialog />
@@ -664,46 +684,131 @@ export function StudySidebar({
       )}
 
       <aside className="w-60 border-r bg-background flex flex-col shrink-0 overflow-hidden">
-        {/* ← 목록으로 */}
-        <button
-          onClick={onGoHome}
-          className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground
-                     hover:text-foreground hover:bg-muted/50 border-b transition-colors shrink-0"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          목록으로
-        </button>
+        {/* 헤더: 검색 + + 폴더 버튼 */}
+        <div className="flex items-center gap-1.5 px-2 py-1.5 border-b bg-muted/30 shrink-0">
+          <div className="flex items-center gap-1 flex-1 min-w-0 border rounded bg-background px-1.5 py-0.5">
+            <Search className="w-3 h-3 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setSearchQuery(inputValue);
+                  e.currentTarget.blur();
+                }
+                if (e.key === "Escape") {
+                  setInputValue("");
+                  setSearchQuery("");
+                }
+              }}
+              placeholder="검색 후 Enter..."
+              className="flex-1 min-w-0 text-xs bg-transparent outline-none placeholder:text-muted-foreground/50"
+            />
+            {(inputValue || searchQuery) && (
+              <button
+                onClick={() => {
+                  setInputValue("");
+                  setSearchQuery("");
+                }}
+                className="text-muted-foreground hover:text-foreground shrink-0 leading-none"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setInlineState({ type: "folder", parentId: 0 })}
+            className="px-2 py-0.5 text-xs bg-foreground text-background rounded hover:opacity-80 shrink-0 whitespace-nowrap"
+          >
+            + 폴더
+          </button>
+        </div>
 
         {/* 트리 목록 */}
         <div className="flex-1 overflow-y-auto py-1">
-          {!selectedCat ? (
-            <p className="text-xs text-muted-foreground text-center py-6">
-              카테고리를 선택하세요.
+          {searchQuery.trim() !== "" ? (
+            // 검색 모드
+            matchedCats.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                검색 결과가 없습니다.
+              </p>
+            ) : (
+              <div>
+                <p className="text-[10px] text-muted-foreground px-3 pt-2 pb-0.5 font-medium">
+                  카테고리
+                </p>
+                {matchedCats.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      setExpandedIds((p) => new Set([...p, c.id]));
+                      setSearchQuery("");
+                      setInputValue("");
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 text-sm cursor-pointer rounded transition-colors",
+                      categoryId === c.id
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground hover:bg-muted/50",
+                    )}
+                  >
+                    <span>{c.icon || "📁"}</span>
+                    <span className="truncate">{c.name}</span>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : allCategories.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              + 폴더 버튼으로 추가하세요.
             </p>
           ) : (
-            <TreeNode
-              cat={selectedCat}
-              depth={0}
-              selectedPostId={selectedPostId}
-              expandedIds={expandedIds}
-              onToggle={toggleExpand}
-              inlineState={inlineState}
-              setInlineState={setInlineState}
-              renamingPost={renamingPost}
-              setRenamingPost={setRenamingPost}
-              renamingCat={renamingCat}
-              setRenamingCat={setRenamingCat}
-              ctxMenu={ctxMenu}
-              setCtxMenu={setCtxMenu}
-              onSelectPost={onSelectPost}
-              onEditPost={onEditPost}
-              onDeletePost={handleDeletePost}
-              onRenamePostConfirm={handleRenamePostConfirm}
-              onDeleteCat={handleDeleteCat}
-              onRenameCatConfirm={handleRenameCatConfirm}
-              onCreateFolder={handleCreateFolder}
-              onCreateDoc={handleCreateDoc}
-            />
+            // 전체 트리 표시
+            <>
+              {allCategories.map((cat) => (
+                <TreeNode
+                  key={cat.id}
+                  cat={cat}
+                  depth={0}
+                  selectedPostId={selectedPostId}
+                  selectedCatId={categoryId}
+                  expandedIds={expandedIds}
+                  onToggle={toggleExpand}
+                  inlineState={inlineState}
+                  setInlineState={setInlineState}
+                  renamingPost={renamingPost}
+                  setRenamingPost={setRenamingPost}
+                  renamingCat={renamingCat}
+                  setRenamingCat={setRenamingCat}
+                  ctxMenu={ctxMenu}
+                  setCtxMenu={setCtxMenu}
+                  onSelectPost={onSelectPost}
+                  onEditPost={onEditPost}
+                  onDeletePost={handleDeletePost}
+                  onRenamePostConfirm={handleRenamePostConfirm}
+                  onDeleteCat={handleDeleteCat}
+                  onRenameCatConfirm={handleRenameCatConfirm}
+                  onCreateFolder={handleCreateFolder}
+                  onCreateDoc={handleCreateDoc}
+                  setExpandedIds={setExpandedIds}
+                />
+              ))}
+              {/* 최상위 인라인 폴더 추가 */}
+              {inlineState?.type === "folder" && inlineState.parentId === 0 && (
+                <InlineInput
+                  depth={0}
+                  placeholder="폴더명 입력 후 Enter"
+                  onConfirm={(name) => {
+                    createCategory.mutate(
+                      { name, parentId: null, orderNum: null },
+                      { onSuccess: () => setInlineState(null) },
+                    );
+                  }}
+                  onCancel={() => setInlineState(null)}
+                />
+              )}
+            </>
           )}
         </div>
       </aside>
