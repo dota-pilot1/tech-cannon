@@ -116,6 +116,7 @@ export function IssuesPage() {
   // 상태 관리
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const editPanelRef = useRef<HTMLDivElement>(null);
 
   // 수정된 행 추적
   const [modifiedRowIds, setModifiedRowIds] = useState<Set<number>>(new Set());
@@ -755,6 +756,28 @@ export function IssuesPage() {
     setSelectedIssueId(event.data.id);
     setIsEditing(false);
   };
+
+  // 편집 모드에서 외부 클릭 시 취소
+  useEffect(() => {
+    if (!isEditing) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (
+        editPanelRef.current &&
+        !editPanelRef.current.contains(e.target as Node)
+      ) {
+        handleCancel();
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleCancel();
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isEditing]);
 
   // 신규 작성
   const handleNew = () => {
@@ -1432,7 +1455,7 @@ export function IssuesPage() {
         <div className="flex-1 p-6 overflow-y-auto bg-muted/30">
           {isEditing ? (
             /* 편집 모드 */
-            <div>
+            <div ref={editPanelRef}>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">
                   {selectedIssueId ? "이슈 수정" : "새 이슈 작성"}
