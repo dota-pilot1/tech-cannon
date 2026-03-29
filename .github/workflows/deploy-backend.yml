@@ -43,12 +43,12 @@ jobs:
         continue-on-error: true
         run: |
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            "sudo systemctl stop palantier-api || pkill -f 'palantier-api' || true"
+            "pkill -f 'parantier-api' || kill \$(cat /home/${{ secrets.EC2_USER }}/app.pid 2>/dev/null) || true; sleep 2"
 
       - name: Upload JAR to EC2
         run: |
-          scp parantier-api/build/libs/*.jar \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/palantier-api.jar
+          scp parantier-api/build/libs/parantier-api-0.0.1-SNAPSHOT.jar \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/parantier-api-0.0.1-SNAPSHOT.jar
 
       - name: Write application.yml to EC2
         # Heredoc에 싱글쿼트('EOF')를 쓰면 쉘이 변수를 확장하지 않아
@@ -94,30 +94,42 @@ jobs:
 
       - name: Start application
         run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << EOF
-            # 기존 프로세스 종료
-            pkill -f 'palantier-api' || true
-            sleep 2
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'ENDSSH'
+            JAR=/home/ubuntu/parantier-api-0.0.1-SNAPSHOT.jar
+            CONFIG=/home/ubuntu/application.yml
+            LOG=/home/ubuntu/app.log
+            PID_FILE=/home/ubuntu/app.pid
+
+            # 기존 프로세스 종료 (PID 파일 우선, 없으면 pkill)
+            if [ -f "$PID_FILE" ]; then
+              OLD_PID=$(cat "$PID_FILE")
+              kill "$OLD_PID" 2>/dev/null || true
+              rm -f "$PID_FILE"
+            fi
+            pkill -f 'parantier-api' || true
+            sleep 3
 
             # 애플리케이션 시작
-            nohup java -jar /home/${{ secrets.EC2_USER }}/palantier-api.jar \
-              --spring.config.location=/home/${{ secrets.EC2_USER }}/application.yml \
-              > /home/${{ secrets.EC2_USER }}/app.log 2>&1 &
+            nohup java -jar "$JAR" \
+              --spring.config.location="$CONFIG" \
+              --spring.profiles.active=prod \
+              > "$LOG" 2>&1 &
 
-            echo "PID: \$!"
+            echo $! > "$PID_FILE"
+            echo "PID: $(cat $PID_FILE)"
 
             # 시작 대기
-            sleep 15
+            sleep 20
 
             # 헬스체크
             if curl -s http://localhost:8080/actuator/health | grep -q '"status":"UP"'; then
               echo "✅ Application started successfully"
             else
               echo "❌ Application failed to start"
-              tail -50 /home/${{ secrets.EC2_USER }}/app.log
+              tail -80 "$LOG"
               exit 1
             fi
-          EOF
+          ENDSSH
 
       - name: Deployment complete
         run: |
