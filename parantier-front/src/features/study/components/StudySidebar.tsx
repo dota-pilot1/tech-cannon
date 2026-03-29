@@ -30,7 +30,6 @@ interface StudySidebarProps {
   selectedPostId: number | null;
   onSelectPost: (id: number) => void;
   onEditPost: (id: number) => void;
-  onGoHome?: () => void;
   onPostDeleted?: () => void;
 }
 
@@ -537,7 +536,6 @@ export function StudySidebar({
   selectedPostId,
   onSelectPost,
   onEditPost,
-  onGoHome,
   onPostDeleted,
 }: StudySidebarProps) {
   const { data: allCategories = [] } = useStudyCategoryTree();

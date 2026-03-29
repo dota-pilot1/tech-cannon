@@ -66,7 +66,6 @@ export function StudyViewPage({
         selectedPostId={isEditing ? editingPostId : postId}
         onSelectPost={handleSelectPost}
         onEditPost={handleEditPost}
-        onGoHome={onGoHome}
         onPostDeleted={handleDeleted}
       />
 
