@@ -299,6 +299,7 @@ interface TreeNodeProps {
   // 현재 선택된 카테고리
   selectedCatId?: number | null;
   setSelectedCatId: (id: number | null) => void;
+  onClearPost?: () => void;
 }
 
 type InlineState =
@@ -334,6 +335,7 @@ function TreeNode({
   onCreateDoc,
   selectedCatId,
   setSelectedCatId,
+  onClearPost,
 }: TreeNodeProps) {
   const isExpanded = expandedIds.has(cat.id);
   const { data: posts = [] } = useStudyPosts(isExpanded ? cat.id : null);
@@ -474,6 +476,7 @@ function TreeNode({
               selectedCatId={selectedCatId}
               setSelectedCatId={setSelectedCatId}
               setExpandedIds={setExpandedIds}
+              onClearPost={onClearPost}
             />
           ))}
 
@@ -821,6 +824,7 @@ export function StudySidebar({
                   onCreateDoc={handleCreateDoc}
                   setSelectedCatId={setSelectedCatId}
                   setExpandedIds={setExpandedIds}
+                  onClearPost={onClearPost}
                 />
               ))}
               {/* 최상위 인라인 폴더 추가 */}
