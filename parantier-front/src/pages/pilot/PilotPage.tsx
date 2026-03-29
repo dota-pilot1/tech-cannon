@@ -2808,7 +2808,7 @@ export function PilotPage() {
                     체크리스트
                     {checklists && checklists.length > 0 && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal">
-                        {checklists.filter((c) => c.checked).length}/
+                        {checklists.filter((c) => c.isChecked).length}/
                         {checklists.length} 완료
                       </span>
                     )}
@@ -2823,11 +2823,11 @@ export function PilotPage() {
                             className="flex items-center gap-2 p-2 hover:bg-accent rounded group"
                           >
                             <Checkbox
-                              checked={item.checked}
+                              checked={item.isChecked}
                               onCheckedChange={() => toggleChecklist(item.id)}
                             />
                             <span
-                              className={`flex-1 text-sm ${item.checked ? "line-through text-muted-foreground" : ""}`}
+                              className={`flex-1 text-sm ${item.isChecked ? "line-through text-muted-foreground" : ""}`}
                             >
                               {item.content}
                             </span>
