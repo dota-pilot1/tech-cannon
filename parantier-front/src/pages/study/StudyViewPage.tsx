@@ -33,6 +33,11 @@ export function StudyViewPage({
     onSelectPost(id);
   };
 
+  const handleClearPost = () => {
+    setIsEditing(false);
+    setEditingPostId(null);
+  };
+
   // 사이드바에서 문서 생성 직후 → 편집 모드
   const handleEditPost = (id: number) => {
     setEditingPostId(id);
@@ -66,6 +71,7 @@ export function StudyViewPage({
         selectedPostId={isEditing ? editingPostId : postId}
         onSelectPost={handleSelectPost}
         onEditPost={handleEditPost}
+        onClearPost={handleClearPost}
         onPostDeleted={handleDeleted}
       />
 

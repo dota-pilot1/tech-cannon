@@ -30,6 +30,7 @@ interface StudySidebarProps {
   selectedPostId: number | null;
   onSelectPost: (id: number) => void;
   onEditPost: (id: number) => void;
+  onClearPost?: () => void;
   onPostDeleted?: () => void;
 }
 
@@ -355,6 +356,7 @@ function TreeNode({
         onClick={() => {
           onToggle(cat.id);
           setSelectedCatId(cat.id);
+          onClearPost?.();
         }}
         onContextMenu={openCtx}
         className={cn(
@@ -562,6 +564,7 @@ export function StudySidebar({
   selectedPostId,
   onSelectPost,
   onEditPost,
+  onClearPost,
   onPostDeleted,
 }: StudySidebarProps) {
   const { data: allCategories = [] } = useStudyCategoryTree();
