@@ -9,6 +9,7 @@ interface StudyViewPageProps {
   isNewMode: boolean;
   onSelectPost: (id: number) => void;
   onGoHome: () => void;
+  onClearPost?: () => void;
 }
 
 export function StudyViewPage({
@@ -17,6 +18,7 @@ export function StudyViewPage({
   isNewMode,
   onSelectPost,
   onGoHome,
+  onClearPost,
 }: StudyViewPageProps) {
   const [isEditing, setIsEditing] = useState(isNewMode);
   const [editingPostId, setEditingPostId] = useState<number | null>(
@@ -36,6 +38,7 @@ export function StudyViewPage({
   const handleClearPost = () => {
     setIsEditing(false);
     setEditingPostId(null);
+    onClearPost?.();
   };
 
   // 사이드바에서 문서 생성 직후 → 편집 모드

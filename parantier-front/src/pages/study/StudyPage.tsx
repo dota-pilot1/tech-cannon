@@ -27,6 +27,13 @@ export function StudyPage() {
     navigate({ to: "/study", search: { categoryId: String(catId) } });
   };
 
+  const clearPost = () => {
+    setPostId(null);
+    if (categoryId) {
+      navigate({ to: "/study", search: { categoryId: String(categoryId) } });
+    }
+  };
+
   const goToPost = (id: number, catId?: number) => {
     setPostId(id);
     if (catId) setCategoryId(catId);
@@ -47,6 +54,7 @@ export function StudyPage() {
         isNewMode={false}
         onSelectPost={goToPost}
         onGoHome={goHome}
+        onClearPost={clearPost}
       />
     );
   }
