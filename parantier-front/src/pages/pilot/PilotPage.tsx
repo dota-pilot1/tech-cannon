@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
-import { WorkChatPanel } from "@/features/work/components/WorkChatPanel";
+import { WorkChatPanel } from "@/features/work/components/WorkChatPanel"; // 채팅 패널 재사용
 import { cn } from "@/shared/lib/utils";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
@@ -37,56 +37,55 @@ import {
 import { Checkbox } from "@/shared/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
-  useWorks,
-  useWork,
-  useCreateWork,
-  useUpdateWork,
-  useDeleteWork,
-  useUpdateWorkStatus,
-  useCreateWorkSilent,
-  useUpdateWorkSilent,
+  usePilots as useWorks,
+  usePilot as useWork,
+  useCreatePilot as useCreateWork,
+  useUpdatePilot as useUpdateWork,
+  useDeletePilot as useDeleteWork,
+  useUpdatePilotStatus as useUpdateWorkStatus,
+  useCreatePilotSilent as useCreateWorkSilent,
+  useUpdatePilotSilent as useUpdateWorkSilent,
 } from "@/features/pilot/hooks/usePilots";
 import {
-  useWorkImages,
-  useUploadWorkImage,
-  useDeleteWorkImage,
+  usePilotImages as useWorkImages,
+  useUploadPilotImage as useUploadWorkImage,
+  useDeletePilotImage as useDeleteWorkImage,
 } from "@/features/pilot/hooks/usePilotImages";
 import {
-  useWorkChecklists,
-  useCreateWorkChecklist,
-  useToggleWorkChecklist,
-  useDeleteWorkChecklist,
+  usePilotChecklists as useWorkChecklists,
+  useCreatePilotChecklist as useCreateWorkChecklist,
+  useTogglePilotChecklist as useToggleWorkChecklist,
+  useDeletePilotChecklist as useDeleteWorkChecklist,
 } from "@/features/pilot/hooks/usePilotChecklists";
 import {
-  useWorkMindmaps,
-  useCreateWorkMindmap,
-  useUpdateWorkMindmap,
-  useDeleteWorkMindmap,
+  usePilotMindmaps as useWorkMindmaps,
+  useCreatePilotMindmap as useCreateWorkMindmap,
+  useUpdatePilotMindmap as useUpdateWorkMindmap,
+  useDeletePilotMindmap as useDeleteWorkMindmap,
 } from "@/features/pilot/hooks/usePilotMindmaps";
 import {
-  useWorkDbTables,
-  useCreateWorkDbTable,
-  useUpdateWorkDbTable,
-  useDeleteWorkDbTable,
+  usePilotDbTables as useWorkDbTables,
+  useCreatePilotDbTable as useCreateWorkDbTable,
+  useUpdatePilotDbTable as useUpdateWorkDbTable,
+  useDeletePilotDbTable as useDeleteWorkDbTable,
 } from "@/features/pilot/hooks/usePilotDbTables";
 import {
-  useWorkFigmas,
-  useCreateWorkFigma,
-  useUpdateWorkFigma,
-  useDeleteWorkFigma,
+  usePilotFigmas as useWorkFigmas,
+  useCreatePilotFigma as useCreateWorkFigma,
+  useUpdatePilotFigma as useUpdateWorkFigma,
+  useDeletePilotFigma as useDeleteWorkFigma,
 } from "@/features/pilot/hooks/usePilotFigmas";
 import {
   useWorkLinkedIssues,
   useLinkIssue,
   useUnlinkIssue,
 } from "@/features/work/hooks/useWorkLinkedIssues";
-import { workApi } from "@/entities/work/api/workApi";
+import { pilotApi as workApi } from "@/entities/pilot/api/pilotApi";
 import { issueApi } from "@/entities/issue/api/issueApi";
 import type {
-  Work,
-  WorkStatus,
-  WorkPriority,
-  WorkType,
+  Pilot as Work,
+  PilotStatus as WorkStatus,
+  PilotPriority as WorkPriority,
 } from "@/entities/pilot/types/pilot";
 import type { DbTableContent } from "@/entities/pilot/types/pilotDbTable";
 import {
@@ -122,13 +121,13 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 
-const WORK_TYPE_LABELS: Record<WorkType, string> = {
+const WORK_TYPE_LABELS: Record<string, string> = {
   FEATURE: "기능개발",
   QA: "QA",
   COMMON: "일반",
 };
 
-const WORK_TYPE_COLORS: Record<WorkType, string> = {
+const WORK_TYPE_COLORS: Record<string, string> = {
   FEATURE: "bg-blue-100 text-blue-700 hover:bg-blue-100",
   QA: "bg-purple-100 text-purple-700 hover:bg-purple-100",
   COMMON: "bg-gray-100 text-gray-600 hover:bg-gray-100",
@@ -178,7 +177,7 @@ const ISSUE_STATUS_COLORS: Record<string, string> = {
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 
-export function WorkPage() {
+export function PilotPage() {
   const gridRef = useRef<AgGridReact>(null);
   const navigate = useNavigate();
   const currentUser = useStore(authStore, (state) => state.user);
@@ -193,7 +192,7 @@ export function WorkPage() {
 
   // 필터 상태
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
-  const [filterWorkType, setFilterWorkType] = useState<string>("ALL");
+  const [filterstring, setFilterstring] = useState<string>("ALL");
   const [filterPriority, setFilterPriority] = useState<string>("ALL");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [isBackupTab, setIsBackupTab] = useState(false);
@@ -201,7 +200,7 @@ export function WorkPage() {
   // 폼 데이터
   const [formTitle, setFormTitle] = useState("");
   const [formContent, setFormContent] = useState("");
-  const [formWorkType, setFormWorkType] = useState<WorkType>("COMMON");
+  const [formstring, setFormstring] = useState<string>("COMMON");
   const [formStatus, setFormStatus] = useState<WorkStatus>("TODO");
   const [formPriority, setFormPriority] = useState<WorkPriority>("MEDIUM");
   const [formAssigneeId, setFormAssigneeId] = useState<number | null>(null);
@@ -209,8 +208,7 @@ export function WorkPage() {
 
   // API 호출
   const { data: pilotsData } = useWorks({
-    workType:
-      filterWorkType === "ALL" ? undefined : (filterWorkType as WorkType),
+    topic: filterstring === "ALL" ? undefined : (filterstring as string),
     keyword: searchKeyword || undefined,
     sortBy: "created",
     isArchived: isBackupTab ? true : false,
@@ -224,7 +222,7 @@ export function WorkPage() {
 
   const reorderMutation = useMutation({
     mutationFn: (items: { id: number; orderNum: number }[]) =>
-      workApi.reorderWorks(items),
+      workApi.reorderPilots(items),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["works"] });
       toast.success("순서가 저장되었습니다", { position: "bottom-right" });
@@ -234,7 +232,7 @@ export function WorkPage() {
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (ids: number[]) => workApi.archiveWorks(ids),
+    mutationFn: (ids: number[]) => workApi.archivePilots(ids),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["works"] });
       toast.success("백업 완료", { position: "bottom-right" });
@@ -244,7 +242,7 @@ export function WorkPage() {
   });
 
   const restoreMutation = useMutation({
-    mutationFn: (ids: number[]) => workApi.restoreWorks(ids),
+    mutationFn: (ids: number[]) => workApi.restorePilots(ids),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["works"] });
       toast.success("복원 완료", { position: "bottom-right" });
@@ -391,7 +389,7 @@ export function WorkPage() {
     if (
       colDef.field === "status" ||
       colDef.field === "priority" ||
-      colDef.field === "workType"
+      colDef.field === "topic"
     ) {
       const allRowData: Work[] = [];
       params.api.forEachNode((node: IRowNode<Work>) => {
@@ -420,7 +418,7 @@ export function WorkPage() {
       id: -Date.now(),
       title: "",
       content: "",
-      workType: "COMMON",
+      topic: "COMMON",
       status: "TODO",
       priority: "MEDIUM",
       reporterId: currentUser.id,
@@ -512,7 +510,7 @@ export function WorkPage() {
     modifiedRows.forEach((row) => {
       const missing: string[] = [];
       if (!row.title || row.title.trim() === "") missing.push("제목");
-      if (!row.workType) missing.push("유형");
+      if (!row.topic) missing.push("유형");
       if (!row.status) missing.push("상태");
       if (!row.priority) missing.push("우선순위");
       if (!row.reporterName || row.reporterName.trim() === "")
@@ -549,7 +547,7 @@ export function WorkPage() {
         await createWorkSilent({
           title: row.title || "제목 없음",
           content: row.content || "",
-          workType: row.workType || "COMMON",
+          topic: row.topic || "COMMON",
           status: row.status || "TODO",
           priority: row.priority || "MEDIUM",
           assigneeId: row.assigneeId ?? null,
@@ -563,7 +561,7 @@ export function WorkPage() {
           request: {
             title: row.title,
             content: row.content,
-            workType: row.workType,
+            topic: row.topic,
             status: row.status,
             priority: row.priority,
             assigneeId: row.assigneeId ?? null,
@@ -655,53 +653,22 @@ export function WorkPage() {
       },
       {
         headerName: "유형",
-        field: "workType",
+        field: "topic",
         width: 85,
         headerClass: "ag-header-cell-center",
         editable: false,
         cellRenderer: (params: ICellRendererParams<Work>) => {
-          const WorkTypeCell = () => {
-            const [open, setOpen] = useState(false);
-            const workType = params.value as WorkType;
-            const label = WORK_TYPE_LABELS[workType] || workType;
-
-            const handleWorkTypeChange = (newType: WorkType) => {
-              if (!params.data) return;
-              params.data.workType = newType;
-              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
-              params.node?.setSelected(true);
-              params.api.refreshCells({ rowNodes: [params.node], force: true });
-              setOpen(false);
-            };
-
-            return (
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <div className="w-full h-full flex items-center justify-center cursor-pointer">
-                    <Badge className={WORK_TYPE_COLORS[workType]}>
-                      {label}
-                    </Badge>
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-36 p-2" align="center">
-                  <div className="flex flex-col gap-1">
-                    {(["FEATURE", "QA", "COMMON"] as WorkType[]).map((t) => (
-                      <Button
-                        key={t}
-                        variant={t === workType ? "default" : "ghost"}
-                        size="sm"
-                        className="justify-start h-8"
-                        onClick={() => handleWorkTypeChange(t)}
-                      >
-                        {WORK_TYPE_LABELS[t]}
-                      </Button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            );
-          };
-          return <WorkTypeCell />;
+          const topic = params.value as string;
+          return (
+            <div className="w-full h-full flex items-center px-2">
+              <Badge
+                variant="outline"
+                className="text-xs font-medium max-w-full truncate"
+              >
+                {topic || "-"}
+              </Badge>
+            </div>
+          );
         },
       },
       {
@@ -1065,7 +1032,7 @@ export function WorkPage() {
     setSelectedWorkId(null);
     setFormTitle("");
     setFormContent("");
-    setFormWorkType("COMMON");
+    setFormstring("COMMON");
     setFormStatus("TODO");
     setFormPriority("MEDIUM");
     setFormAssigneeId(null);
@@ -1078,7 +1045,7 @@ export function WorkPage() {
     if (!pilotDetail) return;
     setFormTitle(pilotDetail.title);
     setFormContent(pilotDetail.content);
-    setFormWorkType(pilotDetail.workType);
+    setFormstring(pilotDetail.topic);
     setFormStatus(pilotDetail.status);
     setFormPriority(pilotDetail.priority);
     setFormAssigneeId(pilotDetail.assigneeId ?? null);
@@ -1100,7 +1067,7 @@ export function WorkPage() {
     const data = {
       title: formTitle,
       content: formContent,
-      workType: formWorkType,
+      topic: formstring,
       status: formStatus,
       priority: formPriority,
       assigneeId: formAssigneeId,
@@ -1171,7 +1138,7 @@ export function WorkPage() {
       request: {
         title: pilotDetail.title,
         content: pilotDetail.content,
-        workType: pilotDetail.workType,
+        topic: pilotDetail.topic,
         status: pilotDetail.status,
         priority: newPriority,
         assigneeId: pilotDetail.assigneeId,
@@ -1181,14 +1148,14 @@ export function WorkPage() {
   };
 
   // 유형 변경 (상세 뷰에서)
-  const handleWorkTypeChange = (newType: WorkType) => {
+  const handlestringChange = (newType: string) => {
     if (!selectedWorkId || !pilotDetail) return;
     updateWork({
       id: selectedWorkId,
       request: {
         title: pilotDetail.title,
         content: pilotDetail.content,
-        workType: newType,
+        topic: newType,
         status: pilotDetail.status,
         priority: pilotDetail.priority,
         assigneeId: pilotDetail.assigneeId,
@@ -1589,20 +1556,20 @@ export function WorkPage() {
           {/* 유형 필터 */}
           <div className="flex gap-1">
             <Button
-              variant={filterWorkType === "ALL" ? "default" : "outline"}
+              variant={filterstring === "ALL" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterWorkType("ALL")}
+              onClick={() => setFilterstring("ALL")}
               className="h-7 px-2 text-xs"
             >
               전체
             </Button>
             <div className="w-px bg-border mx-0.5" />
-            {(["FEATURE", "QA", "COMMON"] as WorkType[]).map((type) => (
+            {(["FEATURE", "QA", "COMMON"] as string[]).map((type) => (
               <Button
                 key={type}
-                variant={filterWorkType === type ? "default" : "outline"}
+                variant={filterstring === type ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFilterWorkType(type)}
+                onClick={() => setFilterstring(type)}
                 className="h-7 px-2 text-xs"
               >
                 {WORK_TYPE_LABELS[type]}
@@ -1827,8 +1794,8 @@ export function WorkPage() {
                       유형
                     </label>
                     <Select
-                      value={formWorkType}
-                      onValueChange={(v) => setFormWorkType(v as WorkType)}
+                      value={formstring}
+                      onValueChange={(v) => setFormstring(v as string)}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -1993,23 +1960,23 @@ export function WorkPage() {
                         <Popover>
                           <PopoverTrigger asChild>
                             <Badge
-                              className={`cursor-pointer ${WORK_TYPE_COLORS[pilotDetail.workType]}`}
+                              className={`cursor-pointer ${WORK_TYPE_COLORS[pilotDetail.topic]}`}
                             >
-                              {WORK_TYPE_LABELS[pilotDetail.workType]}
+                              {WORK_TYPE_LABELS[pilotDetail.topic]}
                             </Badge>
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
                             <div className="space-y-1">
-                              {(["FEATURE", "QA", "COMMON"] as WorkType[]).map(
+                              {(["FEATURE", "QA", "COMMON"] as string[]).map(
                                 (type) => (
                                   <div
                                     key={type}
                                     className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
-                                      type === pilotDetail.workType
+                                      type === pilotDetail.topic
                                         ? "bg-accent"
                                         : ""
                                     }`}
-                                    onClick={() => handleWorkTypeChange(type)}
+                                    onClick={() => handlestringChange(type)}
                                   >
                                     {WORK_TYPE_LABELS[type]}
                                   </div>
