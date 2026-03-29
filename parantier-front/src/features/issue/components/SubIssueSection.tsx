@@ -4,8 +4,6 @@ import {
   Trash2,
   CheckCircle2,
   Circle,
-  ChevronDown,
-  ChevronUp,
   Pencil,
   ImagePlus,
   X,
