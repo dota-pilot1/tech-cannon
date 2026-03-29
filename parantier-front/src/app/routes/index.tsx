@@ -21,7 +21,7 @@ import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { IssuesPage } from "@/pages/issues/IssuesPage";
 import { StudyPage } from "@/pages/study/StudyPage";
 import { PilotPage } from "@/pages/pilot/PilotPage";
-import { NotePage } from "@/pages/notes/NotePage";
+
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
 
@@ -202,102 +202,6 @@ const studyRoute = createRoute({
   component: StudyPage,
 });
 
-// 노트 페이지들 (로그인 필요)
-const notesReactRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/react",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="React" title="React Note" />,
-});
-
-const notesJavaRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/java",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="Java" title="Java Note" />,
-});
-
-const notesDbRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/db",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="DB" title="DB Note" />,
-});
-
-const notesDevOpsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/devops",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="DevOps" title="DevOps Note" />,
-});
-
-const notesWebSocketRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/websocket",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="WebSocket" title="WebSocket Note" />,
-});
-
-const notesRedisRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/redis",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="Redis" title="Redis Note" />,
-});
-
-const notesKafkaRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/kafka",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="Kafka" title="Kafka Note" />,
-});
-
-const notesArchitectureRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/architecture",
-  beforeLoad: () => requireAuth(),
-  component: () => (
-    <NotePage category="Architecture" title="Architecture Note" />
-  ),
-});
-
-const notesSecurityRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/security",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="Security" title="Security Note" />,
-});
-
-const notesFigmaRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/figma",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="Figma" title="Figma Note" />,
-});
-
-const notesSpringBootRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/springboot",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="SpringBoot" title="SpringBoot Note" />,
-});
-
-const notesRnRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/rn",
-  beforeLoad: () => requireAuth(),
-  component: () => (
-    <NotePage category="React Native" title="React Native Note" />
-  ),
-});
-
-const notesPilotRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notes/pilot",
-  beforeLoad: () => requireAuth(),
-  component: () => <NotePage category="Pilot" title="Pilot Note" />,
-});
-
 // Route Tree
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -316,19 +220,6 @@ const routeTree = rootRoute.addChildren([
   issuesRoute,
   pilotRoute,
   studyRoute,
-  notesReactRoute,
-  notesJavaRoute,
-  notesDbRoute,
-  notesDevOpsRoute,
-  notesWebSocketRoute,
-  notesRedisRoute,
-  notesKafkaRoute,
-  notesArchitectureRoute,
-  notesSecurityRoute,
-  notesFigmaRoute,
-  notesSpringBootRoute,
-  notesRnRoute,
-  notesPilotRoute,
 ]);
 
 // Router 생성

@@ -6,15 +6,6 @@ import { LoginForm } from "@/features/auth/login/LoginForm";
 import { SignupDialog } from "@/features/auth/signup/SignupDialog";
 import { useMenuTree } from "@/features/menu/hooks/useMenuTree";
 import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-  navigationMenuTriggerStyle,
-} from "@/shared/ui/navigation-menu";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -23,7 +14,6 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { ChevronDown, User, LogOut } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import React from "react";
 
 export function Header() {
   const auth = useStore(authStore, (state) => state);
@@ -49,65 +39,62 @@ export function Header() {
     <header className="border-b border-border bg-card">
       <div className="max-w-full px-6 py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-1">
             <Link
               to="/"
-              className="text-xl font-bold text-primary hover:opacity-80 transition-opacity cursor-pointer"
+              className="text-xl font-bold text-primary hover:opacity-80 transition-opacity cursor-pointer mr-4"
             >
               Palantier
             </Link>
 
-            <NavigationMenu>
-              <NavigationMenuList>
-                {headerMenus.map((menu) => {
-                  if (menu.children && menu.children.length > 0) {
-                    return (
-                      <NavigationMenuItem key={menu.id}>
-                        <NavigationMenuTrigger className="bg-transparent hover:bg-accent">
-                          {menu.name}
-                        </NavigationMenuTrigger>
-                        <NavigationMenuContent>
-                          <ul
-                            className={cn(
-                              "grid gap-2 p-4",
-                              menu.children.length <= 4
-                                ? "w-[300px] grid-cols-1"
-                                : menu.children.length <= 8
-                                  ? "w-[420px] grid-cols-2"
-                                  : "w-[560px] grid-cols-3",
-                            )}
-                          >
-                            {menu.children.map((child: Menu) => (
-                              <ListItem
-                                key={child.id}
-                                title={child.name}
-                                href={child.path || "/"}
-                              />
-                            ))}
-                          </ul>
-                        </NavigationMenuContent>
-                      </NavigationMenuItem>
-                    );
-                  }
-
+            <nav className="flex items-center">
+              {headerMenus.map((menu) => {
+                if (menu.children && menu.children.length > 0) {
                   return (
-                    <NavigationMenuItem key={menu.id}>
-                      <NavigationMenuLink
-                        asChild
-                        className={navigationMenuTriggerStyle()}
-                      >
-                        <Link
-                          to={menu.path || "/"}
-                          className="bg-transparent hover:bg-accent"
-                        >
+                    <DropdownMenu key={menu.id}>
+                      <DropdownMenuTrigger asChild>
+                        <button className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-md hover:bg-accent transition-colors outline-none cursor-pointer">
                           {menu.name}
-                        </Link>
-                      </NavigationMenuLink>
-                    </NavigationMenuItem>
+                          <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="start"
+                        className={cn(
+                          "grid gap-0.5 p-1",
+                          menu.children.length <= 4
+                            ? "w-[200px] grid-cols-1"
+                            : menu.children.length <= 8
+                              ? "w-[360px] grid-cols-2"
+                              : "w-[480px] grid-cols-3",
+                        )}
+                      >
+                        {menu.children.map((child: Menu) => (
+                          <DropdownMenuItem key={child.id} asChild>
+                            <Link
+                              to={child.path || "/"}
+                              className="cursor-pointer rounded-sm px-3 py-2 text-sm"
+                            >
+                              {child.name}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   );
-                })}
-              </NavigationMenuList>
-            </NavigationMenu>
+                }
+
+                return (
+                  <Link
+                    key={menu.id}
+                    to={menu.path || "/"}
+                    className="px-3 py-2 text-sm font-medium rounded-md hover:bg-accent transition-colors"
+                  >
+                    {menu.name}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
 
           <div className="flex items-center gap-4">
@@ -193,26 +180,3 @@ export function Header() {
     </header>
   );
 }
-
-const ListItem = React.forwardRef<
-  React.ElementRef<"a">,
-  React.ComponentPropsWithoutRef<"a"> & { title: string; href: string }
->(({ title, href, className }, ref) => {
-  return (
-    <li>
-      <NavigationMenuLink asChild>
-        <Link
-          to={href}
-          ref={ref as React.Ref<HTMLAnchorElement>}
-          className={cn(
-            "block select-none rounded-md px-3 py-2.5 text-sm font-medium leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            className,
-          )}
-        >
-          {title}
-        </Link>
-      </NavigationMenuLink>
-    </li>
-  );
-});
-ListItem.displayName = "ListItem";
