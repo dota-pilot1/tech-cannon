@@ -14,13 +14,8 @@ import {
   useDeleteFolderMutation,
 } from "../hooks/useTask";
 import { taskApi } from "../api/taskApi";
-import type {
-  TaskFolder,
-  TaskPost,
-  TaskBlock,
-  BlockType,
-} from "../types/task.types";
-import { buildTree, TYPE_META } from "../types/task.types";
+import type { TaskFolder, TaskPost, TaskBlock } from "../types/task.types";
+import { buildTree } from "../types/task.types";
 import TaskBlockEditor from "./TaskBlockEditor";
 import TaskBlockViewer from "./TaskBlockViewer";
 

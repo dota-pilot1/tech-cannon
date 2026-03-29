@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
 import {
-  ChevronRight,
-  ChevronDown,
   FilePlus,
   FolderPlus,
   FolderOpen,
@@ -299,6 +297,7 @@ interface TreeNodeProps {
   onCreateDoc: (categoryId: number, title: string) => void;
   // 현재 선택된 카테고리
   selectedCatId?: number | null;
+  setSelectedCatId: (id: number | null) => void;
 }
 
 type InlineState =
@@ -333,11 +332,11 @@ function TreeNode({
   onCreateFolder,
   onCreateDoc,
   selectedCatId,
+  setSelectedCatId,
 }: TreeNodeProps) {
   const isExpanded = expandedIds.has(cat.id);
   const { data: posts = [] } = useStudyPosts(isExpanded ? cat.id : null);
 
-  const pl = depth * 14 + 8;
   const isRenamingThis = renamingCat?.id === cat.id;
   const isSelected = selectedCatId === cat.id;
 
@@ -353,7 +352,10 @@ function TreeNode({
     <div className={depth > 0 ? "ml-4" : ""}>
       {/* 폴더 행 */}
       <div
-        onClick={() => onToggle(cat.id)}
+        onClick={() => {
+          onToggle(cat.id);
+          setSelectedCatId(cat.id);
+        }}
         onContextMenu={openCtx}
         className={cn(
           "group flex items-center gap-2 py-2 px-3 rounded cursor-pointer transition-colors",
@@ -468,6 +470,7 @@ function TreeNode({
               onCreateFolder={onCreateFolder}
               onCreateDoc={onCreateDoc}
               selectedCatId={selectedCatId}
+              setSelectedCatId={setSelectedCatId}
               setExpandedIds={setExpandedIds}
             />
           ))}
@@ -490,7 +493,10 @@ function TreeNode({
           {posts.map((post) => (
             <div
               key={post.id}
-              onClick={() => onSelectPost(post.id)}
+              onClick={() => {
+                setSelectedCatId(null);
+                onSelectPost(post.id);
+              }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -569,6 +575,7 @@ export function StudySidebar({
   const [expandedIds, setExpandedIds] = useState<Set<number>>(
     new Set(categoryId ? [categoryId] : []),
   );
+  const [selectedCatId, setSelectedCatId] = useState<number | null>(null);
   const [inlineState, setInlineState] = useState<InlineState | null>(null);
   const [renamingPost, setRenamingPost] = useState<{ id: number } | null>(null);
   const [renamingCat, setRenamingCat] = useState<{ id: number } | null>(null);
@@ -790,7 +797,7 @@ export function StudySidebar({
                   cat={cat}
                   depth={0}
                   selectedPostId={selectedPostId}
-                  selectedCatId={categoryId}
+                  selectedCatId={selectedCatId}
                   expandedIds={expandedIds}
                   onToggle={toggleExpand}
                   inlineState={inlineState}
@@ -809,6 +816,7 @@ export function StudySidebar({
                   onRenameCatConfirm={handleRenameCatConfirm}
                   onCreateFolder={handleCreateFolder}
                   onCreateDoc={handleCreateDoc}
+                  setSelectedCatId={setSelectedCatId}
                   setExpandedIds={setExpandedIds}
                 />
               ))}
