@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.pilot.infrastructure.PilotMindmapMapper">
+
+    <resultMap id="PilotMindmapResultMap" type="com.mapo.palantier.pilot.domain.PilotMindmap">
+        <id property="id" column="id"/>
+        <result property="pilotId" column="pilot_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByPilotId" resultMap="PilotMindmapResultMap">
+        SELECT id, pilot_id, title, content, order_num, created_at, updated_at
+        FROM pilot_mindmaps
+        WHERE pilot_id = #{pilotId}
+        ORDER BY order_num ASC, created_at ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO pilot_mindmaps (pilot_id, title, content, order_num, created_at, updated_at)
+        VALUES (#{pilotId}, #{title}, #{content}, #{orderNum}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <update id="update">
+        UPDATE pilot_mindmaps
+        SET title      = #{title},
+            content    = #{content},
+            order_num  = #{orderNum},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM pilot_mindmaps WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByPilotId">
+        DELETE FROM pilot_mindmaps WHERE pilot_id = #{pilotId}
+    </delete>
+
+</mapper>
