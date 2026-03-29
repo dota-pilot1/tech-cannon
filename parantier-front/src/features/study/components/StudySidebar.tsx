@@ -8,6 +8,8 @@ import {
   FileText,
   Pencil,
   Trash2,
+  Search,
+  X,
 } from "lucide-react";
 import {
   useStudyCategoryTree,
@@ -574,6 +576,10 @@ export function StudySidebar({
   const { data: allCategories = [] } = useStudyCategoryTree();
   const { confirm, ConfirmDialog } = useConfirm();
 
+  // 검색
+  const [inputValue, setInputValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
   // 현재 선택된 카테고리 찾기 (재귀)
   const findCategory = (
     cats: typeof allCategories,
@@ -729,9 +735,83 @@ export function StudySidebar({
           목록으로
         </button>
 
+        {/* 검색창 */}
+        <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-muted/30 shrink-0">
+          <div className="flex items-center gap-1 flex-1 min-w-0 border rounded bg-background px-1.5 py-0.5">
+            <Search className="w-3 h-3 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setSearchQuery(inputValue);
+                  e.currentTarget.blur();
+                }
+                if (e.key === "Escape") {
+                  setInputValue("");
+                  setSearchQuery("");
+                }
+              }}
+              placeholder="검색 후 Enter..."
+              className="flex-1 min-w-0 text-xs bg-transparent outline-none placeholder:text-muted-foreground/50"
+            />
+            {(inputValue || searchQuery) && (
+              <button
+                onClick={() => {
+                  setInputValue("");
+                  setSearchQuery("");
+                }}
+                className="text-muted-foreground hover:text-foreground shrink-0 leading-none"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* 트리 목록 */}
         <div className="flex-1 overflow-y-auto py-1">
-          {!selectedCat ? (
+          {searchQuery.trim() !== "" ? (
+            // 검색 모드
+            (() => {
+              const q = searchQuery.trim().toLowerCase();
+              const flatten = (
+                cats: typeof allCategories,
+              ): typeof allCategories =>
+                cats.flatMap((c) => [c, ...flatten(c.children ?? [])]);
+              const matched = flatten(allCategories).filter((c) =>
+                c.name.toLowerCase().includes(q),
+              );
+              return matched.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  검색 결과가 없습니다.
+                </p>
+              ) : (
+                <div>
+                  {matched.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setExpandedIds((p) => new Set([...p, c.id]));
+                        setSearchQuery("");
+                        setInputValue("");
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 py-2 px-3 text-sm cursor-pointer rounded transition-colors",
+                        selectedCatId === c.id
+                          ? "bg-primary text-primary-foreground font-medium"
+                          : "hover:bg-accent",
+                      )}
+                    >
+                      <FolderOpen className="w-4 h-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{c.name}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()
+          ) : !selectedCat ? (
             <p className="text-xs text-muted-foreground text-center py-6">
               카테고리를 선택하세요.
             </p>
