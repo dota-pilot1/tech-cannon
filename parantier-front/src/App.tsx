@@ -2,7 +2,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { QueryProvider } from "@/app/providers/QueryProvider";
-import { authActions, authStore } from "@/entities/user/model/authStore";
+import { authActions } from "@/entities/user/model/authStore";
 import { router } from "@/app/routes";
 import { ErrorBoundary } from "@/shared/ui/ErrorBoundary";
 
@@ -19,11 +19,6 @@ function App() {
 
     authActions.restoreAuth().finally(() => {
       clearTimeout(timeout);
-
-      const { isAuthenticated, user } = authStore.state;
-      if (isAuthenticated && !user) {
-        authActions.logout();
-      }
       setAuthState("ready");
     });
 

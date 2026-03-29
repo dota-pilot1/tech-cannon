@@ -41,7 +41,6 @@ const requireRole = async (requiredRole: string) => {
   const auth = authStore.state;
 
   if (!auth.isAuthenticated) {
-    toast.error("로그인이 필요합니다");
     throw redirect({ to: "/dashboard" });
   }
 
@@ -58,6 +57,7 @@ const requireRole = async (requiredRole: string) => {
     description: `관리자만 접근할 수 있습니다.`,
   });
   throw redirect({ to: "/dashboard" });
+  // 위 toast는 실제 로그인된 사용자가 권한 없는 페이지 접근 시에만 표시
 };
 
 // Root Route (레이아웃)
@@ -148,7 +148,7 @@ const requireAuth = async () => {
   const finalAuth = authStore.state;
 
   if (!finalAuth.isAuthenticated || !finalAuth.user) {
-    toast.error("로그인이 필요합니다");
+    // 조용히 대시보드로 이동 (토스트 없음 - 정상적인 비로그인 접근)
     throw redirect({ to: "/dashboard" });
   }
 };
