@@ -1,10 +1,10 @@
 package com.mapo.palantier.pilot.dto;
 
-import com.mapo.palantier.pilot.block.BlockType;
+import com.mapo.palantier.pilot.block.PilotBlockType;
 import lombok.Data;
 
 @Data
 public class PilotBlockDto {
-    private BlockType blockType;
+    private PilotBlockType blockType;
     private String content;
 }
