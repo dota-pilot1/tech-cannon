@@ -1883,10 +1883,10 @@ export function IssuesPage() {
                 className="border rounded-lg overflow-hidden mb-3"
                 onPaste={handlePaste}
               >
-                <div className="bg-muted/30 border-b px-4 py-2.5">
+                <div className="bg-muted/30 border-b px-4 py-1.5">
                   <span className="font-bold text-sm">첨부 파일</span>
                 </div>
-                <div className="p-4">
+                <div className="p-2">
                   <Tabs defaultValue="images" className="w-full">
                     <TabsList className="mb-3">
                       <TabsTrigger value="images">
@@ -2261,7 +2261,7 @@ export function IssuesPage() {
 
               {/* 내용 */}
               <div className="border rounded-lg overflow-hidden mb-3">
-                <div className="bg-muted/30 border-b px-4 py-2.5 flex items-center justify-between">
+                <div className="bg-muted/30 border-b px-4 py-1.5 flex items-center justify-between">
                   <span className="font-bold text-sm">내용</span>
                   <Button
                     size="sm"
@@ -2273,17 +2273,17 @@ export function IssuesPage() {
                     편집
                   </Button>
                 </div>
-                <div className="p-4 whitespace-pre-wrap text-sm">
+                <div className="p-2 whitespace-pre-wrap text-sm">
                   {issueDetail.content}
                 </div>
               </div>
 
               {/* 체크리스트 */}
               <div className="border rounded-lg overflow-hidden mb-3">
-                <div className="bg-muted/30 border-b px-4 py-2.5">
+                <div className="bg-muted/30 border-b px-4 py-1.5">
                   <span className="font-bold text-sm">체크리스트</span>
                 </div>
-                <div className="p-4">
+                <div className="p-2">
                   {/* 체크리스트 목록 */}
                   <div className="space-y-2 mb-3">
                     {checklists && checklists.length > 0 ? (
@@ -2340,10 +2340,10 @@ export function IssuesPage() {
 
               {/* 부가 이슈 섹션 */}
               <div className="border rounded-lg overflow-hidden mb-3">
-                <div className="bg-muted/30 border-b px-4 py-2.5">
+                <div className="bg-muted/30 border-b px-4 py-1.5">
                   <span className="font-bold text-sm">부가 이슈</span>
                 </div>
-                <div className="p-4">
+                <div className="p-2">
                   <SubIssueSection issueId={issueDetail.id} />
                 </div>
               </div>
