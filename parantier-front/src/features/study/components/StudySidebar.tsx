@@ -684,17 +684,6 @@ export function StudySidebar({
 
   // ── render ────────────────────────────────────────────────────────────────
 
-  // 검색 결과: 카테고리명 + 문서 제목 필터링
-  const flattenCategories = (cats: StudyCategory[]): StudyCategory[] =>
-    cats.flatMap((c) => [c, ...flattenCategories(c.children ?? [])]);
-
-  const q = searchQuery.trim().toLowerCase();
-  const matchedCats = q
-    ? flattenCategories(allCategories).filter((c) =>
-        c.name.toLowerCase().includes(q),
-      )
-    : [];
-
   return (
     <>
       <ConfirmDialog />
