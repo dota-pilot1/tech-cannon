@@ -72,6 +72,7 @@ import {
 } from "@/features/issue/hooks/useIssueDbTables";
 import { issueApi } from "@/entities/issue/api/issueApi";
 import { ChatPanel } from "@/features/issue/components/ChatPanel";
+import { SubIssueSection } from "@/features/issue/components/SubIssueSection";
 import type {
   Issue,
   IssueStatus,
@@ -2318,6 +2319,11 @@ export function IssuesPage() {
                     추가
                   </Button>
                 </div>
+              </div>
+
+              {/* 하위 이슈 섹션 */}
+              <div className="border rounded-lg p-4 mb-6">
+                <SubIssueSection issueId={issueDetail.id} />
               </div>
 
               {/* 채팅 섹션 */}

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.issue.infrastructure.SubIssueMapper">
+
+    <resultMap id="SubIssueResultMap" type="com.mapo.palantier.issue.domain.SubIssue">
+        <id property="id" column="id"/>
+        <result property="parentIssueId" column="parent_issue_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="imageUrl" column="image_url"/>
+        <result property="isResolved" column="is_resolved"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByParentIssueId" resultMap="SubIssueResultMap">
+        SELECT s.*, u.username as author_name
+        FROM sub_issues s
+        LEFT JOIN users u ON s.author_id = u.id
+        WHERE s.parent_issue_id = #{parentIssueId}
+        ORDER BY s.created_at ASC
+    </select>
+
+    <select id="findById" resultMap="SubIssueResultMap">
+        SELECT s.*, u.username as author_name
+        FROM sub_issues s
+        LEFT JOIN users u ON s.author_id = u.id
+        WHERE s.id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sub_issues (parent_issue_id, title, content, image_url, is_resolved, author_id)
+        VALUES (#{parentIssueId}, #{title}, #{content}, #{imageUrl}, #{isResolved}, #{authorId})
+    </insert>
+
+    <update id="update">
+        UPDATE sub_issues
+        SET title = #{title},
+            content = #{content},
+            image_url = #{imageUrl},
+            is_resolved = #{isResolved},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM sub_issues WHERE id = #{id}
+    </delete>
+
+    <update id="toggleResolved">
+        UPDATE sub_issues
+        SET is_resolved = NOT is_resolved,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

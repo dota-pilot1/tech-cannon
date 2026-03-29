@@ -8,12 +8,14 @@ import com.mapo.palantier.issue.domain.IssueDbTable;
 import com.mapo.palantier.issue.domain.IssueImage;
 import com.mapo.palantier.issue.domain.IssueMindmap;
 import com.mapo.palantier.issue.domain.IssueTaskLink;
+import com.mapo.palantier.issue.domain.SubIssue;
 import com.mapo.palantier.issue.infrastructure.IssueAssigneeMapper;
 import com.mapo.palantier.issue.infrastructure.IssueChecklistMapper;
 import com.mapo.palantier.issue.infrastructure.IssueDbTableMapper;
 import com.mapo.palantier.issue.infrastructure.IssueImageMapper;
 import com.mapo.palantier.issue.infrastructure.IssueMindmapMapper;
 import com.mapo.palantier.issue.infrastructure.IssueTaskLinkMapper;
+import com.mapo.palantier.issue.infrastructure.SubIssueMapper;
 import com.mapo.palantier.issue.presentation.dto.CreateIssueRequest;
 import com.mapo.palantier.issue.presentation.dto.IssueReorderItem;
 import com.mapo.palantier.issue.presentation.dto.IssueResponse;
@@ -38,6 +40,7 @@ public class IssueController {
     private final IssueMindmapMapper issueMindmapMapper;
     private final IssueTaskLinkMapper issueTaskLinkMapper;
     private final IssueDbTableMapper issueDbTableMapper;
+    private final SubIssueMapper subIssueMapper;
 
     public IssueController(
         IssueService issueService,
@@ -47,7 +50,8 @@ public class IssueController {
         IssueChecklistMapper issueChecklistMapper,
         IssueMindmapMapper issueMindmapMapper,
         IssueTaskLinkMapper issueTaskLinkMapper,
-        IssueDbTableMapper issueDbTableMapper
+        IssueDbTableMapper issueDbTableMapper,
+        SubIssueMapper subIssueMapper
     ) {
         this.issueService = issueService;
         this.authService = authService;
@@ -57,6 +61,7 @@ public class IssueController {
         this.issueMindmapMapper = issueMindmapMapper;
         this.issueTaskLinkMapper = issueTaskLinkMapper;
         this.issueDbTableMapper = issueDbTableMapper;
+        this.subIssueMapper = subIssueMapper;
     }
 
     @GetMapping
@@ -546,5 +551,75 @@ public class IssueController {
         String tableName,
         String tableInfo,
         Integer orderNum
+    ) {}
+
+    // ── 하위 이슈 ─────────────────────────────────────────────────────────────────
+
+    @GetMapping("/{issueId}/sub-issues")
+    public ResponseEntity<List<SubIssue>> getSubIssues(
+        @PathVariable Long issueId
+    ) {
+        return ResponseEntity.ok(subIssueMapper.findByParentIssueId(issueId));
+    }
+
+    @PostMapping("/{issueId}/sub-issues")
+    public ResponseEntity<SubIssue> createSubIssue(
+        @PathVariable Long issueId,
+        @RequestBody CreateSubIssueRequest request,
+        Authentication authentication
+    ) {
+        String email = authentication.getName();
+        Long authorId = authService.getUserByEmail(email).getId();
+
+        SubIssue subIssue = new SubIssue();
+        subIssue.setParentIssueId(issueId);
+        subIssue.setTitle(request.title());
+        subIssue.setContent(request.content());
+        subIssue.setImageUrl(request.imageUrl());
+        subIssue.setIsResolved(false);
+        subIssue.setAuthorId(authorId);
+        subIssueMapper.insert(subIssue);
+        return ResponseEntity.ok(subIssueMapper.findById(subIssue.getId()));
+    }
+
+    @PutMapping("/{issueId}/sub-issues/{subIssueId}")
+    public ResponseEntity<SubIssue> updateSubIssue(
+        @PathVariable Long issueId,
+        @PathVariable Long subIssueId,
+        @RequestBody CreateSubIssueRequest request
+    ) {
+        SubIssue subIssue = new SubIssue();
+        subIssue.setId(subIssueId);
+        subIssue.setTitle(request.title());
+        subIssue.setContent(request.content());
+        subIssue.setImageUrl(request.imageUrl());
+        subIssue.setIsResolved(request.isResolved());
+        subIssueMapper.update(subIssue);
+        return ResponseEntity.ok(subIssueMapper.findById(subIssueId));
+    }
+
+    @PatchMapping("/{issueId}/sub-issues/{subIssueId}/toggle")
+    public ResponseEntity<Void> toggleSubIssue(
+        @PathVariable Long issueId,
+        @PathVariable Long subIssueId
+    ) {
+        subIssueMapper.toggleResolved(subIssueId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{issueId}/sub-issues/{subIssueId}")
+    public ResponseEntity<Void> deleteSubIssue(
+        @PathVariable Long issueId,
+        @PathVariable Long subIssueId
+    ) {
+        subIssueMapper.delete(subIssueId);
+        return ResponseEntity.noContent().build();
+    }
+
+    public record CreateSubIssueRequest(
+        String title,
+        String content,
+        String imageUrl,
+        Boolean isResolved
     ) {}
 }
