@@ -2,7 +2,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { QueryProvider } from "@/app/providers/QueryProvider";
-import { authActions } from "@/entities/user/model/authStore";
+import { authActions, authStore } from "@/entities/user/model/authStore";
 import { router } from "@/app/routes";
 
 function App() {
@@ -10,6 +10,11 @@ function App() {
 
   useEffect(() => {
     authActions.restoreAuth().finally(() => {
+      // restoreAuth 완료 후 토큰은 있는데 user가 없으면 → 완전 로그아웃 처리
+      const { isAuthenticated, user } = authStore.state;
+      if (isAuthenticated && !user) {
+        authActions.logout();
+      }
       setAuthReady(true);
     });
   }, []);
