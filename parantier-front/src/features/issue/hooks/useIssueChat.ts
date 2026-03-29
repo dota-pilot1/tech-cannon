@@ -1,12 +1,12 @@
-import { useEffect, useState, useRef } from 'react'
-import { Client } from '@stomp/stompjs'
-import type { MessageWithUser } from '@/entities/issue/types/issueMessage'
+import { useEffect, useState, useRef } from "react";
+import { Client } from "@stomp/stompjs";
+import type { MessageWithUser } from "@/entities/issue/types/issueMessage";
 
-const WEBSOCKET_URL = 'ws://localhost:8080/ws'
+const WEBSOCKET_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws";
 
 interface UseIssueChatOptions {
-  issueId: number
-  enabled?: boolean
+  issueId: number;
+  enabled?: boolean;
 }
 
 /**
@@ -17,12 +17,12 @@ interface UseIssueChatOptions {
  * - 컴포넌트가 언마운트될 때 WebSocket 연결 해제
  */
 export function useIssueChat({ issueId, enabled = true }: UseIssueChatOptions) {
-  const [messages, setMessages] = useState<MessageWithUser[]>([])
-  const [isConnected, setIsConnected] = useState(false)
-  const clientRef = useRef<Client | null>(null)
+  const [messages, setMessages] = useState<MessageWithUser[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
-    if (!enabled || !issueId) return
+    if (!enabled || !issueId) return;
 
     // STOMP 클라이언트 생성
     const client = new Client({
@@ -32,51 +32,51 @@ export function useIssueChat({ issueId, enabled = true }: UseIssueChatOptions) {
       heartbeatOutgoing: 4000,
 
       onConnect: () => {
-        console.log('WebSocket Connected')
-        setIsConnected(true)
+        console.log("WebSocket Connected");
+        setIsConnected(true);
 
         // 해당 이슈의 메시지 구독
         client.subscribe(`/topic/issues/${issueId}`, (message) => {
-          console.log('Received message:', message.body)
-          const newMessage: MessageWithUser = JSON.parse(message.body)
-          setMessages((prev) => [...prev, newMessage])
-        })
+          console.log("Received message:", message.body);
+          const newMessage: MessageWithUser = JSON.parse(message.body);
+          setMessages((prev) => [...prev, newMessage]);
+        });
       },
 
       onStompError: (frame) => {
-        console.error('STOMP Error:', frame)
-        setIsConnected(false)
+        console.error("STOMP Error:", frame);
+        setIsConnected(false);
       },
 
       onWebSocketClose: () => {
-        console.log('WebSocket Disconnected')
-        setIsConnected(false)
+        console.log("WebSocket Disconnected");
+        setIsConnected(false);
       },
-    })
+    });
 
-    clientRef.current = client
-    client.activate()
+    clientRef.current = client;
+    client.activate();
 
     // Cleanup: 컴포넌트 언마운트 시 연결 해제
     return () => {
       if (client.active) {
-        client.deactivate()
+        client.deactivate();
       }
-      setMessages([])
-      setIsConnected(false)
-    }
-  }, [issueId, enabled])
+      setMessages([]);
+      setIsConnected(false);
+    };
+  }, [issueId, enabled]);
 
   /**
    * 메시지 전송
    */
   const sendMessage = (message: string, userId: number, username: string) => {
     if (!clientRef.current?.connected) {
-      console.error('WebSocket is not connected')
-      return
+      console.error("WebSocket is not connected");
+      return;
     }
 
-    console.log('Sending message:', message)
+    console.log("Sending message:", message);
     clientRef.current.publish({
       destination: `/app/issues/${issueId}/message`,
       body: JSON.stringify({
@@ -84,12 +84,12 @@ export function useIssueChat({ issueId, enabled = true }: UseIssueChatOptions) {
         senderName: username,
         message: message,
       }),
-    })
-  }
+    });
+  };
 
   return {
     messages, // 실시간으로 받은 메시지들
     isConnected,
     sendMessage,
-  }
+  };
 }
