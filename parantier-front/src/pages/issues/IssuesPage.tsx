@@ -763,12 +763,6 @@ export function IssuesPage() {
   };
 
   // 그리드 외부 클릭 시 셀 편집 중단
-  const onGridBlur = useCallback(() => {
-    if (gridRef.current?.api) {
-      gridRef.current.api.stopEditing(true);
-    }
-  }, []);
-
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       if (
