@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { createEditor } from "lexical";
 import { $generateHtmlFromNodes } from "@lexical/html";
 import { HeadingNode } from "@lexical/rich-text";
@@ -6,8 +6,17 @@ import { ListNode, ListItemNode } from "@lexical/list";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
 import { editorTheme } from "./theme";
 
+interface CodeBlock {
+  id: string;
+  text: string;
+  top: number;
+  right: number;
+}
+
 export function LexicalViewer({ content }: { content: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [codeBlocks, setCodeBlocks] = useState<CodeBlock[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const html = useMemo(() => {
     if (!content) return "";
@@ -35,91 +44,102 @@ export function LexicalViewer({ content }: { content: string }) {
     }
   }, [content]);
 
-  // 코드 블록에 복사 버튼 추가
+  // 코드 블록 위치 계산해서 버튼 오버레이 배치
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Lexical은 code 블록을 <code class="..."> 로 직접 렌더링
-    // pre > code 또는 단독 code 모두 커버
     const codeEls = container.querySelectorAll<HTMLElement>("code");
+    if (codeEls.length === 0) return;
 
-    codeEls.forEach((code) => {
-      // 이미 버튼 추가된 경우 스킵
-      const wrapper = code.parentElement;
-      if (!wrapper) return;
-      if (wrapper.querySelector(".copy-btn")) return;
+    const containerRect = container.getBoundingClientRect();
 
-      // code 감싸는 래퍼를 relative로
-      const isPreChild = wrapper.tagName === "PRE";
-      const target = isPreChild ? wrapper : code;
-
-      target.style.position = "relative";
-
-      // 복사 버튼 생성
-      const btn = document.createElement("button");
-      btn.className =
-        "copy-btn absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-xs " +
-        "bg-gray-700 text-gray-300 rounded hover:bg-gray-500 hover:text-white " +
-        "opacity-0 transition-all duration-150 select-none z-10";
-      btn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-        </svg>
-        <span class="copy-label">복사</span>
-      `;
-
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const text = code.textContent || "";
-        navigator.clipboard.writeText(text).then(() => {
-          const label = btn.querySelector(".copy-label");
-          const svg = btn.querySelector("svg");
-          if (label) label.textContent = "복사됨";
-          if (svg) {
-            svg.innerHTML = `
-              <polyline points="20 6 9 17 4 12"></polyline>
-            `;
-          }
-          btn.classList.add("bg-green-700", "text-green-200");
-          btn.classList.remove("bg-gray-700", "text-gray-300");
-          setTimeout(() => {
-            if (label) label.textContent = "복사";
-            if (svg) {
-              svg.innerHTML = `
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              `;
-            }
-            btn.classList.remove("bg-green-700", "text-green-200");
-            btn.classList.add("bg-gray-700", "text-gray-300");
-          }, 2000);
-        });
-      });
-
-      target.appendChild(btn);
-
-      // hover 시 버튼 표시
-      const show = () => {
-        btn.style.opacity = "1";
+    const blocks: CodeBlock[] = Array.from(codeEls).map((code, idx) => {
+      const rect = code.getBoundingClientRect();
+      // 텍스트 추출 (하이라이트 span 포함)
+      const text = code.innerText || code.textContent || "";
+      return {
+        id: `code-${idx}`,
+        text,
+        top: rect.top - containerRect.top + container.scrollTop + 8,
+        right: 8,
       };
-      const hide = () => {
-        btn.style.opacity = "0";
-      };
-      target.addEventListener("mouseenter", show);
-      target.addEventListener("mouseleave", hide);
     });
+
+    setCodeBlocks(blocks);
   }, [html]);
+
+  const handleCopy = (block: CodeBlock) => {
+    navigator.clipboard.writeText(block.text).then(() => {
+      setCopiedId(block.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
 
   if (!content) return null;
 
   return (
-    <div
-      ref={containerRef}
-      className="lexical-viewer text-sm"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <div ref={containerRef} className="lexical-viewer text-sm relative">
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+
+      {codeBlocks.map((block) => {
+        const isCopied = copiedId === block.id;
+        return (
+          <button
+            key={block.id}
+            onClick={() => handleCopy(block)}
+            style={{ top: block.top, right: block.right }}
+            className={`
+              absolute flex items-center gap-1.5 px-2 py-1 text-xs rounded
+              border transition-all duration-150 select-none z-10
+              ${
+                isCopied
+                  ? "bg-green-800 border-green-600 text-green-200"
+                  : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white"
+              }
+            `}
+          >
+            {isCopied ? (
+              <>
+                {/* check icon */}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                복사됨
+              </>
+            ) : (
+              <>
+                {/* copy icon */}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                복사
+              </>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
