@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.work.infrastructure.WorkLinkedIssueMapper">
+
+    <resultMap id="WorkLinkedIssueResultMap" type="com.mapo.palantier.work.domain.WorkLinkedIssue">
+        <id property="id" column="id"/>
+        <result property="workId" column="work_id"/>
+        <result property="issueId" column="issue_id"/>
+        <result property="issueTitle" column="issue_title"/>
+        <result property="issueStatus" column="issue_status"/>
+        <result property="issuePriority" column="issue_priority"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 특정 업무에 연결된 이슈 목록 조회 (issues 테이블 JOIN) -->
+    <select id="findByWorkId" resultMap="WorkLinkedIssueResultMap">
+        SELECT
+            wli.id,
+            wli.work_id,
+            wli.issue_id,
+            wli.created_at,
+            i.title   AS issue_title,
+            i.status  AS issue_status,
+            i.priority AS issue_priority
+        FROM work_linked_issues wli
+        INNER JOIN issues i ON wli.issue_id = i.id
+        WHERE wli.work_id = #{workId}
+        ORDER BY wli.created_at ASC
+    </select>
+
+    <!-- 업무-이슈 연결 추가 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO work_linked_issues (work_id, issue_id, created_at)
+        VALUES (#{workId}, #{issueId}, CURRENT_TIMESTAMP)
+    </insert>
+
+    <!-- 업무-이슈 연결 삭제 -->
+    <delete id="delete">
+        DELETE FROM work_linked_issues
+        WHERE id = #{id}
+    </delete>
+
+    <!-- 중복 연결 여부 확인 -->
+    <select id="existsByWorkIdAndIssueId" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM work_linked_issues
+            WHERE work_id = #{workId}
+              AND issue_id = #{issueId}
+        )
+    </select>
+
+</mapper>

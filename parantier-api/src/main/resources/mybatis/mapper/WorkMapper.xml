@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.work.infrastructure.WorkMapper">
+
+    <resultMap id="WorkResultMap" type="com.mapo.palantier.work.domain.Work">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="workType" column="work_type"/>
+        <result property="status" column="status"/>
+        <result property="priority" column="priority"/>
+        <result property="reporterId" column="reporter_id"/>
+        <result property="reporterName" column="reporter_name"/>
+        <result property="assigneeId" column="assignee_id"/>
+        <result property="assigneeName" column="assignee_name"/>
+        <result property="organizationId" column="organization_id"/>
+        <result property="dueDate" column="due_date"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="isArchived" column="is_archived"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 업무 목록 조회 (JOIN으로 등록자/담당자 정보 포함) -->
+    <select id="findAll" resultMap="WorkResultMap">
+        SELECT
+            w.id,
+            w.title,
+            w.content,
+            w.work_type,
+            w.status,
+            w.priority,
+            w.reporter_id,
+            w.assignee_id,
+            w.organization_id,
+            w.due_date,
+            w.order_num,
+            w.is_archived,
+            w.created_at,
+            w.updated_at,
+            u1.username AS reporter_name,
+            u2.username AS assignee_name
+        FROM works w
+        LEFT JOIN users u1 ON w.reporter_id = u1.id
+        LEFT JOIN users u2 ON w.assignee_id = u2.id
+        <where>
+            <if test="workType != null and workType != ''">
+                AND w.work_type = #{workType}
+            </if>
+            <if test="status != null and status != ''">
+                AND w.status = #{status}
+            </if>
+            <if test="priority != null and priority != ''">
+                AND w.priority = #{priority}
+            </if>
+            <if test="assigneeId != null">
+                AND w.assignee_id = #{assigneeId}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (w.title ILIKE '%' || #{keyword} || '%'
+                OR w.content ILIKE '%' || #{keyword} || '%')
+            </if>
+            <if test="isArchived != null">
+                AND w.is_archived = #{isArchived}
+            </if>
+            <if test="isArchived == null">
+                AND w.is_archived = false
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="sortBy == 'priority'">
+                CASE w.priority
+                    WHEN 'CRITICAL' THEN 1
+                    WHEN 'HIGH' THEN 2
+                    WHEN 'MEDIUM' THEN 3
+                    WHEN 'LOW' THEN 4
+                END,
+                w.created_at DESC,
+                w.id DESC
+            </when>
+            <when test="sortBy == 'status'">
+                w.status, w.created_at DESC, w.id DESC
+            </when>
+            <when test="sortBy == 'dueDate'">
+                w.due_date ASC NULLS LAST, w.created_at DESC, w.id DESC
+            </when>
+            <otherwise>
+                w.order_num ASC NULLS LAST, w.created_at DESC, w.id DESC
+            </otherwise>
+        </choose>
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+        <if test="offset != null">
+            OFFSET #{offset}
+        </if>
+    </select>
+
+    <!-- 업무 상세 조회 -->
+    <select id="findById" resultMap="WorkResultMap">
+        SELECT
+            w.id,
+            w.title,
+            w.content,
+            w.work_type,
+            w.status,
+            w.priority,
+            w.reporter_id,
+            w.assignee_id,
+            w.organization_id,
+            w.due_date,
+            w.order_num,
+            w.is_archived,
+            w.created_at,
+            w.updated_at,
+            u1.username AS reporter_name,
+            u2.username AS assignee_name
+        FROM works w
+        LEFT JOIN users u1 ON w.reporter_id = u1.id
+        LEFT JOIN users u2 ON w.assignee_id = u2.id
+        WHERE w.id = #{id}
+    </select>
+
+    <!-- 업무 생성 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO works (
+            title, content, work_type, status, priority,
+            reporter_id, assignee_id, organization_id, due_date,
+            created_at, updated_at
+        ) VALUES (
+            #{title},
+            #{content},
+            #{workType},
+            #{status},
+            #{priority},
+            #{reporterId},
+            #{assigneeId},
+            #{organizationId},
+            <choose>
+                <when test="dueDate != null and dueDate != ''">#{dueDate}::date</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 업무 수정 -->
+    <update id="update">
+        UPDATE works
+        SET
+            title          = #{title},
+            content        = #{content},
+            work_type      = #{workType},
+            status         = #{status},
+            priority       = #{priority},
+            assignee_id    = #{assigneeId},
+            due_date       = <choose>
+                <when test="dueDate != null and dueDate != ''">#{dueDate}::date</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            updated_at     = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 업무 삭제 -->
+    <delete id="delete">
+        DELETE FROM works WHERE id = #{id}
+    </delete>
+
+    <!-- 상태 변경 -->
+    <update id="updateStatus">
+        UPDATE works
+        SET status = #{status}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 담당자 변경 -->
+    <update id="updateAssignee">
+        UPDATE works
+        SET assignee_id = #{assigneeId}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 우선순위 변경 -->
+    <update id="updatePriority">
+        UPDATE works
+        SET priority = #{priority}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 업무 개수 조회 -->
+    <select id="count" resultType="int">
+        SELECT COUNT(*)
+        FROM works w
+        <where>
+            <if test="workType != null and workType != ''">
+                AND w.work_type = #{workType}
+            </if>
+            <if test="status != null and status != ''">
+                AND w.status = #{status}
+            </if>
+            <if test="priority != null and priority != ''">
+                AND w.priority = #{priority}
+            </if>
+            <if test="assigneeId != null">
+                AND w.assignee_id = #{assigneeId}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (w.title ILIKE '%' || #{keyword} || '%'
+                OR w.content ILIKE '%' || #{keyword} || '%')
+            </if>
+            <if test="isArchived != null">
+                AND w.is_archived = #{isArchived}
+            </if>
+            <if test="isArchived == null">
+                AND w.is_archived = false
+            </if>
+        </where>
+    </select>
+
+    <!-- 순서 변경 -->
+    <update id="updateOrderNum">
+        UPDATE works
+        SET order_num = #{orderNum}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 아카이브 일괄 처리 -->
+    <update id="updateArchivedBatch">
+        UPDATE works
+        SET is_archived = #{isArchived}, updated_at = CURRENT_TIMESTAMP
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+</mapper>

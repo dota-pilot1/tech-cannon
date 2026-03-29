@@ -7,6 +7,9 @@ import type {
   CellStyle,
   RowDragEndEvent,
   IRowNode,
+  CellValueChangedEvent,
+  ICellRendererParams,
+  RowClickedEvent,
 } from "ag-grid-community";
 import {
   ModuleRegistry,
@@ -33,57 +36,56 @@ import {
 import { Checkbox } from "@/shared/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
-  useIssues,
-  useIssue,
-  useUpdateIssue,
-  useCreateIssue,
-  useDeleteIssue,
-  useUpdateIssueStatus,
-  useCreateIssueSilent,
-  useUpdateIssueSilent,
-} from "@/features/issue/hooks/useIssues";
+  useWorks,
+  useWork,
+  useCreateWork,
+  useUpdateWork,
+  useDeleteWork,
+  useUpdateWorkStatus,
+  useCreateWorkSilent,
+  useUpdateWorkSilent,
+} from "@/features/work/hooks/useWorks";
 import {
-  useIssueImages,
-  useUploadIssueImage,
-  useDeleteIssueImage,
-} from "@/features/issue/hooks/useIssueImages";
+  useWorkImages,
+  useUploadWorkImage,
+  useDeleteWorkImage,
+} from "@/features/work/hooks/useWorkImages";
 import {
-  useIssueAssignees,
-  useUpdateIssueAssignees,
-} from "@/features/issue/hooks/useIssueAssignees";
+  useWorkChecklists,
+  useCreateWorkChecklist,
+  useToggleWorkChecklist,
+  useDeleteWorkChecklist,
+} from "@/features/work/hooks/useWorkChecklists";
 import {
-  useIssueChecklists,
-  useCreateChecklist,
-  useToggleChecklist,
-  useDeleteChecklist,
-} from "@/features/issue/hooks/useIssueChecklists";
+  useWorkMindmaps,
+  useCreateWorkMindmap,
+  useUpdateWorkMindmap,
+  useDeleteWorkMindmap,
+} from "@/features/work/hooks/useWorkMindmaps";
 import {
-  useIssueMindmaps,
-  useCreateMindmap,
-  useUpdateMindmap,
-  useDeleteMindmap,
-} from "@/features/issue/hooks/useIssueMindmaps";
-// import { useIssueTasks, useLinkTask, useUnlinkTask } from '@/features/issue/hooks/useIssueTasks'
+  useWorkDbTables,
+  useCreateWorkDbTable,
+  useUpdateWorkDbTable,
+  useDeleteWorkDbTable,
+} from "@/features/work/hooks/useWorkDbTables";
 import {
-  useIssueDbTables,
-  useCreateDbTable,
-  useUpdateDbTable,
-  useDeleteDbTable,
-} from "@/features/issue/hooks/useIssueDbTables";
+  useWorkLinkedIssues,
+  useLinkIssue,
+  useUnlinkIssue,
+} from "@/features/work/hooks/useWorkLinkedIssues";
+import { workApi } from "@/entities/work/api/workApi";
 import { issueApi } from "@/entities/issue/api/issueApi";
-import { ChatPanel } from "@/features/issue/components/ChatPanel";
-import { SubIssueSection } from "@/features/issue/components/SubIssueSection";
 import type {
-  Issue,
-  IssueStatus,
-  IssuePriority,
-  IssueCategory,
-} from "@/entities/issue/types/issue";
-import type { DbTableContent } from "@/entities/issue/types/issueDbTable";
+  Work,
+  WorkStatus,
+  WorkPriority,
+  WorkType,
+} from "@/entities/work/types/work";
+import type { DbTableContent } from "@/entities/work/types/workDbTable";
 import {
   parseDbTableContent,
   parseTsvToColumns,
-} from "@/entities/issue/types/issueDbTable";
+} from "@/entities/work/types/workDbTable";
 import {
   Plus,
   Edit2,
@@ -91,12 +93,12 @@ import {
   X,
   Upload,
   Image as ImageIcon,
-  Users,
   ChevronRight,
-  ChevronLeft,
   FileText,
   Database,
   Eye,
+  Link,
+  Unlink,
 } from "lucide-react";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
@@ -110,13 +112,71 @@ import { useNavigate } from "@tanstack/react-router";
 // AG-Grid 모듈 등록
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-export function IssuesPage() {
+// ─── 상수 ────────────────────────────────────────────────────────────────────
+
+const WORK_TYPE_LABELS: Record<WorkType, string> = {
+  FEATURE: "기능개발",
+  QA: "QA",
+  COMMON: "일반",
+};
+
+const WORK_TYPE_COLORS: Record<WorkType, string> = {
+  FEATURE: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  QA: "bg-purple-100 text-purple-700 hover:bg-purple-100",
+  COMMON: "bg-gray-100 text-gray-600 hover:bg-gray-100",
+};
+
+const STATUS_LABELS: Record<WorkStatus, string> = {
+  TODO: "진행 전",
+  IN_PROGRESS: "진행 중",
+  DONE: "완료",
+  HOLD: "보류",
+};
+
+const STATUS_COLORS: Record<WorkStatus, string> = {
+  TODO: "bg-gray-100 text-gray-600 hover:bg-gray-100",
+  IN_PROGRESS: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  DONE: "bg-green-100 text-green-700 hover:bg-green-100",
+  HOLD: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
+};
+
+const PRIORITY_LABELS: Record<WorkPriority, string> = {
+  LOW: "낮음",
+  MEDIUM: "보통",
+  HIGH: "높음",
+  CRITICAL: "긴급",
+};
+
+const PRIORITY_COLORS: Record<WorkPriority, string> = {
+  CRITICAL: "bg-red-200 text-red-800 hover:bg-red-200",
+  HIGH: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+  MEDIUM: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
+  LOW: "bg-gray-100 text-gray-600 hover:bg-gray-100",
+};
+
+const ISSUE_STATUS_LABELS: Record<string, string> = {
+  OPEN: "미처리",
+  IN_PROGRESS: "진행중",
+  RESOLVED: "해결됨",
+  CLOSED: "완료",
+};
+
+const ISSUE_STATUS_COLORS: Record<string, string> = {
+  OPEN: "bg-red-100 text-red-700",
+  IN_PROGRESS: "bg-blue-100 text-blue-700",
+  RESOLVED: "bg-green-100 text-green-700",
+  CLOSED: "bg-gray-100 text-gray-600",
+};
+
+// ─── Page Component ───────────────────────────────────────────────────────────
+
+export function WorkPage() {
   const gridRef = useRef<AgGridReact>(null);
   const navigate = useNavigate();
   const currentUser = useStore(authStore, (state) => state.user);
 
   // 상태 관리
-  const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
+  const [selectedWorkId, setSelectedWorkId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const editPanelRef = useRef<HTMLDivElement>(null);
 
@@ -125,7 +185,7 @@ export function IssuesPage() {
 
   // 필터 상태
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
-  const [filterCategory, setFilterCategory] = useState<string>("ALL");
+  const [filterWorkType, setFilterWorkType] = useState<string>("ALL");
   const [filterPriority, setFilterPriority] = useState<string>("ALL");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [isBackupTab, setIsBackupTab] = useState(false);
@@ -133,31 +193,32 @@ export function IssuesPage() {
   // 폼 데이터
   const [formTitle, setFormTitle] = useState("");
   const [formContent, setFormContent] = useState("");
-  const [formCategory, setFormCategory] = useState<IssueCategory>("COMMON");
-  const [formStatus, setFormStatus] = useState<IssueStatus>("OPEN");
-  const [formPriority, setFormPriority] = useState<IssuePriority>("MEDIUM");
+  const [formWorkType, setFormWorkType] = useState<WorkType>("COMMON");
+  const [formStatus, setFormStatus] = useState<WorkStatus>("TODO");
+  const [formPriority, setFormPriority] = useState<WorkPriority>("MEDIUM");
+  const [formAssigneeId, setFormAssigneeId] = useState<number | null>(null);
+  const [formDueDate, setFormDueDate] = useState<string>("");
 
   // API 호출
-  const { data: issuesData } = useIssues({
-    // 상태 필터는 프론트엔드에서 처리 (statusCounts 계산을 위해 전체 데이터 필요)
-    category:
-      filterCategory === "ALL" ? undefined : (filterCategory as IssueCategory),
+  const { data: worksData } = useWorks({
+    workType:
+      filterWorkType === "ALL" ? undefined : (filterWorkType as WorkType),
     keyword: searchKeyword || undefined,
-    sortBy: "created", // 작성일 기준 정렬 (최신순)
+    sortBy: "created",
     isArchived: isBackupTab ? true : false,
   });
 
-  const { data: issueDetail } = useIssue(selectedIssueId!, {
-    enabled: !!selectedIssueId && !isEditing,
+  const { data: workDetail } = useWork(selectedWorkId!, {
+    enabled: !!selectedWorkId && !isEditing,
   });
 
   const queryClient = useQueryClient();
 
   const reorderMutation = useMutation({
     mutationFn: (items: { id: number; orderNum: number }[]) =>
-      issueApi.reorderIssues(items),
+      workApi.reorderWorks(items),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["issues"] });
+      queryClient.invalidateQueries({ queryKey: ["works"] });
       toast.success("순서가 저장되었습니다", { position: "bottom-right" });
     },
     onError: () =>
@@ -165,72 +226,61 @@ export function IssuesPage() {
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (ids: number[]) => issueApi.archiveIssues(ids),
+    mutationFn: (ids: number[]) => workApi.archiveWorks(ids),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["issues"] });
+      queryClient.invalidateQueries({ queryKey: ["works"] });
       toast.success("백업 완료", { position: "bottom-right" });
-      setSelectedIssueId(null);
+      setSelectedWorkId(null);
     },
     onError: () => toast.error("백업 실패", { position: "bottom-right" }),
   });
 
   const restoreMutation = useMutation({
-    mutationFn: (ids: number[]) => issueApi.restoreIssues(ids),
+    mutationFn: (ids: number[]) => workApi.restoreWorks(ids),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["issues"] });
+      queryClient.invalidateQueries({ queryKey: ["works"] });
       toast.success("복원 완료", { position: "bottom-right" });
-      setSelectedIssueId(null);
+      setSelectedWorkId(null);
     },
     onError: () => toast.error("복원 실패", { position: "bottom-right" }),
   });
 
-  const { mutate: createIssue } = useCreateIssue();
-  const { mutate: updateIssue } = useUpdateIssue();
-  const { mutate: deleteIssue } = useDeleteIssue();
-  const { mutate: updateStatus } = useUpdateIssueStatus();
+  const { mutate: createWork } = useCreateWork();
+  const { mutate: updateWork } = useUpdateWork();
+  const { mutate: deleteWork } = useDeleteWork();
+  const { mutate: updateStatus } = useUpdateWorkStatus();
 
-  // 일괄 저장용 (toast/invalidate 없음)
-  const { mutateAsync: createIssueSilent } = useCreateIssueSilent();
-  const { mutateAsync: updateIssueSilent } = useUpdateIssueSilent();
+  const { mutateAsync: createWorkSilent } = useCreateWorkSilent();
+  const { mutateAsync: updateWorkSilent } = useUpdateWorkSilent();
   const { confirm, ConfirmDialog } = useConfirm();
 
-  // 사용자 목록 (담당자 선택용)
+  // 사용자 목록
   const { data: usersData } = useUsers();
   const users = usersData || [];
 
-  // 담당자 관련
-  const [assigneeDialogIssueId, setAssigneeDialogIssueId] = useState<
-    number | null
-  >(null);
-  const { data: issueAssignees } = useIssueAssignees(selectedIssueId);
-  const { mutate: updateAssignees } = useUpdateIssueAssignees(selectedIssueId!);
-  const [isAssigneeDialogOpen, setIsAssigneeDialogOpen] = useState(false);
-  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
-  const [userSearchKeyword, setUserSearchKeyword] = useState("");
-
   // 이미지 관련
-  const { data: issueImages } = useIssueImages(selectedIssueId);
-  const { mutate: uploadImage, isPending: isUploading } = useUploadIssueImage(
-    selectedIssueId!,
+  const { data: workImages } = useWorkImages(selectedWorkId);
+  const { mutate: uploadImage, isPending: isUploading } = useUploadWorkImage(
+    selectedWorkId!,
   );
-  const { mutate: deleteImage } = useDeleteIssueImage(selectedIssueId!);
+  const { mutate: deleteImage } = useDeleteWorkImage(selectedWorkId!);
   const [isDragging, setIsDragging] = useState(false);
   const [isPasteMode, setIsPasteMode] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const uploadAreaRef = useRef<HTMLDivElement>(null);
 
   // 체크리스트 관련
-  const { data: checklists } = useIssueChecklists(selectedIssueId);
-  const { mutate: createChecklist } = useCreateChecklist(selectedIssueId!);
-  const { mutate: toggleChecklist } = useToggleChecklist(selectedIssueId!);
-  const { mutate: deleteChecklist } = useDeleteChecklist(selectedIssueId!);
+  const { data: checklists } = useWorkChecklists(selectedWorkId);
+  const { mutate: createChecklist } = useCreateWorkChecklist(selectedWorkId!);
+  const { mutate: toggleChecklist } = useToggleWorkChecklist(selectedWorkId!);
+  const { mutate: deleteChecklist } = useDeleteWorkChecklist(selectedWorkId!);
   const [newChecklistContent, setNewChecklistContent] = useState("");
 
   // 마인드맵 관련
-  const { data: mindmaps } = useIssueMindmaps(selectedIssueId);
-  const { mutate: createMindmap } = useCreateMindmap(selectedIssueId!);
-  const { mutate: updateMindmap } = useUpdateMindmap(selectedIssueId!);
-  const { mutate: deleteMindmap } = useDeleteMindmap(selectedIssueId!);
+  const { data: mindmaps } = useWorkMindmaps(selectedWorkId);
+  const { mutate: createMindmap } = useCreateWorkMindmap(selectedWorkId!);
+  const { mutate: updateMindmap } = useUpdateWorkMindmap(selectedWorkId!);
+  const { mutate: deleteMindmap } = useDeleteWorkMindmap(selectedWorkId!);
   const [selectedMindmapId, setSelectedMindmapId] = useState<number | null>(
     null,
   );
@@ -247,17 +297,11 @@ export function IssuesPage() {
     error?: string;
   } | null>(null);
 
-  // 업무 연결 관련 (미래 기능용)
-  // const { data: linkedTasks } = useIssueTasks(selectedIssueId)
-  // const { mutate: linkTask } = useLinkTask(selectedIssueId!)
-  // const { mutate: unlinkTask } = useUnlinkTask(selectedIssueId!)
-  // const [taskIdInput, setTaskIdInput] = useState('')
-
   // DB 테이블 관련
-  const { data: dbTables } = useIssueDbTables(selectedIssueId);
-  const { mutate: createDbTable } = useCreateDbTable(selectedIssueId!);
-  const { mutate: updateDbTable } = useUpdateDbTable(selectedIssueId!);
-  const { mutate: deleteDbTable } = useDeleteDbTable(selectedIssueId!);
+  const { data: dbTables } = useWorkDbTables(selectedWorkId);
+  const { mutate: createDbTable } = useCreateWorkDbTable(selectedWorkId!);
+  const { mutate: updateDbTable } = useUpdateWorkDbTable(selectedWorkId!);
+  const { mutate: deleteDbTable } = useDeleteWorkDbTable(selectedWorkId!);
   const [selectedDbTableId, setSelectedDbTableId] = useState<number | null>(
     null,
   );
@@ -271,29 +315,39 @@ export function IssuesPage() {
   });
   const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false);
 
-  // 필터링된 이슈 목록 (서버 정렬 순서 유지)
-  const issues = useMemo(() => {
-    let allIssues = issuesData?.items || [];
+  // 연결 이슈 관련
+  const { data: linkedIssues } = useWorkLinkedIssues(selectedWorkId);
+  const { mutate: linkIssue } = useLinkIssue(selectedWorkId!);
+  const { mutate: unlinkIssue } = useUnlinkIssue(selectedWorkId!);
+  const [issueSearchKeyword, setIssueSearchKeyword] = useState("");
+  const [issueSearchResults, setIssueSearchResults] = useState<
+    { id: number; title: string; status: string }[]
+  >([]);
+  const [isSearchingIssue, setIsSearchingIssue] = useState(false);
 
+  // 필터링된 업무 목록
+  const works = useMemo(() => {
+    let allWorks = worksData?.items || [];
     if (filterStatus !== "ALL") {
-      allIssues = allIssues.filter((issue) => issue.status === filterStatus);
+      allWorks = allWorks.filter((work) => work.status === filterStatus);
     }
     if (filterPriority !== "ALL") {
-      allIssues = allIssues.filter(
-        (issue) => issue.priority === filterPriority,
-      );
+      allWorks = allWorks.filter((work) => work.priority === filterPriority);
     }
-    return allIssues;
-  }, [issuesData, filterStatus, filterPriority]);
+    return allWorks;
+  }, [worksData, filterStatus, filterPriority]);
 
-  // 담당자 다이얼로그 열릴 때 현재 담당자 목록 로드
-  useEffect(() => {
-    if (isAssigneeDialogOpen && issueAssignees) {
-      const currentAssigneeIds = issueAssignees.map((a) => a.userId);
-      setSelectedUserIds(currentAssigneeIds);
-      setUserSearchKeyword(""); // 검색어 초기화
-    }
-  }, [isAssigneeDialogOpen, issueAssignees]);
+  // 우선순위별 카운트 (필터 적용 전 전체 기준)
+  const priorityCounts = useMemo(() => {
+    const allWorks = worksData?.items || [];
+    return {
+      CRITICAL: allWorks.filter((w) => w.priority === "CRITICAL").length,
+      HIGH: allWorks.filter((w) => w.priority === "HIGH").length,
+      MEDIUM: allWorks.filter((w) => w.priority === "MEDIUM").length,
+      LOW: allWorks.filter((w) => w.priority === "LOW").length,
+      ALL: allWorks.length,
+    };
+  }, [worksData]);
 
   // AG-Grid 한국어 로케일
   const localeText = useMemo(
@@ -307,98 +361,56 @@ export function IssuesPage() {
     [],
   );
 
-  // 상태 레이블
-  const statusLabels: Record<IssueStatus, string> = {
-    OPEN: "진행 전",
-    IN_PROGRESS: "진행 중",
-    CLOSED: "완료",
-  };
-
-  // 셀 값 변경 핸들러 (수정 플래그만 설정, 저장은 안함)
-  const onCellValueChanged = (params: any) => {
+  // 셀 값 변경 핸들러
+  const onCellValueChanged = (params: CellValueChangedEvent<Work>) => {
     const { data, newValue, oldValue, colDef } = params;
-
-    console.log("🔄 Cell changed:", {
-      field: colDef.field,
-      oldValue,
-      newValue,
-      issueId: data.id,
-    });
-
     if (newValue === oldValue) return;
 
-    // 수정된 행 ID 추가
     setModifiedRowIds((prev) => new Set(prev).add(data.id));
-
-    // 수정된 행 자동 선택 (체크박스)
     params.node.setSelected(true);
 
-    // 상태 또는 중요도 변경 시 정렬 재적용 (최신순 유지)
-    if (colDef.field === "status" || colDef.field === "priority") {
-      console.log("📊 Re-sorting by createdAt...");
-
-      // 모든 행 데이터 가져오기
-      const allRowData: Issue[] = [];
-      params.api.forEachNode((node: any) => allRowData.push(node.data));
-
-      console.log(
-        "Before sort:",
-        allRowData.map((r) => ({
-          id: r.id,
-          title: r.title,
-          createdAt: r.createdAt,
-        })),
-      );
-
-      // 작성일 내림차순 정렬
+    if (
+      colDef.field === "status" ||
+      colDef.field === "priority" ||
+      colDef.field === "workType"
+    ) {
+      const allRowData: Work[] = [];
+      params.api.forEachNode((node: IRowNode<Work>) => {
+        if (node.data) allRowData.push(node.data);
+      });
       const sortedData = allRowData.sort((a, b) => {
         const dateA = new Date(a.createdAt).getTime();
         const dateB = new Date(b.createdAt).getTime();
         return dateB - dateA;
       });
-
-      console.log(
-        "After sort:",
-        sortedData.map((r) => ({
-          id: r.id,
-          title: r.title,
-          createdAt: r.createdAt,
-        })),
-      );
-
-      // 정렬된 데이터로 그리드 업데이트
       params.api.setGridOption("rowData", sortedData);
-      console.log("✅ Grid updated with sorted data");
     } else {
-      // 그리드 행 스타일 업데이트를 위해 리프레시
       params.api.refreshCells({ rowNodes: [params.node], force: true });
     }
   };
 
   // 새 행 추가
   const handleAddRow = () => {
-    // 로그인 확인
     if (!currentUser) {
       toast.error("로그인이 필요합니다");
       navigate({ to: "/dashboard" });
       return;
     }
 
-    const newRow: Partial<Issue> = {
-      id: -Date.now(), // 음수 ID = 신규
+    const newRow: Partial<Work> = {
+      id: -Date.now(),
       title: "",
       content: "",
-      category: "COMMON",
-      status: "OPEN",
+      workType: "COMMON",
+      status: "TODO",
       priority: "MEDIUM",
-      authorId: currentUser.id,
-      authorName: currentUser.username,
-      authorEmail: currentUser.email,
+      reporterId: currentUser.id,
+      reporterName: currentUser.username,
       assigneeName: "",
     };
 
     gridRef.current?.api.applyTransaction({
-      add: [newRow as Issue],
+      add: [newRow as Work],
       addIndex: 0,
     });
     setModifiedRowIds((prev) => new Set(prev).add(newRow.id!));
@@ -423,16 +435,13 @@ export function IssuesPage() {
 
     if (!confirmed) return;
 
-    // 기존 이슈 삭제 (API 호출)
-    const existingIssues = selectedRows.filter((r) => r.id > 0);
-    for (const row of existingIssues) {
-      await deleteIssue(row.id);
+    const existingWorks = selectedRows.filter((r) => r.id > 0);
+    for (const row of existingWorks) {
+      await deleteWork(row.id);
     }
 
-    // 그리드에서 제거
     gridRef.current?.api.applyTransaction({ remove: selectedRows });
 
-    // 수정 플래그에서 제거
     const idsToRemove = selectedRows.map((r) => r.id);
     setModifiedRowIds((prev) => {
       const newSet = new Set(prev);
@@ -445,9 +454,9 @@ export function IssuesPage() {
 
   const handleArchive = () => {
     const selectedNodes = gridRef.current?.api?.getSelectedNodes() ?? [];
-    const ids = selectedNodes.map((n: IRowNode<Issue>) => n.data!.id);
+    const ids = selectedNodes.map((n: IRowNode<Work>) => n.data!.id);
     if (ids.length === 0) {
-      toast.error("선택된 이슈가 없습니다");
+      toast.error("선택된 업무가 없습니다");
       return;
     }
     archiveMutation.mutate(ids);
@@ -455,9 +464,9 @@ export function IssuesPage() {
 
   const handleRestore = () => {
     const selectedNodes = gridRef.current?.api?.getSelectedNodes() ?? [];
-    const ids = selectedNodes.map((n: IRowNode<Issue>) => n.data!.id);
+    const ids = selectedNodes.map((n: IRowNode<Work>) => n.data!.id);
     if (ids.length === 0) {
-      toast.error("선택된 이슈가 없습니다");
+      toast.error("선택된 업무가 없습니다");
       return;
     }
     restoreMutation.mutate(ids);
@@ -470,38 +479,25 @@ export function IssuesPage() {
       return;
     }
 
-    const modifiedRows: Issue[] = [];
+    const modifiedRows: Work[] = [];
     gridRef.current?.api.forEachNode((node) => {
       if (modifiedRowIds.has(node.data.id)) {
         modifiedRows.push(node.data);
       }
     });
 
-    // 신규/수정 구분
     const newRows = modifiedRows.filter((r) => r.id < 0);
     const updatedRows = modifiedRows.filter((r) => r.id > 0);
 
-    // 유효성 검사: 필수 값 확인
     const invalidRows: string[] = [];
-
     modifiedRows.forEach((row) => {
       const missing: string[] = [];
-
-      if (!row.title || row.title.trim() === "") {
-        missing.push("제목");
-      }
-      if (!row.category) {
-        missing.push("카테고리");
-      }
-      if (!row.status) {
-        missing.push("상태");
-      }
-      if (!row.priority) {
-        missing.push("중요도");
-      }
-      if (!row.authorName || row.authorName.trim() === "") {
+      if (!row.title || row.title.trim() === "") missing.push("제목");
+      if (!row.workType) missing.push("유형");
+      if (!row.status) missing.push("상태");
+      if (!row.priority) missing.push("우선순위");
+      if (!row.reporterName || row.reporterName.trim() === "")
         missing.push("요청자");
-      }
 
       if (missing.length > 0) {
         const rowLabel =
@@ -530,41 +526,39 @@ export function IssuesPage() {
     }
 
     try {
-      // 신규 행 생성 (toast/invalidate 없는 버전 사용)
       for (const row of newRows) {
-        await createIssueSilent({
+        await createWorkSilent({
           title: row.title || "제목 없음",
           content: row.content || "",
-          category: row.category || "COMMON",
-          status: row.status || "OPEN",
+          workType: row.workType || "COMMON",
+          status: row.status || "TODO",
           priority: row.priority || "MEDIUM",
+          assigneeId: row.assigneeId ?? null,
+          dueDate: row.dueDate ?? null,
         });
       }
 
-      // 수정된 행 업데이트 (toast/invalidate 없는 버전 사용)
       for (const row of updatedRows) {
-        await updateIssueSilent({
+        await updateWorkSilent({
           id: row.id,
           request: {
             title: row.title,
             content: row.content,
-            category: row.category,
+            workType: row.workType,
             status: row.status,
             priority: row.priority,
+            assigneeId: row.assigneeId ?? null,
+            dueDate: row.dueDate ?? null,
           },
         });
       }
 
-      // 저장 후 그리드에서 음수 ID 행 제거
       if (newRows.length > 0) {
         gridRef.current?.api.applyTransaction({ remove: newRows });
       }
 
-      // 수정 플래그 초기화
       setModifiedRowIds(new Set());
-
-      // 모든 업데이트 완료 후 한 번만 재조회
-      await queryClient.invalidateQueries({ queryKey: ["issues"] });
+      await queryClient.invalidateQueries({ queryKey: ["works"] });
 
       toast.success(
         `신규 ${newRows.length}개, 수정 ${updatedRows.length}개 항목이 저장되었습니다.`,
@@ -575,34 +569,12 @@ export function IssuesPage() {
     }
   };
 
-  // 상태별 배지 색상 (그리드/상세뷰 공통)
-  const statusColors = {
-    OPEN: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-    IN_PROGRESS: "bg-amber-100 text-amber-700 hover:bg-amber-100",
-    CLOSED: "bg-green-100 text-green-700 hover:bg-green-100",
-  };
-
-  // 우선순위별 배지 색상 (파스텔톤)
-  const priorityColors = {
-    CRITICAL: "bg-red-100 text-red-700 hover:bg-red-100",
-    HIGH: "bg-orange-100 text-orange-700 hover:bg-orange-100",
-    MEDIUM: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
-    LOW: "bg-gray-100 text-gray-700 hover:bg-gray-100",
-  };
-
-  const priorityLabels: Record<IssuePriority, string> = {
-    LOW: "낮음",
-    MEDIUM: "보통",
-    HIGH: "높음",
-    CRITICAL: "긴급",
-  };
-
   const onRowDragEnd = useCallback(
-    (event: RowDragEndEvent<Issue>) => {
+    (event: RowDragEndEvent<Work>) => {
       const { api } = event;
       const reorderItems: { id: number; orderNum: number }[] = [];
       api.forEachNodeAfterFilterAndSort(
-        (node: IRowNode<Issue>, index: number) => {
+        (node: IRowNode<Work>, index: number) => {
           if (node.data) {
             reorderItems.push({ id: node.data.id, orderNum: index });
           }
@@ -613,8 +585,8 @@ export function IssuesPage() {
     [reorderMutation],
   );
 
-  // 컬럼 정의 (좌측 목록용 - 간소화)
-  const columnDefs = useMemo<ColDef<Issue>[]>(
+  // 컬럼 정의
+  const columnDefs = useMemo<ColDef<Work>[]>(
     () => [
       {
         headerName: "",
@@ -635,10 +607,25 @@ export function IssuesPage() {
         } as CellStyle,
       },
       {
+        headerName: "No.",
+        field: "id",
+        width: 60,
+        headerClass: "ag-header-cell-center",
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "12px",
+          color: "#888",
+        } as CellStyle,
+        valueFormatter: (params) =>
+          params.value > 0 ? `#${params.value}` : "NEW",
+      },
+      {
         headerName: "제목",
         field: "title",
         flex: 1,
-        minWidth: 200,
+        minWidth: 180,
         editable: true,
         rowDrag: true,
         cellStyle: {
@@ -648,30 +635,23 @@ export function IssuesPage() {
         } as CellStyle,
       },
       {
-        headerName: "중요도",
-        field: "priority",
-        width: 75,
+        headerName: "유형",
+        field: "workType",
+        width: 85,
         headerClass: "ag-header-cell-center",
-        editable: false, // Popover로 변경하므로 AG Grid 편집 비활성화
-        cellRenderer: (params: any) => {
-          const PriorityCell = () => {
+        editable: false,
+        cellRenderer: (params: ICellRendererParams<Work>) => {
+          const WorkTypeCell = () => {
             const [open, setOpen] = useState(false);
-            const priority = params.value as IssuePriority;
-            const label = priorityLabels[priority] || priority;
+            const workType = params.value as WorkType;
+            const label = WORK_TYPE_LABELS[workType] || workType;
 
-            const handlePriorityChange = (newPriority: IssuePriority) => {
-              // 로컬 데이터만 업데이트
-              params.data.priority = newPriority;
-
-              // 수정된 행으로 표시 (노란 배경)
-              setModifiedRowIds((prev) => new Set(prev).add(params.data.id));
-
-              // 행 선택 (체크박스)
-              params.node.setSelected(true);
-
-              // 그리드 셀 리프레시
+            const handleWorkTypeChange = (newType: WorkType) => {
+              if (!params.data) return;
+              params.data.workType = newType;
+              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
+              params.node?.setSelected(true);
               params.api.refreshCells({ rowNodes: [params.node], force: true });
-
               setOpen(false);
             };
 
@@ -679,13 +659,115 @@ export function IssuesPage() {
               <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                   <div className="w-full h-full flex items-center justify-center cursor-pointer">
-                    <Badge className={priorityColors[priority]}>{label}</Badge>
+                    <Badge className={WORK_TYPE_COLORS[workType]}>
+                      {label}
+                    </Badge>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-36 p-2" align="center">
+                  <div className="flex flex-col gap-1">
+                    {(["FEATURE", "QA", "COMMON"] as WorkType[]).map((t) => (
+                      <Button
+                        key={t}
+                        variant={t === workType ? "default" : "ghost"}
+                        size="sm"
+                        className="justify-start h-8"
+                        onClick={() => handleWorkTypeChange(t)}
+                      >
+                        {WORK_TYPE_LABELS[t]}
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            );
+          };
+          return <WorkTypeCell />;
+        },
+      },
+      {
+        headerName: "상태",
+        field: "status",
+        width: 85,
+        headerClass: "ag-header-cell-center",
+        editable: false,
+        cellRenderer: (params: ICellRendererParams<Work>) => {
+          const StatusCell = () => {
+            const [open, setOpen] = useState(false);
+            const status = params.value as WorkStatus;
+            const label = STATUS_LABELS[status] || status;
+
+            const handleStatusChange = (newStatus: WorkStatus) => {
+              if (!params.data) return;
+              params.data.status = newStatus;
+              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
+              params.node?.setSelected(true);
+              params.api.refreshCells({ rowNodes: [params.node], force: true });
+              setOpen(false);
+            };
+
+            return (
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <div className="w-full h-full flex items-center justify-center cursor-pointer">
+                    <Badge className={STATUS_COLORS[status]}>{label}</Badge>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-36 p-2" align="center">
+                  <div className="flex flex-col gap-1">
+                    {(
+                      ["TODO", "IN_PROGRESS", "DONE", "HOLD"] as WorkStatus[]
+                    ).map((s) => (
+                      <Button
+                        key={s}
+                        variant={s === status ? "default" : "ghost"}
+                        size="sm"
+                        className="justify-start h-8"
+                        onClick={() => handleStatusChange(s)}
+                      >
+                        {STATUS_LABELS[s]}
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            );
+          };
+          return <StatusCell />;
+        },
+      },
+      {
+        headerName: "우선순위",
+        field: "priority",
+        width: 80,
+        headerClass: "ag-header-cell-center",
+        editable: false,
+        cellRenderer: (params: ICellRendererParams<Work>) => {
+          const PriorityCell = () => {
+            const [open, setOpen] = useState(false);
+            const priority = params.value as WorkPriority;
+            const label = PRIORITY_LABELS[priority] || priority;
+
+            const handlePriorityChange = (newPriority: WorkPriority) => {
+              if (!params.data) return;
+              params.data.priority = newPriority;
+              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
+              params.node?.setSelected(true);
+              params.api.refreshCells({ rowNodes: [params.node], force: true });
+              setOpen(false);
+            };
+
+            return (
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <div className="w-full h-full flex items-center justify-center cursor-pointer">
+                    <Badge className={PRIORITY_COLORS[priority]}>{label}</Badge>
                   </div>
                 </PopoverTrigger>
                 <PopoverContent className="w-32 p-2" align="center">
                   <div className="flex flex-col gap-1">
                     {(
-                      ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as IssuePriority[]
+                      ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as WorkPriority[]
                     ).map((p) => (
                       <Button
                         key={p}
@@ -694,7 +776,7 @@ export function IssuesPage() {
                         className="justify-start h-8"
                         onClick={() => handlePriorityChange(p)}
                       >
-                        {priorityLabels[p]}
+                        {PRIORITY_LABELS[p]}
                       </Button>
                     ))}
                   </div>
@@ -702,86 +784,211 @@ export function IssuesPage() {
               </Popover>
             );
           };
-
           return <PriorityCell />;
         },
-      },
-      {
-        headerName: "상태",
-        field: "status",
-        width: 85,
-        headerClass: "ag-header-cell-center",
-        editable: true,
-        cellEditor: "agSelectCellEditor",
-        cellEditorParams: {
-          values: ["OPEN", "IN_PROGRESS", "CLOSED"],
-        },
-        cellRenderer: (params: any) => {
-          const status = params.value as IssueStatus;
-          const label = statusLabels[status] || status;
-
-          return (
-            <div className="w-full h-full flex items-center justify-center">
-              <Badge className={statusColors[status]}>{label}</Badge>
-            </div>
-          );
-        },
-      },
-      {
-        headerName: "요청자",
-        field: "authorName",
-        width: 70,
-        headerClass: "ag-header-cell-center",
-        cellStyle: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "13px",
-        } as CellStyle,
-        editable: false, // 요청자는 수정 불가 (로그인한 사람 고정)
       },
       {
         headerName: "담당자",
         field: "assigneeName",
         width: 90,
         headerClass: "ag-header-cell-center",
-        cellRenderer: (params: any) => {
-          const handleClick = (e: React.MouseEvent) => {
-            e.stopPropagation();
-            setAssigneeDialogIssueId(params.data.id);
-            setIsAssigneeDialogOpen(true);
-          };
-
-          // 담당자 정보 조회 (useQuery 대신 간단하게 표시)
+        editable: false,
+        cellRenderer: (params: ICellRendererParams<Work>) => {
           const AssigneeCell = () => {
-            const { data: assignees } = useIssueAssignees(params.data.id);
-            const count = assignees?.length || 0;
+            const [open, setOpen] = useState(false);
+            const [keyword, setKeyword] = useState("");
+            const currentAssigneeName = params.data?.assigneeName || "";
+            const currentAssigneeId = params.data?.assigneeId ?? undefined;
 
-            if (count === 0) {
-              return <span className="text-muted-foreground">미지정</span>;
-            } else if (count === 1) {
-              return <span>{assignees![0].username}</span>;
-            } else {
+            const filtered = users.filter((u) => {
+              if (!keyword) return true;
               return (
-                <span>
-                  {assignees![0].username} 외 {count - 1}명
-                </span>
+                u.username.toLowerCase().includes(keyword.toLowerCase()) ||
+                u.email.toLowerCase().includes(keyword.toLowerCase())
               );
-            }
-          };
+            });
 
-          return (
-            <div
-              onClick={handleClick}
-              className="cursor-pointer hover:text-blue-600 hover:underline w-full h-full flex items-center justify-center"
-            >
-              <AssigneeCell />
-            </div>
-          );
+            const handleSelect = (
+              userId: number | undefined,
+              username: string | undefined,
+            ) => {
+              if (!params.data) return;
+              params.data.assigneeId = userId ?? undefined;
+              params.data.assigneeName = username ?? "";
+              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
+              params.node?.setSelected(true);
+              params.api.refreshCells({ rowNodes: [params.node], force: true });
+              setOpen(false);
+              setKeyword("");
+            };
+
+            return (
+              <Popover
+                open={open}
+                onOpenChange={(v) => {
+                  setOpen(v);
+                  if (!v) setKeyword("");
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <div className="w-full h-full flex items-center justify-center cursor-pointer hover:text-primary">
+                    <span
+                      className={
+                        currentAssigneeName ? "" : "text-muted-foreground"
+                      }
+                    >
+                      {currentAssigneeName || "미지정"}
+                    </span>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-52 p-2" align="center">
+                  <input
+                    type="text"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    placeholder="이름 검색..."
+                    className="w-full px-2 py-1 mb-2 border border-input rounded text-sm"
+                    autoFocus
+                  />
+                  <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
+                    <Button
+                      variant={
+                        currentAssigneeId === undefined ? "default" : "ghost"
+                      }
+                      size="sm"
+                      className="justify-start h-8 text-muted-foreground"
+                      onClick={() => handleSelect(undefined, undefined)}
+                    >
+                      미지정
+                    </Button>
+                    {filtered.map((u) => (
+                      <Button
+                        key={u.id}
+                        variant={
+                          currentAssigneeId === u.id ? "default" : "ghost"
+                        }
+                        size="sm"
+                        className="justify-start h-8"
+                        onClick={() => handleSelect(u.id, u.username)}
+                      >
+                        {u.username}
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            );
+          };
+          return <AssigneeCell />;
+        },
+      },
+      {
+        headerName: "마감일",
+        field: "dueDate",
+        width: 105,
+        headerClass: "ag-header-cell-center",
+        editable: false,
+        cellRenderer: (params: ICellRendererParams<Work>) => {
+          const DueDateCell = () => {
+            const [open, setOpen] = useState(false);
+            const currentDueDate = params.data?.dueDate || "";
+            const isOverdue = currentDueDate
+              ? new Date(currentDueDate) < new Date(new Date().toDateString())
+              : false;
+
+            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+              if (!params.data) return;
+              const val = e.target.value || undefined;
+              params.data.dueDate = val;
+              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
+              params.node?.setSelected(true);
+              params.api.refreshCells({ rowNodes: [params.node], force: true });
+              setOpen(false);
+            };
+
+            const handleClear = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              if (!params.data) return;
+              params.data.dueDate = undefined;
+              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
+              params.node?.setSelected(true);
+              params.api.refreshCells({ rowNodes: [params.node], force: true });
+            };
+
+            return (
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <div className="w-full h-full flex items-center justify-center cursor-pointer gap-1">
+                    {currentDueDate ? (
+                      <>
+                        <span
+                          className={`text-xs ${isOverdue ? "text-red-600 font-medium" : ""}`}
+                        >
+                          {currentDueDate}
+                        </span>
+                        <button
+                          onClick={handleClear}
+                          className="text-muted-foreground hover:text-destructive text-[10px] leading-none"
+                          title="마감일 제거"
+                        >
+                          ✕
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">-</span>
+                    )}
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-3" align="center">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    마감일 선택
+                  </p>
+                  <input
+                    type="date"
+                    defaultValue={currentDueDate || ""}
+                    onChange={handleChange}
+                    className="px-2 py-1 border border-input rounded text-sm"
+                    autoFocus
+                  />
+                  {currentDueDate && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-2 text-xs text-muted-foreground"
+                      onClick={handleClear}
+                    >
+                      마감일 제거
+                    </Button>
+                  )}
+                </PopoverContent>
+              </Popover>
+            );
+          };
+          return <DueDateCell />;
+        },
+      },
+      {
+        headerName: "작성일",
+        field: "createdAt",
+        width: 90,
+        headerClass: "ag-header-cell-center",
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "12px",
+          color: "#888",
+        } as CellStyle,
+        valueFormatter: (params) => {
+          if (!params.value) return "-";
+          return new Date(params.value).toLocaleDateString("ko-KR", {
+            month: "2-digit",
+            day: "2-digit",
+          });
         },
       },
     ],
-    [statusColors, priorityColors, priorityLabels],
+    [users],
   );
 
   const defaultColDef = useMemo<ColDef>(
@@ -792,18 +999,19 @@ export function IssuesPage() {
     [],
   );
 
-  // 수정된 행 및 선택된 행에 스타일 적용
   const rowClassRules = useMemo(
     () => ({
-      "bg-yellow-50": (params: any) => modifiedRowIds.has(params.data.id),
-      "bg-blue-50": (params: any) => params.data.id === selectedIssueId,
+      "bg-yellow-50": (params: { data?: Work }) =>
+        modifiedRowIds.has(params.data?.id ?? -1),
+      "bg-blue-50": (params: { data?: Work }) =>
+        params.data?.id === selectedWorkId,
     }),
-    [modifiedRowIds, selectedIssueId],
+    [modifiedRowIds, selectedWorkId],
   );
 
-  // 행 클릭 이벤트 (상세 보기)
-  const onRowClicked = (event: any) => {
-    setSelectedIssueId(event.data.id);
+  const onRowClicked = (event: RowClickedEvent<Work>) => {
+    if (!event.data) return;
+    setSelectedWorkId(event.data.id);
     setIsEditing(false);
   };
 
@@ -815,11 +1023,15 @@ export function IssuesPage() {
         editPanelRef.current &&
         !editPanelRef.current.contains(e.target as Node)
       ) {
-        handleCancel();
+        setIsEditing(false);
+        if (!selectedWorkId) setSelectedWorkId(null);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleCancel();
+      if (e.key === "Escape") {
+        setIsEditing(false);
+        if (!selectedWorkId) setSelectedWorkId(null);
+      }
     };
     document.addEventListener("mousedown", handleMouseDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -827,27 +1039,31 @@ export function IssuesPage() {
       document.removeEventListener("mousedown", handleMouseDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isEditing]);
+  }, [isEditing, selectedWorkId]);
 
   // 신규 작성
   const handleNew = () => {
-    setSelectedIssueId(null);
+    setSelectedWorkId(null);
     setFormTitle("");
     setFormContent("");
-    setFormCategory("COMMON");
-    setFormStatus("OPEN");
+    setFormWorkType("COMMON");
+    setFormStatus("TODO");
     setFormPriority("MEDIUM");
+    setFormAssigneeId(null);
+    setFormDueDate("");
     setIsEditing(true);
   };
 
   // 수정 모드로 전환
   const handleEdit = () => {
-    if (!issueDetail) return;
-    setFormTitle(issueDetail.title);
-    setFormContent(issueDetail.content);
-    setFormCategory(issueDetail.category);
-    setFormStatus(issueDetail.status);
-    setFormPriority(issueDetail.priority);
+    if (!workDetail) return;
+    setFormTitle(workDetail.title);
+    setFormContent(workDetail.content);
+    setFormWorkType(workDetail.workType);
+    setFormStatus(workDetail.status);
+    setFormPriority(workDetail.priority);
+    setFormAssigneeId(workDetail.assigneeId ?? null);
+    setFormDueDate(workDetail.dueDate ?? "");
     setIsEditing(true);
   };
 
@@ -865,15 +1081,16 @@ export function IssuesPage() {
     const data = {
       title: formTitle,
       content: formContent,
-      category: formCategory,
+      workType: formWorkType,
       status: formStatus,
       priority: formPriority,
+      assigneeId: formAssigneeId,
+      dueDate: formDueDate || null,
     };
 
-    if (selectedIssueId) {
-      // 수정
-      updateIssue(
-        { id: selectedIssueId, request: data },
+    if (selectedWorkId) {
+      updateWork(
+        { id: selectedWorkId, request: data },
         {
           onSuccess: () => {
             setIsEditing(false);
@@ -881,11 +1098,10 @@ export function IssuesPage() {
         },
       );
     } else {
-      // 신규 생성
-      createIssue(data, {
+      createWork(data, {
         onSuccess: () => {
           setIsEditing(false);
-          setSelectedIssueId(null);
+          setSelectedWorkId(null);
         },
       });
     }
@@ -893,102 +1109,73 @@ export function IssuesPage() {
 
   // 취소
   const handleCancel = () => {
-    if (selectedIssueId) {
-      setIsEditing(false);
-    } else {
-      setIsEditing(false);
-      setSelectedIssueId(null);
+    setIsEditing(false);
+    if (!selectedWorkId) {
+      setSelectedWorkId(null);
     }
   };
 
   // 삭제
   const handleDelete = async () => {
-    if (!selectedIssueId) return;
+    if (!selectedWorkId) return;
 
     const confirmed = await confirm({
-      title: "이슈 삭제",
+      title: "업무 삭제",
       description:
-        "정말로 이 이슈를 삭제하시겠습니까? 모든 댓글과 체크리스트도 함께 삭제됩니다.",
+        "정말로 이 업무를 삭제하시겠습니까? 모든 체크리스트와 첨부 파일도 함께 삭제됩니다.",
       confirmText: "삭제",
       cancelText: "취소",
       variant: "destructive",
     });
 
     if (confirmed) {
-      deleteIssue(selectedIssueId, {
+      deleteWork(selectedWorkId, {
         onSuccess: () => {
-          setSelectedIssueId(null);
+          setSelectedWorkId(null);
           setIsEditing(false);
         },
       });
     }
   };
 
-  // 상태 변경
-  const handleStatusChange = (newStatus: IssueStatus) => {
-    if (!selectedIssueId) return;
-    updateStatus({ id: selectedIssueId, status: newStatus });
+  // 상태 변경 (상세 뷰에서)
+  const handleStatusChange = (newStatus: WorkStatus) => {
+    if (!selectedWorkId) return;
+    updateStatus({ id: selectedWorkId, status: newStatus });
   };
 
-  // 우선순위 변경
-  const handlePriorityChange = (newPriority: IssuePriority) => {
-    if (!selectedIssueId || !issueDetail) return;
-    updateIssue({
-      id: selectedIssueId,
+  // 우선순위 변경 (상세 뷰에서)
+  const handlePriorityChange = (newPriority: WorkPriority) => {
+    if (!selectedWorkId || !workDetail) return;
+    updateWork({
+      id: selectedWorkId,
       request: {
-        title: issueDetail.title,
-        content: issueDetail.content,
-        category: issueDetail.category,
-        status: issueDetail.status,
+        title: workDetail.title,
+        content: workDetail.content,
+        workType: workDetail.workType,
+        status: workDetail.status,
         priority: newPriority,
+        assigneeId: workDetail.assigneeId,
+        dueDate: workDetail.dueDate,
       },
     });
   };
 
-  // 카테고리 변경
-  const handleCategoryChange = (newCategory: IssueCategory) => {
-    if (!selectedIssueId || !issueDetail) return;
-    updateIssue({
-      id: selectedIssueId,
+  // 유형 변경 (상세 뷰에서)
+  const handleWorkTypeChange = (newType: WorkType) => {
+    if (!selectedWorkId || !workDetail) return;
+    updateWork({
+      id: selectedWorkId,
       request: {
-        title: issueDetail.title,
-        content: issueDetail.content,
-        category: newCategory,
-        status: issueDetail.status,
-        priority: issueDetail.priority,
+        title: workDetail.title,
+        content: workDetail.content,
+        workType: newType,
+        status: workDetail.status,
+        priority: workDetail.priority,
+        assigneeId: workDetail.assigneeId,
+        dueDate: workDetail.dueDate,
       },
     });
-  };
-
-  // 담당자 Dialog 열기
-  const openAssigneeDialog = () => {
-    if (!selectedIssueId) return;
-    // 현재 담당자 목록으로 초기화
-    const currentAssigneeIds = issueAssignees?.map((a) => a.userId) || [];
-    setSelectedUserIds(currentAssigneeIds);
-    setIsAssigneeDialogOpen(true);
-  };
-
-  // 담당자 변경 저장
-  const handleSaveAssignees = () => {
-    const targetIssueId = assigneeDialogIssueId || selectedIssueId;
-    if (!targetIssueId) return;
-    updateAssignees(selectedUserIds, {
-      onSuccess: () => {
-        setIsAssigneeDialogOpen(false);
-        setAssigneeDialogIssueId(null);
-      },
-    });
-  };
-
-  // 담당자 추가 (왼쪽 → 오른쪽)
-  const addAssignee = (userId: number) => {
-    setSelectedUserIds((prev) => [...prev, userId]);
-  };
-
-  // 담당자 제거 (오른쪽 → 왼쪽)
-  const removeAssignee = (userId: number) => {
-    setSelectedUserIds((prev) => prev.filter((id) => id !== userId));
   };
 
   // 체크리스트 추가
@@ -997,7 +1184,6 @@ export function IssuesPage() {
       toast.error("체크리스트 내용을 입력하세요");
       return;
     }
-
     const orderNum = checklists?.length || 0;
     createChecklist({ content: newChecklistContent, orderNum });
     setNewChecklistContent("");
@@ -1012,7 +1198,6 @@ export function IssuesPage() {
       cancelText: "취소",
       variant: "destructive",
     });
-
     if (confirmed) {
       deleteChecklist(checklistId);
     }
@@ -1035,7 +1220,7 @@ export function IssuesPage() {
     });
   };
 
-  // 마인드맵 보기 다이얼로그 열기
+  // 마인드맵 관련 핸들러
   const handleViewMindmap = (mindmapId: number) => {
     const mindmap = mindmaps?.find((m) => m.id === mindmapId);
     if (mindmap) {
@@ -1044,7 +1229,6 @@ export function IssuesPage() {
     }
   };
 
-  // 마인드맵 추가/수정 다이얼로그 열기
   const handleOpenMindmapDialog = (mindmapId?: number) => {
     if (mindmapId) {
       const mindmap = mindmaps?.find((m) => m.id === mindmapId);
@@ -1058,11 +1242,10 @@ export function IssuesPage() {
       setMindmapTitle("");
       setMindmapContent("");
     }
-    setValidationResult(null); // 검증 결과 초기화
+    setValidationResult(null);
     setIsMindmapDialogOpen(true);
   };
 
-  // 마인드맵 저장
   const handleSaveMindmap = () => {
     if (!mindmapTitle.trim()) {
       toast.error("제목을 입력하세요");
@@ -1074,7 +1257,6 @@ export function IssuesPage() {
     }
 
     if (selectedMindmapId) {
-      // 수정
       const mindmap = mindmaps?.find((m) => m.id === selectedMindmapId);
       updateMindmap({
         mindmapId: selectedMindmapId,
@@ -1085,13 +1267,8 @@ export function IssuesPage() {
         },
       });
     } else {
-      // 새로 추가
       const orderNum = mindmaps?.length || 0;
-      createMindmap({
-        title: mindmapTitle,
-        content: mindmapContent,
-        orderNum,
-      });
+      createMindmap({ title: mindmapTitle, content: mindmapContent, orderNum });
     }
 
     setIsMindmapDialogOpen(false);
@@ -1100,7 +1277,6 @@ export function IssuesPage() {
     setSelectedMindmapId(null);
   };
 
-  // 마인드맵 삭제
   const handleDeleteMindmap = async (mindmapId: number) => {
     const confirmed = await confirm({
       title: "마인드맵 삭제",
@@ -1109,13 +1285,11 @@ export function IssuesPage() {
       cancelText: "취소",
       variant: "destructive",
     });
-
     if (confirmed) {
       deleteMindmap(mindmapId);
     }
   };
 
-  // Mermaid 문법 검증
   const handleValidateMermaid = async () => {
     if (!mindmapContent.trim()) {
       setValidationResult({
@@ -1128,7 +1302,6 @@ export function IssuesPage() {
 
     try {
       await mermaid.parse(mindmapContent, { suppressErrors: false });
-
       setValidationResult({ isValid: true });
       toast.success("✅ Mermaid 문법이 올바릅니다");
     } catch (error) {
@@ -1139,35 +1312,7 @@ export function IssuesPage() {
     }
   };
 
-  // 업무 연결 (미래 기능용)
-  // const _handleLinkTask = () => {
-  //   const taskPostId = parseInt(taskIdInput)
-  //   if (isNaN(taskPostId)) {
-  //     toast.error('올바른 업무 ID를 입력하세요')
-  //     return
-  //   }
-  //
-  //   const orderNum = (linkedTasks?.length || 0)
-  //   linkTask({ taskPostId, orderNum })
-  //   setTaskIdInput('')
-  // }
-
-  // 업무 연결 해제 (미래 기능용)
-  // const _handleUnlinkTask = async (linkId: number) => {
-  //   const confirmed = await confirm({
-  //     title: '업무 연결 해제',
-  //     description: '이 업무와의 연결을 해제하시겠습니까?',
-  //     confirmText: '해제',
-  //     cancelText: '취소',
-  //     variant: 'destructive',
-  //   })
-  //
-  //   if (confirmed) {
-  //     unlinkTask(linkId)
-  //   }
-  // }
-
-  // DB 테이블 다이얼로그 열기
+  // DB 테이블 핸들러
   const handleOpenDbTableDialog = (dbTableId?: number) => {
     if (dbTableId) {
       const dbTable = dbTables?.find((t) => t.id === dbTableId);
@@ -1190,7 +1335,6 @@ export function IssuesPage() {
     setIsDbTableDialogOpen(true);
   };
 
-  // DB 테이블 저장
   const handleSaveDbTable = () => {
     if (!dbTableContent.tableName.trim()) {
       toast.error("테이블명을 입력하세요");
@@ -1201,19 +1345,13 @@ export function IssuesPage() {
       return;
     }
 
-    // 쿼리 결과 파싱
     const parsedColumns = parseTsvToColumns(dbTableContent.queryResult);
     if (parsedColumns.length === 0) {
       toast.error("유효한 쿼리 결과를 입력하세요");
       return;
     }
 
-    // columns 추가해서 저장
-    const contentToSave = {
-      ...dbTableContent,
-      columns: parsedColumns,
-    };
-
+    const contentToSave = { ...dbTableContent, columns: parsedColumns };
     const tableInfo = JSON.stringify(contentToSave);
     const tableName = dbTableContent.tableName;
 
@@ -1221,19 +1359,11 @@ export function IssuesPage() {
       const dbTable = dbTables?.find((t) => t.id === selectedDbTableId);
       updateDbTable({
         dbTableId: selectedDbTableId,
-        request: {
-          tableName,
-          tableInfo,
-          orderNum: dbTable?.orderNum || 0,
-        },
+        request: { tableName, tableInfo, orderNum: dbTable?.orderNum || 0 },
       });
     } else {
       const orderNum = dbTables?.length || 0;
-      createDbTable({
-        tableName,
-        tableInfo,
-        orderNum,
-      });
+      createDbTable({ tableName, tableInfo, orderNum });
     }
 
     setIsDbTableDialogOpen(false);
@@ -1248,7 +1378,6 @@ export function IssuesPage() {
     setSelectedDbTableId(null);
   };
 
-  // DB 테이블 삭제
   const handleDeleteDbTable = async (dbTableId: number) => {
     const confirmed = await confirm({
       title: "DB 테이블 삭제",
@@ -1257,7 +1386,6 @@ export function IssuesPage() {
       cancelText: "취소",
       variant: "destructive",
     });
-
     if (confirmed) {
       deleteDbTable(dbTableId);
     }
@@ -1277,35 +1405,28 @@ export function IssuesPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-
     if (e.dataTransfer.files) {
       handleImageUpload(e.dataTransfer.files);
     }
   };
 
-  // 업로드 영역 클릭 (활성화)
   const handleUploadAreaClick = () => {
     setIsPasteMode(true);
     uploadAreaRef.current?.focus();
   };
 
-  // 포커스를 잃으면 비활성화
   const handleUploadAreaBlur = () => {
     setIsPasteMode(false);
   };
 
-  // 붙여넣기 핸들러 (활성화 상태일 때만)
   const handlePaste = (e: React.ClipboardEvent) => {
     if (!isPasteMode) return;
-
     const items = e.clipboardData?.items;
     if (!items) return;
-
     const imageItems = Array.from(items).filter((item) =>
       item.type.startsWith("image/"),
     );
     if (imageItems.length === 0) return;
-
     const files = imageItems
       .map((item) => item.getAsFile())
       .filter((file): file is File => file !== null);
@@ -1314,48 +1435,61 @@ export function IssuesPage() {
     }
   };
 
-  const categoryLabels: Record<IssueCategory, string> = {
-    COMMON: "일반",
-    BUG: "버그",
-    FEATURE: "기능",
-    IMPROVEMENT: "개선",
-    QUESTION: "질문",
+  // 이슈 검색
+  const handleIssueSearch = async () => {
+    if (!issueSearchKeyword.trim()) return;
+    setIsSearchingIssue(true);
+    try {
+      const result = await issueApi.getIssues({ keyword: issueSearchKeyword });
+      const alreadyLinkedIds = linkedIssues?.map((li) => li.issueId) || [];
+      setIssueSearchResults(
+        (result.items || [])
+          .filter((issue) => !alreadyLinkedIds.includes(issue.id))
+          .map((issue) => ({
+            id: issue.id,
+            title: issue.title,
+            status: issue.status,
+          })),
+      );
+    } catch {
+      toast.error("이슈 검색에 실패했습니다.");
+    } finally {
+      setIsSearchingIssue(false);
+    }
   };
 
-  // 상태별 카운트 계산
+  const handleLinkIssue = (issueId: number) => {
+    linkIssue(issueId, {
+      onSuccess: () => {
+        setIssueSearchResults((prev) => prev.filter((i) => i.id !== issueId));
+      },
+    });
+  };
+
+  const handleUnlinkIssue = async (linkId: number) => {
+    const confirmed = await confirm({
+      title: "이슈 연결 해제",
+      description: "이 이슈와의 연결을 해제하시겠습니까?",
+      confirmText: "해제",
+      cancelText: "취소",
+      variant: "destructive",
+    });
+    if (confirmed) {
+      unlinkIssue(linkId);
+    }
+  };
+
+  // 상태별 카운트
   const statusCounts = useMemo(() => {
-    const allIssues = issuesData?.items || [];
+    const allWorks = worksData?.items || [];
     return {
-      OPEN: allIssues.filter((issue) => issue.status === "OPEN").length,
-      IN_PROGRESS: allIssues.filter((issue) => issue.status === "IN_PROGRESS")
-        .length,
-      CLOSED: allIssues.filter((issue) => issue.status === "CLOSED").length,
-      ALL: allIssues.length,
+      TODO: allWorks.filter((w) => w.status === "TODO").length,
+      IN_PROGRESS: allWorks.filter((w) => w.status === "IN_PROGRESS").length,
+      DONE: allWorks.filter((w) => w.status === "DONE").length,
+      HOLD: allWorks.filter((w) => w.status === "HOLD").length,
+      ALL: allWorks.length,
     };
-  }, [issuesData]);
-
-  // 카테고리별 카운트 (전체 기준)
-  const categoryCounts = useMemo(() => {
-    const allIssues = issuesData?.items || [];
-    return {
-      COMMON: allIssues.filter((i) => i.category === "COMMON").length,
-      BUG: allIssues.filter((i) => i.category === "BUG").length,
-      FEATURE: allIssues.filter((i) => i.category === "FEATURE").length,
-      IMPROVEMENT: allIssues.filter((i) => i.category === "IMPROVEMENT").length,
-      QUESTION: allIssues.filter((i) => i.category === "QUESTION").length,
-    };
-  }, [issuesData]);
-
-  // 우선순위별 카운트 (전체 기준)
-  const priorityCounts = useMemo(() => {
-    const allIssues = issuesData?.items || [];
-    return {
-      CRITICAL: allIssues.filter((i) => i.priority === "CRITICAL").length,
-      HIGH: allIssues.filter((i) => i.priority === "HIGH").length,
-      MEDIUM: allIssues.filter((i) => i.priority === "MEDIUM").length,
-      LOW: allIssues.filter((i) => i.priority === "LOW").length,
-    };
-  }, [issuesData]);
+  }, [worksData]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -1363,86 +1497,37 @@ export function IssuesPage() {
       <div className="border-b border-border bg-card px-6 py-4">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-3xl font-bold">이슈 관리</h1>
-            {/* <p className="text-muted-foreground mt-1">프로젝트 이슈를 등록하고 관리할 수 있습니다.</p> */}
+            <h1 className="text-3xl font-bold">업무 관리</h1>
           </div>
           <Button onClick={handleNew}>
-            <Plus className="w-4 h-4 mr-2" />새 이슈
+            <Plus className="w-4 h-4 mr-2" />새 업무
           </Button>
         </div>
 
         {/* 필터 */}
         <div className="flex flex-wrap gap-2 items-center">
-          {/* 카테고리 필터 */}
+          {/* 유형 필터 */}
           <div className="flex gap-1">
             <Button
-              variant={filterCategory === "ALL" ? "default" : "outline"}
+              variant={filterWorkType === "ALL" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterCategory("ALL")}
+              onClick={() => setFilterWorkType("ALL")}
               className="h-7 px-2 text-xs"
             >
               전체
             </Button>
             <div className="w-px bg-border mx-0.5" />
-            <Button
-              variant={filterCategory === "COMMON" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("COMMON")}
-              className="h-7 px-2 text-xs"
-            >
-              일반
-              {categoryCounts.COMMON > 0 && (
-                <span className="ml-1 font-bold">{categoryCounts.COMMON}</span>
-              )}
-            </Button>
-            <Button
-              variant={filterCategory === "BUG" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("BUG")}
-              className="h-7 px-2 text-xs"
-            >
-              버그
-              {categoryCounts.BUG > 0 && (
-                <span className="ml-1 font-bold">{categoryCounts.BUG}</span>
-              )}
-            </Button>
-            <Button
-              variant={filterCategory === "FEATURE" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("FEATURE")}
-              className="h-7 px-2 text-xs"
-            >
-              기능
-              {categoryCounts.FEATURE > 0 && (
-                <span className="ml-1 font-bold">{categoryCounts.FEATURE}</span>
-              )}
-            </Button>
-            <Button
-              variant={filterCategory === "IMPROVEMENT" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("IMPROVEMENT")}
-              className="h-7 px-2 text-xs"
-            >
-              개선
-              {categoryCounts.IMPROVEMENT > 0 && (
-                <span className="ml-1 font-bold">
-                  {categoryCounts.IMPROVEMENT}
-                </span>
-              )}
-            </Button>
-            <Button
-              variant={filterCategory === "QUESTION" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("QUESTION")}
-              className="h-7 px-2 text-xs"
-            >
-              질문
-              {categoryCounts.QUESTION > 0 && (
-                <span className="ml-1 font-bold">
-                  {categoryCounts.QUESTION}
-                </span>
-              )}
-            </Button>
+            {(["FEATURE", "QA", "COMMON"] as WorkType[]).map((type) => (
+              <Button
+                key={type}
+                variant={filterWorkType === type ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterWorkType(type)}
+                className="h-7 px-2 text-xs"
+              >
+                {WORK_TYPE_LABELS[type]}
+              </Button>
+            ))}
           </div>
 
           <div className="w-px bg-border h-5" />
@@ -1458,45 +1543,22 @@ export function IssuesPage() {
               전체
             </Button>
             <div className="w-px bg-border mx-0.5" />
-            {(
-              [
-                {
-                  value: "CRITICAL",
-                  label: "긴급",
-                  cls: "bg-red-100 text-red-700 hover:bg-red-100",
-                },
-                {
-                  value: "HIGH",
-                  label: "높음",
-                  cls: "bg-orange-100 text-orange-700 hover:bg-orange-100",
-                },
-                {
-                  value: "MEDIUM",
-                  label: "보통",
-                  cls: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
-                },
-                {
-                  value: "LOW",
-                  label: "낮음",
-                  cls: "bg-gray-100 text-gray-700 hover:bg-gray-100",
-                },
-              ] as const
-            ).map((p) => (
-              <Button
-                key={p.value}
-                variant={filterPriority === p.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilterPriority(p.value)}
-                className={`h-7 px-2 text-xs ${filterPriority === p.value ? "" : p.cls}`}
-              >
-                {p.label}
-                {priorityCounts[p.value] > 0 && (
-                  <span className="ml-1 font-bold">
-                    {priorityCounts[p.value]}
-                  </span>
-                )}
-              </Button>
-            ))}
+            {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as WorkPriority[]).map(
+              (p) => (
+                <Button
+                  key={p}
+                  variant={filterPriority === p ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterPriority(p)}
+                  className={`h-7 px-2 text-xs ${filterPriority === p ? "" : PRIORITY_COLORS[p]}`}
+                >
+                  {PRIORITY_LABELS[p]}
+                  {priorityCounts[p] > 0 && (
+                    <span className="ml-1 font-bold">{priorityCounts[p]}</span>
+                  )}
+                </Button>
+              ),
+            )}
           </div>
 
           <div className="w-px bg-border h-5" />
@@ -1513,7 +1575,7 @@ export function IssuesPage() {
 
       {/* 메인 컨텐츠: 좌우 분할 */}
       <div className="flex-1 flex overflow-hidden">
-        {/* 좌측: 이슈 목록 */}
+        {/* 좌측: 업무 목록 */}
         <div className="w-1/2 border-r border-border p-2 overflow-hidden flex flex-col">
           {/* 상태별 카운트 버튼 */}
           <div className="flex gap-1.5 mb-2">
@@ -1530,17 +1592,17 @@ export function IssuesPage() {
               전체 <span className="ml-2 font-bold">{statusCounts.ALL}</span>
             </Button>
             <Button
-              variant={filterStatus === "OPEN" ? "default" : "outline"}
+              variant={filterStatus === "TODO" ? "default" : "outline"}
               size="sm"
               onClick={() => {
-                setFilterStatus("OPEN");
+                setFilterStatus("TODO");
                 setIsBackupTab(false);
               }}
               className="flex-1"
               disabled={isBackupTab}
             >
               진행 전{" "}
-              <span className="ml-2 font-bold">{statusCounts.OPEN}</span>
+              <span className="ml-2 font-bold">{statusCounts.TODO}</span>
             </Button>
             <Button
               variant={filterStatus === "IN_PROGRESS" ? "default" : "outline"}
@@ -1556,22 +1618,34 @@ export function IssuesPage() {
               <span className="ml-2 font-bold">{statusCounts.IN_PROGRESS}</span>
             </Button>
             <Button
-              variant={filterStatus === "CLOSED" ? "default" : "outline"}
+              variant={filterStatus === "DONE" ? "default" : "outline"}
               size="sm"
               onClick={() => {
-                setFilterStatus("CLOSED");
+                setFilterStatus("DONE");
                 setIsBackupTab(false);
               }}
               className="flex-1"
               disabled={isBackupTab}
             >
-              완료 <span className="ml-2 font-bold">{statusCounts.CLOSED}</span>
+              완료 <span className="ml-2 font-bold">{statusCounts.DONE}</span>
+            </Button>
+            <Button
+              variant={filterStatus === "HOLD" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setFilterStatus("HOLD");
+                setIsBackupTab(false);
+              }}
+              className="flex-1"
+              disabled={isBackupTab}
+            >
+              보류 <span className="ml-2 font-bold">{statusCounts.HOLD}</span>
             </Button>
             <div className="w-px bg-border mx-0.5" />
             <button
               onClick={() => {
                 setIsBackupTab(!isBackupTab);
-                setSelectedIssueId(null);
+                setSelectedWorkId(null);
               }}
               className={cn(
                 "px-4 py-2 text-sm font-medium rounded transition-colors",
@@ -1621,9 +1695,9 @@ export function IssuesPage() {
           </div>
 
           <div className="flex-1" style={{ height: "100%" }}>
-            <AgGridReact<Issue>
+            <AgGridReact<Work>
               ref={gridRef}
-              rowData={issues}
+              rowData={works}
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               rowSelection="multiple"
@@ -1647,14 +1721,14 @@ export function IssuesPage() {
           </div>
         </div>
 
-        {/* 우측: 이슈 상세 */}
+        {/* 우측: 업무 상세 */}
         <div className="flex-1 p-6 overflow-y-auto bg-muted/30">
           {isEditing ? (
             /* 편집 모드 */
             <div ref={editPanelRef}>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">
-                  {selectedIssueId ? "이슈 수정" : "새 이슈 작성"}
+                  {selectedWorkId ? "업무 수정" : "새 업무 작성"}
                 </h2>
                 <div className="flex gap-2">
                   <Button onClick={handleSave}>저장</Button>
@@ -1666,68 +1740,107 @@ export function IssuesPage() {
               </div>
 
               <div className="space-y-4">
+                {/* 유형 / 상태 */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      카테고리
+                      유형
                     </label>
                     <Select
-                      value={formCategory}
-                      onValueChange={(v) => setFormCategory(v as IssueCategory)}
+                      value={formWorkType}
+                      onValueChange={(v) => setFormWorkType(v as WorkType)}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="FEATURE">기능개발</SelectItem>
+                        <SelectItem value="QA">QA</SelectItem>
                         <SelectItem value="COMMON">일반</SelectItem>
-                        <SelectItem value="BUG">버그</SelectItem>
-                        <SelectItem value="FEATURE">기능</SelectItem>
-                        <SelectItem value="IMPROVEMENT">개선</SelectItem>
-                        <SelectItem value="QUESTION">질문</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       상태
                     </label>
                     <Select
                       value={formStatus}
-                      onValueChange={(v) => setFormStatus(v as IssueStatus)}
+                      onValueChange={(v) => setFormStatus(v as WorkStatus)}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="OPEN">진행 전</SelectItem>
+                        <SelectItem value="TODO">진행 전</SelectItem>
                         <SelectItem value="IN_PROGRESS">진행 중</SelectItem>
-                        <SelectItem value="CLOSED">완료</SelectItem>
+                        <SelectItem value="DONE">완료</SelectItem>
+                        <SelectItem value="HOLD">보류</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    우선순위
-                  </label>
-                  <Select
-                    value={formPriority}
-                    onValueChange={(v) => setFormPriority(v as IssuePriority)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="LOW">낮음</SelectItem>
-                      <SelectItem value="MEDIUM">보통</SelectItem>
-                      <SelectItem value="HIGH">높음</SelectItem>
-                      <SelectItem value="CRITICAL">긴급</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* 우선순위 / 담당자 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      우선순위
+                    </label>
+                    <Select
+                      value={formPriority}
+                      onValueChange={(v) => setFormPriority(v as WorkPriority)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LOW">낮음</SelectItem>
+                        <SelectItem value="MEDIUM">보통</SelectItem>
+                        <SelectItem value="HIGH">높음</SelectItem>
+                        <SelectItem value="CRITICAL">긴급</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      담당자
+                    </label>
+                    <Select
+                      value={formAssigneeId?.toString() ?? "none"}
+                      onValueChange={(v) =>
+                        setFormAssigneeId(v === "none" ? null : Number(v))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="미지정" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">미지정</SelectItem>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id.toString()}>
+                            {u.username}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
+                {/* 마감일 */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    마감일
+                  </label>
+                  <input
+                    type="date"
+                    value={formDueDate}
+                    onChange={(e) => setFormDueDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-input rounded-md text-sm"
+                  />
+                </div>
+
+                {/* 제목 */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     제목 *
@@ -1737,10 +1850,11 @@ export function IssuesPage() {
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     className="w-full px-3 py-2 border border-input rounded-md"
-                    placeholder="이슈 제목을 입력하세요"
+                    placeholder="업무 제목을 입력하세요"
                   />
                 </div>
 
+                {/* 내용 */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     내용 *
@@ -1750,26 +1864,26 @@ export function IssuesPage() {
                     onChange={(e) => setFormContent(e.target.value)}
                     rows={10}
                     className="w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                    placeholder="이슈 내용을 입력하세요"
+                    placeholder="업무 내용을 입력하세요"
                   />
                 </div>
               </div>
             </div>
-          ) : issueDetail ? (
+          ) : workDetail ? (
             /* 조회 모드 */
             <div>
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-2xl font-bold mb-2">
-                    {issueDetail.title}
+                    {workDetail.title}
                   </h2>
                   <div className="flex gap-2 items-center text-sm text-muted-foreground">
-                    <span>#{issueDetail.id}</span>
+                    <span>#{workDetail.id}</span>
                     <span>•</span>
-                    <span>{issueDetail.authorName}</span>
+                    <span>{workDetail.reporterName}</span>
                     <span>•</span>
                     <span>
-                      {new Date(issueDetail.createdAt).toLocaleDateString(
+                      {new Date(workDetail.createdAt).toLocaleDateString(
                         "ko-KR",
                       )}
                     </span>
@@ -1787,49 +1901,48 @@ export function IssuesPage() {
                 </div>
               </div>
 
-              {/* 기본 정보 */}
+              {/* 기본 정보 테이블 */}
               <div className="border rounded-lg overflow-hidden mb-6">
                 <table className="w-full text-sm">
                   <tbody>
                     <tr className="border-b">
-                      <td className="bg-muted px-4 py-2 font-medium w-32">
-                        카테고리
+                      <td className="bg-muted px-4 py-2 font-medium w-28">
+                        유형
                       </td>
                       <td className="px-4 py-2">
                         <Popover>
                           <PopoverTrigger asChild>
                             <Badge
-                              variant="outline"
-                              className="cursor-pointer hover:bg-accent"
+                              className={`cursor-pointer ${WORK_TYPE_COLORS[workDetail.workType]}`}
                             >
-                              {categoryLabels[issueDetail.category]}
+                              {WORK_TYPE_LABELS[workDetail.workType]}
                             </Badge>
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
                             <div className="space-y-1">
-                              {(
-                                Object.keys(categoryLabels) as IssueCategory[]
-                              ).map((cat) => (
-                                <div
-                                  key={cat}
-                                  className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
-                                    cat === issueDetail.category
-                                      ? "bg-accent"
-                                      : ""
-                                  }`}
-                                  onClick={() => handleCategoryChange(cat)}
-                                >
-                                  {categoryLabels[cat]}
-                                </div>
-                              ))}
+                              {(["FEATURE", "QA", "COMMON"] as WorkType[]).map(
+                                (type) => (
+                                  <div
+                                    key={type}
+                                    className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
+                                      type === workDetail.workType
+                                        ? "bg-accent"
+                                        : ""
+                                    }`}
+                                    onClick={() => handleWorkTypeChange(type)}
+                                  >
+                                    {WORK_TYPE_LABELS[type]}
+                                  </div>
+                                ),
+                              )}
                             </div>
                           </PopoverContent>
                         </Popover>
                       </td>
-                      <td className="bg-muted px-4 py-2 font-medium w-32">
-                        작성자
+                      <td className="bg-muted px-4 py-2 font-medium w-28">
+                        요청자
                       </td>
-                      <td className="px-4 py-2">{issueDetail.authorName}</td>
+                      <td className="px-4 py-2">{workDetail.reporterName}</td>
                     </tr>
                     <tr className="border-b">
                       <td className="bg-muted px-4 py-2 font-medium">상태</td>
@@ -1837,28 +1950,33 @@ export function IssuesPage() {
                         <Popover>
                           <PopoverTrigger asChild>
                             <Badge
-                              className={`cursor-pointer ${statusColors[issueDetail.status]}`}
+                              className={`cursor-pointer ${STATUS_COLORS[workDetail.status]}`}
                             >
-                              {statusLabels[issueDetail.status]}
+                              {STATUS_LABELS[workDetail.status]}
                             </Badge>
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
                             <div className="space-y-1">
-                              {(Object.keys(statusLabels) as IssueStatus[]).map(
-                                (status) => (
-                                  <div
-                                    key={status}
-                                    className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
-                                      status === issueDetail.status
-                                        ? "bg-accent"
-                                        : ""
-                                    }`}
-                                    onClick={() => handleStatusChange(status)}
-                                  >
-                                    {statusLabels[status]}
-                                  </div>
-                                ),
-                              )}
+                              {(
+                                [
+                                  "TODO",
+                                  "IN_PROGRESS",
+                                  "DONE",
+                                  "HOLD",
+                                ] as WorkStatus[]
+                              ).map((status) => (
+                                <div
+                                  key={status}
+                                  className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
+                                    status === workDetail.status
+                                      ? "bg-accent"
+                                      : ""
+                                  }`}
+                                  onClick={() => handleStatusChange(status)}
+                                >
+                                  {STATUS_LABELS[status]}
+                                </div>
+                              ))}
                             </div>
                           </PopoverContent>
                         </Popover>
@@ -1870,26 +1988,31 @@ export function IssuesPage() {
                         <Popover>
                           <PopoverTrigger asChild>
                             <Badge
-                              className={`cursor-pointer ${priorityColors[issueDetail.priority]}`}
+                              className={`cursor-pointer ${PRIORITY_COLORS[workDetail.priority]}`}
                             >
-                              {priorityLabels[issueDetail.priority]}
+                              {PRIORITY_LABELS[workDetail.priority]}
                             </Badge>
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
                             <div className="space-y-1">
                               {(
-                                Object.keys(priorityLabels) as IssuePriority[]
+                                [
+                                  "CRITICAL",
+                                  "HIGH",
+                                  "MEDIUM",
+                                  "LOW",
+                                ] as WorkPriority[]
                               ).map((priority) => (
                                 <div
                                   key={priority}
                                   className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
-                                    priority === issueDetail.priority
+                                    priority === workDetail.priority
                                       ? "bg-accent"
                                       : ""
                                   }`}
                                   onClick={() => handlePriorityChange(priority)}
                                 >
-                                  {priorityLabels[priority]}
+                                  {PRIORITY_LABELS[priority]}
                                 </div>
                               ))}
                             </div>
@@ -1900,45 +2023,31 @@ export function IssuesPage() {
                     <tr className="border-b">
                       <td className="bg-muted px-4 py-2 font-medium">담당자</td>
                       <td className="px-4 py-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {issueAssignees && issueAssignees.length > 0 ? (
-                              <>
-                                {issueAssignees.map((assignee) => (
-                                  <Badge
-                                    key={assignee.userId}
-                                    variant="outline"
-                                  >
-                                    {assignee.username}
-                                  </Badge>
-                                ))}
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">
-                                미지정
-                              </span>
-                            )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={openAssigneeDialog}
-                            className="h-6 px-2"
-                          >
-                            <Users className="w-3 h-3 mr-1" />
-                            변경
-                          </Button>
-                        </div>
+                        {workDetail.assigneeName || (
+                          <span className="text-muted-foreground">미지정</span>
+                        )}
                       </td>
-                      <td className="bg-muted px-4 py-2 font-medium">폴더</td>
+                      <td className="bg-muted px-4 py-2 font-medium">마감일</td>
                       <td className="px-4 py-2">
-                        {issueDetail.folderId || "-"}
+                        {workDetail.dueDate ? (
+                          <span
+                            className={
+                              new Date(workDetail.dueDate) < new Date()
+                                ? "text-red-600 font-medium"
+                                : ""
+                            }
+                          >
+                            {workDetail.dueDate}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </td>
                     </tr>
                     <tr>
                       <td className="bg-muted px-4 py-2 font-medium">작성일</td>
                       <td className="px-4 py-2">
-                        {new Date(issueDetail.createdAt).toLocaleDateString(
+                        {new Date(workDetail.createdAt).toLocaleDateString(
                           "ko-KR",
                           {
                             year: "numeric",
@@ -1946,20 +2055,18 @@ export function IssuesPage() {
                             day: "2-digit",
                           },
                         )}{" "}
-                        오전{" "}
-                        {new Date(issueDetail.createdAt).toLocaleTimeString(
+                        {new Date(workDetail.createdAt).toLocaleTimeString(
                           "ko-KR",
                           {
                             hour: "2-digit",
                             minute: "2-digit",
-                            second: "2-digit",
                             hour12: false,
                           },
                         )}
                       </td>
                       <td className="bg-muted px-4 py-2 font-medium">수정일</td>
                       <td className="px-4 py-2">
-                        {new Date(issueDetail.updatedAt).toLocaleDateString(
+                        {new Date(workDetail.updatedAt).toLocaleDateString(
                           "ko-KR",
                           {
                             year: "numeric",
@@ -1967,13 +2074,11 @@ export function IssuesPage() {
                             day: "2-digit",
                           },
                         )}{" "}
-                        오후{" "}
-                        {new Date(issueDetail.updatedAt).toLocaleTimeString(
+                        {new Date(workDetail.updatedAt).toLocaleTimeString(
                           "ko-KR",
                           {
                             hour: "2-digit",
                             minute: "2-digit",
-                            second: "2-digit",
                             hour12: false,
                           },
                         )}
@@ -1983,7 +2088,7 @@ export function IssuesPage() {
                 </table>
               </div>
 
-              {/* 첨부 파일 */}
+              {/* 첨부 파일 탭 섹션 */}
               <div
                 className="border rounded-lg overflow-hidden mb-3"
                 onPaste={handlePaste}
@@ -1993,25 +2098,33 @@ export function IssuesPage() {
                 </div>
                 <div className="p-2">
                   <Tabs defaultValue="images" className="w-full">
-                    <TabsList className="mb-3">
+                    <TabsList className="mb-3 flex-wrap h-auto gap-1">
                       <TabsTrigger value="images">
-                        이미지{" "}
-                        {issueImages && issueImages.length > 0 && (
-                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                            {issueImages.length}
-                          </span>
-                        )}
+                        이미지
+                        {workImages &&
+                          workImages.filter(
+                            (img) => img.fileType === "image" || !img.fileType,
+                          ).length > 0 && (
+                            <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                              {
+                                workImages.filter(
+                                  (img) =>
+                                    img.fileType === "image" || !img.fileType,
+                                ).length
+                              }
+                            </span>
+                          )}
                       </TabsTrigger>
-                      <TabsTrigger value="mmd">
-                        마인드맵 (MMD){" "}
+                      <TabsTrigger value="mindmaps">
+                        마인드맵
                         {mindmaps && mindmaps.length > 0 && (
                           <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                             {mindmaps.length}
                           </span>
                         )}
                       </TabsTrigger>
-                      <TabsTrigger value="tasks">
-                        DB 테이블{" "}
+                      <TabsTrigger value="dbtables">
+                        DB 테이블
                         {dbTables && dbTables.length > 0 && (
                           <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                             {dbTables.length}
@@ -2023,7 +2136,7 @@ export function IssuesPage() {
                     {/* 이미지 탭 */}
                     <TabsContent value="images">
                       <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-semibold">이미지 첨부</h3>
+                        <h3 className="font-semibold text-sm">이미지 첨부</h3>
                         <Button
                           variant="outline"
                           size="sm"
@@ -2045,7 +2158,6 @@ export function IssuesPage() {
                         />
                       </div>
 
-                      {/* 드래그앤드롭 영역 */}
                       <div
                         ref={uploadAreaRef}
                         tabIndex={0}
@@ -2062,12 +2174,12 @@ export function IssuesPage() {
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                       >
-                        {issueImages &&
-                        issueImages.filter(
+                        {workImages &&
+                        workImages.filter(
                           (img) => img.fileType === "image" || !img.fileType,
                         ).length > 0 ? (
                           <div className="grid grid-cols-3 gap-2">
-                            {issueImages
+                            {workImages
                               .filter(
                                 (img) =>
                                   img.fileType === "image" || !img.fileType,
@@ -2075,7 +2187,7 @@ export function IssuesPage() {
                               .map((image) => (
                                 <div
                                   key={image.id}
-                                  className="relative group aspect-square rounded overflow-hidden border bg-gray-100"
+                                  className="relative group aspect-square rounded overflow-hidden border bg-muted"
                                 >
                                   <img
                                     src={image.url}
@@ -2115,10 +2227,12 @@ export function IssuesPage() {
                       </div>
                     </TabsContent>
 
-                    {/* MMD 탭 */}
-                    <TabsContent value="mmd">
+                    {/* 마인드맵 탭 */}
+                    <TabsContent value="mindmaps">
                       <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-semibold">마인드맵 (MMD)</h3>
+                        <h3 className="font-semibold text-sm">
+                          마인드맵 (MMD)
+                        </h3>
                         <Button
                           variant="outline"
                           size="sm"
@@ -2186,9 +2300,11 @@ export function IssuesPage() {
                     </TabsContent>
 
                     {/* DB 테이블 탭 */}
-                    <TabsContent value="tasks">
+                    <TabsContent value="dbtables">
                       <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-semibold">DB 테이블 정보</h3>
+                        <h3 className="font-semibold text-sm">
+                          DB 테이블 정보
+                        </h3>
                         <Button
                           variant="outline"
                           size="sm"
@@ -2208,10 +2324,9 @@ export function IssuesPage() {
                             return (
                               <div
                                 key={dbTable.id}
-                                className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"
+                                className="border rounded-lg overflow-hidden bg-card shadow-sm hover:shadow-md transition-shadow"
                               >
-                                {/* 테이블 헤더 */}
-                                <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
+                                <div className="bg-muted px-4 py-3 border-b flex items-center justify-between">
                                   <div className="flex items-center gap-3">
                                     <Database className="w-5 h-5 text-blue-600" />
                                     <div>
@@ -2254,14 +2369,12 @@ export function IssuesPage() {
                                   </div>
                                 </div>
 
-                                {/* 테이블 설명 */}
                                 {content.description && (
                                   <div className="px-4 py-2 bg-blue-50 border-b text-sm text-blue-900">
                                     💬 {content.description}
                                   </div>
                                 )}
 
-                                {/* 컬럼 테이블 */}
                                 {content.columns &&
                                 content.columns.length > 0 ? (
                                   <div className="overflow-x-auto">
@@ -2292,11 +2405,7 @@ export function IssuesPage() {
                                         {content.columns.map((col, idx) => (
                                           <tr
                                             key={idx}
-                                            className={`border-t hover:bg-blue-50 ${
-                                              col.pk === "PK"
-                                                ? "bg-amber-50"
-                                                : ""
-                                            }`}
+                                            className={`border-t hover:bg-blue-50 ${col.pk === "PK" ? "bg-amber-50" : ""}`}
                                           >
                                             <td className="px-3 py-2 font-medium font-mono text-sm">
                                               {col.column_name}
@@ -2335,14 +2444,13 @@ export function IssuesPage() {
                                   </div>
                                 ) : (
                                   <div className="p-4">
-                                    <pre className="bg-gray-50 border rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre">
+                                    <pre className="bg-muted border rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre">
                                       {content.queryResult}
                                     </pre>
                                   </div>
                                 )}
 
-                                {/* 푸터 */}
-                                <div className="px-4 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
+                                <div className="px-4 py-2 bg-muted border-t text-xs text-muted-foreground">
                                   {content.columns.length > 0
                                     ? `${content.columns.length}개 컬럼`
                                     : "원본 데이터"}
@@ -2355,6 +2463,122 @@ export function IssuesPage() {
                             <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">
                               DB 테이블 정보를 추가하세요
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    {/* 부가 업무 탭 */}
+                    <TabsContent value="linkedissues">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-semibold text-sm">부가 업무</h3>
+                      </div>
+
+                      {/* 이슈 검색 */}
+                      <div className="flex gap-2 mb-4">
+                        <input
+                          type="text"
+                          value={issueSearchKeyword}
+                          onChange={(e) =>
+                            setIssueSearchKeyword(e.target.value)
+                          }
+                          onKeyPress={(e) =>
+                            e.key === "Enter" && handleIssueSearch()
+                          }
+                          placeholder="이슈 제목으로 검색..."
+                          className="flex-1 px-3 py-2 border border-input rounded-md text-sm"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleIssueSearch}
+                          disabled={isSearchingIssue}
+                        >
+                          <Link className="w-4 h-4 mr-1" />
+                          {isSearchingIssue ? "검색 중..." : "이슈 검색"}
+                        </Button>
+                      </div>
+
+                      {/* 검색 결과 */}
+                      {issueSearchResults.length > 0 && (
+                        <div className="mb-4 border rounded-md overflow-hidden">
+                          <div className="bg-muted px-3 py-2 border-b text-xs font-medium text-muted-foreground">
+                            검색 결과 — 클릭하여 연결
+                          </div>
+                          <div className="divide-y max-h-48 overflow-y-auto">
+                            {issueSearchResults.map((issue) => (
+                              <div
+                                key={issue.id}
+                                className="flex items-center justify-between px-3 py-2 hover:bg-accent cursor-pointer"
+                                onClick={() => handleLinkIssue(issue.id)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    className={`text-xs ${ISSUE_STATUS_COLORS[issue.status] || "bg-gray-100 text-gray-600"}`}
+                                  >
+                                    {ISSUE_STATUS_LABELS[issue.status] ||
+                                      issue.status}
+                                  </Badge>
+                                  <span className="text-sm">
+                                    <span className="text-muted-foreground mr-1">
+                                      #{issue.id}
+                                    </span>
+                                    {issue.title}
+                                  </span>
+                                </div>
+                                <Link className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 연결된 이슈 목록 */}
+                      <div className="space-y-2">
+                        {linkedIssues && linkedIssues.length > 0 ? (
+                          linkedIssues.map((linked) => (
+                            <div
+                              key={linked.id}
+                              className="flex items-center justify-between p-3 border rounded-md hover:bg-accent group"
+                            >
+                              <div
+                                className="flex items-center gap-2 flex-1 cursor-pointer"
+                                onClick={() => navigate({ to: "/issues" })}
+                              >
+                                <Badge
+                                  className={`text-xs flex-shrink-0 ${
+                                    ISSUE_STATUS_COLORS[linked.issueStatus] ||
+                                    "bg-gray-100 text-gray-600"
+                                  }`}
+                                >
+                                  {ISSUE_STATUS_LABELS[linked.issueStatus] ||
+                                    linked.issueStatus}
+                                </Badge>
+                                <span className="text-sm hover:underline">
+                                  <span className="text-muted-foreground mr-1">
+                                    #{linked.issueId}
+                                  </span>
+                                  {linked.issueTitle}
+                                </span>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="opacity-0 group-hover:opacity-100 h-7 px-2 hover:bg-destructive/10"
+                                onClick={() => handleUnlinkIssue(linked.id)}
+                                title="연결 해제"
+                              >
+                                <Unlink className="w-3.5 h-3.5 text-destructive" />
+                              </Button>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                            <ChevronRight className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">연결된 이슈가 없습니다</p>
+                            <p className="text-xs mt-1">
+                              위에서 이슈를 검색하여 연결하세요
                             </p>
                           </div>
                         )}
@@ -2378,52 +2602,57 @@ export function IssuesPage() {
                     편집
                   </Button>
                 </div>
-                <div className="p-2 whitespace-pre-wrap text-sm">
-                  {issueDetail.content}
+                <div className="p-3 whitespace-pre-wrap text-sm min-h-[60px]">
+                  {workDetail.content || (
+                    <span className="text-muted-foreground">
+                      내용이 없습니다.
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* 체크리스트 */}
               <div className="border rounded-lg overflow-hidden mb-3">
                 <div className="bg-muted/30 border-b px-4 py-1.5">
-                  <span className="font-bold text-sm">체크리스트</span>
+                  <span className="font-bold text-sm">
+                    체크리스트
+                    {checklists && checklists.length > 0 && (
+                      <span className="ml-2 text-xs text-muted-foreground font-normal">
+                        {checklists.filter((c) => c.checked).length}/
+                        {checklists.length} 완료
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div className="p-2">
-                  {/* 체크리스트 목록 */}
-                  <div className="space-y-2 mb-3">
-                    {checklists && checklists.length > 0 ? (
-                      checklists.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-2 p-2 hover:bg-accent rounded group"
-                        >
-                          <Checkbox
-                            checked={item.checked}
-                            onCheckedChange={() => toggleChecklist(item.id)}
-                          />
-                          <span
-                            className={`flex-1 text-sm ${item.checked ? "line-through text-muted-foreground" : ""}`}
+                  <div className="space-y-1.5 mb-3">
+                    {checklists && checklists.length > 0
+                      ? checklists.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-2 p-2 hover:bg-accent rounded group"
                           >
-                            {item.content}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="opacity-0 group-hover:opacity-100"
-                            onClick={() => handleDeleteChecklistItem(item.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        체크리스트가 없습니다
-                      </p>
-                    )}
+                            <Checkbox
+                              checked={item.checked}
+                              onCheckedChange={() => toggleChecklist(item.id)}
+                            />
+                            <span
+                              className={`flex-1 text-sm ${item.checked ? "line-through text-muted-foreground" : ""}`}
+                            >
+                              {item.content}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="opacity-0 group-hover:opacity-100 h-7 w-7 p-0"
+                              onClick={() => handleDeleteChecklistItem(item.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        ))
+                      : null}
                   </div>
-
-                  {/* 새 항목 추가 */}
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -2443,139 +2672,118 @@ export function IssuesPage() {
                 </div>
               </div>
 
-              {/* 부가 이슈 섹션 */}
+              {/* 부가 업무 */}
               <div className="border rounded-lg overflow-hidden mb-3">
                 <div className="bg-muted/30 border-b px-4 py-1.5">
-                  <span className="font-bold text-sm">부가 이슈</span>
+                  <span className="font-bold text-sm">부가 업무</span>
                 </div>
                 <div className="p-2">
-                  <SubIssueSection issueId={issueDetail.id} />
+                  {/* 이슈 검색 */}
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="text"
+                      value={issueSearchKeyword}
+                      onChange={(e) => setIssueSearchKeyword(e.target.value)}
+                      onKeyPress={(e) =>
+                        e.key === "Enter" && handleIssueSearch()
+                      }
+                      placeholder="이슈 제목으로 검색..."
+                      className="flex-1 px-3 py-2 border border-input rounded-md text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleIssueSearch}
+                      disabled={isSearchingIssue}
+                    >
+                      <Link className="w-4 h-4 mr-1" />
+                      {isSearchingIssue ? "검색 중..." : "이슈 검색"}
+                    </Button>
+                  </div>
+                  {/* 검색 결과 */}
+                  {issueSearchResults.length > 0 && (
+                    <div className="mb-3 border rounded-md overflow-hidden">
+                      <div className="bg-muted px-3 py-2 border-b text-xs font-medium text-muted-foreground">
+                        검색 결과 — 클릭하여 연결
+                      </div>
+                      <div className="divide-y max-h-48 overflow-y-auto">
+                        {issueSearchResults.map((issue) => (
+                          <div
+                            key={issue.id}
+                            className="flex items-center justify-between px-3 py-2 hover:bg-accent cursor-pointer"
+                            onClick={() => handleLinkIssue(issue.id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`text-xs ${ISSUE_STATUS_COLORS[issue.status] || "bg-gray-100 text-gray-600"}`}
+                              >
+                                {ISSUE_STATUS_LABELS[issue.status] ||
+                                  issue.status}
+                              </Badge>
+                              <span className="text-sm">
+                                <span className="text-muted-foreground mr-1">
+                                  #{issue.id}
+                                </span>
+                                {issue.title}
+                              </span>
+                            </div>
+                            <Link className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* 연결된 이슈 목록 */}
+                  <div className="space-y-2">
+                    {linkedIssues && linkedIssues.length > 0
+                      ? linkedIssues.map((linked) => (
+                          <div
+                            key={linked.id}
+                            className="flex items-center justify-between p-3 border rounded-md hover:bg-accent group"
+                          >
+                            <div
+                              className="flex items-center gap-2 flex-1 cursor-pointer"
+                              onClick={() => navigate({ to: "/issues" })}
+                            >
+                              <Badge
+                                className={`text-xs flex-shrink-0 ${ISSUE_STATUS_COLORS[linked.issueStatus] || "bg-gray-100 text-gray-600"}`}
+                              >
+                                {ISSUE_STATUS_LABELS[linked.issueStatus] ||
+                                  linked.issueStatus}
+                              </Badge>
+                              <span className="text-sm hover:underline">
+                                <span className="text-muted-foreground mr-1">
+                                  #{linked.issueId}
+                                </span>
+                                {linked.issueTitle}
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="opacity-0 group-hover:opacity-100 h-7 px-2 hover:bg-destructive/10"
+                              onClick={() => handleUnlinkIssue(linked.id)}
+                              title="연결 해제"
+                            >
+                              <Unlink className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        ))
+                      : null}
+                  </div>
                 </div>
-              </div>
-
-              {/* 채팅 섹션 */}
-              <div className="border rounded-lg overflow-hidden">
-                <ChatPanel issueId={issueDetail.id} />
               </div>
             </div>
           ) : (
             /* 선택 안됨 */
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>왼쪽 목록에서 이슈를 선택하거나 새 이슈를 작성하세요.</p>
+              <p>왼쪽 목록에서 업무를 선택하거나 새 업무를 작성하세요.</p>
             </div>
           )}
         </div>
       </div>
 
       <ConfirmDialog />
-
-      {/* 담당자 선택 Dialog */}
-      <Dialog
-        open={isAssigneeDialogOpen}
-        onOpenChange={setIsAssigneeDialogOpen}
-      >
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>담당자 선택</DialogTitle>
-          </DialogHeader>
-
-          <div className="flex gap-6 py-4">
-            {/* 왼쪽: 선택된 담당자 */}
-            <div className="flex-1 border rounded-md p-4 bg-blue-50">
-              <h3 className="font-semibold mb-3 text-sm">선택된 담당자</h3>
-              <div className="space-y-1 max-h-96 overflow-y-auto">
-                {users
-                  .filter((user) => selectedUserIds.includes(user.id))
-                  .map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between p-2 hover:bg-blue-100 rounded cursor-pointer"
-                      onClick={() => removeAssignee(user.id)}
-                    >
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">
-                          {user.username}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {user.email}
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  ))}
-                {selectedUserIds.length === 0 && (
-                  <div className="text-center text-sm text-muted-foreground py-8">
-                    선택된 담당자가 없습니다
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 가운데: 화살표 버튼 */}
-            <div className="flex flex-col justify-center gap-2">
-              <div className="text-muted-foreground text-xs text-center">
-                클릭하여
-                <br />
-                이동
-              </div>
-            </div>
-
-            {/* 오른쪽: 선택 가능한 사용자 */}
-            <div className="flex-1 border rounded-md p-4">
-              <h3 className="font-semibold mb-3 text-sm">사용자 목록</h3>
-
-              {/* 검색 입력 */}
-              <input
-                type="text"
-                placeholder="이름 또는 이메일 검색..."
-                value={userSearchKeyword}
-                onChange={(e) => setUserSearchKeyword(e.target.value)}
-                className="w-full px-3 py-2 mb-3 border border-input rounded-md text-sm"
-              />
-
-              <div className="space-y-1 max-h-80 overflow-y-auto">
-                {users
-                  .filter((user) => !selectedUserIds.includes(user.id))
-                  .filter((user) => {
-                    if (!userSearchKeyword) return true;
-                    const keyword = userSearchKeyword.toLowerCase();
-                    return (
-                      user.username.toLowerCase().includes(keyword) ||
-                      user.email.toLowerCase().includes(keyword)
-                    );
-                  })
-                  .map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between p-2 hover:bg-accent rounded cursor-pointer"
-                      onClick={() => addAssignee(user.id)}
-                    >
-                      <ChevronLeft className="w-4 h-4 text-muted-foreground" />
-                      <div className="flex-1 ml-2">
-                        <div className="font-medium text-sm">
-                          {user.username}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {user.email}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsAssigneeDialogOpen(false)}
-            >
-              취소
-            </Button>
-            <Button onClick={handleSaveAssignees}>저장</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Mermaid 다이어그램 작성/편집 다이얼로그 */}
       <Dialog open={isMindmapDialogOpen} onOpenChange={setIsMindmapDialogOpen}>
@@ -2649,27 +2857,9 @@ export function IssuesPage() {
                   value={mindmapContent}
                   onChange={(e) => {
                     setMindmapContent(e.target.value);
-                    setValidationResult(null); // 내용 변경 시 검증 결과 초기화
+                    setValidationResult(null);
                   }}
-                  placeholder={`sequenceDiagram
-    actor User as 사용자
-    participant FE as Frontend
-    participant C as LoginController
-    participant S as AuthService
-    participant U as UserRepository
-    participant DB as Database
-
-    User->>FE: 아이디 / 비밀번호 입력
-    FE->>C: POST /login
-    C->>S: 로그인 요청 전달
-    S->>U: 사용자 조회
-    U->>DB: SELECT user
-    DB-->>U: 사용자 정보 반환
-    U-->>S: 사용자 엔티티 반환
-    S->>S: 비밀번호 검증
-    S-->>C: 로그인 성공 결과 반환
-    C-->>FE: JWT 또는 세션 반환
-    FE-->>User: 로그인 성공 화면 표시`}
+                  placeholder={`sequenceDiagram\n    actor User as 사용자\n    participant FE as Frontend\n    User->>FE: 요청`}
                   className="w-full px-3 py-2 border border-input rounded-md text-sm font-mono"
                   rows={20}
                 />
@@ -2680,13 +2870,13 @@ export function IssuesPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium block">미리보기</label>
               <div
-                className="border rounded-md p-4 bg-gray-50 overflow-auto"
+                className="border rounded-md p-4 bg-muted/30 overflow-auto"
                 style={{ height: "calc(100% - 30px)" }}
               >
                 {mindmapContent.trim() ? (
                   <Mermaid chart={mindmapContent} className="mermaid-preview" />
                 ) : (
-                  <p className="text-sm text-gray-400 text-center py-10">
+                  <p className="text-sm text-muted-foreground text-center py-10">
                     왼쪽에 Mermaid 코드를 입력하면 여기에 다이어그램이
                     표시됩니다
                   </p>
@@ -2719,14 +2909,14 @@ export function IssuesPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-auto border rounded-md p-4 bg-gray-50">
+          <div className="flex-1 overflow-auto border rounded-md p-4 bg-muted/30">
             {viewMindmapData?.content ? (
               <Mermaid
                 chart={viewMindmapData.content}
                 className="mermaid-view"
               />
             ) : (
-              <p className="text-sm text-gray-400 text-center py-10">
+              <p className="text-sm text-muted-foreground text-center py-10">
                 다이어그램 데이터가 없습니다
               </p>
             )}
@@ -2752,7 +2942,6 @@ export function IssuesPage() {
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-            {/* 테이블 메타데이터 */}
             <div className="grid grid-cols-4 gap-3">
               <div className="col-span-2">
                 <label className="text-sm font-medium mb-1.5 block">
@@ -2767,7 +2956,7 @@ export function IssuesPage() {
                       tableName: e.target.value,
                     }))
                   }
-                  placeholder="예: users, task_posts"
+                  placeholder="예: works, work_checklists"
                   className="w-full px-3 py-2 border border-input rounded-md text-sm"
                 />
               </div>
@@ -2799,7 +2988,7 @@ export function IssuesPage() {
                       category: e.target.value,
                     }))
                   }
-                  placeholder="예: 사용자, 업무"
+                  placeholder="예: 업무, 공통"
                   className="w-full px-3 py-2 border border-input rounded-md text-sm"
                 />
               </div>
@@ -2823,7 +3012,6 @@ export function IssuesPage() {
               />
             </div>
 
-            {/* 쿼리 결과 입력 */}
             <div>
               <label className="text-sm font-semibold mb-2 block">
                 쿼리 결과 <span className="text-red-500">*</span>
@@ -2839,13 +3027,12 @@ export function IssuesPage() {
                     queryResult: e.target.value,
                   }))
                 }
-                placeholder={`DBeaver에서 PostgreSQL 쿼리 결과를 복사해서 붙여넣으세요:\n\ncolumn_name\tdata_type\tnullable\tpk\tfk\tunique_key\nuser_id\tbigint\tNO\tPK\tFK\t\nauthority_id\tbigint\tNO\tPK\tFK\t\ncreated_at\ttimestamp without time zone\tYES\t\t\t`}
+                placeholder={`column_name\tdata_type\tnullable\tpk\tfk\tunique_key\nid\tbigint\tNO\tPK\t\t\ntitle\tvarchar\tNO\t\t\t`}
                 className="w-full px-3 py-2 border border-input rounded-md text-sm font-mono"
                 rows={8}
               />
               <p className="text-xs text-muted-foreground mt-1.5">
-                PostgreSQL 쿼리 결과를 붙여넣으면 아래에서 미리보기를 확인할 수
-                있습니다
+                DBeaver에서 PostgreSQL 쿼리 결과를 복사해서 붙여넣으세요
               </p>
             </div>
 
@@ -2857,7 +3044,7 @@ export function IssuesPage() {
                 );
                 return previewColumns.length > 0 ? (
                   <div className="border rounded-md overflow-hidden">
-                    <div className="bg-gray-100 px-3 py-2 border-b">
+                    <div className="bg-muted px-3 py-2 border-b">
                       <h4 className="text-sm font-semibold">미리보기</h4>
                     </div>
                     <div className="overflow-x-auto">
@@ -2911,7 +3098,7 @@ export function IssuesPage() {
                         </tbody>
                       </table>
                     </div>
-                    <div className="px-3 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
+                    <div className="px-3 py-2 bg-muted border-t text-xs text-muted-foreground">
                       {previewColumns.length}개 컬럼 감지됨
                     </div>
                   </div>
@@ -2930,8 +3117,6 @@ export function IssuesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog />
     </div>
   );
 }
