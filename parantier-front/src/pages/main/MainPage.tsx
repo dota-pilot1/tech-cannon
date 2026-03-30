@@ -61,7 +61,8 @@ export function MainPage() {
     queryKey: ["dashboard", "stats"],
     queryFn: dashboardApi.getStats,
     enabled: auth.isAuthenticated,
-    refetchInterval: 60_000, // 1분마다 자동 갱신
+    staleTime: 60_000, // 1분간 캐시 유지 → 페이지 이동 시 즉시 표시
+    refetchInterval: 60_000, // 1분마다 백그라운드 갱신
   });
 
   if (!auth.isAuthenticated) {
