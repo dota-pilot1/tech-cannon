@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { Menu } from "@/types/menu";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
@@ -19,6 +19,7 @@ export function Header() {
   const auth = useStore(authStore, (state) => state);
   const navigate = useNavigate();
   const { data: menus = [] } = useMenuTree();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const userRole = auth.user?.role || null;
 
@@ -50,10 +51,21 @@ export function Header() {
             <nav className="flex items-center">
               {headerMenus.map((menu) => {
                 if (menu.children && menu.children.length > 0) {
+                  const isChildActive = menu.children?.some((child: Menu) =>
+                    pathname.startsWith(child.path || "__never__"),
+                  );
+
                   return (
                     <DropdownMenu key={menu.id}>
                       <DropdownMenuTrigger asChild>
-                        <button className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-md hover:bg-accent transition-colors outline-none cursor-pointer">
+                        <button
+                          className={cn(
+                            "flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-md transition-colors outline-none cursor-pointer",
+                            isChildActive
+                              ? "bg-primary/10 text-primary font-semibold"
+                              : "hover:bg-accent",
+                          )}
+                        >
                           {menu.name}
                           <ChevronDown className="w-3.5 h-3.5 opacity-60" />
                         </button>
@@ -84,11 +96,21 @@ export function Header() {
                   );
                 }
 
+                const isActive =
+                  menu.path === "/"
+                    ? pathname === "/"
+                    : pathname.startsWith(menu.path || "__never__");
+
                 return (
                   <Link
                     key={menu.id}
                     to={menu.path || "/"}
-                    className="px-3 py-2 text-sm font-medium rounded-md hover:bg-accent transition-colors"
+                    className={cn(
+                      "px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : "hover:bg-accent",
+                    )}
                   >
                     {menu.name}
                   </Link>
