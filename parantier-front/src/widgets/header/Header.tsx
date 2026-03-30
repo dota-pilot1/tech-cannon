@@ -37,18 +37,18 @@ export function Header() {
     }));
 
   return (
-    <header className="border-b border-border bg-card">
-      <div className="max-w-full px-6 py-3">
+    <header className="border-b border-zinc-800 bg-zinc-950 dark:bg-zinc-900">
+      <div className="max-w-full px-6 py-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <Link
               to="/"
-              className="text-xl font-bold text-primary hover:opacity-80 transition-opacity cursor-pointer mr-4"
+              className="text-xl font-bold text-white hover:opacity-70 transition-opacity cursor-pointer mr-6"
             >
               Palantier
             </Link>
 
-            <nav className="flex items-center gap-0.5">
+            <nav className="flex items-center gap-0.5 h-full">
               {headerMenus.map((menu) => {
                 if (menu.children && menu.children.length > 0) {
                   const isChildActive = menu.children?.some((child: Menu) =>
@@ -60,10 +60,10 @@ export function Header() {
                       <DropdownMenuTrigger asChild>
                         <button
                           className={cn(
-                            "flex items-center gap-1 px-2.5 py-1.5 text-sm font-medium rounded-md transition-colors outline-none cursor-pointer",
+                            "flex items-center gap-1 px-3 py-3 text-sm font-medium transition-all outline-none cursor-pointer rounded-md mx-0.5",
                             isChildActive
-                              ? "bg-primary/10 text-primary font-semibold"
-                              : "hover:bg-accent",
+                              ? "text-white bg-white/10"
+                              : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5",
                           )}
                         >
                           {menu.name}
@@ -73,7 +73,7 @@ export function Header() {
                       <DropdownMenuContent
                         align="start"
                         className={cn(
-                          "grid gap-0.5 p-1",
+                          "grid gap-0.5 p-1 bg-zinc-900 border-zinc-700 text-zinc-200",
                           menu.children.length <= 4
                             ? "w-[200px] grid-cols-1"
                             : menu.children.length <= 8
@@ -85,7 +85,7 @@ export function Header() {
                           <DropdownMenuItem key={child.id} asChild>
                             <Link
                               to={child.path || "/"}
-                              className="cursor-pointer rounded-sm px-3 py-2 text-sm"
+                              className="cursor-pointer rounded-sm px-3 py-2 text-sm text-zinc-200 hover:text-white hover:bg-white/5 focus:text-white focus:bg-white/5"
                             >
                               {child.name}
                             </Link>
@@ -107,10 +107,10 @@ export function Header() {
                     key={menu.id}
                     to={menu.path || "/"}
                     className={cn(
-                      "px-2.5 py-1.5 text-sm font-medium rounded-md transition-colors",
+                      "px-3 py-3 text-sm font-medium transition-all rounded-md mx-0.5",
                       isActive
-                        ? "bg-primary/10 text-primary font-semibold"
-                        : "hover:bg-accent",
+                        ? "text-white bg-white/10"
+                        : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5",
                     )}
                   >
                     {menu.name}
@@ -120,10 +120,10 @@ export function Header() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 py-3">
             {auth.isAuthenticated ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors cursor-pointer outline-none">
+                <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors cursor-pointer outline-none">
                   {auth.user?.profileImageUrl ? (
                     <img
                       src={auth.user.profileImageUrl}
@@ -136,11 +136,14 @@ export function Header() {
                     </div>
                   )}
                   {auth.user?.username}
-                  <ChevronDown className="w-4 h-4" />
+                  <ChevronDown className="w-4 h-4 text-zinc-400" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[200px]">
+                <DropdownMenuContent
+                  align="end"
+                  className="min-w-[200px] bg-zinc-900 border-zinc-700"
+                >
                   <div className="px-2 py-1.5 text-sm">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 text-zinc-100">
                       {auth.user?.profileImageUrl ? (
                         <img
                           src={auth.user.profileImageUrl}
@@ -153,24 +156,29 @@ export function Header() {
                         </div>
                       )}
                       <div>
-                        <div className="font-medium">{auth.user?.username}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="font-medium text-zinc-100">
+                          {auth.user?.username}
+                        </div>
+                        <div className="text-xs text-zinc-400">
                           {auth.user?.role}
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-zinc-400">
                       {auth.user?.email}
                     </div>
                   </div>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-zinc-700" />
                   <DropdownMenuItem asChild>
-                    <Link to="/profile" className="cursor-pointer">
+                    <Link
+                      to="/profile"
+                      className="cursor-pointer text-zinc-200 hover:text-white focus:text-white"
+                    >
                       <User className="w-4 h-4 mr-2" />
                       프로필
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-zinc-700" />
                   <DropdownMenuItem
                     className="cursor-pointer text-destructive focus:text-destructive"
                     onClick={() => {
