@@ -2289,18 +2289,6 @@ export function WorkPage() {
             borderRadius: "12px",
           }}
         >
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing
-                ? selectedWorkId
-                  ? "업무 수정"
-                  : "새 업무 작성"
-                : workDetail
-                  ? `#${workDetail.id} ${workDetail.title}`
-                  : "업무 상세"}
-            </DialogTitle>
-          </DialogHeader>
-
           {isEditing ? (
             /* 수정 모드 (풀스크린) */
             <div ref={editPanelRef} className="p-6 overflow-y-auto h-full">
