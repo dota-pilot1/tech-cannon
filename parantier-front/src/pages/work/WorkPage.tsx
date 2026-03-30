@@ -1782,12 +1782,57 @@ export function WorkPage() {
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* ── 헤더 영역 ── */}
       <div className="border-b border-border bg-card px-6 py-3">
-        {/* 1행: 타이틀 + 새 업무 */}
+        {/* 1행: 타이틀 + 액션 버튼 그룹 */}
         <div className="flex justify-between items-center mb-3">
           <h1 className="text-2xl font-bold">업무 관리</h1>
-          <Button onClick={handleNew}>
-            <Plus className="w-4 h-4 mr-2" />새 업무
-          </Button>
+          <div className="flex items-center gap-2">
+            {!isBackupTab && (
+              <>
+                {modifiedRowIds.size > 0 && (
+                  <Button
+                    onClick={handleSaveModified}
+                    size="sm"
+                    variant="default"
+                  >
+                    저장 ({modifiedRowIds.size})
+                  </Button>
+                )}
+                <Button
+                  onClick={handleDeleteSelected}
+                  size="sm"
+                  variant="destructive"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  삭제
+                </Button>
+                <Button onClick={handleArchive} size="sm" variant="outline">
+                  🗄️ 백업
+                </Button>
+              </>
+            )}
+            {isBackupTab && (
+              <Button onClick={handleRestore} size="sm" variant="outline">
+                ↩️ 복원
+              </Button>
+            )}
+            <button
+              onClick={() => {
+                setIsBackupTab(!isBackupTab);
+                setSelectedWorkId(null);
+              }}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors border h-9",
+                isBackupTab
+                  ? "bg-amber-500 text-white border-amber-500"
+                  : "bg-background text-muted-foreground border-border hover:bg-muted",
+              )}
+            >
+              🗄️ 백업(조회)
+            </button>
+            <Button onClick={handleNew} size="sm">
+              <Plus className="w-4 h-4 mr-1" />새 업무
+            </Button>
+          </div>
         </div>
 
         {/* 2행: 상태 탭 + 드롭다운 필터 + 검색 + 백업 — 한 줄 */}
@@ -1940,22 +1985,6 @@ export function WorkPage() {
           />
 
           <div className="flex-1" />
-
-          {/* 백업 탭 토글 */}
-          <button
-            onClick={() => {
-              setIsBackupTab(!isBackupTab);
-              setSelectedWorkId(null);
-            }}
-            className={cn(
-              "px-3 py-1.5 text-sm font-medium rounded-md transition-colors border",
-              isBackupTab
-                ? "bg-amber-500 text-white border-amber-500"
-                : "bg-background text-muted-foreground border-border hover:bg-muted",
-            )}
-          >
-            🗄️ 백업(조회)
-          </button>
         </div>
       </div>
 
@@ -1963,39 +1992,6 @@ export function WorkPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* 그리드 영역 */}
         <div className="flex-1 px-3 pt-2 pb-2 overflow-hidden flex flex-col">
-          {/* Grid Toolbar */}
-          <div className="flex items-center justify-end gap-1.5 mb-1.5 pb-1.5 border-b">
-            {!isBackupTab && (
-              <>
-                {modifiedRowIds.size > 0 && (
-                  <Button
-                    onClick={handleSaveModified}
-                    size="sm"
-                    variant="default"
-                  >
-                    저장 ({modifiedRowIds.size})
-                  </Button>
-                )}
-                <Button
-                  onClick={handleDeleteSelected}
-                  size="sm"
-                  variant="destructive"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  삭제
-                </Button>
-                <Button onClick={handleArchive} size="sm" variant="outline">
-                  🗄️ 백업(저장)
-                </Button>
-              </>
-            )}
-            {isBackupTab && (
-              <Button onClick={handleRestore} size="sm" variant="outline">
-                ↩️ 복원
-              </Button>
-            )}
-          </div>
-
           <div className="flex-1" style={{ height: "100%" }}>
             <AgGridReact<Work>
               ref={gridRef}
