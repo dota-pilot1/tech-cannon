@@ -1,10 +1,68 @@
-import { useStore } from '@tanstack/react-store'
-import { authStore } from '@/entities/user/model/authStore'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
-import { FolderKanban, FileText, ShoppingCart, Calendar, Users, TrendingUp } from 'lucide-react'
+import { useStore } from "@tanstack/react-store";
+import { useQuery } from "@tanstack/react-query";
+import { authStore } from "@/entities/user/model/authStore";
+import { dashboardApi } from "@/api/dashboardApi";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
+import {
+  Briefcase,
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  Users,
+  TrendingUp,
+} from "lucide-react";
+
+function StatCard({
+  title,
+  icon: Icon,
+  value,
+  sub,
+  loading,
+  accent,
+}: {
+  title: string;
+  icon: React.ElementType;
+  value: string | number;
+  sub: string;
+  loading: boolean;
+  accent?: string;
+}) {
+  return (
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {title}
+          </CardTitle>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="space-y-2 animate-pulse">
+            <div className="h-8 w-16 bg-muted rounded" />
+            <div className="h-4 w-24 bg-muted rounded" />
+          </div>
+        ) : (
+          <>
+            <div className={`text-3xl font-bold ${accent ?? ""}`}>{value}</div>
+            <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function MainPage() {
-  const auth = useStore(authStore, (state) => state)
+  const auth = useStore(authStore, (state) => state);
+
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["dashboard", "stats"],
+    queryFn: dashboardApi.getStats,
+    enabled: auth.isAuthenticated,
+    refetchInterval: 60_000, // 1분마다 자동 갱신
+  });
 
   if (!auth.isAuthenticated) {
     return (
@@ -16,7 +74,7 @@ export function MainPage() {
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -29,96 +87,58 @@ export function MainPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">진행 중인 프로젝트</CardTitle>
-              <FolderKanban className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">5</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              전체 프로젝트 12개
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">내 할 일</CardTitle>
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">8</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              오늘 마감 3개
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">팀원</CardTitle>
-              <Users className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">24</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              활성 사용자
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">문서</CardTitle>
-              <FileText className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">156</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              최근 수정 12개
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">쇼핑몰 주문</CardTitle>
-              <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">3</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              처리 대기 중
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">이번 주 성과</CardTitle>
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">92%</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              목표 달성률
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="내 진행 중 업무"
+          icon={Briefcase}
+          value={stats?.myInProgressWorks ?? 0}
+          sub="현재 담당 중인 업무"
+          loading={isLoading}
+        />
+        <StatCard
+          title="오늘 마감 업무"
+          icon={Calendar}
+          value={stats?.todayDueWorks ?? 0}
+          sub="오늘까지 완료해야 하는 업무"
+          loading={isLoading}
+          accent={(stats?.todayDueWorks ?? 0) > 0 ? "text-red-500" : ""}
+        />
+        <StatCard
+          title="미해결 이슈"
+          icon={AlertCircle}
+          value={stats?.openIssues ?? 0}
+          sub="진행 전 + 진행 중 이슈"
+          loading={isLoading}
+          accent={(stats?.openIssues ?? 0) > 0 ? "text-orange-500" : ""}
+        />
+        <StatCard
+          title="이번 주 완료"
+          icon={CheckCircle}
+          value={stats?.weekDoneWorks ?? 0}
+          sub="이번 주 완료된 내 업무"
+          loading={isLoading}
+        />
+        <StatCard
+          title="팀원"
+          icon={Users}
+          value={stats?.totalUsers ?? 0}
+          sub="활성 사용자"
+          loading={isLoading}
+        />
+        <StatCard
+          title="이번 주 완료율"
+          icon={TrendingUp}
+          value={`${stats?.weekCompletionRate ?? 0}%`}
+          sub="이번 주 업무 달성률"
+          loading={isLoading}
+          accent={
+            (stats?.weekCompletionRate ?? 0) >= 80
+              ? "text-green-500"
+              : (stats?.weekCompletionRate ?? 0) >= 50
+                ? "text-yellow-500"
+                : "text-muted-foreground"
+          }
+        />
       </div>
     </div>
-  )
+  );
 }
