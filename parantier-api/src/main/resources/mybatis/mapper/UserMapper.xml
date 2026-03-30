@@ -78,4 +78,16 @@
         SELECT username FROM users WHERE id = #{id}
     </select>
 
+    <select id="findOrganizationIdByUserId" resultType="Long">
+        SELECT organization_id FROM users WHERE id = #{id}
+    </select>
+
+    <select id="findByOrganizationId" resultMap="UserResultMap">
+        SELECT id, email, password, username, role, organization_id, is_active, profile_image_url, created_at, updated_at
+        FROM users
+        WHERE organization_id = #{organizationId}
+          AND is_active = true
+        ORDER BY username ASC
+    </select>
+
 </mapper>

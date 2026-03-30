@@ -1,20 +1,21 @@
 package com.mapo.palantier.config;
 
 import com.mapo.palantier.authority.domain.UserAuthorityRepository;
+import com.mapo.palantier.authority.infrastructure.OrganizationAuthorityMapper;
+import com.mapo.palantier.user.infrastructure.UserMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Component;
-
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Collections;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.crypto.SecretKey;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 @Component
 public class JwtTokenProvider {
@@ -23,41 +24,81 @@ public class JwtTokenProvider {
     private final long accessTokenExpiration;
     private final long refreshTokenExpiration;
     private final UserAuthorityRepository userAuthorityRepository;
+    private final OrganizationAuthorityMapper organizationAuthorityMapper;
+    private final UserMapper userMapper;
 
     public JwtTokenProvider(
-            @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-token-expiration}") long accessTokenExpiration,
-            @Value("${jwt.refresh-token-expiration}") long refreshTokenExpiration,
-            UserAuthorityRepository userAuthorityRepository
+        @Value("${jwt.secret}") String secret,
+        @Value("${jwt.access-token-expiration}") long accessTokenExpiration,
+        @Value("${jwt.refresh-token-expiration}") long refreshTokenExpiration,
+        UserAuthorityRepository userAuthorityRepository,
+        OrganizationAuthorityMapper organizationAuthorityMapper,
+        UserMapper userMapper
     ) {
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.secretKey = Keys.hmacShaKeyFor(
+            secret.getBytes(StandardCharsets.UTF_8)
+        );
         this.accessTokenExpiration = accessTokenExpiration;
         this.refreshTokenExpiration = refreshTokenExpiration;
         this.userAuthorityRepository = userAuthorityRepository;
+        this.organizationAuthorityMapper = organizationAuthorityMapper;
+        this.userMapper = userMapper;
     }
 
     /**
      * 액세스 토큰 생성 (권한 중심)
+     * 개인 권한 + 조직 권한을 합산하여 JWT에 담는다.
      */
     public String generateAccessToken(Long userId, String email, String role) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + accessTokenExpiration);
 
-        // 권한 중심 설계: user_authority 테이블에서 직접 조회
-        List<String> authorities = userAuthorityRepository.findAuthorityNamesByUserId(userId);
+        // 1. 개인 권한 조회
+        List<String> userAuthorities =
+            userAuthorityRepository.findAuthorityNamesByUserId(userId);
 
-        System.out.println("🔑 JWT generateAccessToken - userId: " + userId + ", email: " + email + ", role: " + role + ", authorities: " + authorities);
+        // 2. 조직 권한 조회 (소속 조직이 있을 때만)
+        List<String> orgAuthorities = new ArrayList<>();
+        Long organizationId = userMapper.findOrganizationIdByUserId(userId);
+        if (organizationId != null) {
+            orgAuthorities =
+                organizationAuthorityMapper.findAuthorityNamesByOrganizationId(
+                    organizationId
+                );
+        }
+
+        // 3. 개인 권한 + 조직 권한 합산 (중복 제거)
+        List<String> authorities = Stream.concat(
+            userAuthorities.stream(),
+            orgAuthorities.stream()
+        )
+            .distinct()
+            .sorted()
+            .collect(Collectors.toList());
+
+        System.out.println(
+            "🔑 JWT generateAccessToken - userId: " +
+                userId +
+                ", email: " +
+                email +
+                ", role: " +
+                role +
+                ", organizationId: " +
+                organizationId +
+                ", authorities: " +
+                authorities
+        );
 
         return Jwts.builder()
-                .subject(email)
-                .claim("userId", userId)
-                .claim("role", role)
-                .claim("authorities", authorities)
-                .claim("type", "ACCESS")
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(secretKey)
-                .compact();
+            .subject(email)
+            .claim("userId", userId)
+            .claim("role", role)
+            .claim("authorities", authorities)
+            .claim("type", "ACCESS")
+            .issuedAt(now)
+            .expiration(expiryDate)
+            .signWith(secretKey)
+            .compact();
     }
 
     /**
@@ -68,12 +109,12 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + refreshTokenExpiration);
 
         return Jwts.builder()
-                .subject(email)
-                .claim("type", "REFRESH")
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(secretKey)
-                .compact();
+            .subject(email)
+            .claim("type", "REFRESH")
+            .issuedAt(now)
+            .expiration(expiryDate)
+            .signWith(secretKey)
+            .compact();
     }
 
     /**
@@ -86,14 +127,14 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + accessTokenExpiration);
 
         return Jwts.builder()
-                .subject(email)
-                .claim("role", role)
-                .claim("authorities", Collections.emptyList())
-                .claim("type", "ACCESS")
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(secretKey)
-                .compact();
+            .subject(email)
+            .claim("role", role)
+            .claim("authorities", Collections.emptyList())
+            .claim("type", "ACCESS")
+            .issuedAt(now)
+            .expiration(expiryDate)
+            .signWith(secretKey)
+            .compact();
     }
 
     /**
@@ -101,10 +142,10 @@ public class JwtTokenProvider {
      */
     public String getEmailFromToken(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+            .verifyWith(secretKey)
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
 
         return claims.getSubject();
     }
@@ -114,10 +155,10 @@ public class JwtTokenProvider {
      */
     public Long getUserIdFromToken(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+            .verifyWith(secretKey)
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
 
         return claims.get("userId", Long.class);
     }
@@ -127,10 +168,10 @@ public class JwtTokenProvider {
      */
     public String getRoleFromToken(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+            .verifyWith(secretKey)
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
 
         return claims.get("role", String.class);
     }
@@ -141,10 +182,10 @@ public class JwtTokenProvider {
     @SuppressWarnings("unchecked")
     public List<String> getAuthoritiesFromToken(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+            .verifyWith(secretKey)
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
 
         return claims.get("authorities", List.class);
     }
@@ -154,10 +195,10 @@ public class JwtTokenProvider {
      */
     public String getTokenType(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+            .verifyWith(secretKey)
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
 
         return claims.get("type", String.class);
     }
@@ -190,9 +231,9 @@ public class JwtTokenProvider {
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token);
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token);
             return true;
         } catch (Exception e) {
             return false;

@@ -32,4 +32,8 @@ public interface UserMapper {
         @Param("profileImageUrl") String profileImageUrl
     );
     String findUsernameById(@Param("id") Long id);
+    Long findOrganizationIdByUserId(@Param("id") Long id);
+    List<User> findByOrganizationId(
+        @Param("organizationId") Long organizationId
+    );
 }
