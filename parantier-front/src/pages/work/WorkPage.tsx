@@ -1073,6 +1073,28 @@ export function WorkPage() {
                   align="center"
                   onOpenAutoFocus={(e) => e.preventDefault()}
                 >
+                  {/* 퀵 버튼 +1~+5시간 */}
+                  <div className="border-b px-3 py-2 flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground mr-1">
+                      지금부터
+                    </span>
+                    {[1, 2, 3, 4, 5].map((h) => (
+                      <button
+                        key={h}
+                        onClick={() => {
+                          const now = new Date();
+                          now.setHours(now.getHours() + h, 0, 0, 0);
+                          setTempDate(now);
+                          setTempTime(
+                            `${String(now.getHours()).padStart(2, "0")}:00`,
+                          );
+                        }}
+                        className="px-2 py-1 text-xs rounded border border-input hover:bg-primary hover:text-primary-foreground transition-colors"
+                      >
+                        +{h}h
+                      </button>
+                    ))}
+                  </div>
                   {/* 달력 */}
                   <Calendar
                     mode="single"
@@ -2114,9 +2136,28 @@ export function WorkPage() {
 
             {/* 마감 일시 */}
             <div>
-              <label className="block text-sm font-medium mb-1.5">
-                마감 일시
-              </label>
+              <div className="flex items-center gap-2 mb-1.5">
+                <label className="text-sm font-medium">마감 일시</label>
+                <div className="flex gap-1 ml-auto">
+                  {[1, 2, 3, 4, 5].map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        now.setHours(now.getHours() + h, 0, 0, 0);
+                        const pad = (n: number) => String(n).padStart(2, "0");
+                        setFormDueDate(
+                          `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:00`,
+                        );
+                      }}
+                      className="px-1.5 py-0.5 text-xs rounded border border-input hover:bg-primary hover:text-primary-foreground transition-colors"
+                    >
+                      +{h}h
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Popover>
                 <PopoverTrigger asChild>
                   <button
@@ -2212,7 +2253,7 @@ export function WorkPage() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t">
+          <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setIsNewWorkOpen(false)}>
               취소
             </Button>
@@ -2365,9 +2406,29 @@ export function WorkPage() {
 
                 {/* 마감 일시 */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    마감 일시
-                  </label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <label className="text-sm font-medium">마감 일시</label>
+                    <div className="flex gap-1 ml-auto">
+                      {[1, 2, 3, 4, 5].map((h) => (
+                        <button
+                          key={h}
+                          type="button"
+                          onClick={() => {
+                            const now = new Date();
+                            now.setHours(now.getHours() + h, 0, 0, 0);
+                            const pad = (n: number) =>
+                              String(n).padStart(2, "0");
+                            setFormDueDate(
+                              `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:00`,
+                            );
+                          }}
+                          className="px-1.5 py-0.5 text-xs rounded border border-input hover:bg-primary hover:text-primary-foreground transition-colors"
+                        >
+                          +{h}h
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
