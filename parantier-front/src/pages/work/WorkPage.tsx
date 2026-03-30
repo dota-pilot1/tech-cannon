@@ -927,10 +927,13 @@ export function WorkPage() {
                           currentAssigneeId === u.id ? "default" : "ghost"
                         }
                         size="sm"
-                        className="justify-start h-8"
+                        className="justify-start h-auto py-1.5 flex-col items-start"
                         onClick={() => handleSelect(u.id, u.username)}
                       >
-                        {u.username}
+                        <span className="text-sm">{u.username}</span>
+                        <span className="text-xs text-muted-foreground font-normal">
+                          {u.email}
+                        </span>
                       </Button>
                     ))}
                   </div>
@@ -2096,7 +2099,12 @@ export function WorkPage() {
                     <SelectItem value="none">미지정</SelectItem>
                     {users.map((u) => (
                       <SelectItem key={u.id} value={u.id.toString()}>
-                        {u.username}
+                        <span className="flex flex-col">
+                          <span>{u.username}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {u.email}
+                          </span>
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -2342,7 +2350,12 @@ export function WorkPage() {
                         <SelectItem value="none">미지정</SelectItem>
                         {users.map((u) => (
                           <SelectItem key={u.id} value={u.id.toString()}>
-                            {u.username}
+                            <span className="flex flex-col">
+                              <span>{u.username}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {u.email}
+                              </span>
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
