@@ -1,4 +1,11 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
@@ -1457,234 +1464,246 @@ export function IssuesPage() {
   }, [issuesData]);
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* 헤더 */}
-      <div className="border-b border-border bg-card px-6 py-4">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-3xl font-bold">이슈 관리</h1>
-            {/* <p className="text-muted-foreground mt-1">프로젝트 이슈를 등록하고 관리할 수 있습니다.</p> */}
-          </div>
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* ── 헤더 영역 ── */}
+      <div className="border-b border-border bg-card px-6 py-3">
+        {/* 1행: 타이틀 + 새 이슈 */}
+        <div className="flex justify-between items-center mb-3">
+          <h1 className="text-2xl font-bold">이슈 관리</h1>
           <Button onClick={handleNew}>
             <Plus className="w-4 h-4 mr-2" />새 이슈
           </Button>
         </div>
 
-        {/* 필터 */}
-        <div className="flex flex-wrap gap-2 items-center">
-          {/* 카테고리 필터 */}
-          <div className="flex gap-1">
-            <Button
-              variant={filterCategory === "ALL" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("ALL")}
-              className="h-7 px-2 text-xs"
-            >
-              전체
-            </Button>
-            <div className="w-px bg-border mx-0.5" />
-            <Button
-              variant={filterCategory === "COMMON" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("COMMON")}
-              className="h-7 px-2 text-xs"
-            >
-              일반
-              {categoryCounts.COMMON > 0 && (
-                <span className="ml-1 font-bold">{categoryCounts.COMMON}</span>
-              )}
-            </Button>
-            <Button
-              variant={filterCategory === "BUG" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("BUG")}
-              className="h-7 px-2 text-xs"
-            >
-              버그
-              {categoryCounts.BUG > 0 && (
-                <span className="ml-1 font-bold">{categoryCounts.BUG}</span>
-              )}
-            </Button>
-            <Button
-              variant={filterCategory === "FEATURE" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("FEATURE")}
-              className="h-7 px-2 text-xs"
-            >
-              기능
-              {categoryCounts.FEATURE > 0 && (
-                <span className="ml-1 font-bold">{categoryCounts.FEATURE}</span>
-              )}
-            </Button>
-            <Button
-              variant={filterCategory === "IMPROVEMENT" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("IMPROVEMENT")}
-              className="h-7 px-2 text-xs"
-            >
-              개선
-              {categoryCounts.IMPROVEMENT > 0 && (
-                <span className="ml-1 font-bold">
-                  {categoryCounts.IMPROVEMENT}
-                </span>
-              )}
-            </Button>
-            <Button
-              variant={filterCategory === "QUESTION" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterCategory("QUESTION")}
-              className="h-7 px-2 text-xs"
-            >
-              질문
-              {categoryCounts.QUESTION > 0 && (
-                <span className="ml-1 font-bold">
-                  {categoryCounts.QUESTION}
-                </span>
-              )}
-            </Button>
-          </div>
-
-          <div className="w-px bg-border h-5" />
-
-          {/* 우선순위 필터 */}
-          <div className="flex gap-1">
-            <Button
-              variant={filterPriority === "ALL" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterPriority("ALL")}
-              className="h-7 px-2 text-xs"
-            >
-              전체
-            </Button>
-            <div className="w-px bg-border mx-0.5" />
+        {/* 2행: 상태 탭 + 드롭다운 필터 + 검색 + 백업 — 한 줄 */}
+        <div className="flex items-center gap-2">
+          {/* 상태 탭 (카운트 포함) */}
+          <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
             {(
               [
+                { key: "ALL", label: "전체", count: statusCounts.ALL },
+                { key: "OPEN", label: "진행 전", count: statusCounts.OPEN },
                 {
-                  value: "CRITICAL",
-                  label: "긴급",
-                  cls: "bg-red-100 text-red-700 hover:bg-red-100",
+                  key: "IN_PROGRESS",
+                  label: "진행 중",
+                  count: statusCounts.IN_PROGRESS,
                 },
-                {
-                  value: "HIGH",
-                  label: "높음",
-                  cls: "bg-orange-100 text-orange-700 hover:bg-orange-100",
-                },
-                {
-                  value: "MEDIUM",
-                  label: "보통",
-                  cls: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
-                },
-                {
-                  value: "LOW",
-                  label: "낮음",
-                  cls: "bg-gray-100 text-gray-700 hover:bg-gray-100",
-                },
-              ] as const
-            ).map((p) => (
-              <Button
-                key={p.value}
-                variant={filterPriority === p.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilterPriority(p.value)}
-                className={`h-7 px-2 text-xs ${filterPriority === p.value ? "" : p.cls}`}
-              >
-                {p.label}
-                {priorityCounts[p.value] > 0 && (
-                  <span className="ml-1 font-bold">
-                    {priorityCounts[p.value]}
-                  </span>
+                { key: "CLOSED", label: "완료", count: statusCounts.CLOSED },
+              ] as { key: string; label: string; count: number }[]
+            ).map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setFilterStatus(key as typeof filterStatus);
+                  setIsBackupTab(false);
+                }}
+                disabled={isBackupTab}
+                className={cn(
+                  "px-3 py-1 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
+                  filterStatus === key && !isBackupTab
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground disabled:opacity-40",
                 )}
-              </Button>
+              >
+                {label}
+                <span
+                  className={cn(
+                    "ml-1.5 text-xs font-bold",
+                    filterStatus === key && !isBackupTab
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
             ))}
           </div>
 
-          <div className="w-px bg-border h-5" />
+          <div className="w-px h-5 bg-border" />
 
+          {/* 카테고리 드롭다운 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                카테고리
+                {filterCategory !== "ALL" && (
+                  <span className="ml-0.5 font-bold text-primary">
+                    ·{" "}
+                    {
+                      categoryLabels[
+                        filterCategory as keyof typeof categoryLabels
+                      ]
+                    }
+                    {categoryCounts[
+                      filterCategory as keyof typeof categoryCounts
+                    ] > 0 && (
+                      <span className="ml-1">
+                        (
+                        {
+                          categoryCounts[
+                            filterCategory as keyof typeof categoryCounts
+                          ]
+                        }
+                        )
+                      </span>
+                    )}
+                  </span>
+                )}
+                <ChevronDown className="w-3 h-3 ml-0.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-36">
+              <DropdownMenuItem
+                onClick={() => setFilterCategory("ALL")}
+                className={
+                  filterCategory === "ALL" ? "font-bold text-primary" : ""
+                }
+              >
+                전체
+              </DropdownMenuItem>
+              {(
+                [
+                  { value: "COMMON", label: "일반" },
+                  { value: "BUG", label: "버그" },
+                  { value: "FEATURE", label: "기능" },
+                  { value: "IMPROVEMENT", label: "개선" },
+                  { value: "QUESTION", label: "질문" },
+                ] as const
+              ).map((c) => (
+                <DropdownMenuItem
+                  key={c.value}
+                  onClick={() => setFilterCategory(c.value)}
+                  className={
+                    filterCategory === c.value ? "font-bold text-primary" : ""
+                  }
+                >
+                  {c.label}
+                  {categoryCounts[c.value] > 0 && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {categoryCounts[c.value]}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* 우선순위 드롭다운 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                우선순위
+                {filterPriority !== "ALL" && (
+                  <span
+                    className={cn(
+                      "ml-0.5 font-bold",
+                      filterPriority === "CRITICAL"
+                        ? "text-red-600"
+                        : filterPriority === "HIGH"
+                          ? "text-orange-600"
+                          : filterPriority === "MEDIUM"
+                            ? "text-yellow-600"
+                            : "text-gray-600",
+                    )}
+                  >
+                    ·{" "}
+                    {
+                      priorityLabels[
+                        filterPriority as keyof typeof priorityLabels
+                      ]
+                    }
+                    {priorityCounts[
+                      filterPriority as keyof typeof priorityCounts
+                    ] > 0 && (
+                      <span className="ml-1">
+                        (
+                        {
+                          priorityCounts[
+                            filterPriority as keyof typeof priorityCounts
+                          ]
+                        }
+                        )
+                      </span>
+                    )}
+                  </span>
+                )}
+                <ChevronDown className="w-3 h-3 ml-0.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-36">
+              <DropdownMenuItem
+                onClick={() => setFilterPriority("ALL")}
+                className={
+                  filterPriority === "ALL" ? "font-bold text-primary" : ""
+                }
+              >
+                전체
+              </DropdownMenuItem>
+              {(
+                [
+                  { value: "CRITICAL", label: "긴급", cls: "text-red-600" },
+                  { value: "HIGH", label: "높음", cls: "text-orange-600" },
+                  { value: "MEDIUM", label: "보통", cls: "text-yellow-600" },
+                  { value: "LOW", label: "낮음", cls: "text-gray-600" },
+                ] as const
+              ).map((p) => (
+                <DropdownMenuItem
+                  key={p.value}
+                  onClick={() => setFilterPriority(p.value)}
+                  className={cn(
+                    filterPriority === p.value ? "font-bold" : "",
+                    p.cls,
+                  )}
+                >
+                  {p.label}
+                  {priorityCounts[p.value] > 0 && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {priorityCounts[p.value]}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="w-px h-5 bg-border" />
+
+          {/* 검색 */}
           <input
             type="text"
             placeholder="제목 검색..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
-            className="px-3 py-1.5 border border-input rounded-md flex-1 max-w-xs text-sm h-7"
+            className="px-3 py-1.5 border border-input rounded-md text-sm h-8 w-48 focus:outline-none focus:ring-1 focus:ring-ring"
           />
+
+          <div className="flex-1" />
+
+          {/* 백업 탭 토글 */}
+          <button
+            onClick={() => {
+              setIsBackupTab(!isBackupTab);
+              setSelectedIssueId(null);
+            }}
+            className={cn(
+              "px-3 py-1.5 text-sm font-medium rounded-md transition-colors border",
+              isBackupTab
+                ? "bg-amber-500 text-white border-amber-500"
+                : "bg-background text-muted-foreground border-border hover:bg-muted",
+            )}
+          >
+            🗄️ 백업
+          </button>
         </div>
       </div>
 
-      {/* 메인 컨텐츠: 좌우 분할 */}
+      {/* 메인 컨텐츠: 그리드 전체 너비 */}
       <div className="flex-1 flex overflow-hidden">
-        {/* 좌측: 이슈 목록 */}
-        <div className="w-1/2 border-r border-border p-2 overflow-hidden flex flex-col">
-          {/* 상태별 카운트 버튼 */}
-          <div className="flex gap-1.5 mb-2">
-            <Button
-              variant={filterStatus === "ALL" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setFilterStatus("ALL");
-                setIsBackupTab(false);
-              }}
-              className="flex-1"
-              disabled={isBackupTab}
-            >
-              전체 <span className="ml-2 font-bold">{statusCounts.ALL}</span>
-            </Button>
-            <Button
-              variant={filterStatus === "OPEN" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setFilterStatus("OPEN");
-                setIsBackupTab(false);
-              }}
-              className="flex-1"
-              disabled={isBackupTab}
-            >
-              진행 전{" "}
-              <span className="ml-2 font-bold">{statusCounts.OPEN}</span>
-            </Button>
-            <Button
-              variant={filterStatus === "IN_PROGRESS" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setFilterStatus("IN_PROGRESS");
-                setIsBackupTab(false);
-              }}
-              className="flex-1"
-              disabled={isBackupTab}
-            >
-              진행 중{" "}
-              <span className="ml-2 font-bold">{statusCounts.IN_PROGRESS}</span>
-            </Button>
-            <Button
-              variant={filterStatus === "CLOSED" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setFilterStatus("CLOSED");
-                setIsBackupTab(false);
-              }}
-              className="flex-1"
-              disabled={isBackupTab}
-            >
-              완료 <span className="ml-2 font-bold">{statusCounts.CLOSED}</span>
-            </Button>
-            <div className="w-px bg-border mx-0.5" />
-            <button
-              onClick={() => {
-                setIsBackupTab(!isBackupTab);
-                setSelectedIssueId(null);
-              }}
-              className={cn(
-                "px-4 py-2 text-sm font-medium rounded transition-colors",
-                isBackupTab
-                  ? "bg-amber-500 text-white"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80",
-              )}
-            >
-              🗄️ 백업
-            </button>
-          </div>
-
+        {/* 그리드 영역 */}
+        <div className="flex-1 px-3 pt-2 pb-2 overflow-hidden flex flex-col">
           {/* Grid Toolbar */}
-          <div className="flex justify-end gap-1.5 mb-1.5 pb-1.5 border-b">
+          <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b">
             {!isBackupTab && (
               <>
                 <Button onClick={handleAddRow} size="sm" variant="outline">
@@ -1719,7 +1738,7 @@ export function IssuesPage() {
             )}
           </div>
 
-          <div className="flex-1" style={{ height: "100%" }}>
+          <div className="flex-1">
             <AgGridReact<Issue>
               ref={gridRef}
               rowData={issues}
@@ -1747,7 +1766,7 @@ export function IssuesPage() {
         </div>
 
         {/* 우측: 이슈 상세 */}
-        <div className="flex-1 p-6 overflow-y-auto bg-muted/30">
+        <div className="flex-1 p-6 overflow-y-auto bg-muted/30 border-l border-border">
           {isEditing ? (
             /* 편집 모드 */
             <div ref={editPanelRef}>

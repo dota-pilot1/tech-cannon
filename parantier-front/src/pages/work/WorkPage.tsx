@@ -1,4 +1,11 @@
 import { useMemo, useRef, useState, useCallback } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 import { WorkChatPanel } from "@/features/work/components/WorkChatPanel";
 import { cn } from "@/shared/lib/utils";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
@@ -1605,173 +1612,191 @@ export function WorkPage() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* 헤더 */}
-      <div className="border-b border-border bg-card px-6 py-4">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-3xl font-bold">업무 관리</h1>
-          </div>
+      {/* ── 헤더 영역 ── */}
+      <div className="border-b border-border bg-card px-6 py-3">
+        {/* 1행: 타이틀 + 새 업무 */}
+        <div className="flex justify-between items-center mb-3">
+          <h1 className="text-2xl font-bold">업무 관리</h1>
           <Button onClick={handleNew}>
             <Plus className="w-4 h-4 mr-2" />새 업무
           </Button>
         </div>
 
-        {/* 필터 */}
-        <div className="flex flex-wrap gap-2 items-center">
-          {/* 유형 필터 */}
-          <div className="flex gap-1">
-            <Button
-              variant={filterWorkType === "ALL" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterWorkType("ALL")}
-              className="h-7 px-2 text-xs"
-            >
-              전체
-            </Button>
-            <div className="w-px bg-border mx-0.5" />
-            {(["FEATURE", "QA", "COMMON"] as WorkType[]).map((type) => (
-              <Button
-                key={type}
-                variant={filterWorkType === type ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilterWorkType(type)}
-                className="h-7 px-2 text-xs"
+        {/* 2행: 상태 탭 + 드롭다운 필터 + 검색 + 백업 — 한 줄 */}
+        <div className="flex items-center gap-2">
+          {/* 상태 탭 (카운트 포함) */}
+          <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
+            {(
+              [
+                { key: "ALL", label: "전체", count: statusCounts.ALL },
+                { key: "TODO", label: "진행 전", count: statusCounts.TODO },
+                {
+                  key: "IN_PROGRESS",
+                  label: "진행 중",
+                  count: statusCounts.IN_PROGRESS,
+                },
+                { key: "DONE", label: "완료", count: statusCounts.DONE },
+                { key: "HOLD", label: "보류", count: statusCounts.HOLD },
+              ] as { key: string; label: string; count: number }[]
+            ).map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setFilterStatus(key as typeof filterStatus);
+                  setIsBackupTab(false);
+                }}
+                disabled={isBackupTab}
+                className={cn(
+                  "px-3 py-1 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
+                  filterStatus === key && !isBackupTab
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground disabled:opacity-40",
+                )}
               >
-                {WORK_TYPE_LABELS[type]}
-              </Button>
+                {label}
+                <span
+                  className={cn(
+                    "ml-1.5 text-xs font-bold",
+                    filterStatus === key && !isBackupTab
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
             ))}
           </div>
 
-          <div className="w-px bg-border h-5" />
+          <div className="w-px h-5 bg-border" />
 
-          {/* 우선순위 필터 */}
-          <div className="flex gap-1">
-            <Button
-              variant={filterPriority === "ALL" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterPriority("ALL")}
-              className="h-7 px-2 text-xs"
-            >
-              전체
-            </Button>
-            <div className="w-px bg-border mx-0.5" />
-            {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as WorkPriority[]).map(
-              (p) => (
-                <Button
-                  key={p}
-                  variant={filterPriority === p ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setFilterPriority(p)}
-                  className={`h-7 px-2 text-xs ${filterPriority === p ? "" : PRIORITY_COLORS[p]}`}
+          {/* 유형 드롭다운 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                유형
+                {filterWorkType !== "ALL" && (
+                  <span className="ml-0.5 font-bold text-primary">
+                    · {WORK_TYPE_LABELS[filterWorkType as WorkType]}
+                  </span>
+                )}
+                <ChevronDown className="w-3 h-3 ml-0.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-32">
+              <DropdownMenuItem
+                onClick={() => setFilterWorkType("ALL")}
+                className={
+                  filterWorkType === "ALL" ? "font-bold text-primary" : ""
+                }
+              >
+                전체
+              </DropdownMenuItem>
+              {(["FEATURE", "QA", "COMMON"] as WorkType[]).map((type) => (
+                <DropdownMenuItem
+                  key={type}
+                  onClick={() => setFilterWorkType(type)}
+                  className={
+                    filterWorkType === type ? "font-bold text-primary" : ""
+                  }
                 >
-                  {PRIORITY_LABELS[p]}
-                  {priorityCounts[p] > 0 && (
-                    <span className="ml-1 font-bold">{priorityCounts[p]}</span>
-                  )}
-                </Button>
-              ),
-            )}
-          </div>
+                  {WORK_TYPE_LABELS[type]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <div className="w-px bg-border h-5" />
+          {/* 우선순위 드롭다운 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                우선순위
+                {filterPriority !== "ALL" && (
+                  <span
+                    className={cn(
+                      "ml-0.5 font-bold",
+                      PRIORITY_COLORS[filterPriority as WorkPriority],
+                    )}
+                  >
+                    · {PRIORITY_LABELS[filterPriority as WorkPriority]}
+                    {priorityCounts[filterPriority as WorkPriority] > 0 && (
+                      <span className="ml-1">
+                        ({priorityCounts[filterPriority as WorkPriority]})
+                      </span>
+                    )}
+                  </span>
+                )}
+                <ChevronDown className="w-3 h-3 ml-0.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-36">
+              <DropdownMenuItem
+                onClick={() => setFilterPriority("ALL")}
+                className={
+                  filterPriority === "ALL" ? "font-bold text-primary" : ""
+                }
+              >
+                전체
+              </DropdownMenuItem>
+              {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as WorkPriority[]).map(
+                (p) => (
+                  <DropdownMenuItem
+                    key={p}
+                    onClick={() => setFilterPriority(p)}
+                    className={cn(
+                      filterPriority === p ? "font-bold" : "",
+                      PRIORITY_COLORS[p],
+                    )}
+                  >
+                    {PRIORITY_LABELS[p]}
+                    {priorityCounts[p] > 0 && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {priorityCounts[p]}
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                ),
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
+          <div className="w-px h-5 bg-border" />
+
+          {/* 검색 */}
           <input
             type="text"
             placeholder="제목 검색..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
-            className="px-3 py-1.5 border border-input rounded-md flex-1 max-w-xs text-sm h-7"
+            className="px-3 py-1.5 border border-input rounded-md text-sm h-8 w-48 focus:outline-none focus:ring-1 focus:ring-ring"
           />
+
+          <div className="flex-1" />
+
+          {/* 백업 탭 토글 */}
+          <button
+            onClick={() => {
+              setIsBackupTab(!isBackupTab);
+              setSelectedWorkId(null);
+            }}
+            className={cn(
+              "px-3 py-1.5 text-sm font-medium rounded-md transition-colors border",
+              isBackupTab
+                ? "bg-amber-500 text-white border-amber-500"
+                : "bg-background text-muted-foreground border-border hover:bg-muted",
+            )}
+          >
+            🗄️ 백업
+          </button>
         </div>
       </div>
 
       {/* 메인 컨텐츠: 그리드 전체 너비 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 그리드 영역 */}
-        <div className="flex-1 p-2 overflow-hidden flex flex-col">
-          {/* 상태별 카운트 버튼 */}
-          <div className="flex gap-1.5 mb-2">
-            <Button
-              variant={filterStatus === "ALL" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setFilterStatus("ALL");
-                setIsBackupTab(false);
-              }}
-              className="flex-1"
-              disabled={isBackupTab}
-            >
-              전체 <span className="ml-2 font-bold">{statusCounts.ALL}</span>
-            </Button>
-            <Button
-              variant={filterStatus === "TODO" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setFilterStatus("TODO");
-                setIsBackupTab(false);
-              }}
-              className="flex-1"
-              disabled={isBackupTab}
-            >
-              진행 전{" "}
-              <span className="ml-2 font-bold">{statusCounts.TODO}</span>
-            </Button>
-            <Button
-              variant={filterStatus === "IN_PROGRESS" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setFilterStatus("IN_PROGRESS");
-                setIsBackupTab(false);
-              }}
-              className="flex-1"
-              disabled={isBackupTab}
-            >
-              진행 중{" "}
-              <span className="ml-2 font-bold">{statusCounts.IN_PROGRESS}</span>
-            </Button>
-            <Button
-              variant={filterStatus === "DONE" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setFilterStatus("DONE");
-                setIsBackupTab(false);
-              }}
-              className="flex-1"
-              disabled={isBackupTab}
-            >
-              완료 <span className="ml-2 font-bold">{statusCounts.DONE}</span>
-            </Button>
-            <Button
-              variant={filterStatus === "HOLD" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setFilterStatus("HOLD");
-                setIsBackupTab(false);
-              }}
-              className="flex-1"
-              disabled={isBackupTab}
-            >
-              보류 <span className="ml-2 font-bold">{statusCounts.HOLD}</span>
-            </Button>
-            <div className="w-px bg-border mx-0.5" />
-            <button
-              onClick={() => {
-                setIsBackupTab(!isBackupTab);
-                setSelectedWorkId(null);
-              }}
-              className={cn(
-                "px-4 py-2 text-sm font-medium rounded transition-colors",
-                isBackupTab
-                  ? "bg-amber-500 text-white"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80",
-              )}
-            >
-              🗄️ 백업
-            </button>
-          </div>
-
+        <div className="flex-1 px-3 pt-2 pb-2 overflow-hidden flex flex-col">
           {/* Grid Toolbar */}
-          <div className="flex justify-end gap-1.5 mb-1.5 pb-1.5 border-b">
+          <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b">
             {!isBackupTab && (
               <>
                 <Button onClick={handleAddRow} size="sm" variant="outline">
