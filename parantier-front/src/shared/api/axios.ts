@@ -27,8 +27,24 @@ apiClient.interceptors.request.use(
   },
 );
 
-// 401 중복 처리 방지 플래그
-let isHandling401 = false;
+// ── 401 처리: 리프레시 진행 중 대기 큐 ──────────────────────────
+let isRefreshing = false;
+type QueueItem = {
+  resolve: (token: string) => void;
+  reject: (err: unknown) => void;
+};
+let failedQueue: QueueItem[] = [];
+
+const processQueue = (error: unknown, token: string | null) => {
+  failedQueue.forEach((item) => {
+    if (error) {
+      item.reject(error);
+    } else {
+      item.resolve(token!);
+    }
+  });
+  failedQueue = [];
+};
 
 // Response Interceptor: 에러 상황별 안내 + 토큰 갱신
 apiClient.interceptors.response.use(
@@ -55,12 +71,19 @@ apiClient.interceptors.response.use(
     if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // 이미 처리 중이면 그냥 reject
-      if (isHandling401) {
-        return Promise.reject(error);
+      // 이미 리프레시 진행 중이면 큐에 넣고 대기
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
       }
 
-      isHandling401 = true;
+      isRefreshing = true;
 
       try {
         const refreshToken = authStore.state.refreshToken;
@@ -76,10 +99,16 @@ apiClient.interceptors.response.use(
         const { accessToken } = response.data;
         authActions.updateAccessToken(accessToken);
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        isHandling401 = false;
+
+        // 대기 중인 요청들 모두 새 토큰으로 재시도
+        processQueue(null, accessToken);
+        isRefreshing = false;
+
         return apiClient(originalRequest);
-      } catch {
-        isHandling401 = false;
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        isRefreshing = false;
+
         const wasAuthenticated = authStore.state.isAuthenticated;
         authActions.logout();
         // 실제로 로그인 상태였을 때만 세션 만료 안내
@@ -94,17 +123,20 @@ apiClient.interceptors.response.use(
             },
           });
         }
-        return Promise.reject(error);
+        return Promise.reject(refreshError);
       }
     }
 
     // ── 403 Forbidden ─────────────────────────────────────────────
     if (status === 403) {
-      const isAuthenticated = authStore.state.isAuthenticated;
-      if (!isAuthenticated) {
-        // 비로그인 상태의 403은 조용히 무시 (로그인 안내는 라우터 가드에서 처리)
+      const { isAuthenticated, isRestored } = authStore.state;
+
+      // restoreAuth 완료 전이거나 비로그인 상태면 조용히 무시
+      // (페이지 초기 로드 시 토큰 복원 전 요청이 403 받는 케이스 방지)
+      if (!isAuthenticated || !isRestored) {
         return Promise.reject(error);
       }
+
       toast.error("접근 권한이 없습니다.", {
         description: "해당 기능을 사용할 권한이 없습니다.",
       });
