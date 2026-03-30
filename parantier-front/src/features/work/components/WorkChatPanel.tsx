@@ -49,7 +49,7 @@ export function WorkChatPanel({ workId }: WorkChatPanelProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[600px] gap-2">
+      <div className="flex flex-col items-center justify-center h-full gap-2">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">메시지를 불러오는 중...</p>
       </div>
@@ -57,10 +57,10 @@ export function WorkChatPanel({ workId }: WorkChatPanelProps) {
   }
 
   return (
-    <div className="flex flex-col h-[600px] bg-card">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold">채팅</h3>
+    <div className="flex flex-col flex-1 min-h-0 bg-card">
+      {/* Header — 왼쪽 섹션(첨부파일/내용/체크리스트)과 동일한 스타일 */}
+      <div className="bg-muted/30 border-b px-4 py-1.5 flex items-center justify-between shrink-0">
+        <span className="font-bold text-sm">채팅</span>
         <div className="flex items-center gap-2">
           {isConnected ? (
             <div className="flex items-center gap-1.5">
@@ -77,7 +77,7 @@ export function WorkChatPanel({ workId }: WorkChatPanelProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto px-4 py-3">
         {allMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-sm text-muted-foreground">
@@ -96,7 +96,7 @@ export function WorkChatPanel({ workId }: WorkChatPanelProps) {
 
       {/* WebSocket 연결 상태 경고 */}
       {!isConnected && (
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-3">
           <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
             <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
             <p className="text-xs text-destructive">
@@ -108,7 +108,7 @@ export function WorkChatPanel({ workId }: WorkChatPanelProps) {
 
       {/* 사용자 정보 로딩 중 안내 */}
       {!isUserReady && (
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-3">
           <div className="flex items-center gap-2 p-3 bg-muted border rounded-lg">
             <p className="text-xs text-muted-foreground">
               사용자 정보를 불러오는 중입니다...

@@ -22,9 +22,13 @@ import type { SubWork } from "@/entities/work/types/subWork";
 
 interface SubWorkSectionProps {
   workId: number;
+  hideHeader?: boolean;
 }
 
-export function SubWorkSection({ workId }: SubWorkSectionProps) {
+export function SubWorkSection({
+  workId,
+  hideHeader = false,
+}: SubWorkSectionProps) {
   const { data: subWorks = [] } = useSubWorks(workId);
   const createMutation = useCreateSubWork(workId);
   const toggleMutation = useToggleSubWork(workId);
@@ -89,19 +93,21 @@ export function SubWorkSection({ workId }: SubWorkSectionProps) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          {total > 0 && (
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-              {resolved}/{total} 완료
-            </span>
-          )}
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            {total > 0 && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                {resolved}/{total} 완료
+              </span>
+            )}
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setIsAdding(true)}>
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            추가
+          </Button>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setIsAdding(true)}>
-          <Plus className="w-3.5 h-3.5 mr-1" />
-          추가
-        </Button>
-      </div>
+      )}
 
       {/* 진행률 바 */}
       {total > 0 && (
