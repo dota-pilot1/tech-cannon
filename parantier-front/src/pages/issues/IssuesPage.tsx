@@ -1467,16 +1467,9 @@ export function IssuesPage() {
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* ── 헤더 영역 ── */}
       <div className="border-b border-border bg-card px-6 py-3">
-        {/* 1행: 타이틀 + 새 이슈 */}
-        <div className="flex justify-between items-center mb-3">
-          <h1 className="text-2xl font-bold">이슈 관리</h1>
-          <Button onClick={handleNew}>
-            <Plus className="w-4 h-4 mr-2" />새 이슈
-          </Button>
-        </div>
-
-        {/* 2행: 상태 탭 + 드롭다운 필터 + 검색 + 백업 — 한 줄 */}
+        {/* 단일행: 타이틀 + 필터 + 액션 버튼 */}
         <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold mr-2">이슈 관리</h1>
           {/* 상태 탭 (카운트 포함) */}
           <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
             {(
@@ -1680,14 +1673,48 @@ export function IssuesPage() {
 
           <div className="flex-1" />
 
-          {/* 백업 탭 토글 */}
+          <div className="w-px h-5 bg-border" />
+
+          {/* 액션 버튼 그룹 */}
+          {!isBackupTab && (
+            <>
+              <Button onClick={handleAddRow} size="sm" variant="outline">
+                <Plus className="w-4 h-4 mr-1" />행 추가
+              </Button>
+              {modifiedRowIds.size > 0 && (
+                <Button
+                  onClick={handleSaveModified}
+                  size="sm"
+                  variant="default"
+                >
+                  저장 ({modifiedRowIds.size})
+                </Button>
+              )}
+              <Button
+                onClick={handleDeleteSelected}
+                size="sm"
+                variant="destructive"
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                삭제
+              </Button>
+              <Button onClick={handleArchive} size="sm" variant="outline">
+                🗄️ 백업
+              </Button>
+            </>
+          )}
+          {isBackupTab && (
+            <Button onClick={handleRestore} size="sm" variant="outline">
+              ↩️ 복원
+            </Button>
+          )}
           <button
             onClick={() => {
               setIsBackupTab(!isBackupTab);
               setSelectedIssueId(null);
             }}
             className={cn(
-              "px-3 py-1.5 text-sm font-medium rounded-md transition-colors border",
+              "px-3 py-1.5 text-sm font-medium rounded-md transition-colors border h-8",
               isBackupTab
                 ? "bg-amber-500 text-white border-amber-500"
                 : "bg-background text-muted-foreground border-border hover:bg-muted",
@@ -1695,6 +1722,9 @@ export function IssuesPage() {
           >
             🗄️ 백업(조회)
           </button>
+          <Button onClick={handleNew} size="sm">
+            <Plus className="w-4 h-4 mr-1" />새 이슈
+          </Button>
         </div>
       </div>
 
@@ -1702,42 +1732,6 @@ export function IssuesPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* 그리드 영역 */}
         <div className="flex-1 px-3 pt-2 pb-2 overflow-hidden flex flex-col">
-          {/* Grid Toolbar */}
-          <div className="flex items-center justify-end gap-1.5 mb-1.5 pb-1.5 border-b">
-            {!isBackupTab && (
-              <>
-                <Button onClick={handleAddRow} size="sm" variant="outline">
-                  <Plus className="w-4 h-4 mr-1" />행 추가
-                </Button>
-                {modifiedRowIds.size > 0 && (
-                  <Button
-                    onClick={handleSaveModified}
-                    size="sm"
-                    variant="default"
-                  >
-                    저장 ({modifiedRowIds.size})
-                  </Button>
-                )}
-                <Button
-                  onClick={handleDeleteSelected}
-                  size="sm"
-                  variant="destructive"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  삭제
-                </Button>
-                <Button onClick={handleArchive} size="sm" variant="outline">
-                  🗄️ 백업(저장)
-                </Button>
-              </>
-            )}
-            {isBackupTab && (
-              <Button onClick={handleRestore} size="sm" variant="outline">
-                ↩️ 복원
-              </Button>
-            )}
-          </div>
-
           <div className="flex-1">
             <AgGridReact<Issue>
               ref={gridRef}
