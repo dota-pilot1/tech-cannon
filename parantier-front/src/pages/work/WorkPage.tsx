@@ -123,8 +123,7 @@ import { toast } from "sonner";
 import { Mermaid } from "@/shared/ui/mermaid";
 import { useUsers } from "@/features/admin/hooks/useUsers";
 import mermaid from "mermaid";
-import { useStore } from "@tanstack/react-store";
-import { authStore } from "@/entities/user/model/authStore";
+
 import { useNavigate } from "@tanstack/react-router";
 
 // AG-Grid 모듈 등록
@@ -246,12 +245,12 @@ const ISSUE_STATUS_COLORS: Record<string, string> = {
 export function WorkPage() {
   const gridRef = useRef<AgGridReact>(null);
   const navigate = useNavigate();
-  const currentUser = useStore(authStore, (state) => state.user);
 
   // 상태 관리
   const [selectedWorkId, setSelectedWorkId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isNewWorkOpen, setIsNewWorkOpen] = useState(false);
   const editPanelRef = useRef<HTMLDivElement>(null);
 
   // 수정된 행 추적
@@ -475,31 +474,6 @@ export function WorkPage() {
   };
 
   // 새 행 추가
-  const handleAddRow = () => {
-    if (!currentUser) {
-      toast.error("로그인이 필요합니다");
-      navigate({ to: "/dashboard" });
-      return;
-    }
-
-    const newRow: Partial<Work> = {
-      id: -Date.now(),
-      title: "",
-      content: "",
-      workType: "COMMON",
-      status: "TODO",
-      priority: "MEDIUM",
-      reporterId: currentUser.id,
-      reporterName: currentUser.username,
-      assigneeName: "",
-    };
-
-    gridRef.current?.api.applyTransaction({
-      add: [newRow as Work],
-      addIndex: 0,
-    });
-    setModifiedRowIds((prev) => new Set(prev).add(newRow.id!));
-  };
 
   // 선택된 행 삭제
   const handleDeleteSelected = async () => {
@@ -1244,8 +1218,6 @@ export function WorkPage() {
 
   // 신규 작성
   const handleNew = () => {
-    setIsDetailOpen(true);
-    setSelectedWorkId(null);
     setFormTitle("");
     setFormContent("");
     setFormWorkType("COMMON");
@@ -1253,7 +1225,29 @@ export function WorkPage() {
     setFormPriority("MEDIUM");
     setFormAssigneeId(null);
     setFormDueDate("");
-    setIsEditing(true);
+    setIsNewWorkOpen(true);
+  };
+
+  // 신규 저장
+  const handleNewSave = () => {
+    if (!formTitle.trim()) {
+      toast.error("제목을 입력하세요.");
+      return;
+    }
+    const data = {
+      title: formTitle,
+      content: "",
+      workType: formWorkType,
+      status: formStatus,
+      priority: formPriority,
+      assigneeId: formAssigneeId,
+      dueDate: formDueDate || null,
+    };
+    createWork(data, {
+      onSuccess: () => {
+        setIsNewWorkOpen(false);
+      },
+    });
   };
 
   // 수정 모드로 전환
@@ -1947,9 +1941,6 @@ export function WorkPage() {
           <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b">
             {!isBackupTab && (
               <>
-                <Button onClick={handleAddRow} size="sm" variant="outline">
-                  <Plus className="w-4 h-4 mr-1" />행 추가
-                </Button>
                 {modifiedRowIds.size > 0 && (
                   <Button
                     onClick={handleSaveModified}
@@ -2007,6 +1998,221 @@ export function WorkPage() {
         </div>
       </div>
 
+      {/* 새 업무 작성 Dialog — 필수 항목만 */}
+      <Dialog open={isNewWorkOpen} onOpenChange={setIsNewWorkOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>새 업무 작성</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* 제목 */}
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                제목 <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleNewSave()}
+                className="w-full px-3 py-2 border border-input rounded-md text-sm"
+                placeholder="업무 제목을 입력하세요"
+                autoFocus
+              />
+            </div>
+
+            {/* 유형 / 상태 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">유형</label>
+                <Select
+                  value={formWorkType}
+                  onValueChange={(v) => setFormWorkType(v as WorkType)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FEATURE">기능개발</SelectItem>
+                    <SelectItem value="QA">QA</SelectItem>
+                    <SelectItem value="COMMON">일반</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">상태</label>
+                <Select
+                  value={formStatus}
+                  onValueChange={(v) => setFormStatus(v as WorkStatus)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODO">진행 전</SelectItem>
+                    <SelectItem value="IN_PROGRESS">진행 중</SelectItem>
+                    <SelectItem value="DONE">완료</SelectItem>
+                    <SelectItem value="HOLD">보류</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* 우선순위 / 담당자 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  우선순위
+                </label>
+                <Select
+                  value={formPriority}
+                  onValueChange={(v) => setFormPriority(v as WorkPriority)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LOW">낮음</SelectItem>
+                    <SelectItem value="MEDIUM">보통</SelectItem>
+                    <SelectItem value="HIGH">높음</SelectItem>
+                    <SelectItem value="CRITICAL">긴급</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  담당자
+                </label>
+                <Select
+                  value={formAssigneeId?.toString() ?? "none"}
+                  onValueChange={(v) =>
+                    setFormAssigneeId(v === "none" ? null : Number(v))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="미지정" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">미지정</SelectItem>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id.toString()}>
+                        {u.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* 마감 일시 */}
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                마감 일시
+              </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 border border-input rounded-md text-sm text-left flex items-center hover:bg-accent transition-colors"
+                  >
+                    <span
+                      className={formDueDate ? "" : "text-muted-foreground"}
+                    >
+                      {formDueDate
+                        ? (() => {
+                            const d = new Date(formDueDate);
+                            return isValid(d)
+                              ? format(d, "yyyy. MM. dd. HH:mm", { locale: ko })
+                              : "날짜 선택";
+                          })()
+                        : "날짜 선택"}
+                    </span>
+                    {formDueDate && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormDueDate("");
+                        }}
+                        className="ml-auto text-muted-foreground hover:text-destructive text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto p-0"
+                  align="start"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  <Calendar
+                    mode="single"
+                    selected={
+                      formDueDate
+                        ? (() => {
+                            const d = new Date(formDueDate);
+                            return isValid(d) ? d : undefined;
+                          })()
+                        : undefined
+                    }
+                    onSelect={(day: Date | undefined) => {
+                      if (!day) return;
+                      const existing = formDueDate
+                        ? new Date(formDueDate)
+                        : null;
+                      const hh =
+                        existing && isValid(existing) ? existing.getHours() : 9;
+                      const mm =
+                        existing && isValid(existing)
+                          ? existing.getMinutes()
+                          : 0;
+                      const pad = (n: number) => String(n).padStart(2, "0");
+                      setFormDueDate(
+                        `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T${pad(hh)}:${pad(mm)}`,
+                      );
+                    }}
+                    locale={ko}
+                    initialFocus={false}
+                  />
+                  {(() => {
+                    const d = formDueDate ? new Date(formDueDate) : null;
+                    const curTime =
+                      d && isValid(d)
+                        ? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+                        : "09:00";
+                    return (
+                      <FormTimeInput
+                        value={curTime}
+                        onCommit={(time) => {
+                          const base = formDueDate
+                            ? new Date(formDueDate)
+                            : new Date();
+                          if (!isValid(base)) return;
+                          const [hh, mm] = time.split(":").map(Number);
+                          base.setHours(hh ?? 0, mm ?? 0, 0, 0);
+                          const pad = (n: number) => String(n).padStart(2, "0");
+                          setFormDueDate(
+                            `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`,
+                          );
+                        }}
+                      />
+                    );
+                  })()}
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => setIsNewWorkOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleNewSave}>저장</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 상세 / 편집 Dialog 모달 */}
       <Dialog
         open={isDetailOpen}
@@ -2046,7 +2252,7 @@ export function WorkPage() {
           </DialogHeader>
 
           {isEditing ? (
-            /* 편집 모드 */
+            /* 수정 모드 (풀스크린) */
             <div ref={editPanelRef} className="p-6 overflow-y-auto h-full">
               <div className="flex justify-end gap-2 mb-4">
                 <Button onClick={handleSave}>저장</Button>
