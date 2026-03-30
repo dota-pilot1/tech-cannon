@@ -61,8 +61,9 @@ export function MainPage() {
     queryKey: ["dashboard", "stats"],
     queryFn: dashboardApi.getStats,
     enabled: auth.isAuthenticated,
-    staleTime: 60_000, // 1분간 캐시 유지 → 페이지 이동 시 즉시 표시
+    staleTime: 0, // 항상 stale → 포커스 시 즉시 refetch
     refetchInterval: 60_000, // 1분마다 백그라운드 갱신
+    refetchOnWindowFocus: true, // 탭/창 포커스 시 자동 갱신
   });
 
   if (!auth.isAuthenticated) {
