@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.work.infrastructure.WorkStatusLogMapper">
+
+    <resultMap id="WorkStatusLogResultMap" type="com.mapo.palantier.work.domain.WorkStatusLog">
+        <id property="id" column="id"/>
+        <result property="workId" column="work_id"/>
+        <result property="workTitle" column="work_title"/>
+        <result property="changedBy" column="changed_by"/>
+        <result property="changedById" column="changed_by_id"/>
+        <result property="changeType" column="change_type"/>
+        <result property="oldValue" column="old_value"/>
+        <result property="newValue" column="new_value"/>
+        <result property="changedAt" column="changed_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.mapo.palantier.work.domain.WorkStatusLog"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO work_status_logs (
+            work_id,
+            work_title,
+            changed_by,
+            changed_by_id,
+            change_type,
+            old_value,
+            new_value,
+            changed_at
+        ) VALUES (
+            #{workId},
+            #{workTitle},
+            #{changedBy},
+            #{changedById},
+            #{changeType},
+            #{oldValue},
+            #{newValue},
+            #{changedAt}
+        )
+    </insert>
+
+    <select id="findRecent" resultMap="WorkStatusLogResultMap">
+        SELECT
+            id,
+            work_id,
+            work_title,
+            changed_by,
+            changed_by_id,
+            change_type,
+            old_value,
+            new_value,
+            changed_at
+        FROM work_status_logs
+        ORDER BY changed_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findByWorkId" resultMap="WorkStatusLogResultMap">
+        SELECT
+            id,
+            work_id,
+            work_title,
+            changed_by,
+            changed_by_id,
+            change_type,
+            old_value,
+            new_value,
+            changed_at
+        FROM work_status_logs
+        WHERE work_id = #{workId}
+        ORDER BY changed_at DESC
+    </select>
+
+</mapper>

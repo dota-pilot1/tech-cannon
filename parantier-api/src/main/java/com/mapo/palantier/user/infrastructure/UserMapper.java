@@ -2,11 +2,10 @@ package com.mapo.palantier.user.infrastructure;
 
 import com.mapo.palantier.user.domain.User;
 import com.mapo.palantier.user.domain.UserRole;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
 import java.util.List;
 import java.util.Optional;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface UserMapper {
@@ -16,8 +15,21 @@ public interface UserMapper {
     boolean existsByEmail(@Param("email") String email);
     List<User> findAll();
     void updateRole(@Param("id") Long id, @Param("role") UserRole role);
-    void updateOrganization(@Param("id") Long id, @Param("organizationId") Long organizationId);
-    void updateUsername(@Param("id") Long id, @Param("username") String username);
-    void updatePassword(@Param("id") Long id, @Param("password") String password);
-    void updateProfileImage(@Param("id") Long id, @Param("profileImageUrl") String profileImageUrl);
+    void updateOrganization(
+        @Param("id") Long id,
+        @Param("organizationId") Long organizationId
+    );
+    void updateUsername(
+        @Param("id") Long id,
+        @Param("username") String username
+    );
+    void updatePassword(
+        @Param("id") Long id,
+        @Param("password") String password
+    );
+    void updateProfileImage(
+        @Param("id") Long id,
+        @Param("profileImageUrl") String profileImageUrl
+    );
+    String findUsernameById(@Param("id") Long id);
 }

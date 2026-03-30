@@ -74,4 +74,8 @@
         WHERE id = #{id}
     </update>
 
+    <select id="findUsernameById" resultType="String">
+        SELECT username FROM users WHERE id = #{id}
+    </select>
+
 </mapper>

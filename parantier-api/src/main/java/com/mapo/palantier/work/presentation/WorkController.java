@@ -1,6 +1,8 @@
 package com.mapo.palantier.work.presentation;
 
+import com.mapo.palantier.user.infrastructure.UserMapper;
 import com.mapo.palantier.work.application.WorkService;
+import com.mapo.palantier.work.application.WorkStatusLogService;
 import com.mapo.palantier.work.domain.SubWork;
 import com.mapo.palantier.work.domain.Work;
 import com.mapo.palantier.work.domain.WorkChecklist;
@@ -32,6 +34,8 @@ import org.springframework.web.bind.annotation.*;
 public class WorkController {
 
     private final WorkService workService;
+    private final WorkStatusLogService workStatusLogService;
+    private final UserMapper userMapper;
 
     private final WorkImageMapper workImageMapper;
     private final WorkChecklistMapper workChecklistMapper;
@@ -43,6 +47,8 @@ public class WorkController {
 
     public WorkController(
         WorkService workService,
+        WorkStatusLogService workStatusLogService,
+        UserMapper userMapper,
         WorkImageMapper workImageMapper,
         WorkChecklistMapper workChecklistMapper,
         WorkMindmapMapper workMindmapMapper,
@@ -52,6 +58,8 @@ public class WorkController {
         SubWorkMapper subWorkMapper
     ) {
         this.workService = workService;
+        this.workStatusLogService = workStatusLogService;
+        this.userMapper = userMapper;
         this.workImageMapper = workImageMapper;
         this.workChecklistMapper = workChecklistMapper;
         this.workMindmapMapper = workMindmapMapper;
@@ -147,14 +155,18 @@ public class WorkController {
         work.setDueDate(parseDueDate(request.getDueDate()));
 
         Work created = workService.createWork(work);
+
         return ResponseEntity.ok(WorkResponse.from(created));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<WorkResponse> updateWork(
         @PathVariable Long id,
-        @RequestBody CreateWorkRequest request
+        @RequestBody CreateWorkRequest request,
+        Authentication authentication
     ) {
+        Work before = workService.getWorkById(id);
+
         Work work = new Work();
         work.setTitle(request.getTitle());
         work.setContent(request.getContent());
@@ -164,7 +176,36 @@ public class WorkController {
         work.setAssigneeId(request.getAssigneeId());
         work.setDueDate(parseDueDate(request.getDueDate()));
 
+        String oldStatus = before != null ? before.getStatus() : null;
+
         Work updated = workService.updateWork(id, work);
+
+        if (authentication != null) {
+            Long editorId = Long.parseLong(authentication.getName());
+            String changedByName = userMapper.findUsernameById(editorId);
+            String displayName =
+                changedByName != null
+                    ? changedByName
+                    : authentication.getName();
+
+            // 상태가 DONE으로 변경될 때만 로그 기록
+            if (
+                request.getStatus() != null &&
+                "DONE".equals(request.getStatus()) &&
+                !request.getStatus().equals(oldStatus)
+            ) {
+                workStatusLogService.log(
+                    id,
+                    updated.getTitle(),
+                    editorId,
+                    displayName,
+                    "STATUS",
+                    oldStatus,
+                    request.getStatus()
+                );
+            }
+        }
+
         return ResponseEntity.ok(WorkResponse.from(updated));
     }
 
@@ -205,27 +246,104 @@ public class WorkController {
     @PutMapping("/{id}/status")
     public ResponseEntity<Void> updateStatus(
         @PathVariable Long id,
-        @RequestBody Map<String, String> request
+        @RequestBody Map<String, String> request,
+        Authentication authentication
     ) {
-        workService.updateStatus(id, request.get("status"));
+        Work before = workService.getWorkById(id);
+        String oldStatus = before != null ? before.getStatus() : null;
+        String newStatus = request.get("status");
+
+        workService.updateStatus(id, newStatus);
+
+        // 상태가 DONE으로 변경될 때만 로그 기록
+        if (
+            authentication != null &&
+            before != null &&
+            "DONE".equals(newStatus) &&
+            !newStatus.equals(oldStatus)
+        ) {
+            Long editorId = Long.parseLong(authentication.getName());
+            String changedByName = userMapper.findUsernameById(editorId);
+            workStatusLogService.log(
+                id,
+                before.getTitle(),
+                editorId,
+                changedByName != null
+                    ? changedByName
+                    : authentication.getName(),
+                "STATUS",
+                oldStatus,
+                newStatus
+            );
+        }
+
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/assignee")
     public ResponseEntity<Void> updateAssignee(
         @PathVariable Long id,
-        @RequestBody Map<String, Long> request
+        @RequestBody Map<String, Long> request,
+        Authentication authentication
     ) {
-        workService.updateAssignee(id, request.get("assigneeId"));
+        Work before = workService.getWorkById(id);
+        String oldAssigneeName =
+            before != null ? before.getAssigneeName() : null;
+        Long newAssigneeId = request.get("assigneeId");
+
+        workService.updateAssignee(id, newAssigneeId);
+
+        if (authentication != null && before != null) {
+            Long editorId = Long.parseLong(authentication.getName());
+            String changedByName = userMapper.findUsernameById(editorId);
+            String newAssigneeName =
+                newAssigneeId != null
+                    ? userMapper.findUsernameById(newAssigneeId)
+                    : null;
+            workStatusLogService.log(
+                id,
+                before.getTitle(),
+                editorId,
+                changedByName != null
+                    ? changedByName
+                    : authentication.getName(),
+                "ASSIGNEE",
+                oldAssigneeName,
+                newAssigneeName
+            );
+        }
+
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/priority")
     public ResponseEntity<Void> updatePriority(
         @PathVariable Long id,
-        @RequestBody Map<String, String> request
+        @RequestBody Map<String, String> request,
+        Authentication authentication
     ) {
-        workService.updatePriority(id, request.get("priority"));
+        Work before = workService.getWorkById(id);
+        String oldPriority = before != null ? before.getPriority() : null;
+        String newPriority = request.get("priority");
+
+        workService.updatePriority(id, newPriority);
+
+        if (authentication != null && before != null) {
+            Long editorId = Long.parseLong(authentication.getName());
+            String changedByName = userMapper.findUsernameById(editorId);
+            workStatusLogService.log(
+                id,
+                before.getTitle(),
+                editorId,
+                changedByName != null
+                    ? changedByName
+                    : authentication.getName(),
+                "PRIORITY",
+                oldPriority,
+                newPriority
+            );
+        }
+
         return ResponseEntity.ok().build();
     }
 

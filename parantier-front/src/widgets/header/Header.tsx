@@ -48,7 +48,7 @@ export function Header() {
               Palantier
             </Link>
 
-            <nav className="flex items-center">
+            <nav className="flex items-center gap-0.5">
               {headerMenus.map((menu) => {
                 if (menu.children && menu.children.length > 0) {
                   const isChildActive = menu.children?.some((child: Menu) =>
@@ -60,7 +60,7 @@ export function Header() {
                       <DropdownMenuTrigger asChild>
                         <button
                           className={cn(
-                            "flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-md transition-colors outline-none cursor-pointer",
+                            "flex items-center gap-1 px-2.5 py-1.5 text-sm font-medium rounded-md transition-colors outline-none cursor-pointer",
                             isChildActive
                               ? "bg-primary/10 text-primary font-semibold"
                               : "hover:bg-accent",
@@ -99,14 +99,15 @@ export function Header() {
                 const isActive =
                   menu.path === "/"
                     ? pathname === "/"
-                    : pathname.startsWith(menu.path || "__never__");
+                    : pathname === menu.path ||
+                      pathname.startsWith((menu.path || "__never__") + "/");
 
                 return (
                   <Link
                     key={menu.id}
                     to={menu.path || "/"}
                     className={cn(
-                      "px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                      "px-2.5 py-1.5 text-sm font-medium rounded-md transition-colors",
                       isActive
                         ? "bg-primary/10 text-primary font-semibold"
                         : "hover:bg-accent",

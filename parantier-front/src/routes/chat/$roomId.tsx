@@ -32,7 +32,7 @@ export function ChatRoomPage() {
   const { data: chatRoom } = useChatRoom(roomId ? Number(roomId) : null)
 
   // 채팅방 참가자 목록 로드
-  const { data: participants = [] } = useRoomMembers(
+  const { data: participants = [], refetch: refetchParticipants } = useRoomMembers(
     roomId ? Number(roomId) : null
   )
 
@@ -40,6 +40,47 @@ export function ChatRoomPage() {
   const leaveRoomMutation = useLeaveRoom(() => {
     navigate({ to: '/chat' })
   })
+
+  // 1. 참여자 목록 실시간 동기화 (10초 주기) - 어설프게 혼자만 멈춰있지 않도록
+  useEffect(() => {
+    if (!roomId) return
+    const interval = setInterval(() => {
+      refetchParticipants()
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [roomId, refetchParticipants])
+
+  // 2. 브라우저 종료/다른 페이지 이동 시 자동 방 나가기 처리 (Transient Chat 방식 적용)
+  useEffect(() => {
+    if (!roomId) return
+
+    // 브라우저 탭 닫힘 감지용 핸들러 (동기적 fetch + keepalive 방식 사용)
+    const handleBeforeUnload = () => {
+      const state = authStore.state
+      if (state.accessToken) {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+        fetch(`${API_URL}/chat/rooms/${roomId}/leave`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${state.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          keepalive: true,
+        }).catch(() => {})
+      }
+    }
+
+    // 마운트 시 자동 입장 처리 (URL 직접 접근 등) 
+    chatApi.joinRoom(Number(roomId)).then(() => refetchParticipants()).catch(() => {})
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      // 컴포넌트 언마운트 시 자동으로 방 나가기 처리
+      chatApi.leaveRoom(Number(roomId)).catch(() => {})
+    }
+  }, [roomId, refetchParticipants])
 
   // 현재 roomId 추적
   useEffect(() => {
@@ -308,10 +349,11 @@ export function ChatRoomPage() {
         <div className="border-t px-6 py-4 bg-background">
           <div className="flex gap-2">
             <Input
+              autoFocus
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="메시지를 입력하세요..."
+              placeholder="메시지를 입력하세요... (Enter로 전송)"
               disabled={!isConnected}
               className="flex-1"
             />

@@ -452,7 +452,6 @@ export function WorkPage() {
     if (newValue === oldValue) return;
 
     setModifiedRowIds((prev) => new Set(prev).add(data.id));
-    params.node.setSelected(true);
 
     if (
       colDef.field === "status" ||

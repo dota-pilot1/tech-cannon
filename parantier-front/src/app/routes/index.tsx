@@ -21,6 +21,7 @@ import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { IssuesPage } from "@/pages/issues/IssuesPage";
 import { StudyPage } from "@/pages/study/StudyPage";
 import { PilotPage } from "@/pages/pilot/PilotPage";
+import { WorkStatusPage } from "@/pages/work-status/WorkStatusPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -202,24 +203,40 @@ const studyRoute = createRoute({
   component: StudyPage,
 });
 
+// 업무 현황 페이지 (로그인 필요)
+const workStatusRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/work-status",
+  beforeLoad: () => requireAuth(),
+  component: WorkStatusPage,
+});
+
+// 404 Not Found Route
+const notFoundRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "*",
+  component: () => null,
+});
+
 // Route Tree
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
   dashboardAliasRoute,
   adminUsersRoute,
   adminMenusRoute,
-
   adminAuthoritiesRoute,
   adminOrganizationsRoute,
   adminRolesRoute,
   tasksRoute,
   workRoute,
+  workStatusRoute,
   chatRoute,
   chatRoomRoute,
   profileRoute,
   issuesRoute,
   pilotRoute,
   studyRoute,
+  notFoundRoute,
 ]);
 
 // Router 생성
