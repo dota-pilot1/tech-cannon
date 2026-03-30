@@ -54,12 +54,33 @@ aws cloudfront create-invalidation \
 
 ### ⚠️ 중요: DB 변경 작업 원칙
 
-**테이블 생성/업데이트는 Docker DB에 직접 실행이 원칙입니다**
+**테이블 생성/수정은 로컬 및 EC2 DB에 직접 SQL을 실행하는 것이 원칙입니다**
 
-- Flyway 마이그레이션 파일을 사용하지 않습니다
-- 모든 스키마 변경, 데이터 추가는 Docker 컨테이너에 직접 SQL을 실행합니다
-- Flyway 마이그레이션 파일은 히스토리 참고용으로만 유지됩니다
-- 실제 운영에서는 Docker DB에 직접 SQL을 실행해야 합니다
+- **Flyway 마이그레이션은 EC2 서버의 `application.yml`에 Flyway 설정이 없어서 자동 실행되지 않습니다**
+- Flyway 마이그레이션 파일(`Vxx__xxx.sql`)은 히스토리/참고용으로만 유지합니다
+- 모든 스키마 변경(테이블 생성/수정/삭제)은 **로컬과 EC2 DB에 직접 SQL을 실행**해야 합니다
+- 로컬은 Docker 컨테이너, EC2는 SSH로 직접 psql 실행
+
+#### 로컬 DB 직접 실행
+```bash
+# Docker 컨테이너 경유
+docker exec -i palantier-postgres psql -U palantier_user -d palantier -c "SQL문"
+
+# 또는 포트 포워딩 경유
+PGPASSWORD=palantier_password psql -h localhost -U palantier_user -d palantier -c "SQL문"
+```
+
+#### EC2 DB 직접 실행 (배포 서버)
+```bash
+ssh -i "/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem" ubuntu@43.200.241.26 \
+  "PGPASSWORD=palantier_password psql -h localhost -U palantier_user -d palantier -c \"SQL문\""
+```
+
+#### 새 테이블 추가 시 작업 순서
+1. `db/migration/Vxx__설명.sql` 파일 생성 (히스토리용)
+2. 로컬 Docker DB에 직접 SQL 실행
+3. EC2 DB에 직접 SQL 실행 (위 명령어 사용)
+4. 백엔드 코드 작성 후 커밋/푸시/배포
 
 ### 데이터베이스 접속 정보
 
