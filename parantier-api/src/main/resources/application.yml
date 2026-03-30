@@ -55,7 +55,7 @@ springdoc:
 # JWT Configuration
 jwt:
   secret: your-256-bit-secret-key-change-this-in-production-please-make-it-long-enough
-  access-token-expiration: 3600000 # 1시간 (밀리초)
+  access-token-expiration: 86400000 # 24시간 (밀리초)
   refresh-token-expiration: 604800000 # 7일 (밀리초)
 
 # AWS S3 Configuration

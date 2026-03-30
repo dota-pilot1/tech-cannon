@@ -116,13 +116,16 @@ export const authActions = {
               isAuthenticated: true,
               isRestored: true,
             }));
-          } else {
-            // 리프레시도 실패하면 로그아웃
+          } else if (response.status === 401 || response.status === 403) {
+            // 리프레시 토큰 자체가 만료/무효 → 로그아웃
             authActions.logout();
+            authStore.setState((state) => ({ ...state, isRestored: true }));
+          } else {
+            // 서버 오류(5xx) 등 네트워크 문제 → 토큰 유지 (로그아웃 안 함)
             authStore.setState((state) => ({ ...state, isRestored: true }));
           }
         } catch {
-          authActions.logout();
+          // 네트워크 오류 → 토큰 유지 (로그아웃 안 함)
           authStore.setState((state) => ({ ...state, isRestored: true }));
         }
       }
