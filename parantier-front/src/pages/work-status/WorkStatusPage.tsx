@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
 import { RefreshCw, CheckCircle2, Users } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { workApi } from "@/entities/work/api/workApi";
+
 import { Card, CardContent } from "@/shared/ui/card";
 import { useTeamWorkSummary } from "./hooks/useTeamWorkSummary";
 import { workStatusApi } from "@/api/workStatusApi";
@@ -259,33 +258,18 @@ function MemberCard({ summary }: MemberCardProps) {
 // ──────────────────────────────────────────────
 
 function WorkListItem({ work }: { work: TeamMemberWork }) {
-  const queryClient = useQueryClient();
   const isDone = work.status === "DONE";
-
-  const { mutate: toggleDone, isPending } = useMutation({
-    mutationFn: () => workApi.updateStatus(work.id, isDone ? "HOLD" : "DONE"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team-work-summary"] });
-    },
-  });
 
   return (
     <div className="flex items-center gap-2 rounded-md px-2 py-1.5 bg-muted/50 hover:bg-muted transition-colors">
-      {/* 완료 체크박스 */}
-      <button
-        onClick={() => toggleDone()}
-        disabled={isPending}
-        className="shrink-0 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-        title={isDone ? "완료 취소 (보류로 변경)" : "완료로 변경"}
-      >
-        <CheckCircle2
-          className={`w-4 h-4 transition-colors ${
-            isDone
-              ? "text-green-500 dark:text-green-400"
-              : "text-muted-foreground"
-          }`}
-        />
-      </button>
+      {/* 완료 상태 아이콘 (읽기 전용) */}
+      <CheckCircle2
+        className={`w-4 h-4 shrink-0 transition-colors ${
+          isDone
+            ? "text-green-500 dark:text-green-400"
+            : "text-muted-foreground/40"
+        }`}
+      />
       <span className="text-xs text-foreground truncate flex-1">
         {work.title}
       </span>
@@ -305,32 +289,17 @@ function WorkListItem({ work }: { work: TeamMemberWork }) {
 interface LogItemProps {
   log: WorkStatusLog;
   isNew?: boolean;
-  onUncheck: (workId: number, logId: number) => void;
 }
 
-function LogItem({ log, isNew, onUncheck }: LogItemProps) {
-  const { mutate: revertToHold, isPending } = useMutation({
-    mutationFn: () => workApi.updateStatus(log.workId, "HOLD"),
-    onSuccess: () => {
-      onUncheck(log.workId, log.id);
-    },
-  });
-
+function LogItem({ log, isNew }: LogItemProps) {
   return (
     <div
       className={`flex items-center gap-3 px-3 py-3 rounded-lg border border-border bg-card
         ${isNew ? "animate-in slide-in-from-top-2 fade-in duration-300" : ""}
       `}
     >
-      {/* 체크박스 */}
-      <button
-        onClick={() => revertToHold()}
-        disabled={isPending}
-        className="shrink-0 text-green-500 dark:text-green-400 hover:text-muted-foreground transition-colors disabled:opacity-50"
-        title="체크 해제 시 보류로 변경"
-      >
-        <CheckCircle2 className="w-5 h-5" />
-      </button>
+      {/* 완료 아이콘 (읽기 전용) */}
+      <CheckCircle2 className="w-5 h-5 shrink-0 text-green-500 dark:text-green-400" />
 
       {/* 내용 */}
       <div className="flex-1 min-w-0 space-y-0.5">
@@ -438,7 +407,6 @@ function LiveLogPanel() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
   const clientRef = useRef<Client | null>(null);
-  const queryClient = useQueryClient();
 
   // 최초 REST API로 최근 50개 로그 가져오기
   useEffect(() => {
@@ -526,16 +494,6 @@ function LiveLogPanel() {
     };
   }, []);
 
-  // 상대 시간 자동 갱신 (1분마다)
-  const handleUncheck = (workId: number, logId: number) => {
-    // 로그 목록에서 해당 항목 제거
-    setLogs((prev) =>
-      prev.filter((l) => l.workId !== workId || l.id !== logId),
-    );
-    // 왼쪽 팀원 카드도 갱신
-    queryClient.invalidateQueries({ queryKey: ["team-work-summary"] });
-  };
-
   const [, setTick] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 60_000);
@@ -611,7 +569,6 @@ function LiveLogPanel() {
               key={`${log.id}-${log.changedAt}`}
               log={log}
               isNew={newLogIds.has(log.id)}
-              onUncheck={handleUncheck}
             />
           ))
         )}
