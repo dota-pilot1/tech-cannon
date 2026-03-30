@@ -130,6 +130,61 @@ import { useNavigate } from "@tanstack/react-router";
 // AG-Grid 모듈 등록
 ModuleRegistry.registerModules([AllCommunityModule]);
 
+// ─── FormTimeInput 컴포넌트 ───────────────────────────────────────────────────
+function FormTimeInput({
+  value,
+  onCommit,
+}: {
+  value: string;
+  onCommit: (time: string) => void;
+}) {
+  const [localTime, setLocalTime] = useState(value);
+  const [error, setError] = useState("");
+
+  const validate = (val: string): boolean => {
+    const match = val.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) {
+      setError("HH:MM 형식으로 입력하세요");
+      return false;
+    }
+    const h = Number(match[1]),
+      m = Number(match[2]);
+    if (h < 0 || h > 23) {
+      setError("시는 0~23 사이여야 합니다");
+      return false;
+    }
+    if (m < 0 || m > 59) {
+      setError("분은 0~59 사이여야 합니다");
+      return false;
+    }
+    setError("");
+    onCommit(val);
+    return true;
+  };
+
+  return (
+    <div className="border-t px-3 py-2">
+      <input
+        type="text"
+        value={localTime}
+        onChange={(e) => {
+          setLocalTime(e.target.value);
+          if (error) validate(e.target.value);
+        }}
+        onBlur={(e) => validate(e.target.value)}
+        onKeyDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        placeholder="09:00"
+        maxLength={5}
+        className={`w-full px-3 py-1.5 border rounded text-sm text-center font-mono tracking-widest ${
+          error ? "border-destructive" : "border-input"
+        } focus:outline-none focus:ring-1 focus:ring-ring`}
+      />
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+    </div>
+  );
+}
+
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 
 const WORK_TYPE_LABELS: Record<WorkType, string> = {
@@ -943,6 +998,27 @@ export function WorkPage() {
                 ? `${String(parsedDate.getHours()).padStart(2, "0")}:${String(parsedDate.getMinutes()).padStart(2, "0")}`
                 : "09:00",
             );
+            const [timeError, setTimeError] = useState<string>("");
+
+            const validateTime = (val: string): boolean => {
+              const match = val.match(/^(\d{1,2}):(\d{2})$/);
+              if (!match) {
+                setTimeError("HH:MM 형식으로 입력하세요");
+                return false;
+              }
+              const h = Number(match[1]),
+                m = Number(match[2]);
+              if (h < 0 || h > 23) {
+                setTimeError("시는 0~23 사이여야 합니다");
+                return false;
+              }
+              if (m < 0 || m > 59) {
+                setTimeError("분은 0~59 사이여야 합니다");
+                return false;
+              }
+              setTimeError("");
+              return true;
+            };
 
             const handleOpenChange = (next: boolean) => {
               if (next) {
@@ -1028,58 +1104,31 @@ export function WorkPage() {
                     locale={ko}
                     initialFocus={false}
                   />
-                  {/* 시간 선택 — 시/분 드롭다운 */}
-                  <div className="border-t px-3 py-2 flex items-center gap-2">
-                    <Select
-                      value={tempTime.split(":")[0]}
-                      onValueChange={(h) =>
-                        setTempTime(`${h}:${tempTime.split(":")[1] ?? "00"}`)
-                      }
-                    >
-                      <SelectTrigger className="h-8 w-20 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-48">
-                        {Array.from({ length: 24 }, (_, i) =>
-                          String(i).padStart(2, "0"),
-                        ).map((h) => (
-                          <SelectItem key={h} value={h}>
-                            {h}시
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="text-muted-foreground text-sm">:</span>
-                    <Select
-                      value={tempTime.split(":")[1] ?? "00"}
-                      onValueChange={(m) =>
-                        setTempTime(`${tempTime.split(":")[0] ?? "09"}:${m}`)
-                      }
-                    >
-                      <SelectTrigger className="h-8 w-20 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-48">
-                        {[
-                          "00",
-                          "05",
-                          "10",
-                          "15",
-                          "20",
-                          "25",
-                          "30",
-                          "35",
-                          "40",
-                          "45",
-                          "50",
-                          "55",
-                        ].map((m) => (
-                          <SelectItem key={m} value={m}>
-                            {m}분
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {/* 시간 직접 입력 */}
+                  <div className="border-t px-3 py-2">
+                    <input
+                      type="text"
+                      value={tempTime}
+                      onChange={(e) => {
+                        setTempTime(e.target.value);
+                        if (timeError) validateTime(e.target.value);
+                      }}
+                      onBlur={(e) => validateTime(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      placeholder="09:00"
+                      maxLength={5}
+                      className={`w-full px-3 py-1.5 border rounded text-sm text-center font-mono tracking-widest ${
+                        timeError
+                          ? "border-destructive focus:ring-destructive"
+                          : "border-input"
+                      } focus:outline-none focus:ring-1 focus:ring-ring`}
+                    />
+                    {timeError && (
+                      <p className="text-xs text-destructive mt-1">
+                        {timeError}
+                      </p>
+                    )}
                   </div>
                   {/* 확인 / 제거 버튼 */}
                   <div className="border-t px-3 py-2 flex items-center gap-2">
@@ -1087,7 +1136,7 @@ export function WorkPage() {
                       size="sm"
                       className="flex-1 h-8 text-xs"
                       onClick={() => {
-                        handleConfirm();
+                        if (validateTime(tempTime)) handleConfirm();
                       }}
                       disabled={!tempDate}
                     >
@@ -2171,91 +2220,41 @@ export function WorkPage() {
                         locale={ko}
                         initialFocus={false}
                       />
-                      {/* 시간 선택 — 시/분 드롭다운 */}
-                      <div className="border-t px-3 py-2 flex items-center gap-2">
-                        {(() => {
-                          const d = formDueDate ? new Date(formDueDate) : null;
-                          const curH =
-                            d && isValid(d)
-                              ? String(d.getHours()).padStart(2, "0")
-                              : "09";
-                          const curM =
-                            d && isValid(d)
-                              ? String(d.getMinutes()).padStart(2, "0")
-                              : "00";
-                          const applyTime = (h: string, m: string) => {
-                            const base = formDueDate
-                              ? new Date(formDueDate)
-                              : new Date();
-                            if (!isValid(base)) return;
-                            base.setHours(Number(h), Number(m), 0, 0);
-                            const pad = (n: number) =>
-                              String(n).padStart(2, "0");
-                            setFormDueDate(
-                              `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`,
-                            );
-                          };
-                          return (
-                            <>
-                              <Select
-                                value={curH}
-                                onValueChange={(h) => applyTime(h, curM)}
-                              >
-                                <SelectTrigger className="h-8 w-20 text-sm">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-48">
-                                  {Array.from({ length: 24 }, (_, i) =>
-                                    String(i).padStart(2, "0"),
-                                  ).map((h) => (
-                                    <SelectItem key={h} value={h}>
-                                      {h}시
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <span className="text-muted-foreground text-sm">
-                                :
-                              </span>
-                              <Select
-                                value={curM}
-                                onValueChange={(m) => applyTime(curH, m)}
-                              >
-                                <SelectTrigger className="h-8 w-20 text-sm">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-48">
-                                  {[
-                                    "00",
-                                    "05",
-                                    "10",
-                                    "15",
-                                    "20",
-                                    "25",
-                                    "30",
-                                    "35",
-                                    "40",
-                                    "45",
-                                    "50",
-                                    "55",
-                                  ].map((m) => (
-                                    <SelectItem key={m} value={m}>
-                                      {m}분
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </>
-                          );
-                        })()}
-                      </div>
+                      {/* 시간 직접 입력 */}
+                      {(() => {
+                        const d = formDueDate ? new Date(formDueDate) : null;
+                        const curTime =
+                          d && isValid(d)
+                            ? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+                            : "09:00";
+                        return (
+                          <FormTimeInput
+                            value={curTime}
+                            onCommit={(time) => {
+                              const base = formDueDate
+                                ? new Date(formDueDate)
+                                : new Date();
+                              if (!isValid(base)) return;
+                              const [hh, mm] = time.split(":").map(Number);
+                              base.setHours(hh ?? 0, mm ?? 0, 0, 0);
+                              const pad = (n: number) =>
+                                String(n).padStart(2, "0");
+                              setFormDueDate(
+                                `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`,
+                              );
+                            }}
+                          />
+                        );
+                      })()}
                       <div className="border-t px-3 py-2 flex items-center gap-2">
                         <Button
                           type="button"
                           size="sm"
                           className="flex-1 h-8 text-xs"
                           disabled={!formDueDate}
-                          onClick={() => setFormDueDate(formDueDate)}
+                          onClick={() => {
+                            /* 이미 실시간 반영, 닫기만 */
+                          }}
                         >
                           확인
                         </Button>
