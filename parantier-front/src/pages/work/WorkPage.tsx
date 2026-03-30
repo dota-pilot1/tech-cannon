@@ -926,7 +926,7 @@ export function WorkPage() {
               ? new Date(currentDueDate) < new Date()
               : false;
 
-            // 현재 값에서 날짜/시간 분리
+            // 현재 저장된 값에서 날짜/시간 분리
             const parsedDate = currentDueDate
               ? (() => {
                   const d = new Date(currentDueDate);
@@ -934,37 +934,41 @@ export function WorkPage() {
                 })()
               : undefined;
 
-            const [timeValue, setTimeValue] = useState<string>(
+            // 팝업 내 임시 상태 (확인 전까지 적용 안 함)
+            const [tempDate, setTempDate] = useState<Date | undefined>(
+              parsedDate,
+            );
+            const [tempTime, setTempTime] = useState<string>(
               parsedDate
                 ? `${String(parsedDate.getHours()).padStart(2, "0")}:${String(parsedDate.getMinutes()).padStart(2, "0")}`
                 : "09:00",
             );
 
-            const applyDateTime = (date: Date, time: string) => {
-              if (!params.data) return;
-              const [hh, mm] = time.split(":").map(Number);
-              const result = new Date(date);
+            const handleOpenChange = (next: boolean) => {
+              if (next) {
+                // 열릴 때 현재 저장값으로 초기화
+                setTempDate(parsedDate);
+                setTempTime(
+                  parsedDate
+                    ? `${String(parsedDate.getHours()).padStart(2, "0")}:${String(parsedDate.getMinutes()).padStart(2, "0")}`
+                    : "09:00",
+                );
+              }
+              setOpen(next);
+            };
+
+            const handleConfirm = () => {
+              if (!params.data || !tempDate) return;
+              const [hh, mm] = tempTime.split(":").map(Number);
+              const result = new Date(tempDate);
               result.setHours(hh ?? 0, mm ?? 0, 0, 0);
-              // 'YYYY-MM-DDTHH:mm' 형태로 저장
               const pad = (n: number) => String(n).padStart(2, "0");
               const val = `${result.getFullYear()}-${pad(result.getMonth() + 1)}-${pad(result.getDate())}T${pad(result.getHours())}:${pad(result.getMinutes())}`;
               params.data.dueDate = val;
               setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
               params.node?.setSelected(true);
               params.api.refreshCells({ rowNodes: [params.node], force: true });
-            };
-
-            const handleDaySelect = (day: Date | undefined) => {
-              if (!day) return;
-              applyDateTime(day, timeValue);
-            };
-
-            const handleTimeChange = (
-              e: React.ChangeEvent<HTMLInputElement>,
-            ) => {
-              const t = e.target.value;
-              setTimeValue(t);
-              if (parsedDate) applyDateTime(parsedDate, t);
+              setOpen(false);
             };
 
             const handleClear = (e: React.MouseEvent) => {
@@ -988,7 +992,7 @@ export function WorkPage() {
             };
 
             return (
-              <Popover open={open} onOpenChange={setOpen}>
+              <Popover open={open} onOpenChange={handleOpenChange}>
                 <PopoverTrigger asChild>
                   <div className="w-full h-full flex items-center justify-center cursor-pointer gap-1">
                     {currentDueDate ? (
@@ -1019,28 +1023,81 @@ export function WorkPage() {
                   {/* 달력 */}
                   <Calendar
                     mode="single"
-                    selected={parsedDate}
-                    onSelect={handleDaySelect}
+                    selected={tempDate}
+                    onSelect={(day) => day && setTempDate(day)}
                     locale={ko}
                     initialFocus={false}
                   />
-                  {/* 시간 선택 + 제거 버튼 */}
+                  {/* 시간 선택 — 시/분 드롭다운 */}
                   <div className="border-t px-3 py-2 flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground flex-shrink-0">
-                      시간
-                    </span>
-                    <input
-                      type="time"
-                      value={timeValue}
-                      onChange={handleTimeChange}
-                      onKeyDown={(e) => e.stopPropagation()}
-                      className="flex-1 px-2 py-1 border border-input rounded text-sm text-center"
-                    />
+                    <Select
+                      value={tempTime.split(":")[0]}
+                      onValueChange={(h) =>
+                        setTempTime(`${h}:${tempTime.split(":")[1] ?? "00"}`)
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-20 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-48">
+                        {Array.from({ length: 24 }, (_, i) =>
+                          String(i).padStart(2, "0"),
+                        ).map((h) => (
+                          <SelectItem key={h} value={h}>
+                            {h}시
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-muted-foreground text-sm">:</span>
+                    <Select
+                      value={tempTime.split(":")[1] ?? "00"}
+                      onValueChange={(m) =>
+                        setTempTime(`${tempTime.split(":")[0] ?? "09"}:${m}`)
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-20 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-48">
+                        {[
+                          "00",
+                          "05",
+                          "10",
+                          "15",
+                          "20",
+                          "25",
+                          "30",
+                          "35",
+                          "40",
+                          "45",
+                          "50",
+                          "55",
+                        ].map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {m}분
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* 확인 / 제거 버튼 */}
+                  <div className="border-t px-3 py-2 flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1 h-8 text-xs"
+                      onClick={() => {
+                        handleConfirm();
+                      }}
+                      disabled={!tempDate}
+                    >
+                      확인
+                    </Button>
                     {currentDueDate && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                        className="h-8 px-3 text-xs text-muted-foreground hover:text-destructive"
                         onClick={handleClear}
                       >
                         제거
@@ -2094,6 +2151,7 @@ export function WorkPage() {
                         }
                         onSelect={(day: Date | undefined) => {
                           if (!day) return;
+                          // 임시 상태는 IIFE 내부에서 관리되므로 여기선 날짜만 반영
                           const existing = formDueDate
                             ? new Date(formDueDate)
                             : null;
@@ -2113,39 +2171,105 @@ export function WorkPage() {
                         locale={ko}
                         initialFocus={false}
                       />
+                      {/* 시간 선택 — 시/분 드롭다운 */}
                       <div className="border-t px-3 py-2 flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground flex-shrink-0">
-                          시간
-                        </span>
-                        <input
-                          type="time"
-                          value={
-                            formDueDate
-                              ? (() => {
-                                  const d = new Date(formDueDate);
-                                  return isValid(d)
-                                    ? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
-                                    : "09:00";
-                                })()
-                              : "09:00"
-                          }
-                          onChange={(e) => {
-                            const t = e.target.value;
+                        {(() => {
+                          const d = formDueDate ? new Date(formDueDate) : null;
+                          const curH =
+                            d && isValid(d)
+                              ? String(d.getHours()).padStart(2, "0")
+                              : "09";
+                          const curM =
+                            d && isValid(d)
+                              ? String(d.getMinutes()).padStart(2, "0")
+                              : "00";
+                          const applyTime = (h: string, m: string) => {
                             const base = formDueDate
                               ? new Date(formDueDate)
                               : new Date();
                             if (!isValid(base)) return;
-                            const [hh, mm] = t.split(":").map(Number);
-                            base.setHours(hh ?? 0, mm ?? 0, 0, 0);
+                            base.setHours(Number(h), Number(m), 0, 0);
                             const pad = (n: number) =>
                               String(n).padStart(2, "0");
                             setFormDueDate(
                               `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`,
                             );
-                          }}
-                          onKeyDown={(e) => e.stopPropagation()}
-                          className="flex-1 px-2 py-1 border border-input rounded text-sm text-center"
-                        />
+                          };
+                          return (
+                            <>
+                              <Select
+                                value={curH}
+                                onValueChange={(h) => applyTime(h, curM)}
+                              >
+                                <SelectTrigger className="h-8 w-20 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-48">
+                                  {Array.from({ length: 24 }, (_, i) =>
+                                    String(i).padStart(2, "0"),
+                                  ).map((h) => (
+                                    <SelectItem key={h} value={h}>
+                                      {h}시
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <span className="text-muted-foreground text-sm">
+                                :
+                              </span>
+                              <Select
+                                value={curM}
+                                onValueChange={(m) => applyTime(curH, m)}
+                              >
+                                <SelectTrigger className="h-8 w-20 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-48">
+                                  {[
+                                    "00",
+                                    "05",
+                                    "10",
+                                    "15",
+                                    "20",
+                                    "25",
+                                    "30",
+                                    "35",
+                                    "40",
+                                    "45",
+                                    "50",
+                                    "55",
+                                  ].map((m) => (
+                                    <SelectItem key={m} value={m}>
+                                      {m}분
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </>
+                          );
+                        })()}
+                      </div>
+                      <div className="border-t px-3 py-2 flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="flex-1 h-8 text-xs"
+                          disabled={!formDueDate}
+                          onClick={() => setFormDueDate(formDueDate)}
+                        >
+                          확인
+                        </Button>
+                        {formDueDate && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-3 text-xs text-muted-foreground hover:text-destructive"
+                            onClick={() => setFormDueDate("")}
+                          >
+                            제거
+                          </Button>
+                        )}
                       </div>
                     </PopoverContent>
                   </Popover>
