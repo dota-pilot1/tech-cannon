@@ -1,4 +1,7 @@
 import { useMemo, useRef, useState, useCallback } from "react";
+import { Calendar } from "@/shared/ui/calendar";
+import { format, isValid } from "date-fns";
+import { ko } from "date-fns/locale";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -923,14 +926,45 @@ export function WorkPage() {
               ? new Date(currentDueDate) < new Date()
               : false;
 
-            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            // 현재 값에서 날짜/시간 분리
+            const parsedDate = currentDueDate
+              ? (() => {
+                  const d = new Date(currentDueDate);
+                  return isValid(d) ? d : undefined;
+                })()
+              : undefined;
+
+            const [timeValue, setTimeValue] = useState<string>(
+              parsedDate
+                ? `${String(parsedDate.getHours()).padStart(2, "0")}:${String(parsedDate.getMinutes()).padStart(2, "0")}`
+                : "09:00",
+            );
+
+            const applyDateTime = (date: Date, time: string) => {
               if (!params.data) return;
-              const val = e.target.value || undefined;
+              const [hh, mm] = time.split(":").map(Number);
+              const result = new Date(date);
+              result.setHours(hh ?? 0, mm ?? 0, 0, 0);
+              // 'YYYY-MM-DDTHH:mm' 형태로 저장
+              const pad = (n: number) => String(n).padStart(2, "0");
+              const val = `${result.getFullYear()}-${pad(result.getMonth() + 1)}-${pad(result.getDate())}T${pad(result.getHours())}:${pad(result.getMinutes())}`;
               params.data.dueDate = val;
               setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
               params.node?.setSelected(true);
               params.api.refreshCells({ rowNodes: [params.node], force: true });
-              setOpen(false);
+            };
+
+            const handleDaySelect = (day: Date | undefined) => {
+              if (!day) return;
+              applyDateTime(day, timeValue);
+            };
+
+            const handleTimeChange = (
+              e: React.ChangeEvent<HTMLInputElement>,
+            ) => {
+              const t = e.target.value;
+              setTimeValue(t);
+              if (parsedDate) applyDateTime(parsedDate, t);
             };
 
             const handleClear = (e: React.MouseEvent) => {
@@ -951,13 +985,6 @@ export function WorkPage() {
               const hh = String(d.getHours()).padStart(2, "0");
               const min = String(d.getMinutes()).padStart(2, "0");
               return `${mm}/${dd} ${hh}:${min}`;
-            };
-
-            // datetime-local input은 'YYYY-MM-DDTHH:mm' 형식 필요
-            const toDatetimeLocal = (val: string) => {
-              if (!val) return "";
-              if (val.includes("T")) return val.slice(0, 16);
-              return val + "T00:00";
             };
 
             return (
@@ -984,27 +1011,42 @@ export function WorkPage() {
                     )}
                   </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-3" align="center">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">
-                    마감 일시 선택
-                  </p>
-                  <input
-                    type="datetime-local"
-                    defaultValue={toDatetimeLocal(currentDueDate)}
-                    onChange={handleChange}
-                    className="px-2 py-1 border border-input rounded text-sm"
-                    autoFocus
+                <PopoverContent
+                  className="w-auto p-0"
+                  align="center"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  {/* 달력 */}
+                  <Calendar
+                    mode="single"
+                    selected={parsedDate}
+                    onSelect={handleDaySelect}
+                    locale={ko}
+                    initialFocus={false}
                   />
-                  {currentDueDate && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full mt-2 text-xs text-muted-foreground"
-                      onClick={handleClear}
-                    >
-                      마감일 제거
-                    </Button>
-                  )}
+                  {/* 시간 선택 + 제거 버튼 */}
+                  <div className="border-t px-3 py-2 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      시간
+                    </span>
+                    <input
+                      type="time"
+                      value={timeValue}
+                      onChange={handleTimeChange}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="flex-1 px-2 py-1 border border-input rounded text-sm text-center"
+                    />
+                    {currentDueDate && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                        onClick={handleClear}
+                      >
+                        제거
+                      </Button>
+                    )}
+                  </div>
                 </PopoverContent>
               </Popover>
             );
@@ -2001,12 +2043,112 @@ export function WorkPage() {
                   <label className="block text-sm font-medium mb-2">
                     마감 일시
                   </label>
-                  <input
-                    type="datetime-local"
-                    value={formDueDate}
-                    onChange={(e) => setFormDueDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 border border-input rounded-md text-sm text-left flex items-center gap-2 hover:bg-accent transition-colors"
+                      >
+                        <span
+                          className={formDueDate ? "" : "text-muted-foreground"}
+                        >
+                          {formDueDate
+                            ? (() => {
+                                const d = new Date(formDueDate);
+                                return isValid(d)
+                                  ? format(d, "yyyy. MM. dd. HH:mm", {
+                                      locale: ko,
+                                    })
+                                  : "날짜 선택";
+                              })()
+                            : "날짜 선택"}
+                        </span>
+                        {formDueDate && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFormDueDate("");
+                            }}
+                            className="ml-auto text-muted-foreground hover:text-destructive text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0"
+                      align="start"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <Calendar
+                        mode="single"
+                        selected={
+                          formDueDate
+                            ? (() => {
+                                const d = new Date(formDueDate);
+                                return isValid(d) ? d : undefined;
+                              })()
+                            : undefined
+                        }
+                        onSelect={(day: Date | undefined) => {
+                          if (!day) return;
+                          const existing = formDueDate
+                            ? new Date(formDueDate)
+                            : null;
+                          const hh =
+                            existing && isValid(existing)
+                              ? existing.getHours()
+                              : 9;
+                          const mm =
+                            existing && isValid(existing)
+                              ? existing.getMinutes()
+                              : 0;
+                          const pad = (n: number) => String(n).padStart(2, "0");
+                          setFormDueDate(
+                            `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T${pad(hh)}:${pad(mm)}`,
+                          );
+                        }}
+                        locale={ko}
+                        initialFocus={false}
+                      />
+                      <div className="border-t px-3 py-2 flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground flex-shrink-0">
+                          시간
+                        </span>
+                        <input
+                          type="time"
+                          value={
+                            formDueDate
+                              ? (() => {
+                                  const d = new Date(formDueDate);
+                                  return isValid(d)
+                                    ? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+                                    : "09:00";
+                                })()
+                              : "09:00"
+                          }
+                          onChange={(e) => {
+                            const t = e.target.value;
+                            const base = formDueDate
+                              ? new Date(formDueDate)
+                              : new Date();
+                            if (!isValid(base)) return;
+                            const [hh, mm] = t.split(":").map(Number);
+                            base.setHours(hh ?? 0, mm ?? 0, 0, 0);
+                            const pad = (n: number) =>
+                              String(n).padStart(2, "0");
+                            setFormDueDate(
+                              `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`,
+                            );
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          className="flex-1 px-2 py-1 border border-input rounded text-sm text-center"
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 {/* 제목 */}
