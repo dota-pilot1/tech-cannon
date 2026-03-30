@@ -10,6 +10,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { WorkChatPanel } from "@/features/work/components/WorkChatPanel";
+import { SubWorkSection } from "@/features/work/components/SubWorkSection";
 import { cn } from "@/shared/lib/utils";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
@@ -3573,109 +3574,12 @@ export function WorkPage() {
                 {/* 부가 업무 */}
                 <div
                   className="border-b border-border overflow-y-auto p-3"
-                  style={{ maxHeight: "40%" }}
+                  style={{ maxHeight: "45%" }}
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center mb-2">
                     <span className="font-bold text-sm">부가 업무</span>
                   </div>
-                  {/* 이슈 검색 */}
-                  <div className="flex gap-1.5 mb-2">
-                    <input
-                      type="text"
-                      value={issueSearchKeyword}
-                      onChange={(e) => setIssueSearchKeyword(e.target.value)}
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && handleIssueSearch()
-                      }
-                      placeholder="이슈 제목으로 검색..."
-                      className="flex-1 px-2 py-1.5 border border-input rounded-md text-xs"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleIssueSearch}
-                      disabled={isSearchingIssue}
-                      className="h-7 px-2 text-xs"
-                    >
-                      <Link className="w-3.5 h-3.5 mr-1" />
-                      {isSearchingIssue ? "검색 중..." : "검색"}
-                    </Button>
-                  </div>
-                  {/* 검색 결과 */}
-                  {issueSearchResults.length > 0 && (
-                    <div className="mb-2 border rounded-md overflow-hidden">
-                      <div className="bg-muted px-2 py-1.5 border-b text-xs font-medium text-muted-foreground">
-                        검색 결과 — 클릭하여 연결
-                      </div>
-                      <div className="divide-y max-h-36 overflow-y-auto">
-                        {issueSearchResults.map((issue) => (
-                          <div
-                            key={issue.id}
-                            className="flex items-center justify-between px-2 py-1.5 hover:bg-accent cursor-pointer"
-                            onClick={() => handleLinkIssue(issue.id)}
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <Badge
-                                className={`text-xs flex-shrink-0 ${ISSUE_STATUS_COLORS[issue.status] || "bg-gray-100 text-gray-600"}`}
-                              >
-                                {ISSUE_STATUS_LABELS[issue.status] ||
-                                  issue.status}
-                              </Badge>
-                              <span className="text-xs truncate">
-                                <span className="text-muted-foreground mr-1">
-                                  #{issue.id}
-                                </span>
-                                {issue.title}
-                              </span>
-                            </div>
-                            <Link className="w-3 h-3 text-muted-foreground flex-shrink-0 ml-1" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {/* 연결된 이슈 목록 */}
-                  <div className="space-y-1">
-                    {linkedIssues && linkedIssues.length > 0 ? (
-                      linkedIssues.map((linked) => (
-                        <div
-                          key={linked.id}
-                          className="flex items-center justify-between px-2 py-1.5 border rounded hover:bg-accent group"
-                        >
-                          <div
-                            className="flex items-center gap-1.5 flex-1 min-w-0 cursor-pointer"
-                            onClick={() => navigate({ to: "/issues" })}
-                          >
-                            <Badge
-                              className={`text-xs flex-shrink-0 ${ISSUE_STATUS_COLORS[linked.issueStatus] || "bg-gray-100 text-gray-600"}`}
-                            >
-                              {ISSUE_STATUS_LABELS[linked.issueStatus] ||
-                                linked.issueStatus}
-                            </Badge>
-                            <span className="text-xs truncate hover:underline">
-                              <span className="text-muted-foreground mr-1">
-                                #{linked.issueId}
-                              </span>
-                              {linked.issueTitle}
-                            </span>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 hover:bg-destructive/10 flex-shrink-0"
-                            onClick={() => handleUnlinkIssue(linked.id)}
-                            title="연결 해제"
-                          >
-                            <Unlink className="w-3 h-3 text-destructive" />
-                          </Button>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-muted-foreground text-center py-3">
-                        연결된 이슈가 없습니다
-                      </p>
-                    )}
-                  </div>
+                  <SubWorkSection workId={workDetail.id} />
                 </div>
 
                 {/* 채팅 */}

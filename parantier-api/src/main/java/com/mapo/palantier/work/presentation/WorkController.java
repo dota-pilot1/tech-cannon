@@ -1,6 +1,7 @@
 package com.mapo.palantier.work.presentation;
 
 import com.mapo.palantier.work.application.WorkService;
+import com.mapo.palantier.work.domain.SubWork;
 import com.mapo.palantier.work.domain.Work;
 import com.mapo.palantier.work.domain.WorkChecklist;
 import com.mapo.palantier.work.domain.WorkDbTable;
@@ -8,6 +9,7 @@ import com.mapo.palantier.work.domain.WorkFigma;
 import com.mapo.palantier.work.domain.WorkImage;
 import com.mapo.palantier.work.domain.WorkLinkedIssue;
 import com.mapo.palantier.work.domain.WorkMindmap;
+import com.mapo.palantier.work.infrastructure.SubWorkMapper;
 import com.mapo.palantier.work.infrastructure.WorkChecklistMapper;
 import com.mapo.palantier.work.infrastructure.WorkDbTableMapper;
 import com.mapo.palantier.work.infrastructure.WorkFigmaMapper;
@@ -37,6 +39,7 @@ public class WorkController {
     private final WorkDbTableMapper workDbTableMapper;
     private final WorkLinkedIssueMapper workLinkedIssueMapper;
     private final WorkFigmaMapper workFigmaMapper;
+    private final SubWorkMapper subWorkMapper;
 
     public WorkController(
         WorkService workService,
@@ -45,7 +48,8 @@ public class WorkController {
         WorkMindmapMapper workMindmapMapper,
         WorkDbTableMapper workDbTableMapper,
         WorkLinkedIssueMapper workLinkedIssueMapper,
-        WorkFigmaMapper workFigmaMapper
+        WorkFigmaMapper workFigmaMapper,
+        SubWorkMapper subWorkMapper
     ) {
         this.workService = workService;
         this.workImageMapper = workImageMapper;
@@ -54,6 +58,7 @@ public class WorkController {
         this.workDbTableMapper = workDbTableMapper;
         this.workLinkedIssueMapper = workLinkedIssueMapper;
         this.workFigmaMapper = workFigmaMapper;
+        this.subWorkMapper = subWorkMapper;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -585,6 +590,76 @@ public class WorkController {
         workLinkedIssueMapper.delete(linkId);
         return ResponseEntity.noContent().build();
     }
+
+    // ── SubWork endpoints ──────────────────────────────────────────────────────
+
+    @GetMapping("/{workId}/sub-works")
+    public ResponseEntity<List<SubWork>> getSubWorks(
+        @PathVariable Long workId
+    ) {
+        return ResponseEntity.ok(subWorkMapper.findByParentWorkId(workId));
+    }
+
+    @PostMapping("/{workId}/sub-works")
+    public ResponseEntity<SubWork> createSubWork(
+        @PathVariable Long workId,
+        @RequestBody CreateSubWorkRequest request,
+        Authentication authentication
+    ) {
+        Long authorId = Long.parseLong(authentication.getName());
+        SubWork subWork = new SubWork();
+        subWork.setParentWorkId(workId);
+        subWork.setTitle(request.title() != null ? request.title() : "");
+        subWork.setContent(request.content());
+        subWork.setImageUrl(request.imageUrl());
+        subWork.setIsResolved(false);
+        subWork.setAuthorId(authorId);
+        subWorkMapper.insert(subWork);
+        return ResponseEntity.ok(subWorkMapper.findById(subWork.getId()));
+    }
+
+    @PutMapping("/{workId}/sub-works/{subWorkId}")
+    public ResponseEntity<SubWork> updateSubWork(
+        @PathVariable Long workId,
+        @PathVariable Long subWorkId,
+        @RequestBody CreateSubWorkRequest request
+    ) {
+        SubWork subWork = new SubWork();
+        subWork.setId(subWorkId);
+        subWork.setTitle(request.title() != null ? request.title() : "");
+        subWork.setContent(request.content());
+        subWork.setImageUrl(request.imageUrl());
+        subWork.setIsResolved(
+            request.isResolved() != null ? request.isResolved() : false
+        );
+        subWorkMapper.update(subWork);
+        return ResponseEntity.ok(subWorkMapper.findById(subWorkId));
+    }
+
+    @PatchMapping("/{workId}/sub-works/{subWorkId}/toggle")
+    public ResponseEntity<Void> toggleSubWork(
+        @PathVariable Long workId,
+        @PathVariable Long subWorkId
+    ) {
+        subWorkMapper.toggleResolved(subWorkId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{workId}/sub-works/{subWorkId}")
+    public ResponseEntity<Void> deleteSubWork(
+        @PathVariable Long workId,
+        @PathVariable Long subWorkId
+    ) {
+        subWorkMapper.delete(subWorkId);
+        return ResponseEntity.noContent().build();
+    }
+
+    public record CreateSubWorkRequest(
+        String title,
+        String content,
+        String imageUrl,
+        Boolean isResolved
+    ) {}
 
     // ──────────────────────────────────────────────────────────────────────────
     // 유틸리티

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.work.infrastructure.SubWorkMapper">
+
+    <resultMap id="SubWorkResultMap" type="com.mapo.palantier.work.domain.SubWork">
+        <id property="id" column="id"/>
+        <result property="parentWorkId" column="parent_work_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="imageUrl" column="image_url"/>
+        <result property="isResolved" column="is_resolved"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByParentWorkId" resultMap="SubWorkResultMap">
+        SELECT sw.*, u.username AS author_name
+        FROM sub_works sw
+        LEFT JOIN users u ON sw.author_id = u.id
+        WHERE sw.parent_work_id = #{parentWorkId}
+        ORDER BY sw.created_at ASC
+    </select>
+
+    <select id="findById" resultMap="SubWorkResultMap">
+        SELECT sw.*, u.username AS author_name
+        FROM sub_works sw
+        LEFT JOIN users u ON sw.author_id = u.id
+        WHERE sw.id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sub_works (parent_work_id, title, content, image_url, is_resolved, author_id, created_at, updated_at)
+        VALUES (#{parentWorkId}, #{title}, #{content}, #{imageUrl}, #{isResolved}, #{authorId}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <update id="update">
+        UPDATE sub_works
+        SET title = #{title},
+            content = #{content},
+            image_url = #{imageUrl},
+            is_resolved = #{isResolved},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM sub_works WHERE id = #{id}
+    </delete>
+
+    <update id="toggleResolved">
+        UPDATE sub_works
+        SET is_resolved = NOT is_resolved,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>
