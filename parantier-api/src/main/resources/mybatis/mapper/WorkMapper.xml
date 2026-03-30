@@ -140,7 +140,7 @@
             #{assigneeId},
             #{organizationId},
             <choose>
-                <when test="dueDate != null and dueDate != ''">#{dueDate}::date</when>
+                <when test="dueDate != null and dueDate != ''">#{dueDate}::timestamp</when>
                 <otherwise>NULL</otherwise>
             </choose>,
             CURRENT_TIMESTAMP,
@@ -159,7 +159,7 @@
             priority       = #{priority},
             assignee_id    = #{assigneeId},
             due_date       = <choose>
-                <when test="dueDate != null and dueDate != ''">#{dueDate}::date</when>
+                <when test="dueDate != null and dueDate != ''">#{dueDate}::timestamp</when>
                 <otherwise>NULL</otherwise>
             </choose>,
             updated_at     = CURRENT_TIMESTAMP

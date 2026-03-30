@@ -13,7 +13,7 @@ export interface Work {
   reporterName: string;
   assigneeId?: number;
   assigneeName?: string;
-  dueDate?: string; // 'YYYY-MM-DD'
+  dueDate?: string; // 'YYYY-MM-DDTHH:mm'
   orderNum?: number;
   isArchived?: boolean;
   createdAt: string;
@@ -27,7 +27,7 @@ export interface CreateWorkRequest {
   status?: WorkStatus;
   priority?: WorkPriority;
   assigneeId?: number | null;
-  dueDate?: string | null;
+  dueDate?: string | null; // 'YYYY-MM-DDTHH:mm'
 }
 
 export interface UpdateWorkRequest {
@@ -37,7 +37,7 @@ export interface UpdateWorkRequest {
   status?: WorkStatus;
   priority?: WorkPriority;
   assigneeId?: number | null;
-  dueDate?: string | null;
+  dueDate?: string | null; // 'YYYY-MM-DDTHH:mm'
 }
 
 export interface WorkListResponse {
