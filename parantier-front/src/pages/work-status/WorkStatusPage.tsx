@@ -58,7 +58,12 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 function getRelativeTime(isoString: string): string {
   const now = Date.now();
-  const then = new Date(isoString).getTime();
+  // 타임존 정보 없는 LocalDateTime 문자열은 UTC로 처리 (서버가 UTC 저장)
+  const utcString =
+    isoString.endsWith("Z") || isoString.includes("+")
+      ? isoString
+      : isoString + "Z";
+  const then = new Date(utcString).getTime();
   const diffSec = Math.floor((now - then) / 1000);
 
   if (diffSec < 10) return "방금 전";
