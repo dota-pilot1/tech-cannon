@@ -1693,7 +1693,7 @@ export function IssuesPage() {
                 : "bg-background text-muted-foreground border-border hover:bg-muted",
             )}
           >
-            🗄️ 백업
+            🗄️ 백업(조회)
           </button>
         </div>
       </div>
@@ -1703,7 +1703,7 @@ export function IssuesPage() {
         {/* 그리드 영역 */}
         <div className="flex-1 px-3 pt-2 pb-2 overflow-hidden flex flex-col">
           {/* Grid Toolbar */}
-          <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b">
+          <div className="flex items-center justify-end gap-1.5 mb-1.5 pb-1.5 border-b">
             {!isBackupTab && (
               <>
                 <Button onClick={handleAddRow} size="sm" variant="outline">
@@ -1727,7 +1727,7 @@ export function IssuesPage() {
                   삭제
                 </Button>
                 <Button onClick={handleArchive} size="sm" variant="outline">
-                  🗄️ 백업
+                  🗄️ 백업(저장)
                 </Button>
               </>
             )}
