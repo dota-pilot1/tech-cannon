@@ -22,6 +22,7 @@ import { IssuesPage } from "@/pages/issues/IssuesPage";
 import { StudyPage } from "@/pages/study/StudyPage";
 import { PilotPage } from "@/pages/pilot/PilotPage";
 import { WorkStatusPage } from "@/pages/work-status/WorkStatusPage";
+import { ToolsPage } from "@/pages/tools/ToolsPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -203,6 +204,14 @@ const studyRoute = createRoute({
   component: StudyPage,
 });
 
+// 도구 페이지 (로그인 필요)
+const toolsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/tools",
+  beforeLoad: () => requireAuth(),
+  component: ToolsPage,
+});
+
 // 업무 현황 페이지 (로그인 필요)
 const workStatusRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -236,6 +245,7 @@ const routeTree = rootRoute.addChildren([
   issuesRoute,
   pilotRoute,
   studyRoute,
+  toolsRoute,
   notFoundRoute,
 ]);
 
