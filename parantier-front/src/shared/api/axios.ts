@@ -132,14 +132,27 @@ apiClient.interceptors.response.use(
       const { isAuthenticated, isRestored } = authStore.state;
 
       // restoreAuth 완료 전이거나 비로그인 상태면 조용히 무시
-      // (페이지 초기 로드 시 토큰 복원 전 요청이 403 받는 케이스 방지)
       if (!isAuthenticated || !isRestored) {
         return Promise.reject(error);
       }
 
-      toast.error("접근 권한이 없습니다.", {
-        description: "해당 기능을 사용할 권한이 없습니다.",
-      });
+      const url = originalRequest?.url ?? "";
+      const isAdminApi = url.includes("/admin/");
+
+      if (isAdminApi) {
+        // 관리자 전용 API → 권한 없음 안내만
+        toast.error("접근 권한이 없습니다.", {
+          description: "관리자 권한이 필요합니다.",
+        });
+      } else {
+        // 일반 API에서 403 → 토큰 만료/무효로 간주 → 로그아웃 + 리다이렉트
+        authActions.logout();
+        toast.error("세션이 만료됐습니다.", {
+          description: "다시 로그인해주세요.",
+          duration: 4000,
+        });
+        window.location.replace("/");
+      }
       return Promise.reject(error);
     }
 
