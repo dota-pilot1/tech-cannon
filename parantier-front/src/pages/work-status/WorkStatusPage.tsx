@@ -18,23 +18,29 @@ import type {
 const STATUS_LABELS: Record<string, string> = {
   TODO: "할 일",
   IN_PROGRESS: "진행 중",
+  TEST: "테스트",
   DONE: "완료",
   HOLD: "보류",
+  BLOCKED: "막힘",
 };
 
 const STATUS_COLORS: Record<string, string> = {
   TODO: "bg-muted text-muted-foreground",
   IN_PROGRESS: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+  TEST: "bg-purple-500/20 text-purple-600 dark:text-purple-400",
   DONE: "bg-green-500/20 text-green-600 dark:text-green-400",
   HOLD: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400",
+  BLOCKED: "bg-red-500/20 text-red-600 dark:text-red-400",
 };
 
 // 상태별 바 차트 색상 (배경 색상)
 const STATUS_BAR_COLORS: Record<string, string> = {
   TODO: "bg-muted-foreground/30",
   IN_PROGRESS: "bg-blue-500",
+  TEST: "bg-purple-500",
   DONE: "bg-green-500",
   HOLD: "bg-yellow-500",
+  BLOCKED: "bg-red-500",
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -97,21 +103,33 @@ function getInitials(name: string): string {
 interface StatusBarProps {
   todo: number;
   inProgress: number;
+  test: number;
   done: number;
   hold: number;
+  blocked: number;
   total: number;
 }
 
-function StatusBar({ todo, inProgress, done, hold, total }: StatusBarProps) {
+function StatusBar({
+  todo,
+  inProgress,
+  test,
+  done,
+  hold,
+  blocked,
+  total,
+}: StatusBarProps) {
   if (total === 0) {
     return <div className="w-full h-2 rounded-full bg-muted" />;
   }
 
   const segments = [
     { key: "IN_PROGRESS", count: inProgress },
+    { key: "TEST", count: test },
     { key: "DONE", count: done },
     { key: "TODO", count: todo },
     { key: "HOLD", count: hold },
+    { key: "BLOCKED", count: blocked },
   ].filter((s) => s.count > 0);
 
   return (
@@ -190,8 +208,10 @@ function MemberCard({ summary }: MemberCardProps) {
         <StatusBar
           todo={summary.todoCount}
           inProgress={summary.inProgressCount}
+          test={summary.testCount ?? 0}
           done={summary.doneCount}
           hold={summary.holdCount}
+          blocked={summary.blockedCount ?? 0}
           total={summary.totalCount}
         />
         {/* 범례 */}
@@ -199,8 +219,10 @@ function MemberCard({ summary }: MemberCardProps) {
           {[
             { key: "TODO", count: summary.todoCount },
             { key: "IN_PROGRESS", count: summary.inProgressCount },
+            { key: "TEST", count: summary.testCount ?? 0 },
             { key: "DONE", count: summary.doneCount },
             { key: "HOLD", count: summary.holdCount },
+            { key: "BLOCKED", count: summary.blockedCount ?? 0 },
           ]
             .filter((s) => s.count > 0)
             .map(({ key, count }) => (

@@ -14,9 +14,12 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { ChevronDown, User, LogOut } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { navThemeStore } from "@/entities/ui/model/navThemeStore";
+import { NavThemePicker } from "./NavThemePicker";
 
 export function Header() {
   const auth = useStore(authStore, (state) => state);
+  const { themeId } = useStore(navThemeStore, (s) => s);
   const navigate = useNavigate();
   const { data: menus = [] } = useMenuTree();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -37,13 +40,18 @@ export function Header() {
     }));
 
   return (
-    <header className="border-b border-zinc-800 bg-zinc-950 dark:bg-zinc-900">
+    <header
+      className={cn(
+        "border-b nav-theme-" + themeId,
+        "bg-[var(--nav-bg)] border-[var(--nav-border)]",
+      )}
+    >
       <div className="max-w-full px-6 py-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <Link
               to="/"
-              className="text-xl font-bold text-white hover:opacity-70 transition-opacity cursor-pointer mr-6"
+              className="text-xl font-bold transition-opacity cursor-pointer mr-6 text-[var(--nav-logo)] hover:text-[var(--nav-logo-hover)]"
             >
               Palantier
             </Link>
@@ -62,8 +70,8 @@ export function Header() {
                           className={cn(
                             "flex items-center gap-1 px-3 py-3 text-sm font-medium transition-all outline-none cursor-pointer rounded-md mx-0.5",
                             isChildActive
-                              ? "text-white bg-white/10"
-                              : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5",
+                              ? "text-[var(--nav-text-active)] bg-[var(--nav-item-active-bg)]"
+                              : "text-[var(--nav-text)] hover:text-[var(--nav-text-hover)] hover:bg-[var(--nav-item-hover-bg)]",
                           )}
                         >
                           {menu.name}
@@ -72,8 +80,9 @@ export function Header() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         align="start"
+                        data-nav-dropdown
                         className={cn(
-                          "grid gap-0.5 p-1 bg-zinc-900 border-zinc-700 text-zinc-200",
+                          "grid gap-0.5 p-1",
                           menu.children.length <= 4
                             ? "w-[200px] grid-cols-1"
                             : menu.children.length <= 8
@@ -85,7 +94,7 @@ export function Header() {
                           <DropdownMenuItem key={child.id} asChild>
                             <Link
                               to={child.path || "/"}
-                              className="cursor-pointer rounded-sm px-3 py-2 text-sm text-zinc-200 hover:text-white hover:bg-white/5 focus:text-white focus:bg-white/5"
+                              className="cursor-pointer rounded-sm px-3 py-2 text-sm"
                             >
                               {child.name}
                             </Link>
@@ -109,8 +118,8 @@ export function Header() {
                     className={cn(
                       "px-3 py-3 text-sm font-medium transition-all rounded-md mx-0.5",
                       isActive
-                        ? "text-white bg-white/10"
-                        : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5",
+                        ? "text-[var(--nav-text-active)] bg-[var(--nav-item-active-bg)]"
+                        : "text-[var(--nav-text)] hover:text-[var(--nav-text-hover)] hover:bg-[var(--nav-item-hover-bg)]",
                     )}
                   >
                     {menu.name}
@@ -120,10 +129,13 @@ export function Header() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-4 py-3">
+          <div className="flex items-center gap-2 py-3">
+            {/* 테마 피커 */}
+            <NavThemePicker />
+
             {auth.isAuthenticated ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors cursor-pointer outline-none">
+                <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer outline-none ml-1 text-[var(--nav-user-text)] hover:text-[var(--nav-user-hover)]">
                   {auth.user?.profileImageUrl ? (
                     <img
                       src={auth.user.profileImageUrl}
@@ -136,14 +148,15 @@ export function Header() {
                     </div>
                   )}
                   {auth.user?.username}
-                  <ChevronDown className="w-4 h-4 text-zinc-400" />
+                  <ChevronDown className="w-4 h-4 opacity-60" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="min-w-[200px] bg-zinc-900 border-zinc-700"
+                  data-nav-dropdown
+                  className="min-w-[200px]"
                 >
                   <div className="px-2 py-1.5 text-sm">
-                    <div className="flex items-center gap-3 mb-2 text-zinc-100">
+                    <div className="flex items-center gap-3 mb-2 text-popover-foreground">
                       {auth.user?.profileImageUrl ? (
                         <img
                           src={auth.user.profileImageUrl}
@@ -156,29 +169,26 @@ export function Header() {
                         </div>
                       )}
                       <div>
-                        <div className="font-medium text-zinc-100">
+                        <div className="font-medium text-popover-foreground">
                           {auth.user?.username}
                         </div>
-                        <div className="text-xs text-zinc-400">
+                        <div className="text-xs text-muted-foreground">
                           {auth.user?.role}
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs text-zinc-400">
+                    <div className="text-xs text-muted-foreground">
                       {auth.user?.email}
                     </div>
                   </div>
-                  <DropdownMenuSeparator className="bg-zinc-700" />
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link
-                      to="/profile"
-                      className="cursor-pointer text-zinc-200 hover:text-white focus:text-white"
-                    >
+                    <Link to="/profile" className="cursor-pointer">
                       <User className="w-4 h-4 mr-2" />
                       프로필
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-zinc-700" />
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="cursor-pointer text-destructive focus:text-destructive"
                     onClick={() => {

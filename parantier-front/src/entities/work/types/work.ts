@@ -1,5 +1,11 @@
 export type WorkType = "FEATURE" | "QA" | "COMMON";
-export type WorkStatus = "TODO" | "IN_PROGRESS" | "DONE" | "HOLD";
+export type WorkStatus =
+  | "TODO"
+  | "IN_PROGRESS"
+  | "TEST"
+  | "DONE"
+  | "HOLD"
+  | "BLOCKED";
 export type WorkPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export interface Work {

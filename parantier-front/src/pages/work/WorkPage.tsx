@@ -203,15 +203,19 @@ const WORK_TYPE_COLORS: Record<WorkType, string> = {
 const STATUS_LABELS: Record<WorkStatus, string> = {
   TODO: "진행 전",
   IN_PROGRESS: "진행 중",
+  TEST: "테스트",
   DONE: "완료",
   HOLD: "보류",
+  BLOCKED: "막힘",
 };
 
 const STATUS_COLORS: Record<WorkStatus, string> = {
   TODO: "bg-gray-100 text-gray-600 hover:bg-gray-100",
   IN_PROGRESS: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  TEST: "bg-purple-100 text-purple-700 hover:bg-purple-100",
   DONE: "bg-green-100 text-green-700 hover:bg-green-100",
   HOLD: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
+  BLOCKED: "bg-red-100 text-red-700 hover:bg-red-100",
 };
 
 const PRIORITY_LABELS: Record<WorkPriority, string> = {
@@ -776,7 +780,14 @@ export function WorkPage() {
                 <PopoverContent className="w-36 p-2" align="center">
                   <div className="flex flex-col gap-1">
                     {(
-                      ["TODO", "IN_PROGRESS", "DONE", "HOLD"] as WorkStatus[]
+                      [
+                        "TODO",
+                        "IN_PROGRESS",
+                        "TEST",
+                        "DONE",
+                        "HOLD",
+                        "BLOCKED",
+                      ] as WorkStatus[]
                     ).map((s) => (
                       <Button
                         key={s}
@@ -1772,8 +1783,10 @@ export function WorkPage() {
     return {
       TODO: allWorks.filter((w) => w.status === "TODO").length,
       IN_PROGRESS: allWorks.filter((w) => w.status === "IN_PROGRESS").length,
+      TEST: allWorks.filter((w) => w.status === "TEST").length,
       DONE: allWorks.filter((w) => w.status === "DONE").length,
       HOLD: allWorks.filter((w) => w.status === "HOLD").length,
+      BLOCKED: allWorks.filter((w) => w.status === "BLOCKED").length,
       ALL: allWorks.length,
     };
   }, [worksData]);
@@ -1797,8 +1810,10 @@ export function WorkPage() {
                   label: "진행 중",
                   count: statusCounts.IN_PROGRESS,
                 },
+                { key: "TEST", label: "테스트", count: statusCounts.TEST },
                 { key: "DONE", label: "완료", count: statusCounts.DONE },
                 { key: "HOLD", label: "보류", count: statusCounts.HOLD },
+                { key: "BLOCKED", label: "막힘", count: statusCounts.BLOCKED },
               ] as { key: string; label: string; count: number }[]
             ).map(({ key, label, count }) => (
               <button

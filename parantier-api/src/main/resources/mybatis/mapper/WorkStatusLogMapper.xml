@@ -71,4 +71,11 @@
         ORDER BY changed_at DESC
     </select>
 
+    <delete id="deleteByWorkIdAndNewValue">
+        DELETE FROM work_status_logs
+        WHERE work_id = #{workId}
+          AND new_value = #{newValue}
+          AND change_type = 'STATUS'
+    </delete>
+
 </mapper>

@@ -188,21 +188,25 @@ public class WorkController {
                     ? changedByName
                     : authentication.getName();
 
-            // 상태가 DONE으로 변경될 때만 로그 기록
             if (
                 request.getStatus() != null &&
-                "DONE".equals(request.getStatus()) &&
                 !request.getStatus().equals(oldStatus)
             ) {
-                workStatusLogService.log(
-                    id,
-                    updated.getTitle(),
-                    editorId,
-                    displayName,
-                    "STATUS",
-                    oldStatus,
-                    request.getStatus()
-                );
+                if ("DONE".equals(request.getStatus())) {
+                    // DONE으로 변경 → 완료 로그 기록
+                    workStatusLogService.log(
+                        id,
+                        updated.getTitle(),
+                        editorId,
+                        displayName,
+                        "STATUS",
+                        oldStatus,
+                        request.getStatus()
+                    );
+                } else if ("DONE".equals(oldStatus)) {
+                    // DONE에서 다른 상태로 되돌림 → 완료 로그 삭제
+                    workStatusLogService.deleteDoneLogs(id);
+                }
             }
         }
 
@@ -255,26 +259,31 @@ public class WorkController {
 
         workService.updateStatus(id, newStatus);
 
-        // 상태가 DONE으로 변경될 때만 로그 기록
         if (
             authentication != null &&
             before != null &&
-            "DONE".equals(newStatus) &&
             !newStatus.equals(oldStatus)
         ) {
             Long editorId = Long.parseLong(authentication.getName());
             String changedByName = userMapper.findUsernameById(editorId);
-            workStatusLogService.log(
-                id,
-                before.getTitle(),
-                editorId,
-                changedByName != null
-                    ? changedByName
-                    : authentication.getName(),
-                "STATUS",
-                oldStatus,
-                newStatus
-            );
+
+            if ("DONE".equals(newStatus)) {
+                // DONE으로 변경 → 완료 로그 기록
+                workStatusLogService.log(
+                    id,
+                    before.getTitle(),
+                    editorId,
+                    changedByName != null
+                        ? changedByName
+                        : authentication.getName(),
+                    "STATUS",
+                    oldStatus,
+                    newStatus
+                );
+            } else if ("DONE".equals(oldStatus)) {
+                // DONE에서 다른 상태로 되돌림 → 완료 로그 삭제
+                workStatusLogService.deleteDoneLogs(id);
+            }
         }
 
         return ResponseEntity.ok().build();
