@@ -740,20 +740,50 @@ export function IssuesPage() {
         field: "status",
         width: 85,
         headerClass: "ag-header-cell-center",
-        editable: true,
-        cellEditor: "agSelectCellEditor",
-        cellEditorParams: {
-          values: ["OPEN", "IN_PROGRESS", "CLOSED"],
-        },
+        editable: false,
         cellRenderer: (params: any) => {
-          const status = params.value as IssueStatus;
-          const label = statusLabels[status] || status;
+          const StatusCell = () => {
+            const [open, setOpen] = useState(false);
+            const status = params.value as IssueStatus;
+            const label = statusLabels[status] || status;
 
-          return (
-            <div className="w-full h-full flex items-center justify-center">
-              <Badge className={statusColors[status]}>{label}</Badge>
-            </div>
-          );
+            const handleStatusChange = (newStatus: IssueStatus) => {
+              if (!params.data) return;
+              params.data.status = newStatus;
+              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
+              params.node?.setSelected(true);
+              params.api.refreshCells({ rowNodes: [params.node], force: true });
+              setOpen(false);
+            };
+
+            return (
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <div className="w-full h-full flex items-center justify-center cursor-pointer">
+                    <Badge className={statusColors[status]}>{label}</Badge>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-32 p-2" align="center">
+                  <div className="flex flex-col gap-1">
+                    {(["OPEN", "IN_PROGRESS", "CLOSED"] as IssueStatus[]).map(
+                      (s) => (
+                        <Button
+                          key={s}
+                          variant={s === status ? "default" : "ghost"}
+                          size="sm"
+                          className="justify-start h-8"
+                          onClick={() => handleStatusChange(s)}
+                        >
+                          {statusLabels[s]}
+                        </Button>
+                      ),
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            );
+          };
+          return <StatusCell />;
         },
       },
       {
