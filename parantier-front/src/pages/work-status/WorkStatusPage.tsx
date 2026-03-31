@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
+import { WorkStatusChatPanel } from "@/features/work/components/WorkStatusChatPanel";
 import { Client } from "@stomp/stompjs";
 import {
   RefreshCw,
   CheckCircle2,
   Users,
+  MessageSquare,
   FlaskConical,
   ShieldAlert,
   X,
@@ -940,6 +942,7 @@ function WorkDetailSheet({
 
 export function WorkStatusPage() {
   const { data: summaries = [] } = useTeamWorkSummary();
+  const [leftTab, setLeftTab] = useState<"team" | "chat">("team");
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
@@ -953,10 +956,35 @@ export function WorkStatusPage() {
 
       {/* 본문: 좌우 2분할 */}
       <div className="flex-1 min-h-0 px-6 pb-6 grid grid-cols-2 gap-6">
-        {/* 왼쪽: 팀원 업무 현황 */}
+        {/* 왼쪽: 탭 (팀원 현황 | 업무 채팅) */}
         <Card className="flex flex-col min-h-0 overflow-hidden">
-          <CardContent className="flex-1 min-h-0 overflow-hidden pt-6 flex flex-col">
-            <TeamWorkPanel />
+          {/* 탭 헤더 */}
+          <div className="flex shrink-0 border-b border-border px-2 pt-2">
+            <button
+              onClick={() => setLeftTab("team")}
+              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                leftTab === "team"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              팀원 현황
+            </button>
+            <button
+              onClick={() => setLeftTab("chat")}
+              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                leftTab === "chat"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              업무 채팅
+            </button>
+          </div>
+          <CardContent className="flex-1 min-h-0 overflow-hidden pt-4 flex flex-col">
+            {leftTab === "team" ? <TeamWorkPanel /> : <WorkStatusChatPanel />}
           </CardContent>
         </Card>
 

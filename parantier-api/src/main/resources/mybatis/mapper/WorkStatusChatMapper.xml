@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.work.infrastructure.WorkStatusChatMapper">
+
+    <!-- WorkStatusChatMessage ResultMap -->
+    <resultMap id="WorkStatusChatMessageResultMap" type="com.mapo.palantier.work.domain.WorkStatusChatMessage">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="message" column="message"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- WorkStatusChatMessageWithUser ResultMap (JOIN용) -->
+    <resultMap id="WorkStatusChatMessageWithUserResultMap" type="com.mapo.palantier.work.domain.WorkStatusChatMessageWithUser">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="message" column="message"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="username" column="username"/>
+        <result property="userEmail" column="user_email"/>
+    </resultMap>
+
+    <!-- 최근 N개 메시지 조회 (시간 오름차순) -->
+    <select id="findRecent" resultMap="WorkStatusChatMessageWithUserResultMap">
+        SELECT *
+        FROM (
+            SELECT
+                wsc.id,
+                wsc.user_id,
+                wsc.message,
+                wsc.is_deleted,
+                wsc.created_at,
+                wsc.updated_at,
+                u.username,
+                u.email AS user_email
+            FROM work_status_chat_messages wsc
+            LEFT JOIN users u ON wsc.user_id = u.id
+            WHERE wsc.is_deleted = false
+            ORDER BY wsc.created_at DESC
+            LIMIT #{limit}
+        ) sub
+        ORDER BY sub.created_at ASC
+    </select>
+
+    <!-- 메시지 생성 -->
+    <insert id="insert" parameterType="com.mapo.palantier.work.domain.WorkStatusChatMessage"
+            useGeneratedKeys="true" keyProperty="id,createdAt,updatedAt"
+            keyColumn="id,created_at,updated_at">
+        INSERT INTO work_status_chat_messages (
+            user_id,
+            message,
+            is_deleted,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{userId},
+            #{message},
+            false,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+</mapper>
