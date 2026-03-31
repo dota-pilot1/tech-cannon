@@ -1,4 +1,4 @@
-export type WorkType = "FEATURE" | "QA" | "COMMON";
+export type WorkType = "CANNON" | "SPEAR" | "HOCKEY" | "SHIP" | "STAIRS";
 export type WorkStatus =
   | "TODO"
   | "IN_PROGRESS"

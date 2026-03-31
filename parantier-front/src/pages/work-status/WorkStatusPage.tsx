@@ -812,9 +812,11 @@ function WorkDetailSheet({
     LOW: "bg-muted text-muted-foreground",
   };
   const workTypeLabel: Record<string, string> = {
-    FEATURE: "기능개발",
-    QA: "QA",
-    COMMON: "일반",
+    CANNON: "💣 캐논",
+    SPEAR: "🔫 작살",
+    HOCKEY: "🏒 하키",
+    SHIP: "⛵ 배",
+    STAIRS: "🪜 계단",
   };
 
   return (

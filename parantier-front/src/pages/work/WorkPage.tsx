@@ -189,15 +189,19 @@ function FormTimeInput({
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 
 const WORK_TYPE_LABELS: Record<WorkType, string> = {
-  FEATURE: "기능개발",
-  QA: "QA",
-  COMMON: "일반",
+  CANNON: "💣 캐논",
+  SPEAR: "🔫 작살",
+  HOCKEY: "🏒 하키",
+  SHIP: "⛵ 배",
+  STAIRS: "🪜 계단",
 };
 
 const WORK_TYPE_COLORS: Record<WorkType, string> = {
-  FEATURE: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-  QA: "bg-purple-100 text-purple-700 hover:bg-purple-100",
-  COMMON: "bg-gray-100 text-gray-600 hover:bg-gray-100",
+  CANNON: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+  SPEAR: "bg-red-100 text-red-700 hover:bg-red-100",
+  HOCKEY: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  SHIP: "bg-green-100 text-green-700 hover:bg-green-100",
+  STAIRS: "bg-purple-100 text-purple-700 hover:bg-purple-100",
 };
 
 const STATUS_LABELS: Record<WorkStatus, string> = {
@@ -272,7 +276,7 @@ export function WorkPage() {
   // 폼 데이터
   const [formTitle, setFormTitle] = useState("");
   const [formContent, setFormContent] = useState("");
-  const [formWorkType, setFormWorkType] = useState<WorkType>("COMMON");
+  const [formWorkType, setFormWorkType] = useState<WorkType>("CANNON");
   const [formStatus, setFormStatus] = useState<WorkStatus>("TODO");
   const [formPriority, setFormPriority] = useState<WorkPriority>("MEDIUM");
   const [formAssigneeId, setFormAssigneeId] = useState<number | null>(null);
@@ -594,7 +598,7 @@ export function WorkPage() {
         await createWorkSilent({
           title: row.title || "제목 없음",
           content: row.content || "",
-          workType: row.workType || "COMMON",
+          workType: row.workType || "CANNON",
           status: row.status || "TODO",
           priority: row.priority || "MEDIUM",
           assigneeId: row.assigneeId ?? null,
@@ -730,7 +734,15 @@ export function WorkPage() {
                 </PopoverTrigger>
                 <PopoverContent className="w-36 p-2" align="center">
                   <div className="flex flex-col gap-1">
-                    {(["FEATURE", "QA", "COMMON"] as WorkType[]).map((t) => (
+                    {(
+                      [
+                        "CANNON",
+                        "SPEAR",
+                        "HOCKEY",
+                        "SHIP",
+                        "STAIRS",
+                      ] as WorkType[]
+                    ).map((t) => (
                       <Button
                         key={t}
                         variant={t === workType ? "default" : "ghost"}
@@ -1257,7 +1269,7 @@ export function WorkPage() {
   const handleNew = () => {
     setFormTitle("");
     setFormContent("");
-    setFormWorkType("COMMON");
+    setFormWorkType("CANNON");
     setFormStatus("TODO");
     setFormPriority("MEDIUM");
     setFormAssigneeId(null);
@@ -1869,7 +1881,9 @@ export function WorkPage() {
               >
                 전체
               </DropdownMenuItem>
-              {(["FEATURE", "QA", "COMMON"] as WorkType[]).map((type) => (
+              {(
+                ["CANNON", "SPEAR", "HOCKEY", "SHIP", "STAIRS"] as WorkType[]
+              ).map((type) => (
                 <DropdownMenuItem
                   key={type}
                   onClick={() => setFilterWorkType(type)}
@@ -2069,9 +2083,11 @@ export function WorkPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="FEATURE">기능개발</SelectItem>
-                    <SelectItem value="QA">QA</SelectItem>
-                    <SelectItem value="COMMON">일반</SelectItem>
+                    <SelectItem value="CANNON">💣 캐논</SelectItem>
+                    <SelectItem value="SPEAR">🔫 작살</SelectItem>
+                    <SelectItem value="HOCKEY">🏒 하키</SelectItem>
+                    <SelectItem value="SHIP">⛵ 배</SelectItem>
+                    <SelectItem value="STAIRS">🪜 계단</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2310,9 +2326,11 @@ export function WorkPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="FEATURE">기능개발</SelectItem>
-                        <SelectItem value="QA">QA</SelectItem>
-                        <SelectItem value="COMMON">일반</SelectItem>
+                        <SelectItem value="CANNON">💣 캐논</SelectItem>
+                        <SelectItem value="SPEAR">🔫 작살</SelectItem>
+                        <SelectItem value="HOCKEY">🏒 하키</SelectItem>
+                        <SelectItem value="SHIP">⛵ 배</SelectItem>
+                        <SelectItem value="STAIRS">🪜 계단</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -2628,7 +2646,13 @@ export function WorkPage() {
                               <PopoverContent className="w-40 p-2">
                                 <div className="space-y-1">
                                   {(
-                                    ["FEATURE", "QA", "COMMON"] as WorkType[]
+                                    [
+                                      "CANNON",
+                                      "SPEAR",
+                                      "HOCKEY",
+                                      "SHIP",
+                                      "STAIRS",
+                                    ] as WorkType[]
                                   ).map((type) => (
                                     <div
                                       key={type}

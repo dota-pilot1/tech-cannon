@@ -30,7 +30,7 @@ export interface TeamMemberWork {
   title: string;
   status: "TODO" | "IN_PROGRESS" | "TEST" | "DONE" | "HOLD" | "BLOCKED";
   priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  workType: "FEATURE" | "QA" | "COMMON";
+  workType: "CANNON" | "SPEAR" | "HOCKEY" | "SHIP" | "STAIRS";
   dueDate: string | null;
 }
 
