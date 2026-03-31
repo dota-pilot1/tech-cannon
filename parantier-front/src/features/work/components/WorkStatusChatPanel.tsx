@@ -34,14 +34,16 @@ function ChatMessageItem({
   myUserId: number | undefined;
 }) {
   const isMe = myUserId === message.userId;
-  const timeStr = formatDistanceToNow(
-    new Date(
-      message.createdAt.endsWith("Z")
-        ? message.createdAt
-        : message.createdAt + "Z",
-    ),
-    { addSuffix: true, locale: ko },
-  );
+  const toUtcDate = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    if (dateStr.endsWith("Z") || dateStr.includes("+"))
+      return new Date(dateStr);
+    return new Date(dateStr + "Z");
+  };
+  const timeStr = formatDistanceToNow(toUtcDate(message.createdAt), {
+    addSuffix: true,
+    locale: ko,
+  });
 
   if (isMe) {
     return (

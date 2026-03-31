@@ -55,9 +55,14 @@ export function useWorkStatusChat({
         // 메시지 구독
         client.subscribe("/topic/work-status-chat", (message) => {
           try {
-            const newMessage: WorkStatusChatMessageWithUser = JSON.parse(
-              message.body,
-            );
+            const raw = JSON.parse(message.body);
+            // WebSocket 응답은 username 대신 senderName으로 오므로 폴백 처리
+            const newMessage: WorkStatusChatMessageWithUser = {
+              ...raw,
+              username: raw.username ?? raw.senderName ?? "알 수 없음",
+              // createdAt이 없으면 현재 시각으로 폴백
+              createdAt: raw.createdAt ?? new Date().toISOString(),
+            };
             setMessages((prev) => [...prev, newMessage]);
           } catch (e) {
             console.error("Failed to parse work-status-chat message:", e);
