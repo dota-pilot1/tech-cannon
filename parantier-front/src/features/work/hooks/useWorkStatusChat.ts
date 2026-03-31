@@ -35,7 +35,8 @@ export function useWorkStatusChat({
   const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    // userId가 준비된 후에만 연결
+    if (!enabled || !userId || !username) return;
 
     const accessToken = localStorage.getItem("accessToken");
 

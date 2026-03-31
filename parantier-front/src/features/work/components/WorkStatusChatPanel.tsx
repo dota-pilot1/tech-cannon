@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo } from "react";
-import { WifiOff, AlertCircle } from "lucide-react";
+import { WifiOff, Loader2 } from "lucide-react";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
 import { formatDistanceToNow } from "date-fns";
@@ -92,8 +92,9 @@ export function WorkStatusChatPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const user = useStore(authStore, (state) => state.user);
   const isAuthenticated = useStore(authStore, (state) => state.isAuthenticated);
+  const isRestored = useStore(authStore, (state) => state.isRestored);
 
-  // REST API: 과거 메시지
+  // REST API: 과거 메시지 (isRestored 후에만 요청)
   const { data: history = [], isLoading } = useWorkStatusChatHistory();
 
   // WebSocket: 실시간 (탭 진입 시 userId/username 전달 → 즉시 join 이벤트)
@@ -103,7 +104,7 @@ export function WorkStatusChatPanel() {
     participants,
     sendMessage,
   } = useWorkStatusChat({
-    enabled: true,
+    enabled: isRestored && !!user,
     userId: user?.id,
     username: user?.username,
   });
@@ -131,7 +132,17 @@ export function WorkStatusChatPanel() {
     sendMessage(message, user.id, user.username);
   };
 
-  const isUserReady = isAuthenticated && !!user?.id;
+  const isUserReady = isRestored && isAuthenticated && !!user?.id;
+
+  // 사용자 정보 복원 전 로딩 표시
+  if (!isRestored) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-2">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">불러오는 중...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -221,18 +232,6 @@ export function WorkStatusChatPanel() {
             <WifiOff className="w-3.5 h-3.5 text-destructive shrink-0" />
             <p className="text-xs text-destructive">
               실시간 연결이 끊어졌습니다. 재연결 중...
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* 사용자 미준비 경고 */}
-      {!isUserReady && (
-        <div className="shrink-0 py-2">
-          <div className="flex items-center gap-2 p-2.5 bg-muted border border-border rounded-lg">
-            <AlertCircle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              사용자 정보를 불러오는 중입니다...
             </p>
           </div>
         </div>
