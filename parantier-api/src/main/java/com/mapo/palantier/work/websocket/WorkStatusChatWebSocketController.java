@@ -4,6 +4,8 @@ import com.mapo.palantier.work.application.WorkStatusChatService;
 import com.mapo.palantier.work.domain.WorkStatusChatMessage;
 import com.mapo.palantier.work.websocket.dto.WorkStatusChatParticipantPayload;
 import com.mapo.palantier.work.websocket.dto.WorkStatusChatPayload;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,7 +62,12 @@ public class WorkStatusChatWebSocketController {
             response.setSenderId(payload.getSenderId());
             response.setSenderName(payload.getSenderName());
             response.setMessage(savedMessage.getMessage());
-            response.setCreatedAt(savedMessage.getCreatedAt());
+            // createdAt이 null일 경우 현재 UTC 시간으로 폴백
+            response.setCreatedAt(
+                savedMessage.getCreatedAt() != null
+                    ? savedMessage.getCreatedAt()
+                    : LocalDateTime.now(ZoneOffset.UTC)
+            );
 
             // 3. 브로드캐스트
             messagingTemplate.convertAndSend(

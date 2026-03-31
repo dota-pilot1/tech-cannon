@@ -19,13 +19,6 @@ spring:
     password: palantier_password
     driver-class-name: org.postgresql.Driver
 
-# Jackson Configuration
-spring.jackson:
-  serialization:
-    write-dates-as-timestamps: false
-  time-zone: UTC
-  date-format: yyyy-MM-dd'T'HH:mm:ss'Z'
-
 # MyBatis Configuration
 mybatis:
   configuration:
