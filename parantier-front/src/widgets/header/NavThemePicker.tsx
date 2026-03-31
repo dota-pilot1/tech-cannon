@@ -1,6 +1,7 @@
 import { useStore } from "@tanstack/react-store";
 import { Palette } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+import { CustomButton } from "@/shared/ui/custom-button";
 import {
   NAV_THEMES,
   navThemeActions,
@@ -14,12 +15,16 @@ export function NavThemePicker() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
-          className="flex items-center justify-center w-8 h-8 rounded-md transition-colors hover:bg-[var(--nav-item-hover-bg)] text-[var(--nav-text)] hover:text-[var(--nav-text-hover)] outline-none"
+        <CustomButton
+          variant="ghost"
+          size="icon"
+          borderColor="white"
+          textColor="var(--nav-text)"
+          className="hover:bg-[var(--nav-item-hover-bg)] hover:text-[var(--nav-text-hover)]"
           title="헤더 테마 변경"
         >
           <Palette className="w-4 h-4" />
-        </button>
+        </CustomButton>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-48 p-2">
         <p className="text-xs text-muted-foreground px-1 pb-2 font-medium">

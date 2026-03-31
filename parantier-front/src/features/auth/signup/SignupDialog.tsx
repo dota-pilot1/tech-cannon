@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { useForm } from '@tanstack/react-form'
-import { Eye, EyeOff, Check, X } from 'lucide-react'
+import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { Eye, EyeOff, Check, X } from "lucide-react";
+import { CustomButton } from "@/shared/ui/custom-button";
 import {
   Dialog,
   DialogContent,
@@ -8,78 +9,85 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/shared/ui/dialog'
-import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
-import { Label } from '@/shared/ui/label'
-import { authApi } from '@/entities/user/api/authApi'
-import { signupSchema, type SignupFormData } from '@/shared/lib/validation/auth.schema'
+} from "@/shared/ui/dialog";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
+import { authApi } from "@/entities/user/api/authApi";
+import {
+  signupSchema,
+  type SignupFormData,
+} from "@/shared/lib/validation/auth.schema";
 
 export function SignupDialog() {
-  const [open, setOpen] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [emailCheckStatus, setEmailCheckStatus] = useState<'idle' | 'checking' | 'available' | 'duplicate'>('idle')
+  const [open, setOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [emailCheckStatus, setEmailCheckStatus] = useState<
+    "idle" | "checking" | "available" | "duplicate"
+  >("idle");
 
   const form = useForm({
     defaultValues: {
-      email: '',
-      username: '',
-      password: '',
-      passwordConfirm: '',
+      email: "",
+      username: "",
+      password: "",
+      passwordConfirm: "",
     },
     onSubmit: async ({ value }) => {
       // 제출 시 검증
-      const result = signupSchema.safeParse(value)
+      const result = signupSchema.safeParse(value);
       if (!result.success) {
         // 에러가 있으면 각 필드에 설정
         result.error.errors.forEach((err) => {
-          const fieldName = err.path[0] as keyof SignupFormData
+          const fieldName = err.path[0] as keyof SignupFormData;
           form.setFieldMeta(fieldName, (prev) => ({
             ...prev,
             errorMap: { onSubmit: err.message },
-          }))
-        })
-        return
+          }));
+        });
+        return;
       }
       try {
         // passwordConfirm은 API에 보내지 않음
-        const { passwordConfirm, ...signupData } = value
-        await authApi.signup(signupData)
-        setSuccess(true)
+        const { passwordConfirm, ...signupData } = value;
+        await authApi.signup(signupData);
+        setSuccess(true);
         setTimeout(() => {
-          setOpen(false)
-          form.reset()
-          setSuccess(false)
-          setEmailCheckStatus('idle')
-        }, 2000)
+          setOpen(false);
+          form.reset();
+          setSuccess(false);
+          setEmailCheckStatus("idle");
+        }, 2000);
       } catch (err: any) {
         form.setErrorMap({
-          onSubmit: err.response?.data?.message || '회원가입에 실패했습니다.',
-        })
+          onSubmit: err.response?.data?.message || "회원가입에 실패했습니다.",
+        });
       }
     },
-  })
+  });
 
   const handleEmailCheck = async () => {
-    const email = form.getFieldValue('email')
+    const email = form.getFieldValue("email");
     if (!email) {
-      return
+      return;
     }
 
-    setEmailCheckStatus('checking')
+    setEmailCheckStatus("checking");
     try {
-      const isDuplicate = await authApi.checkEmailDuplicate(email)
-      setEmailCheckStatus(isDuplicate ? 'duplicate' : 'available')
+      const isDuplicate = await authApi.checkEmailDuplicate(email);
+      setEmailCheckStatus(isDuplicate ? "duplicate" : "available");
     } catch (err) {
-      setEmailCheckStatus('idle')
+      setEmailCheckStatus("idle");
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">회원가입</Button>
+        <CustomButton borderColor="white" textColor="white" variant="ghost">
+          회원가입
+        </CustomButton>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
@@ -101,9 +109,9 @@ export function SignupDialog() {
         ) : (
           <form
             onSubmit={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              form.handleSubmit()
+              e.preventDefault();
+              e.stopPropagation();
+              form.handleSubmit();
             }}
             className="space-y-4 pt-4"
           >
@@ -119,8 +127,8 @@ export function SignupDialog() {
                         placeholder="your@email.com"
                         value={field.state.value}
                         onChange={(e) => {
-                          field.handleChange(e.target.value)
-                          setEmailCheckStatus('idle')
+                          field.handleChange(e.target.value);
+                          setEmailCheckStatus("idle");
                         }}
                         onBlur={field.handleBlur}
                       />
@@ -129,13 +137,18 @@ export function SignupDialog() {
                       type="button"
                       variant="outline"
                       onClick={handleEmailCheck}
-                      disabled={emailCheckStatus === 'checking' || !field.state.value}
+                      disabled={
+                        emailCheckStatus === "checking" || !field.state.value
+                      }
                       className="w-24"
                     >
-                      {emailCheckStatus === 'checking' ? '확인 중...' : '중복 확인'}
+                      {emailCheckStatus === "checking"
+                        ? "확인 중..."
+                        : "중복 확인"}
                     </Button>
                   </div>
-                  {field.state.meta.errors.length > 0 && field.state.meta.errorMap?.onSubmit ? (
+                  {field.state.meta.errors.length > 0 &&
+                  field.state.meta.errorMap?.onSubmit ? (
                     <p className="text-sm text-destructive">
                       {String(field.state.meta.errors[0])}
                     </p>
@@ -144,13 +157,13 @@ export function SignupDialog() {
                       이메일 형식으로 입력해주세요
                     </p>
                   )}
-                  {emailCheckStatus === 'available' && (
+                  {emailCheckStatus === "available" && (
                     <p className="text-sm text-green-600 flex items-center gap-1">
                       <Check className="h-4 w-4" />
                       사용 가능한 이메일입니다
                     </p>
                   )}
-                  {emailCheckStatus === 'duplicate' && (
+                  {emailCheckStatus === "duplicate" && (
                     <p className="text-sm text-destructive flex items-center gap-1">
                       <X className="h-4 w-4" />
                       이미 사용 중인 이메일입니다
@@ -172,7 +185,8 @@ export function SignupDialog() {
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
                   />
-                  {field.state.meta.errors.length > 0 && field.state.meta.errorMap?.onSubmit ? (
+                  {field.state.meta.errors.length > 0 &&
+                  field.state.meta.errorMap?.onSubmit ? (
                     <p className="text-sm text-destructive">
                       {String(field.state.meta.errors[0])}
                     </p>
@@ -192,7 +206,7 @@ export function SignupDialog() {
                   <div className="relative">
                     <Input
                       id="signup-password"
-                      type={showPassword ? 'text' : 'password'}
+                      type={showPassword ? "text" : "password"}
                       placeholder="비밀번호"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -204,10 +218,15 @@ export function SignupDialog() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
-                  {field.state.meta.errors.length > 0 && field.state.meta.errorMap?.onSubmit ? (
+                  {field.state.meta.errors.length > 0 &&
+                  field.state.meta.errorMap?.onSubmit ? (
                     <p className="text-sm text-destructive">
                       {String(field.state.meta.errors[0])}
                     </p>
@@ -227,7 +246,7 @@ export function SignupDialog() {
                   <div className="relative">
                     <Input
                       id="signup-password-confirm"
-                      type={showPassword ? 'text' : 'password'}
+                      type={showPassword ? "text" : "password"}
                       placeholder="비밀번호 확인"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -239,10 +258,15 @@ export function SignupDialog() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
-                  {field.state.meta.errors.length > 0 && field.state.meta.errorMap?.onSubmit ? (
+                  {field.state.meta.errors.length > 0 &&
+                  field.state.meta.errorMap?.onSubmit ? (
                     <p className="text-sm text-destructive">
                       {String(field.state.meta.errors[0])}
                     </p>
@@ -255,13 +279,9 @@ export function SignupDialog() {
               )}
             </form.Field>
 
-            <form.Subscribe
-              selector={(state) => state.errorMap.onSubmit}
-            >
+            <form.Subscribe selector={(state) => state.errorMap.onSubmit}>
               {(error) =>
-                error && (
-                  <p className="text-sm text-destructive">{error}</p>
-                )
+                error && <p className="text-sm text-destructive">{error}</p>
               }
             </form.Subscribe>
 
@@ -271,10 +291,14 @@ export function SignupDialog() {
               {([canSubmit, isSubmitting]) => (
                 <Button
                   type="submit"
-                  disabled={!canSubmit || isSubmitting || emailCheckStatus !== 'available'}
+                  disabled={
+                    !canSubmit ||
+                    isSubmitting ||
+                    emailCheckStatus !== "available"
+                  }
                   className="w-full"
                 >
-                  {isSubmitting ? '가입 중...' : '회원가입'}
+                  {isSubmitting ? "가입 중..." : "회원가입"}
                 </Button>
               )}
             </form.Subscribe>
@@ -282,5 +306,5 @@ export function SignupDialog() {
         )}
       </DialogContent>
     </Dialog>
-  )
+  );
 }

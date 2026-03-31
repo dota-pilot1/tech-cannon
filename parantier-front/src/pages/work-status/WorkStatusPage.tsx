@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
-import { RefreshCw, CheckCircle2, Users } from "lucide-react";
+import { RefreshCw, CheckCircle2, Users, FlaskConical } from "lucide-react";
 
 import { Card, CardContent } from "@/shared/ui/card";
 import { useTeamWorkSummary } from "./hooks/useTeamWorkSummary";
@@ -173,11 +173,11 @@ function MemberCard({ summary }: MemberCardProps) {
   const isUnassigned = summary.userId === -1;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 space-y-3 transition-shadow hover:shadow-sm">
+    <div className="rounded-lg border border-border bg-card px-3 py-2.5 space-y-2 transition-shadow hover:shadow-sm">
       {/* 헤더: 아바타 + 이름 + 진행 중 배지 */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <div
-          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold
+          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold
             ${
               isUnassigned
                 ? "bg-muted text-muted-foreground"
@@ -187,24 +187,31 @@ function MemberCard({ summary }: MemberCardProps) {
           {getInitials(summary.username)}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-foreground truncate">
+          <p className="text-sm font-medium text-foreground truncate leading-tight">
             {summary.username}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground leading-tight">
             총 {summary.totalCount}개
           </p>
         </div>
         {summary.inProgressCount > 0 && (
           <span
-            className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS["IN_PROGRESS"]}`}
+            className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${STATUS_COLORS["IN_PROGRESS"]}`}
           >
-            진행 중 {summary.inProgressCount}
+            진행 {summary.inProgressCount}
+          </span>
+        )}
+        {(summary.testCount ?? 0) > 0 && (
+          <span
+            className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${STATUS_COLORS["TEST"]}`}
+          >
+            테스트 {summary.testCount}
           </span>
         )}
       </div>
 
       {/* 상태 바 차트 */}
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <StatusBar
           todo={summary.todoCount}
           inProgress={summary.inProgressCount}
@@ -215,7 +222,7 @@ function MemberCard({ summary }: MemberCardProps) {
           total={summary.totalCount}
         />
         {/* 범례 */}
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
           {[
             { key: "TODO", count: summary.todoCount },
             { key: "IN_PROGRESS", count: summary.inProgressCount },
@@ -231,7 +238,7 @@ function MemberCard({ summary }: MemberCardProps) {
                 className="flex items-center gap-1 text-xs text-muted-foreground"
               >
                 <span
-                  className={`inline-block w-2 h-2 rounded-full ${STATUS_BAR_COLORS[key]}`}
+                  className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_BAR_COLORS[key]}`}
                 />
                 {STATUS_LABELS[key]} {count}
               </span>
@@ -239,18 +246,16 @@ function MemberCard({ summary }: MemberCardProps) {
         </div>
       </div>
 
-      {/* 진행 중 업무 목록 */}
+      {/* 업무 목록 */}
       {displayWorks.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           {visibleWorks.map((work) => (
             <WorkListItem key={work.id} work={work} />
           ))}
-
-          {/* 펼치기/접기 버튼 */}
           {hiddenCount > 0 && !expanded && (
             <button
               onClick={() => setExpanded(true)}
-              className="w-full text-xs text-muted-foreground hover:text-foreground py-1 text-center transition-colors"
+              className="w-full text-xs text-muted-foreground hover:text-foreground py-0.5 text-center transition-colors"
             >
               + {hiddenCount}개 더 보기
             </button>
@@ -258,7 +263,7 @@ function MemberCard({ summary }: MemberCardProps) {
           {expanded && displayWorks.length > MAX_VISIBLE && (
             <button
               onClick={() => setExpanded(false)}
-              className="w-full text-xs text-muted-foreground hover:text-foreground py-1 text-center transition-colors"
+              className="w-full text-xs text-muted-foreground hover:text-foreground py-0.5 text-center transition-colors"
             >
               접기
             </button>
@@ -267,7 +272,7 @@ function MemberCard({ summary }: MemberCardProps) {
       )}
 
       {summary.totalCount === 0 && (
-        <p className="text-xs text-muted-foreground text-center py-1">
+        <p className="text-xs text-muted-foreground text-center py-0.5">
           배정된 업무 없음
         </p>
       )}
@@ -281,22 +286,26 @@ function MemberCard({ summary }: MemberCardProps) {
 
 function WorkListItem({ work }: { work: TeamMemberWork }) {
   const isDone = work.status === "DONE";
+  const isTest = work.status === "TEST";
 
   return (
-    <div className="flex items-center gap-2 rounded-md px-2 py-1.5 bg-muted/50 hover:bg-muted transition-colors">
-      {/* 완료 상태 아이콘 (읽기 전용) */}
-      <CheckCircle2
-        className={`w-4 h-4 shrink-0 transition-colors ${
-          isDone
-            ? "text-green-500 dark:text-green-400"
-            : "text-muted-foreground/40"
-        }`}
-      />
+    <div className="flex items-center gap-1.5 rounded px-2 py-1 bg-muted/50 hover:bg-muted transition-colors">
+      {isTest ? (
+        <FlaskConical className="w-3.5 h-3.5 shrink-0 text-purple-500" />
+      ) : (
+        <CheckCircle2
+          className={`w-3.5 h-3.5 shrink-0 transition-colors ${
+            isDone
+              ? "text-green-500 dark:text-green-400"
+              : "text-muted-foreground/40"
+          }`}
+        />
+      )}
       <span className="text-xs text-foreground truncate flex-1">
         {work.title}
       </span>
       <span
-        className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${PRIORITY_COLORS[work.priority]}`}
+        className={`text-xs px-1 py-0.5 rounded shrink-0 ${PRIORITY_COLORS[work.priority]}`}
       >
         {PRIORITY_LABELS[work.priority]}
       </span>
@@ -314,26 +323,27 @@ interface LogItemProps {
 }
 
 function LogItem({ log, isNew }: LogItemProps) {
+  const isTest = log.changeType === "STATUS" && log.newValue === "TEST";
   return (
     <div
-      className={`flex items-center gap-3 px-3 py-3 rounded-lg border border-border bg-card
+      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border bg-card
         ${isNew ? "animate-in slide-in-from-top-2 fade-in duration-300" : ""}
       `}
     >
-      {/* 완료 아이콘 (읽기 전용) */}
-      <CheckCircle2 className="w-5 h-5 shrink-0 text-green-500 dark:text-green-400" />
-
-      {/* 내용 */}
+      {isTest ? (
+        <FlaskConical className="w-4 h-4 shrink-0 text-purple-500" />
+      ) : (
+        <CheckCircle2 className="w-4 h-4 shrink-0 text-green-500 dark:text-green-400" />
+      )}
       <div className="flex-1 min-w-0 space-y-0.5">
-        <p className="text-sm font-semibold text-foreground truncate">
+        <p className="text-sm font-medium text-foreground truncate">
           {log.workTitle}
         </p>
         <p className="text-xs text-muted-foreground">
-          {log.changedBy}님이 완료했습니다 🎉
+          {log.changedBy}님이 {isTest ? "테스트 중" : "완료"}했습니다{" "}
+          {isTest ? "🧪" : "🎉"}
         </p>
       </div>
-
-      {/* 시간 */}
       <span className="text-xs text-muted-foreground shrink-0">
         {getRelativeTime(log.changedAt)}
       </span>
@@ -423,11 +433,14 @@ function TeamWorkPanel() {
 
 const MAX_LOGS = 100;
 
+type LiveTab = "test" | "done";
+
 function LiveLogPanel() {
   const [logs, setLogs] = useState<WorkStatusLog[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
+  const [activeTab, setActiveTab] = useState<LiveTab>("done");
   const clientRef = useRef<Client | null>(null);
 
   // 최초 REST API로 최근 50개 로그 가져오기
@@ -522,18 +535,23 @@ function LiveLogPanel() {
     return () => clearInterval(interval);
   }, []);
 
+  const testLogs = logs.filter(
+    (l) => l.changeType === "STATUS" && l.newValue === "TEST",
+  );
+  const doneLogs = logs.filter(
+    (l) => l.changeType === "STATUS" && l.newValue === "DONE",
+  );
+  const filteredLogs = activeTab === "test" ? testLogs : doneLogs;
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* 패널 헤더 */}
-      <div className="flex items-center justify-between mb-4 shrink-0">
+      <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-foreground">
-            업무 완료 피드
-          </h2>
-          {/* LIVE 인디케이터 */}
-          <div className="flex items-center gap-1.5">
+          <h2 className="text-base font-semibold text-foreground">업무 피드</h2>
+          <div className="flex items-center gap-1">
             <span
-              className={`inline-block w-2 h-2 rounded-full ${
+              className={`inline-block w-1.5 h-1.5 rounded-full ${
                 isConnected
                   ? "bg-green-500 animate-pulse"
                   : "bg-muted-foreground"
@@ -551,42 +569,85 @@ function LiveLogPanel() {
           </div>
         </div>
         <span className="text-xs text-muted-foreground">
-          최근 {logs.length}개
+          최근 {filteredLogs.length}개
         </span>
       </div>
 
+      {/* 탭 */}
+      <div className="flex gap-1 mb-3 shrink-0 bg-muted/50 p-0.5 rounded-lg">
+        <button
+          onClick={() => setActiveTab("done")}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            activeTab === "done"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          완료
+          {doneLogs.length > 0 && (
+            <span className="bg-green-500/15 text-green-600 dark:text-green-400 text-xs px-1.5 rounded-full">
+              {doneLogs.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("test")}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            activeTab === "test"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FlaskConical className="w-3.5 h-3.5" />
+          테스트 중
+          {testLogs.length > 0 && (
+            <span className="bg-purple-500/15 text-purple-600 dark:text-purple-400 text-xs px-1.5 rounded-full">
+              {testLogs.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* 로그 목록 */}
-      <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
         {isInitialLoading ? (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {[...Array(5)].map((_, i) => (
               <div
                 key={i}
-                className="flex gap-3 px-3 py-3 rounded-lg border border-border bg-card animate-pulse"
+                className="flex gap-3 px-3 py-2.5 rounded-lg border border-border bg-card animate-pulse"
               >
-                <div className="w-7 h-7 rounded-md bg-muted shrink-0" />
-                <div className="flex-1 space-y-2">
+                <div className="w-6 h-6 rounded-md bg-muted shrink-0" />
+                <div className="flex-1 space-y-1.5">
                   <div className="h-3 bg-muted rounded w-32" />
-                  <div className="h-4 bg-muted rounded w-48" />
-                  <div className="h-3 bg-muted rounded w-24" />
+                  <div className="h-3 bg-muted rounded w-48" />
                 </div>
               </div>
             ))}
           </div>
-        ) : logs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-              <CheckCircle2 className="w-6 h-6 text-muted-foreground" />
+        ) : filteredLogs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-2">
+              {activeTab === "test" ? (
+                <FlaskConical className="w-5 h-5 text-muted-foreground" />
+              ) : (
+                <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
+              )}
             </div>
             <p className="text-sm font-medium text-foreground">
-              완료된 업무 없음
+              {activeTab === "test"
+                ? "테스트 중인 업무 없음"
+                : "완료된 업무 없음"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              업무가 완료되면 실시간으로 여기에 표시됩니다.
+              {activeTab === "test"
+                ? "테스트 상태로 변경되면 여기에 표시됩니다."
+                : "업무가 완료되면 실시간으로 여기에 표시됩니다."}
             </p>
           </div>
         ) : (
-          logs.map((log) => (
+          filteredLogs.map((log) => (
             <LogItem
               key={`${log.id}-${log.changedAt}`}
               log={log}

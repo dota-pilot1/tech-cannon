@@ -50,7 +50,7 @@
 }
 
 @layer base {
-    * {
+    *:not(button, input) {
         @apply border-border;
     }
     body {
