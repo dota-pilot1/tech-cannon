@@ -13,14 +13,25 @@ export function useWorkStatusChatHistory() {
   });
 }
 
-interface UseWorkStatusChatOptions {
-  enabled?: boolean;
+export interface Participant {
+  userId: number;
+  username: string;
 }
 
-export function useWorkStatusChat({ enabled = true }: UseWorkStatusChatOptions = {}) {
+interface UseWorkStatusChatOptions {
+  enabled?: boolean;
+  userId?: number;
+  username?: string;
+}
+
+export function useWorkStatusChat({
+  enabled = true,
+  userId,
+  username,
+}: UseWorkStatusChatOptions = {}) {
   const [messages, setMessages] = useState<WorkStatusChatMessageWithUser[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [participants, setParticipants] = useState<Map<number, string>>(new Map());
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
@@ -41,20 +52,37 @@ export function useWorkStatusChat({ enabled = true }: UseWorkStatusChatOptions =
         console.log("WorkStatusChat WebSocket Connected");
         setIsConnected(true);
 
+        // 메시지 구독
         client.subscribe("/topic/work-status-chat", (message) => {
           try {
-            const newMessage: WorkStatusChatMessageWithUser = JSON.parse(message.body);
+            const newMessage: WorkStatusChatMessageWithUser = JSON.parse(
+              message.body,
+            );
             setMessages((prev) => [...prev, newMessage]);
-            // 참여자 업데이트
-            setParticipants((prev) => {
-              const next = new Map(prev);
-              next.set(newMessage.userId, newMessage.username);
-              return next;
-            });
           } catch (e) {
             console.error("Failed to parse work-status-chat message:", e);
           }
         });
+
+        // 참여자 목록 구독
+        client.subscribe("/topic/work-status-participants", (message) => {
+          try {
+            const payload: { participants: Participant[] } = JSON.parse(
+              message.body,
+            );
+            setParticipants(payload.participants ?? []);
+          } catch (e) {
+            console.error("Failed to parse participants message:", e);
+          }
+        });
+
+        // 입장 이벤트 전송
+        if (userId && username) {
+          client.publish({
+            destination: "/app/work-status/chat/join",
+            body: JSON.stringify({ userId, username }),
+          });
+        }
       },
 
       onStompError: (frame) => {
@@ -72,15 +100,27 @@ export function useWorkStatusChat({ enabled = true }: UseWorkStatusChatOptions =
     client.activate();
 
     return () => {
+      // 퇴장 이벤트 전송 후 연결 해제
+      if (client.connected && userId) {
+        client.publish({
+          destination: "/app/work-status/chat/leave",
+          body: JSON.stringify({ userId, username }),
+        });
+      }
       if (client.active) {
         client.deactivate();
       }
       setMessages([]);
       setIsConnected(false);
+      setParticipants([]);
     };
-  }, [enabled]);
+  }, [enabled, userId, username]);
 
-  const sendMessage = (message: string, userId: number, username: string) => {
+  const sendMessage = (
+    message: string,
+    senderId: number,
+    senderName: string,
+  ) => {
     if (!clientRef.current?.connected) {
       console.error("WorkStatusChat WebSocket is not connected");
       return;
@@ -89,8 +129,8 @@ export function useWorkStatusChat({ enabled = true }: UseWorkStatusChatOptions =
     clientRef.current.publish({
       destination: "/app/work-status/chat",
       body: JSON.stringify({
-        senderId: userId,
-        senderName: username,
+        senderId,
+        senderName,
         message,
       }),
     });

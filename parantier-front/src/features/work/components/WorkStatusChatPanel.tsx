@@ -8,6 +8,7 @@ import { ChatInput } from "@/features/issue/components/ChatInput";
 import {
   useWorkStatusChat,
   useWorkStatusChatHistory,
+  type Participant,
 } from "../hooks/useWorkStatusChat";
 import type { WorkStatusChatMessageWithUser } from "@/entities/work/types/workStatusChat";
 
@@ -93,9 +94,17 @@ export function WorkStatusChatPanel() {
   // REST API: 과거 메시지
   const { data: history = [], isLoading } = useWorkStatusChatHistory();
 
-  // WebSocket: 실시간
-  const { messages: realtime, isConnected, participants, sendMessage } =
-    useWorkStatusChat({ enabled: true });
+  // WebSocket: 실시간 (탭 진입 시 userId/username 전달 → 즉시 join 이벤트)
+  const {
+    messages: realtime,
+    isConnected,
+    participants,
+    sendMessage,
+  } = useWorkStatusChat({
+    enabled: true,
+    userId: user?.id,
+    username: user?.username,
+  });
 
   // 과거 + 실시간 합치기 (id 기준 중복 제거)
   const allMessages = useMemo(() => {
@@ -107,17 +116,8 @@ export function WorkStatusChatPanel() {
     );
   }, [history, realtime]);
 
-  // 참여자: 과거 메시지 + 실시간 참여자 합산
-  const allParticipants = useMemo(() => {
-    const map = new Map<number, string>(participants);
-    history.forEach((m) => {
-      if (!map.has(m.userId)) map.set(m.userId, m.username);
-    });
-    realtime.forEach((m) => {
-      if (!map.has(m.userId)) map.set(m.userId, m.username);
-    });
-    return Array.from(map.entries()); // [userId, username][]
-  }, [history, realtime, participants]);
+  // 참여자: 서버에서 받은 실시간 participants 그대로 사용
+  const allParticipants: Participant[] = participants;
 
   // 새 메시지 자동 스크롤
   useEffect(() => {
@@ -142,7 +142,9 @@ export function WorkStatusChatPanel() {
           <div className="flex items-center gap-1">
             <span
               className={`inline-block w-1.5 h-1.5 rounded-full ${
-                isConnected ? "bg-green-500 animate-pulse" : "bg-muted-foreground"
+                isConnected
+                  ? "bg-green-500 animate-pulse"
+                  : "bg-muted-foreground"
               }`}
             />
             <span
@@ -157,13 +159,15 @@ export function WorkStatusChatPanel() {
           </div>
         </div>
         {allParticipants.length === 0 ? (
-          <p className="text-xs text-muted-foreground">아직 참여자가 없습니다.</p>
+          <p className="text-xs text-muted-foreground">
+            아직 참여자가 없습니다.
+          </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {allParticipants.map(([userId, username]) => (
-              <div key={userId} className="flex items-center gap-1.5">
-                <ParticipantAvatar name={username} />
-                <span className="text-xs text-foreground">{username}</span>
+            {allParticipants.map((p) => (
+              <div key={p.userId} className="flex items-center gap-1.5">
+                <ParticipantAvatar name={p.username} />
+                <span className="text-xs text-foreground">{p.username}</span>
               </div>
             ))}
           </div>
@@ -201,11 +205,7 @@ export function WorkStatusChatPanel() {
         ) : (
           <>
             {allMessages.map((msg) => (
-              <ChatMessageItem
-                key={msg.id}
-                message={msg}
-                myUserId={user?.id}
-              />
+              <ChatMessageItem key={msg.id} message={msg} myUserId={user?.id} />
             ))}
             <div ref={messagesEndRef} />
           </>
@@ -238,7 +238,10 @@ export function WorkStatusChatPanel() {
 
       {/* 입력창 */}
       <div className="shrink-0 -mx-0">
-        <ChatInput onSend={handleSend} disabled={!isConnected || !isUserReady} />
+        <ChatInput
+          onSend={handleSend}
+          disabled={!isConnected || !isUserReady}
+        />
       </div>
     </div>
   );
