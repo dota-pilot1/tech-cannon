@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo } from "react";
 import { WifiOff, Loader2 } from "lucide-react";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
+import { workStatusActions } from "@/pages/work-status/store/workStatusStore";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
 import { ChatInput } from "@/features/issue/components/ChatInput";
@@ -34,12 +35,14 @@ function ChatMessageItem({
   myUserId: number | undefined;
 }) {
   const isMe = myUserId === message.userId;
+
   const toUtcDate = (dateStr: string) => {
     if (!dateStr) return new Date();
     if (dateStr.endsWith("Z") || dateStr.includes("+"))
       return new Date(dateStr);
     return new Date(dateStr + "Z");
   };
+
   const timeStr = formatDistanceToNow(toUtcDate(message.createdAt), {
     addSuffix: true,
     locale: ko,
@@ -94,10 +97,10 @@ export function WorkStatusChatPanel() {
   const isAuthenticated = useStore(authStore, (state) => state.isAuthenticated);
   const isRestored = useStore(authStore, (state) => state.isRestored);
 
-  // REST API: 과거 메시지 (isRestored 후에만 요청)
+  // REST API: 과거 메시지
   const { data: history = [], isLoading } = useWorkStatusChatHistory();
 
-  // WebSocket: 실시간 (탭 진입 시 userId/username 전달 → 즉시 join 이벤트)
+  // WebSocket: 실시간 (userId 준비된 후 연결 + join 이벤트)
   const {
     messages: realtime,
     isConnected,
@@ -109,6 +112,18 @@ export function WorkStatusChatPanel() {
     username: user?.username,
   });
 
+  // participants 변경 시 store 업데이트
+  useEffect(() => {
+    workStatusActions.setChatParticipants(participants);
+  }, [participants]);
+
+  // 언마운트 시 참여자 초기화
+  useEffect(() => {
+    return () => {
+      workStatusActions.clearChatParticipants();
+    };
+  }, []);
+
   // 과거 + 실시간 합치기 (id 기준 중복 제거)
   const allMessages = useMemo(() => {
     const map = new Map<number, WorkStatusChatMessageWithUser>();
@@ -119,7 +134,6 @@ export function WorkStatusChatPanel() {
     );
   }, [history, realtime]);
 
-  // 참여자: 서버에서 받은 실시간 participants 그대로 사용
   const allParticipants: Participant[] = participants;
 
   // 새 메시지 자동 스크롤
@@ -238,7 +252,7 @@ export function WorkStatusChatPanel() {
       )}
 
       {/* 입력창 */}
-      <div className="shrink-0 -mx-0">
+      <div className="shrink-0">
         <ChatInput
           onSend={handleSend}
           disabled={!isConnected || !isUserReady}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useStore } from "@tanstack/react-store";
 import { WorkStatusChatPanel } from "@/features/work/components/WorkStatusChatPanel";
 import { Client } from "@stomp/stompjs";
 import {
@@ -19,6 +20,7 @@ import { workApi } from "@/entities/work/api/workApi";
 
 import { Card, CardContent } from "@/shared/ui/card";
 import { useTeamWorkSummary } from "./hooks/useTeamWorkSummary";
+import { workStatusStore, workStatusActions } from "./store/workStatusStore";
 import { workStatusApi } from "@/api/workStatusApi";
 import type {
   WorkStatusLog,
@@ -942,7 +944,8 @@ function WorkDetailSheet({
 
 export function WorkStatusPage() {
   const { data: summaries = [] } = useTeamWorkSummary();
-  const [leftTab, setLeftTab] = useState<"team" | "chat">("team");
+  const leftTab = useStore(workStatusStore, (s) => s.leftTab);
+  const chatParticipants = useStore(workStatusStore, (s) => s.chatParticipants);
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
@@ -961,7 +964,7 @@ export function WorkStatusPage() {
           {/* 탭 헤더 */}
           <div className="flex shrink-0 border-b border-border px-2 pt-2">
             <button
-              onClick={() => setLeftTab("team")}
+              onClick={() => workStatusActions.setLeftTab("team")}
               className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 leftTab === "team"
                   ? "border-primary text-primary"
@@ -972,7 +975,7 @@ export function WorkStatusPage() {
               팀원 현황
             </button>
             <button
-              onClick={() => setLeftTab("chat")}
+              onClick={() => workStatusActions.setLeftTab("chat")}
               className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 leftTab === "chat"
                   ? "border-primary text-primary"
@@ -981,6 +984,11 @@ export function WorkStatusPage() {
             >
               <MessageSquare className="w-4 h-4" />
               업무 채팅
+              {chatParticipants.length > 0 && (
+                <span className="bg-primary/15 text-primary text-xs px-1.5 py-0.5 rounded-full font-semibold">
+                  {chatParticipants.length}
+                </span>
+              )}
             </button>
           </div>
           <CardContent className="flex-1 min-h-0 overflow-hidden pt-4 flex flex-col">
