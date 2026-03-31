@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Client } from "@stomp/stompjs";
 import { workStatusChatApi } from "@/entities/work/api/workStatusChatApi";
@@ -148,4 +148,65 @@ export function useWorkStatusChat({
     participants,
     sendMessage,
   };
+}
+
+// ── 참여자 수만 구독하는 경량 훅 (채팅 탭 미진입 상태에서도 동작) ──────────
+export function useWorkStatusParticipants({
+  userId,
+  username,
+}: {
+  userId?: number;
+  username?: string;
+}) {
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const clientRef = useRef<Client | null>(null);
+
+  const connect = useCallback(() => {
+    if (!userId || !username) return;
+    if (clientRef.current?.active) return;
+
+    const accessToken = localStorage.getItem("accessToken");
+
+    const client = new Client({
+      brokerURL: WEBSOCKET_URL,
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      connectHeaders: accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : {},
+
+      onConnect: () => {
+        // 참여자 목록만 구독
+        client.subscribe("/topic/work-status-participants", (message) => {
+          try {
+            const payload: { participants: Participant[] } = JSON.parse(
+              message.body,
+            );
+            setParticipants(payload.participants ?? []);
+          } catch (e) {
+            console.error("Failed to parse participants message:", e);
+          }
+        });
+      },
+
+      onStompError: () => {},
+      onWebSocketClose: () => {},
+    });
+
+    clientRef.current = client;
+    client.activate();
+  }, [userId, username]);
+
+  useEffect(() => {
+    connect();
+    return () => {
+      if (clientRef.current?.active) {
+        clientRef.current.deactivate();
+      }
+      setParticipants([]);
+    };
+  }, [connect]);
+
+  return { participants };
 }

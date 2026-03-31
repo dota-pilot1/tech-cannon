@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useStore } from "@tanstack/react-store";
+import { useWorkStatusParticipants } from "@/features/work/hooks/useWorkStatusChat";
+import { authStore } from "@/entities/user/model/authStore";
 import { WorkStatusChatPanel } from "@/features/work/components/WorkStatusChatPanel";
 import { Client } from "@stomp/stompjs";
 import {
@@ -945,7 +947,14 @@ function WorkDetailSheet({
 export function WorkStatusPage() {
   const { data: summaries = [] } = useTeamWorkSummary();
   const leftTab = useStore(workStatusStore, (s) => s.leftTab);
-  const chatParticipants = useStore(workStatusStore, (s) => s.chatParticipants);
+  const user = useStore(authStore, (s) => s.user);
+  const isRestored = useStore(authStore, (s) => s.isRestored);
+
+  // 채팅 탭 미진입 상태에서도 항상 참여자 수 구독
+  const { participants: chatParticipants } = useWorkStatusParticipants({
+    userId: isRestored ? user?.id : undefined,
+    username: isRestored ? user?.username : undefined,
+  });
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
