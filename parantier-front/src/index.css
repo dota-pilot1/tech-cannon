@@ -80,11 +80,12 @@
     --nav-user-text: #d4d4d8;
     --nav-user-hover: #ffffff;
     /* 드롭다운 Portal 전용 */
-    --nav-popover-bg: #18181b;
+    --nav-popover-bg: #2d2d30;
     --nav-popover-fg: #e4e4e7;
-    --nav-popover-border: #3f3f46;
-    --nav-popover-accent: rgba(255, 255, 255, 0.08);
+    --nav-popover-border: #52525b;
+    --nav-popover-accent: rgba(255, 255, 255, 0.12);
     --nav-popover-accent-fg: #ffffff;
+    --nav-popover-muted-fg: #a1a1aa;
 }
 
 /* slate - 슬레이트 블루 */
@@ -101,11 +102,12 @@
     --nav-separator: #334155;
     --nav-user-text: #94a3b8;
     --nav-user-hover: #f1f5f9;
-    --nav-popover-bg: #1e293b;
+    --nav-popover-bg: #293548;
     --nav-popover-fg: #cbd5e1;
-    --nav-popover-border: #334155;
-    --nav-popover-accent: rgba(148, 163, 184, 0.1);
+    --nav-popover-border: #475569;
+    --nav-popover-accent: rgba(148, 163, 184, 0.15);
     --nav-popover-accent-fg: #f1f5f9;
+    --nav-popover-muted-fg: #64748b;
 }
 
 /* navy - 딥 네이비 */
@@ -122,11 +124,12 @@
     --nav-separator: #1e3a5f;
     --nav-user-text: #60a5fa;
     --nav-user-hover: #bfdbfe;
-    --nav-popover-bg: #0f172a;
+    --nav-popover-bg: #1a2744;
     --nav-popover-fg: #93c5fd;
-    --nav-popover-border: #1e3a5f;
-    --nav-popover-accent: rgba(59, 130, 246, 0.1);
+    --nav-popover-border: #2d5282;
+    --nav-popover-accent: rgba(59, 130, 246, 0.18);
     --nav-popover-accent-fg: #bfdbfe;
+    --nav-popover-muted-fg: #60a5fa;
 }
 
 /* forest - 포레스트 그린 */
@@ -143,11 +146,12 @@
     --nav-separator: #166534;
     --nav-user-text: #86efac;
     --nav-user-hover: #dcfce7;
-    --nav-popover-bg: #14532d;
+    --nav-popover-bg: #1a6b3a;
     --nav-popover-fg: #bbf7d0;
-    --nav-popover-border: #166534;
-    --nav-popover-accent: rgba(74, 222, 128, 0.1);
+    --nav-popover-border: #22874a;
+    --nav-popover-accent: rgba(74, 222, 128, 0.18);
     --nav-popover-accent-fg: #dcfce7;
+    --nav-popover-muted-fg: #86efac;
 }
 
 /* rose - 딥 로즈 */
@@ -164,11 +168,12 @@
     --nav-separator: #881337;
     --nav-user-text: #fda4af;
     --nav-user-hover: #ffe4e6;
-    --nav-popover-bg: #4c0519;
+    --nav-popover-bg: #6b0a24;
     --nav-popover-fg: #fecdd3;
-    --nav-popover-border: #881337;
-    --nav-popover-accent: rgba(251, 113, 133, 0.1);
+    --nav-popover-border: #a11447;
+    --nav-popover-accent: rgba(251, 113, 133, 0.18);
     --nav-popover-accent-fg: #ffe4e6;
+    --nav-popover-muted-fg: #fda4af;
 }
 
 /* ── 헤더 드롭다운 Portal 타겟팅 ── */
@@ -177,6 +182,9 @@
     background-color: var(--nav-popover-bg) !important;
     border-color: var(--nav-popover-border) !important;
     color: var(--nav-popover-fg) !important;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 [data-nav-dropdown] [role="menuitem"],
