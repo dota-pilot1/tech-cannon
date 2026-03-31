@@ -1,6 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
-import { RefreshCw, CheckCircle2, Users, FlaskConical } from "lucide-react";
+import {
+  RefreshCw,
+  CheckCircle2,
+  Users,
+  FlaskConical,
+  ShieldAlert,
+  X,
+  Calendar,
+  User,
+  Tag,
+  AlertTriangle,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { workApi } from "@/entities/work/api/workApi";
 
 import { Card, CardContent } from "@/shared/ui/card";
 import { useTeamWorkSummary } from "./hooks/useTeamWorkSummary";
@@ -433,14 +446,19 @@ function TeamWorkPanel() {
 
 const MAX_LOGS = 100;
 
-type LiveTab = "test" | "done";
+type LiveTab = "done" | "blocked" | "test";
 
-function LiveLogPanel() {
+interface LiveLogPanelProps {
+  summaries: TeamMemberWorkSummary[];
+}
+
+function LiveLogPanel({ summaries }: LiveLogPanelProps) {
   const [logs, setLogs] = useState<WorkStatusLog[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<LiveTab>("done");
+  const [selectedWorkId, setSelectedWorkId] = useState<number | null>(null);
   const clientRef = useRef<Client | null>(null);
 
   // 최초 REST API로 최근 50개 로그 가져오기
@@ -535,13 +553,28 @@ function LiveLogPanel() {
     return () => clearInterval(interval);
   }, []);
 
-  const testLogs = logs.filter(
-    (l) => l.changeType === "STATUS" && l.newValue === "TEST",
-  );
+  // 현재 TEST 상태인 업무를 summaries에서 직접 추출
+  const testWorks: Array<{ work: TeamMemberWork; assigneeName: string }> =
+    summaries.flatMap((s) =>
+      s.works
+        .filter((w) => w.status === "TEST")
+        .map((w) => ({ work: w, assigneeName: s.username })),
+    );
+
+  // 현재 BLOCKED 상태인 업무를 summaries에서 직접 추출
+  const blockedWorks: Array<{ work: TeamMemberWork; assigneeName: string }> =
+    summaries.flatMap((s) =>
+      s.works
+        .filter((w) => w.status === "BLOCKED")
+        .map((w) => ({ work: w, assigneeName: s.username })),
+    );
+
   const doneLogs = logs.filter(
     (l) => l.changeType === "STATUS" && l.newValue === "DONE",
   );
-  const filteredLogs = activeTab === "test" ? testLogs : doneLogs;
+  const filteredLogs = doneLogs;
+
+  const currentStatusWorks = activeTab === "test" ? testWorks : blockedWorks;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -569,7 +602,9 @@ function LiveLogPanel() {
           </div>
         </div>
         <span className="text-xs text-muted-foreground">
-          최근 {filteredLogs.length}개
+          {activeTab === "done"
+            ? `최근 ${filteredLogs.length}개`
+            : `현재 ${currentStatusWorks.length}개`}
         </span>
       </div>
 
@@ -592,6 +627,22 @@ function LiveLogPanel() {
           )}
         </button>
         <button
+          onClick={() => setActiveTab("blocked")}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            activeTab === "blocked"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <ShieldAlert className="w-3.5 h-3.5" />
+          막힘
+          {blockedWorks.length > 0 && (
+            <span className="bg-red-500/15 text-red-600 dark:text-red-400 text-xs px-1.5 rounded-full">
+              {blockedWorks.length}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab("test")}
           className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
             activeTab === "test"
@@ -601,9 +652,9 @@ function LiveLogPanel() {
         >
           <FlaskConical className="w-3.5 h-3.5" />
           테스트 중
-          {testLogs.length > 0 && (
+          {testWorks.length > 0 && (
             <span className="bg-purple-500/15 text-purple-600 dark:text-purple-400 text-xs px-1.5 rounded-full">
-              {testLogs.length}
+              {testWorks.length}
             </span>
           )}
         </button>
@@ -611,7 +662,56 @@ function LiveLogPanel() {
 
       {/* 로그 목록 */}
       <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-        {isInitialLoading ? (
+        {activeTab !== "done" ? (
+          currentStatusWorks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-2">
+                {activeTab === "test" ? (
+                  <FlaskConical className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ShieldAlert className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+              <p className="text-sm font-medium text-foreground">
+                {activeTab === "test"
+                  ? "테스트 중인 업무 없음"
+                  : "막힌 업무 없음"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {activeTab === "test"
+                  ? "테스트 상태로 변경되면 여기에 표시됩니다."
+                  : "막힘 상태로 변경되면 여기에 표시됩니다."}
+              </p>
+            </div>
+          ) : (
+            currentStatusWorks.map(({ work, assigneeName }) => (
+              <button
+                key={work.id}
+                onClick={() => setSelectedWorkId(work.id)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors text-left cursor-pointer"
+              >
+                {activeTab === "test" ? (
+                  <FlaskConical className="w-4 h-4 shrink-0 text-purple-500" />
+                ) : (
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-red-500" />
+                )}
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {work.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {assigneeName} {activeTab === "test" ? "🧪" : "🚫"}
+                  </p>
+                </div>
+                <span
+                  className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${PRIORITY_COLORS[work.priority]}`}
+                >
+                  {PRIORITY_LABELS[work.priority]}
+                </span>
+              </button>
+            ))
+          )
+        ) : isInitialLoading ? (
           <div className="space-y-1.5">
             {[...Array(5)].map((_, i) => (
               <div
@@ -629,21 +729,13 @@ function LiveLogPanel() {
         ) : filteredLogs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-2">
-              {activeTab === "test" ? (
-                <FlaskConical className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
-              )}
+              <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
             </div>
             <p className="text-sm font-medium text-foreground">
-              {activeTab === "test"
-                ? "테스트 중인 업무 없음"
-                : "완료된 업무 없음"}
+              완료된 업무 없음
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {activeTab === "test"
-                ? "테스트 상태로 변경되면 여기에 표시됩니다."
-                : "업무가 완료되면 실시간으로 여기에 표시됩니다."}
+              업무가 완료되면 실시간으로 여기에 표시됩니다.
             </p>
           </div>
         ) : (
@@ -656,7 +748,189 @@ function LiveLogPanel() {
           ))
         )}
       </div>
+
+      {/* 업무 상세 Sheet */}
+      {selectedWorkId !== null && (
+        <WorkDetailSheet
+          workId={selectedWorkId}
+          onClose={() => setSelectedWorkId(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// ──────────────────────────────────────────────
+// 업무 상세 Sheet
+// ──────────────────────────────────────────────
+
+function WorkDetailSheet({
+  workId,
+  onClose,
+}: {
+  workId: number;
+  onClose: () => void;
+}) {
+  const { data: work, isLoading } = useQuery({
+    queryKey: ["works", workId],
+    queryFn: () => workApi.getWork(workId),
+    enabled: !!workId,
+  });
+
+  const statusLabel: Record<string, string> = {
+    TODO: "할 일",
+    IN_PROGRESS: "진행 중",
+    TEST: "테스트",
+    DONE: "완료",
+    HOLD: "보류",
+    BLOCKED: "막힘",
+  };
+  const statusColor: Record<string, string> = {
+    TODO: "bg-muted text-muted-foreground",
+    IN_PROGRESS: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+    TEST: "bg-purple-500/20 text-purple-600 dark:text-purple-400",
+    DONE: "bg-green-500/20 text-green-600 dark:text-green-400",
+    HOLD: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400",
+    BLOCKED: "bg-red-500/20 text-red-600 dark:text-red-400",
+  };
+  const priorityLabel: Record<string, string> = {
+    LOW: "낮음",
+    MEDIUM: "보통",
+    HIGH: "높음",
+    CRITICAL: "긴급",
+  };
+  const priorityColor: Record<string, string> = {
+    CRITICAL: "bg-red-500/20 text-red-600 dark:text-red-400",
+    HIGH: "bg-orange-500/20 text-orange-600 dark:text-orange-400",
+    MEDIUM: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400",
+    LOW: "bg-muted text-muted-foreground",
+  };
+  const workTypeLabel: Record<string, string> = {
+    FEATURE: "기능개발",
+    QA: "QA",
+    COMMON: "일반",
+  };
+
+  return (
+    <>
+      {/* 오버레이 */}
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      {/* Sheet 패널 */}
+      <div className="fixed right-0 top-0 z-50 h-full w-[420px] bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <h3 className="text-base font-semibold text-foreground">업무 상세</h3>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* 본문 */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {isLoading ? (
+            <div className="space-y-4 animate-pulse">
+              <div className="h-5 bg-muted rounded w-3/4" />
+              <div className="h-4 bg-muted rounded w-1/2" />
+              <div className="h-24 bg-muted rounded" />
+            </div>
+          ) : work ? (
+            <>
+              {/* 제목 */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">제목</p>
+                <p className="text-base font-semibold text-foreground leading-snug">
+                  {work.title}
+                </p>
+              </div>
+
+              {/* 상태 / 우선순위 / 유형 */}
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${statusColor[work.status] ?? "bg-muted text-muted-foreground"}`}
+                >
+                  {work.status === "BLOCKED" && (
+                    <ShieldAlert className="w-3 h-3" />
+                  )}
+                  {work.status === "TEST" && (
+                    <FlaskConical className="w-3 h-3" />
+                  )}
+                  {statusLabel[work.status] ?? work.status}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${priorityColor[work.priority] ?? "bg-muted text-muted-foreground"}`}
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  {priorityLabel[work.priority] ?? work.priority}
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-muted text-muted-foreground">
+                  <Tag className="w-3 h-3" />
+                  {workTypeLabel[work.workType] ?? work.workType}
+                </span>
+              </div>
+
+              {/* 담당자 / 마감일 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-muted/50 rounded-lg px-3 py-2.5">
+                  <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    담당자
+                  </p>
+                  <p className="text-sm font-medium text-foreground">
+                    {work.assigneeName ?? "미지정"}
+                  </p>
+                </div>
+                <div className="bg-muted/50 rounded-lg px-3 py-2.5">
+                  <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    마감일
+                  </p>
+                  <p className="text-sm font-medium text-foreground">
+                    {work.dueDate ? work.dueDate.slice(0, 10) : "없음"}
+                  </p>
+                </div>
+              </div>
+
+              {/* 내용 */}
+              {work.content && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1.5">내용</p>
+                  <div className="bg-muted/50 rounded-lg px-3 py-2.5 text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                    {work.content}
+                  </div>
+                </div>
+              )}
+
+              {/* 작성자 / 작성일 */}
+              <div className="border-t border-border pt-4 space-y-1.5">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>작성자</span>
+                  <span className="text-foreground">{work.reporterName}</span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>작성일</span>
+                  <span className="text-foreground">
+                    {work.createdAt.slice(0, 10)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>최종 수정</span>
+                  <span className="text-foreground">
+                    {work.updatedAt.slice(0, 10)}
+                  </span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              업무를 불러올 수 없습니다.
+            </p>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -665,6 +939,8 @@ function LiveLogPanel() {
 // ──────────────────────────────────────────────
 
 export function WorkStatusPage() {
+  const { data: summaries = [] } = useTeamWorkSummary();
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
       {/* 페이지 헤더 */}
@@ -687,7 +963,7 @@ export function WorkStatusPage() {
         {/* 오른쪽: 실시간 변경 로그 */}
         <Card className="flex flex-col min-h-0 overflow-hidden">
           <CardContent className="flex-1 min-h-0 overflow-hidden pt-6 flex flex-col">
-            <LiveLogPanel />
+            <LiveLogPanel summaries={summaries} />
           </CardContent>
         </Card>
       </div>
