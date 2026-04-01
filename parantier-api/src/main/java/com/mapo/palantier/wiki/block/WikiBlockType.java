@@ -5,5 +5,6 @@ public enum WikiBlockType {
     MMD,
     FIGMA,
     FILE,
-    DBTABLE
+    DBTABLE,
+    GITHUB,
 }

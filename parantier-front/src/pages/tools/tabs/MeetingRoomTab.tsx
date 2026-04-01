@@ -304,6 +304,7 @@ export function MeetingRoomTab() {
   const {
     messages: realtime,
     isConnected,
+    isConnecting,
     participants,
     sendMessage,
   } = useMeetingChat({
@@ -722,8 +723,8 @@ export function MeetingRoomTab() {
           )}
         </div>
 
-        {/* 연결 경고 */}
-        {!isConnected && !isLoading && (
+        {/* 연결 경고 - 초기 연결 시도 중엔 숨김, 연결 끊김 시에만 표시 */}
+        {!isConnected && !isConnecting && !isLoading && (
           <div className="shrink-0 px-5 py-2">
             <div className="flex items-center gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
               <WifiOff className="w-3.5 h-3.5 text-destructive shrink-0" />

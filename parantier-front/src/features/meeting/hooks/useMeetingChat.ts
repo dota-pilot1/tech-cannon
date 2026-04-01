@@ -101,6 +101,7 @@ export function useMeetingChat({
 }: UseMeetingChatOptions) {
   const [messages, setMessages] = useState<MeetingChatMessageWithUser[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(true);
   const [participants, setParticipants] = useState<Participant[]>([]);
 
   const clientRef = useRef<Client | null>(null);
@@ -116,16 +117,20 @@ export function useMeetingChat({
         clientRef.current.deactivate();
         clientRef.current = null;
       }
+      setIsConnecting(false);
       return;
     }
+
+    setIsConnecting(true);
 
     const accessToken = localStorage.getItem("accessToken");
 
     const client = new Client({
       brokerURL: WEBSOCKET_URL,
-      reconnectDelay: 3000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      reconnectDelay: 2000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
+      connectionTimeout: 10000,
       connectHeaders: accessToken
         ? { Authorization: `Bearer ${accessToken}` }
         : {},
@@ -133,6 +138,7 @@ export function useMeetingChat({
       onConnect: () => {
         console.log("MeetingChat WebSocket Connected");
         setIsConnected(true);
+        setIsConnecting(false);
 
         // 연결 시점의 channelId를 클로저로 캡처 (채널 변경은 아래 별도 effect 처리)
         const currentChannelId = channelId;
@@ -181,11 +187,13 @@ export function useMeetingChat({
       onStompError: (frame) => {
         console.error("MeetingChat STOMP Error:", frame);
         setIsConnected(false);
+        setIsConnecting(false);
       },
 
       onWebSocketClose: () => {
         console.log("MeetingChat WebSocket Disconnected");
         setIsConnected(false);
+        setIsConnecting(false);
       },
     });
 
@@ -205,6 +213,7 @@ export function useMeetingChat({
       }
       setMessages([]);
       setIsConnected(false);
+      setIsConnecting(true);
       setParticipants([]);
     };
     // channelId는 아래 별도 effect에서 구독 교체로 처리하므로 exhaustive-deps 제외
@@ -276,6 +285,7 @@ export function useMeetingChat({
   return {
     messages,
     isConnected,
+    isConnecting,
     participants,
     sendMessage,
   };
@@ -300,9 +310,10 @@ export function useMeetingParticipants({
 
     const client = new Client({
       brokerURL: WEBSOCKET_URL,
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      reconnectDelay: 2000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
+      connectionTimeout: 10000,
       connectHeaders: accessToken
         ? { Authorization: `Bearer ${accessToken}` }
         : {},
