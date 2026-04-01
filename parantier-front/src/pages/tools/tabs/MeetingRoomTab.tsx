@@ -457,7 +457,7 @@ export function MeetingRoomTab() {
                         className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <X className="w-3.5 h-3.5" />
-                        취소
+                        �-�소
                       </button>
                     </>
                   ) : (
@@ -732,13 +732,13 @@ export function MeetingRoomTab() {
         <div className="shrink-0 border-t border-border px-4 py-3.5">
           <div className="space-y-1.5">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              - 회의 내용은 실시간 동기화됩니다.
+              -- 실시간 동기화
             </p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              - 탭을 벗어나면 자동 퇴장됩니다.
+              -- 탭 이탈 시 자동 퇴장
             </p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              - Ctrl+Enter로 전송하세요.
+              -- Ctrl+Enter 전송
             </p>
           </div>
         </div>
