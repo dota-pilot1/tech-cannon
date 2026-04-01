@@ -24,6 +24,7 @@ import { PilotPage } from "@/pages/pilot/PilotPage";
 import { WorkStatusPage } from "@/pages/work-status/WorkStatusPage";
 import { ToolsPage } from "@/pages/tools/ToolsPage";
 import { MeetingPage } from "@/pages/meeting/MeetingPage";
+import { WikiPage } from "@/pages/wiki/WikiPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -221,6 +222,14 @@ const meetingRoute = createRoute({
   component: MeetingPage,
 });
 
+// Tech Wiki (로그인 필요)
+const wikiRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/wiki",
+  beforeLoad: () => requireAuth(),
+  component: WikiPage,
+});
+
 // 업무 현황 페이지 (로그인 필요)
 const workStatusRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -253,6 +262,7 @@ const routeTree = rootRoute.addChildren([
   profileRoute,
   issuesRoute,
   pilotRoute,
+  wikiRoute,
   studyRoute,
   toolsRoute,
   meetingRoute,
