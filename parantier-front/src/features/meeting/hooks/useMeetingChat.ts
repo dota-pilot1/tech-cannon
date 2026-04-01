@@ -106,9 +106,9 @@ export function useMeetingChat({
 
   const isConnecting = !isConnected;
 
-  // 채널 구독
+  // 채널 구독 (isConnected 의존 제거 - subscribe 내부에서 OPEN 체크)
   useEffect(() => {
-    if (!isConnected || !channelId) return;
+    if (!channelId) return;
     const topic = `meeting/${channelId}`;
 
     subscribe(topic, (data) => {
@@ -124,22 +124,27 @@ export function useMeetingChat({
     });
 
     return () => unsubscribe(topic);
-  }, [isConnected, channelId, subscribe, unsubscribe]);
+  }, [channelId, subscribe, unsubscribe]);
 
-  // 참여자 구독 + JOIN
+  // 참여자 구독 + JOIN (onOpen으로 등록해서 재연결 시에도 자동 재참여)
   useEffect(() => {
-    if (!isConnected || !userId || !username) return;
+    if (!userId || !username) return;
 
-    subscribe("meeting-participants", (data) => {
-      const payload = data as { participants: Participant[] };
-      setParticipants(payload.participants ?? []);
-    });
-
-    send({
-      type: "JOIN",
-      topic: "meeting-participants",
-      data: { userId, username },
-    });
+    subscribe(
+      "meeting-participants",
+      (data) => {
+        const payload = data as { participants: Participant[] };
+        setParticipants(payload.participants ?? []);
+      },
+      // onOpen: 연결/재연결 시 자동으로 JOIN 전송
+      () => {
+        send({
+          type: "JOIN",
+          topic: "meeting-participants",
+          data: { userId, username },
+        });
+      },
+    );
 
     return () => {
       send({
@@ -149,7 +154,7 @@ export function useMeetingChat({
       });
       unsubscribe("meeting-participants");
     };
-  }, [isConnected, userId, username, send, subscribe, unsubscribe]);
+  }, [userId, username, send, subscribe, unsubscribe]);
 
   // 채널 변경 시 메시지 초기화
   const prevChannelRef = useRef<number | null>(null);
@@ -190,23 +195,27 @@ export function useMeetingParticipants({
 }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
 
-  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket({
+  const { send, subscribe, unsubscribe } = usePureWebSocket({
     enabled: !!userId && !!username,
   });
 
   useEffect(() => {
-    if (!isConnected || !userId || !username) return;
+    if (!userId || !username) return;
 
-    subscribe("meeting-participants", (data) => {
-      const payload = data as { participants: Participant[] };
-      setParticipants(payload.participants ?? []);
-    });
-
-    send({
-      type: "JOIN",
-      topic: "meeting-participants",
-      data: { userId, username },
-    });
+    subscribe(
+      "meeting-participants",
+      (data) => {
+        const payload = data as { participants: Participant[] };
+        setParticipants(payload.participants ?? []);
+      },
+      () => {
+        send({
+          type: "JOIN",
+          topic: "meeting-participants",
+          data: { userId, username },
+        });
+      },
+    );
 
     return () => {
       send({
@@ -217,7 +226,7 @@ export function useMeetingParticipants({
       unsubscribe("meeting-participants");
       setParticipants([]);
     };
-  }, [isConnected, userId, username, send, subscribe, unsubscribe]);
+  }, [userId, username, send, subscribe, unsubscribe]);
 
   return { participants };
 }
