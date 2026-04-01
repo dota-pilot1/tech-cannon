@@ -5,6 +5,7 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -12,19 +13,26 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        // 메시지 브로커 설정
-        // /topic: 1:N 브로드캐스트 (채팅방)
-        // /queue: 1:1 메시지
-        config.enableSimpleBroker("/topic", "/queue");
+        // SimpleBroker heartbeat: 서버 10초마다 ping, 클라이언트 10초마다 기대
+        config
+            .enableSimpleBroker("/topic", "/queue")
+            .setHeartbeatValue(new long[] { 10000, 10000 });
 
-        // 클라이언트에서 메시지 전송 시 prefix
         config.setApplicationDestinationPrefixes("/app");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // WebSocket 엔드포인트 설정
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*"); // CORS 설정 (개발용)
+        registry.addEndpoint("/ws").setAllowedOriginPatterns("*");
+    }
+
+    @Override
+    public void configureWebSocketTransport(
+        WebSocketTransportRegistration registration
+    ) {
+        registration
+            .setMessageSizeLimit(128 * 1024) // 128KB
+            .setSendBufferSizeLimit(512 * 1024) // 512KB
+            .setSendTimeLimit(20 * 1000); // 20초
     }
 }
