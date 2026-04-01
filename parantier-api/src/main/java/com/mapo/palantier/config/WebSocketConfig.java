@@ -1,6 +1,5 @@
 package com.mapo.palantier.config;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -13,21 +12,17 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    @Bean
-    public ThreadPoolTaskScheduler webSocketTaskScheduler() {
+    @Override
+    public void configureMessageBroker(MessageBrokerRegistry config) {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(1);
         scheduler.setThreadNamePrefix("ws-heartbeat-");
         scheduler.initialize();
-        return scheduler;
-    }
 
-    @Override
-    public void configureMessageBroker(MessageBrokerRegistry config) {
         config
             .enableSimpleBroker("/topic", "/queue")
             .setHeartbeatValue(new long[] { 10000, 10000 })
-            .setTaskScheduler(webSocketTaskScheduler());
+            .setTaskScheduler(scheduler);
 
         config.setApplicationDestinationPrefixes("/app");
     }
