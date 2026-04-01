@@ -3,14 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { authStore } from "@/entities/user/model/authStore";
 import { dashboardApi } from "@/api/dashboardApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
-import {
-  Briefcase,
-  AlertCircle,
-  Calendar,
-  CheckCircle,
-  Users,
-  TrendingUp,
-} from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle } from "lucide-react";
 
 function StatCard({
   title,
@@ -88,14 +81,7 @@ export function MainPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard
-          title="내 진행 중 업무"
-          icon={Briefcase}
-          value={stats?.myInProgressWorks ?? 0}
-          sub="현재 담당 중인 업무"
-          loading={isLoading}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="오늘 마감 업무"
           icon={Calendar}
@@ -105,40 +91,20 @@ export function MainPage() {
           accent={(stats?.todayDueWorks ?? 0) > 0 ? "text-red-500" : ""}
         />
         <StatCard
+          title="이번 주 완료"
+          icon={CheckCircle}
+          value={stats?.weekDoneWorks ?? 0}
+          sub="이번 주 완료된 내 업무"
+          loading={isLoading}
+          accent={(stats?.weekDoneWorks ?? 0) > 0 ? "text-green-500" : ""}
+        />
+        <StatCard
           title="미해결 이슈"
           icon={AlertCircle}
           value={stats?.openIssues ?? 0}
           sub="진행 전 + 진행 중 이슈"
           loading={isLoading}
           accent={(stats?.openIssues ?? 0) > 0 ? "text-orange-500" : ""}
-        />
-        <StatCard
-          title="이번 주 완료"
-          icon={CheckCircle}
-          value={stats?.weekDoneWorks ?? 0}
-          sub="이번 주 완료된 내 업무"
-          loading={isLoading}
-        />
-        <StatCard
-          title="팀원"
-          icon={Users}
-          value={stats?.totalUsers ?? 0}
-          sub="활성 사용자"
-          loading={isLoading}
-        />
-        <StatCard
-          title="이번 주 완료율"
-          icon={TrendingUp}
-          value={`${stats?.weekCompletionRate ?? 0}%`}
-          sub="이번 주 업무 달성률"
-          loading={isLoading}
-          accent={
-            (stats?.weekCompletionRate ?? 0) >= 80
-              ? "text-green-500"
-              : (stats?.weekCompletionRate ?? 0) >= 50
-                ? "text-yellow-500"
-                : "text-muted-foreground"
-          }
         />
       </div>
     </div>
