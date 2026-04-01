@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.meeting.infrastructure.MeetingChatMapper">
+
+    <!-- MeetingChatMessage ResultMap -->
+    <resultMap id="MeetingChatMessageResultMap" type="com.mapo.palantier.meeting.domain.MeetingChatMessage">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="channelId" column="channel_id"/>
+        <result property="message" column="message"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- MeetingChatMessageWithUser ResultMap (JOIN용) -->
+    <resultMap id="MeetingChatMessageWithUserResultMap" type="com.mapo.palantier.meeting.domain.MeetingChatMessageWithUser">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="channelId" column="channel_id"/>
+        <result property="message" column="message"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="username" column="username"/>
+        <result property="userEmail" column="user_email"/>
+    </resultMap>
+
+    <!-- 채널별 최근 N개 메시지 조회 (시간 오름차순) -->
+    <select id="findRecent" resultMap="MeetingChatMessageWithUserResultMap">
+        SELECT *
+        FROM (
+            SELECT
+                mc.id,
+                mc.user_id,
+                mc.channel_id,
+                mc.message,
+                mc.is_deleted,
+                mc.created_at,
+                mc.updated_at,
+                u.username,
+                u.email AS user_email
+            FROM meeting_chat_messages mc
+            LEFT JOIN users u ON mc.user_id = u.id
+            WHERE mc.is_deleted = false
+              AND mc.channel_id = #{channelId}
+            ORDER BY mc.created_at DESC
+            LIMIT #{limit}
+        ) sub
+        ORDER BY sub.created_at ASC
+    </select>
+
+    <!-- 메시지 생성 -->
+    <insert id="insert" parameterType="com.mapo.palantier.meeting.domain.MeetingChatMessage"
+            useGeneratedKeys="true" keyProperty="id,createdAt,updatedAt"
+            keyColumn="id,created_at,updated_at">
+        INSERT INTO meeting_chat_messages (
+            user_id,
+            channel_id,
+            message,
+            is_deleted,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{userId},
+            #{channelId},
+            #{message},
+            false,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+</mapper>

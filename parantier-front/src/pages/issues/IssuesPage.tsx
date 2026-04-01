@@ -117,7 +117,7 @@ import {
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
 import { Mermaid } from "@/shared/ui/mermaid";
-import { useUsers } from "@/features/admin/hooks/useUsers";
+import { useAllUsers } from "@/features/user/hooks/useAllUsers";
 import mermaid from "mermaid";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
@@ -211,7 +211,7 @@ export function IssuesPage() {
   const { confirm, ConfirmDialog } = useConfirm();
 
   // 사용자 목록 (담당자 선택용)
-  const { data: usersData } = useUsers();
+  const { data: usersData } = useAllUsers();
   const users = usersData || [];
 
   // 담당자 관련

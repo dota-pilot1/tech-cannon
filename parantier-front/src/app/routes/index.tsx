@@ -23,6 +23,7 @@ import { StudyPage } from "@/pages/study/StudyPage";
 import { PilotPage } from "@/pages/pilot/PilotPage";
 import { WorkStatusPage } from "@/pages/work-status/WorkStatusPage";
 import { ToolsPage } from "@/pages/tools/ToolsPage";
+import { MeetingPage } from "@/pages/meeting/MeetingPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -212,6 +213,14 @@ const toolsRoute = createRoute({
   component: ToolsPage,
 });
 
+// 회의실 페이지 (로그인 필요)
+const meetingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/meeting",
+  beforeLoad: () => requireAuth(),
+  component: MeetingPage,
+});
+
 // 업무 현황 페이지 (로그인 필요)
 const workStatusRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -246,6 +255,7 @@ const routeTree = rootRoute.addChildren([
   pilotRoute,
   studyRoute,
   toolsRoute,
+  meetingRoute,
   notFoundRoute,
 ]);
 

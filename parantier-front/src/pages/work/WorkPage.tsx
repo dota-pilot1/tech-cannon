@@ -123,7 +123,7 @@ import {
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
 import { Mermaid } from "@/shared/ui/mermaid";
-import { useUsers } from "@/features/admin/hooks/useUsers";
+import { useAllUsers } from "@/features/user/hooks/useAllUsers";
 import mermaid from "mermaid";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -338,7 +338,7 @@ export function WorkPage() {
   const { confirm, ConfirmDialog } = useConfirm();
 
   // 사용자 목록
-  const { data: usersData } = useUsers();
+  const { data: usersData } = useAllUsers();
   const users = usersData || [];
 
   // 이미지 관련

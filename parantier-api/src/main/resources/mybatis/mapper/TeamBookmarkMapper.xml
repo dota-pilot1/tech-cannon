@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.bookmark.infrastructure.TeamBookmarkMapper">
+
+    <!-- TeamBookmark ResultMap -->
+    <resultMap id="TeamBookmarkResultMap" type="com.mapo.palantier.bookmark.domain.TeamBookmark">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="url" column="url"/>
+        <result property="description" column="description"/>
+        <result property="category" column="category"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- TeamBookmarkWithUser ResultMap (JOIN용) -->
+    <resultMap id="TeamBookmarkWithUserResultMap" type="com.mapo.palantier.bookmark.domain.TeamBookmarkWithUser">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="url" column="url"/>
+        <result property="description" column="description"/>
+        <result property="category" column="category"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="createdByName" column="created_by_name"/>
+    </resultMap>
+
+    <!-- 전체 즐겨찾기 목록 조회 (작성자 정보 포함, 최신순 정렬) -->
+    <select id="findAll" resultMap="TeamBookmarkWithUserResultMap">
+        SELECT
+            b.id,
+            b.title,
+            b.url,
+            b.description,
+            b.category,
+            b.created_by,
+            b.created_at,
+            b.updated_at,
+            u.username AS created_by_name
+        FROM team_bookmarks b
+        LEFT JOIN users u ON b.created_by = u.id
+        ORDER BY b.created_at DESC
+    </select>
+
+    <!-- 즐겨찾기 생성 -->
+    <insert id="insert" parameterType="com.mapo.palantier.bookmark.domain.TeamBookmark"
+            useGeneratedKeys="true" keyProperty="id,createdAt,updatedAt"
+            keyColumn="id,created_at,updated_at">
+        INSERT INTO team_bookmarks (
+            title,
+            url,
+            description,
+            category,
+            created_by
+        ) VALUES (
+            #{title},
+            #{url},
+            #{description},
+            #{category},
+            #{createdBy}
+        )
+    </insert>
+
+    <!-- 즐겨찾기 삭제 (본인만 삭제 가능) -->
+    <delete id="delete">
+        DELETE FROM team_bookmarks
+        WHERE id = #{id}
+          AND created_by = #{userId}
+    </delete>
+
+</mapper>

@@ -15,13 +15,27 @@ const menuItems: {
   label: string;
 }[] = [
   { key: "bookmark", icon: <Star className="w-4 h-4" />, label: "즐겨찾기" },
-  { key: "command", icon: <Terminal className="w-4 h-4" />, label: "명령어 저장" },
+  {
+    key: "command",
+    icon: <Terminal className="w-4 h-4" />,
+    label: "명령어 저장",
+  },
   { key: "devlog", icon: <BookOpen className="w-4 h-4" />, label: "개발 일지" },
-  { key: "files", icon: <FolderOpen className="w-4 h-4" />, label: "파일 관리" },
+  {
+    key: "files",
+    icon: <FolderOpen className="w-4 h-4" />,
+    label: "파일 관리",
+  },
   { key: "faq", icon: <HelpCircle className="w-4 h-4" />, label: "FAQ" },
 ];
 
-const validTabs = new Set<TabKey>(["bookmark", "command", "devlog", "files", "faq"]);
+const validTabs = new Set<TabKey>([
+  "bookmark",
+  "command",
+  "devlog",
+  "files",
+  "faq",
+]);
 
 function getInitialTab(): TabKey {
   const params = new URLSearchParams(window.location.search);
@@ -62,7 +76,9 @@ export function ToolsPage() {
       <aside className="w-56 border-r border-border bg-card flex flex-col shrink-0">
         <div className="px-4 pt-6 pb-4 border-b border-border">
           <h2 className="text-base font-semibold text-foreground">도구</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">팀 생산성 도구 모음</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            팀 생산성 도구 모음
+          </p>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-2">
