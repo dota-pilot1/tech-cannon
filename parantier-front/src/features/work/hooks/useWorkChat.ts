@@ -22,7 +22,7 @@ export function useWorkChat({ workId, enabled = true }: UseWorkChatOptions) {
   });
 
   useEffect(() => {
-    if (!isConnected || !workId) return;
+    if (!workId) return;
     const topic = `work/${workId}`;
 
     subscribe(topic, (data) => {
@@ -38,7 +38,7 @@ export function useWorkChat({ workId, enabled = true }: UseWorkChatOptions) {
     });
 
     return () => unsubscribe(topic);
-  }, [isConnected, workId, subscribe, unsubscribe]);
+  }, [workId, subscribe, unsubscribe]);
 
   /**
    * 메시지 전송

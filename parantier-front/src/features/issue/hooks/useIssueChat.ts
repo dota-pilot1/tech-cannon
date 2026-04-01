@@ -22,7 +22,7 @@ export function useIssueChat({ issueId, enabled = true }: UseIssueChatOptions) {
   });
 
   useEffect(() => {
-    if (!isConnected || !issueId) return;
+    if (!issueId) return;
     const topic = `issue/${issueId}`;
 
     subscribe(topic, (data) => {
@@ -38,7 +38,7 @@ export function useIssueChat({ issueId, enabled = true }: UseIssueChatOptions) {
     });
 
     return () => unsubscribe(topic);
-  }, [isConnected, issueId, subscribe, unsubscribe]);
+  }, [issueId, subscribe, unsubscribe]);
 
   /**
    * 메시지 전송

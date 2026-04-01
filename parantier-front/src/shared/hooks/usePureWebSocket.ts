@@ -22,13 +22,12 @@ class WsManager {
   private subscriptions = new Map<string, SubscriptionEntry>();
   private connected = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private enabled = false;
+  private refCount = 0; // 몇 개의 훅이 enable 중인지
   private listeners = new Set<() => void>();
 
-  // 외부에서 isConnected 상태 구독용
   getSnapshot = () => this.connected;
 
-  subscribe_store = (listener: () => void) => {
+  subscribeStore = (listener: () => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   };
@@ -37,23 +36,37 @@ class WsManager {
     this.listeners.forEach((l) => l());
   }
 
-  enable() {
-    this.enabled = true;
-    this.connect();
+  /** enabled=true 인 훅 하나가 마운트될 때 호출 */
+  acquire() {
+    this.refCount++;
+    if (this.refCount === 1) {
+      this.connect();
+    }
   }
 
-  disable() {
-    this.enabled = false;
+  /** enabled=true 인 훅 하나가 언마운트되거나 enabled=false 될 때 호출 */
+  release() {
+    this.refCount = Math.max(0, this.refCount - 1);
+    if (this.refCount === 0) {
+      this.teardown();
+    }
+  }
+
+  private teardown() {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     this.ws?.close();
     this.ws = null;
+    if (this.connected) {
+      this.connected = false;
+      this.notify();
+    }
   }
 
   private connect() {
-    if (!this.enabled) return;
+    if (this.refCount === 0) return;
     if (this.ws?.readyState === WebSocket.OPEN) return;
     if (this.ws?.readyState === WebSocket.CONNECTING) return;
 
@@ -64,7 +77,7 @@ class WsManager {
       this.connected = true;
       this.notify();
 
-      // 모든 구독 복원
+      // 모든 구독 복원: SUBSCRIBE 전송 + onOpen 콜백 실행
       this.subscriptions.forEach(({ onOpen }, topic) => {
         ws.send(JSON.stringify({ type: "SUBSCRIBE", topic, data: null }));
         onOpen?.();
@@ -84,7 +97,8 @@ class WsManager {
     ws.onclose = () => {
       this.connected = false;
       this.notify();
-      if (this.enabled) {
+      // 아직 사용 중이면 재연결
+      if (this.refCount > 0) {
         this.reconnectTimer = setTimeout(() => this.connect(), 2000);
       }
     };
@@ -121,11 +135,8 @@ class WsManager {
   }
 }
 
-// 전역 싱글톤 인스턴스
+// 전역 싱글톤
 const wsManager = new WsManager();
-
-// 전역 enabled 참조 카운터 (여러 컴포넌트가 enabled=true 일 때 한 번만 연결)
-let enabledCount = 0;
 
 // ── React 훅 ─────────────────────────────────────────────────────────────────
 
@@ -136,34 +147,30 @@ interface UsePureWebSocketOptions {
 export function usePureWebSocket({
   enabled = true,
 }: UsePureWebSocketOptions = {}) {
-  // 싱글톤 스토어에서 isConnected 상태 구독
   const isConnected = useSyncExternalStore(
-    wsManager.subscribe_store,
+    wsManager.subscribeStore,
     wsManager.getSnapshot,
   );
 
-  // enabled 변경 시 연결/해제 카운터 관리
-  const prevEnabledRef = useRef(false);
+  // 이 훅 인스턴스가 현재 acquire 중인지 추적
+  const acquiredRef = useRef(false);
 
   useEffect(() => {
-    if (enabled && !prevEnabledRef.current) {
-      enabledCount++;
-      if (enabledCount === 1) wsManager.enable();
-      prevEnabledRef.current = true;
-    } else if (!enabled && prevEnabledRef.current) {
-      enabledCount = Math.max(0, enabledCount - 1);
-      if (enabledCount === 0) wsManager.disable();
-      prevEnabledRef.current = false;
+    if (enabled && !acquiredRef.current) {
+      acquiredRef.current = true;
+      wsManager.acquire();
+    } else if (!enabled && acquiredRef.current) {
+      acquiredRef.current = false;
+      wsManager.release();
     }
   }, [enabled]);
 
-  // 언마운트 시 카운터 감소
+  // 언마운트 시 정리
   useEffect(() => {
     return () => {
-      if (prevEnabledRef.current) {
-        enabledCount = Math.max(0, enabledCount - 1);
-        if (enabledCount === 0) wsManager.disable();
-        prevEnabledRef.current = false;
+      if (acquiredRef.current) {
+        acquiredRef.current = false;
+        wsManager.release();
       }
     };
   }, []);

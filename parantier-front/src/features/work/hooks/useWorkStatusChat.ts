@@ -34,9 +34,9 @@ export function useWorkStatusChat({
     enabled: enabled && !!userId && !!username,
   });
 
-  // 메시지 구독
+  // 메시지 구독 (onOpen 패턴 - isConnected 가드 제거)
   useEffect(() => {
-    if (!isConnected) return;
+    if (!userId || !username) return;
 
     subscribe("work-status", (data) => {
       const raw = data as WorkStatusChatMessageWithUser & {
@@ -53,22 +53,27 @@ export function useWorkStatusChat({
     });
 
     return () => unsubscribe("work-status");
-  }, [isConnected, subscribe, unsubscribe]);
+  }, [userId, username, subscribe, unsubscribe]);
 
-  // 참여자 구독 + JOIN
+  // 참여자 구독 + JOIN (onOpen 패턴)
   useEffect(() => {
-    if (!isConnected || !userId || !username) return;
+    if (!userId || !username) return;
 
-    subscribe("work-status-participants", (data) => {
-      const payload = data as { participants: Participant[] };
-      setParticipants(payload.participants ?? []);
-    });
-
-    send({
-      type: "JOIN",
-      topic: "work-status-participants",
-      data: { userId, username },
-    });
+    subscribe(
+      "work-status-participants",
+      (data) => {
+        const payload = data as { participants: Participant[] };
+        setParticipants(payload.participants ?? []);
+      },
+      // onOpen: 연결/재연결 시 자동으로 JOIN 전송
+      () => {
+        send({
+          type: "JOIN",
+          topic: "work-status-participants",
+          data: { userId, username },
+        });
+      },
+    );
 
     return () => {
       send({
@@ -78,7 +83,7 @@ export function useWorkStatusChat({
       });
       unsubscribe("work-status-participants");
     };
-  }, [isConnected, userId, username, send, subscribe, unsubscribe]);
+  }, [userId, username, send, subscribe, unsubscribe]);
 
   const sendMessage = (
     message: string,
@@ -110,23 +115,28 @@ export function useWorkStatusParticipants({
 }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
 
-  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket({
+  const { send, subscribe, unsubscribe } = usePureWebSocket({
     enabled: !!userId && !!username,
   });
 
   useEffect(() => {
-    if (!isConnected || !userId || !username) return;
+    if (!userId || !username) return;
 
-    subscribe("work-status-participants", (data) => {
-      const payload = data as { participants: Participant[] };
-      setParticipants(payload.participants ?? []);
-    });
-
-    send({
-      type: "JOIN",
-      topic: "work-status-participants",
-      data: { userId, username },
-    });
+    subscribe(
+      "work-status-participants",
+      (data) => {
+        const payload = data as { participants: Participant[] };
+        setParticipants(payload.participants ?? []);
+      },
+      // onOpen: 연결/재연결 시 자동으로 JOIN 전송
+      () => {
+        send({
+          type: "JOIN",
+          topic: "work-status-participants",
+          data: { userId, username },
+        });
+      },
+    );
 
     return () => {
       send({
@@ -137,7 +147,7 @@ export function useWorkStatusParticipants({
       unsubscribe("work-status-participants");
       setParticipants([]);
     };
-  }, [isConnected, userId, username, send, subscribe, unsubscribe]);
+  }, [userId, username, send, subscribe, unsubscribe]);
 
   return { participants };
 }
