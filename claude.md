@@ -480,6 +480,31 @@ ssh -i "PEM파일" ubuntu@43.200.241.26 \
         VALUES ('메뉴명', '/경로', NULL, 'HEADER', 순서, true);\""
 ```
 
+## WebSocket 구현 원칙
+
+### ❌ STOMP 사용 금지
+```
+@stomp/stompjs, SimpMessagingTemplate, @EnableWebSocketMessageBroker, @MessageMapping
+```
+위 라이브러리/어노테이션은 절대 사용하지 않습니다.
+
+### ✅ 순수 WebSocket 사용
+- **백엔드**: `@EnableWebSocket` + `TextWebSocketHandler`
+- **프론트**: 브라우저 기본 `new WebSocket(url)`
+
+### 메시지 포맷
+```json
+{ "type": "SUBSCRIBE|CHAT|JOIN|LEAVE|PARTICIPANTS", "topic": "meeting/1", "data": {} }
+```
+
+### 공통 훅
+```typescript
+// 모든 WebSocket 기능은 이 훅을 기반으로 구현
+import { usePureWebSocket } from '@/shared/hooks/usePureWebSocket'
+```
+
+---
+
 ## Git Commit 규칙
 
 - feat: 새로운 기능
