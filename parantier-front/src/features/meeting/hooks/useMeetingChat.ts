@@ -75,6 +75,7 @@ export function useReorderChannels() {
       meetingChatApi.reorderChannels(items),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meeting-channels"] });
+      toast.success("순서가 저장됐습니다.");
     },
     onError: () => toast.error("순서 변경에 실패했습니다."),
   });

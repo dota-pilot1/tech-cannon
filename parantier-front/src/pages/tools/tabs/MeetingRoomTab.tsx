@@ -79,14 +79,18 @@ function SortableChannelItem({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40 transition-colors"
+      className={[
+        "flex items-center gap-2 px-3 py-2 rounded-lg transition-all",
+        isDragging
+          ? "bg-primary/10 border border-primary/30 shadow-lg scale-[1.02] z-50 opacity-90"
+          : "hover:bg-muted/40",
+      ].join(" ")}
     >
       <button
         {...attributes}
