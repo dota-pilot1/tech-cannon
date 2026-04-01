@@ -1,10 +1,12 @@
 package com.mapo.palantier.work.application;
 
+import com.mapo.palantier.websocket.PureWebSocketHandler;
+import com.mapo.palantier.websocket.WsMessage;
 import com.mapo.palantier.work.domain.WorkStatusLog;
 import com.mapo.palantier.work.infrastructure.WorkStatusLogMapper;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,14 +15,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class WorkStatusLogService {
 
     private final WorkStatusLogMapper logMapper;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final PureWebSocketHandler pureWebSocketHandler;
 
     public WorkStatusLogService(
         WorkStatusLogMapper logMapper,
-        SimpMessagingTemplate messagingTemplate
+        @Lazy PureWebSocketHandler pureWebSocketHandler
     ) {
         this.logMapper = logMapper;
-        this.messagingTemplate = messagingTemplate;
+        this.pureWebSocketHandler = pureWebSocketHandler;
     }
 
     @Transactional
@@ -45,8 +47,11 @@ public class WorkStatusLogService {
 
         logMapper.insert(log);
 
-        // WebSocket 브로드캐스트
-        messagingTemplate.convertAndSend("/topic/work-status", log);
+        // 순수 WebSocket 브로드캐스트
+        pureWebSocketHandler.broadcast(
+            "work-status",
+            new WsMessage("LOG", "work-status", log)
+        );
     }
 
     @Transactional

@@ -1,10 +1,8 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Client } from "@stomp/stompjs";
 import { workStatusChatApi } from "@/entities/work/api/workStatusChatApi";
 import type { WorkStatusChatMessageWithUser } from "@/entities/work/types/workStatusChat";
-
-const WEBSOCKET_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws";
+import { usePureWebSocket } from "@/shared/hooks/usePureWebSocket";
 
 export function useWorkStatusChatHistory() {
   return useQuery({
@@ -30,115 +28,67 @@ export function useWorkStatusChat({
   username,
 }: UseWorkStatusChatOptions = {}) {
   const [messages, setMessages] = useState<WorkStatusChatMessageWithUser[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const clientRef = useRef<Client | null>(null);
 
+  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket({
+    enabled: enabled && !!userId && !!username,
+  });
+
+  // 메시지 구독
   useEffect(() => {
-    // userId가 준비된 후에만 연결
-    if (!enabled || !userId || !username) return;
+    if (!isConnected) return;
 
-    const accessToken = localStorage.getItem("accessToken");
-
-    const client = new Client({
-      brokerURL: WEBSOCKET_URL,
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-      connectHeaders: accessToken
-        ? { Authorization: `Bearer ${accessToken}` }
-        : {},
-
-      onConnect: () => {
-        console.log("WorkStatusChat WebSocket Connected");
-        setIsConnected(true);
-
-        // 메시지 구독
-        client.subscribe("/topic/work-status-chat", (message) => {
-          try {
-            const raw = JSON.parse(message.body);
-            // WebSocket 응답은 username 대신 senderName으로 오므로 폴백 처리
-            const newMessage: WorkStatusChatMessageWithUser = {
-              ...raw,
-              username: raw.username ?? raw.senderName ?? "알 수 없음",
-              // createdAt이 없으면 현재 시각으로 폴백
-              createdAt: raw.createdAt ?? new Date().toISOString(),
-            };
-            setMessages((prev) => [...prev, newMessage]);
-          } catch (e) {
-            console.error("Failed to parse work-status-chat message:", e);
-          }
-        });
-
-        // 참여자 목록 구독
-        client.subscribe("/topic/work-status-participants", (message) => {
-          try {
-            const payload: { participants: Participant[] } = JSON.parse(
-              message.body,
-            );
-            setParticipants(payload.participants ?? []);
-          } catch (e) {
-            console.error("Failed to parse participants message:", e);
-          }
-        });
-
-        // 입장 이벤트 전송
-        if (userId && username) {
-          client.publish({
-            destination: "/app/work-status/chat/join",
-            body: JSON.stringify({ userId, username }),
-          });
-        }
-      },
-
-      onStompError: (frame) => {
-        console.error("WorkStatusChat STOMP Error:", frame);
-        setIsConnected(false);
-      },
-
-      onWebSocketClose: () => {
-        console.log("WorkStatusChat WebSocket Disconnected");
-        setIsConnected(false);
-      },
+    subscribe("work-status", (data) => {
+      const raw = data as WorkStatusChatMessageWithUser & {
+        senderName?: string;
+      };
+      setMessages((prev) => [
+        ...prev,
+        {
+          ...raw,
+          username: raw.username ?? raw.senderName ?? "알 수 없음",
+          createdAt: raw.createdAt ?? new Date().toISOString(),
+        },
+      ]);
     });
 
-    clientRef.current = client;
-    client.activate();
+    return () => unsubscribe("work-status");
+  }, [isConnected, subscribe, unsubscribe]);
+
+  // 참여자 구독 + JOIN
+  useEffect(() => {
+    if (!isConnected || !userId || !username) return;
+
+    subscribe("work-status-participants", (data) => {
+      const payload = data as { participants: Participant[] };
+      setParticipants(payload.participants ?? []);
+    });
+
+    send({
+      type: "JOIN",
+      topic: "work-status-participants",
+      data: { userId, username },
+    });
 
     return () => {
-      // 퇴장 이벤트 전송 후 연결 해제
-      if (client.connected && userId) {
-        client.publish({
-          destination: "/app/work-status/chat/leave",
-          body: JSON.stringify({ userId, username }),
-        });
-      }
-      if (client.active) {
-        client.deactivate();
-      }
-      setMessages([]);
-      setIsConnected(false);
-      setParticipants([]);
+      send({
+        type: "LEAVE",
+        topic: "work-status-participants",
+        data: { userId, username },
+      });
+      unsubscribe("work-status-participants");
     };
-  }, [enabled, userId, username]);
+  }, [isConnected, userId, username, send, subscribe, unsubscribe]);
 
   const sendMessage = (
     message: string,
     senderId: number,
     senderName: string,
   ) => {
-    if (!clientRef.current?.connected) {
-      console.error("WorkStatusChat WebSocket is not connected");
-      return;
-    }
-
-    clientRef.current.publish({
-      destination: "/app/work-status/chat",
-      body: JSON.stringify({
-        senderId,
-        senderName,
-        message,
-      }),
+    send({
+      type: "CHAT",
+      topic: "work-status",
+      data: { senderId, senderName, message },
     });
   };
 
@@ -159,54 +109,35 @@ export function useWorkStatusParticipants({
   username?: string;
 }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const clientRef = useRef<Client | null>(null);
 
-  const connect = useCallback(() => {
-    if (!userId || !username) return;
-    if (clientRef.current?.active) return;
-
-    const accessToken = localStorage.getItem("accessToken");
-
-    const client = new Client({
-      brokerURL: WEBSOCKET_URL,
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-      connectHeaders: accessToken
-        ? { Authorization: `Bearer ${accessToken}` }
-        : {},
-
-      onConnect: () => {
-        // 참여자 목록만 구독
-        client.subscribe("/topic/work-status-participants", (message) => {
-          try {
-            const payload: { participants: Participant[] } = JSON.parse(
-              message.body,
-            );
-            setParticipants(payload.participants ?? []);
-          } catch (e) {
-            console.error("Failed to parse participants message:", e);
-          }
-        });
-      },
-
-      onStompError: () => {},
-      onWebSocketClose: () => {},
-    });
-
-    clientRef.current = client;
-    client.activate();
-  }, [userId, username]);
+  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket({
+    enabled: !!userId && !!username,
+  });
 
   useEffect(() => {
-    connect();
+    if (!isConnected || !userId || !username) return;
+
+    subscribe("work-status-participants", (data) => {
+      const payload = data as { participants: Participant[] };
+      setParticipants(payload.participants ?? []);
+    });
+
+    send({
+      type: "JOIN",
+      topic: "work-status-participants",
+      data: { userId, username },
+    });
+
     return () => {
-      if (clientRef.current?.active) {
-        clientRef.current.deactivate();
-      }
+      send({
+        type: "LEAVE",
+        topic: "work-status-participants",
+        data: { userId, username },
+      });
+      unsubscribe("work-status-participants");
       setParticipants([]);
     };
-  }, [connect]);
+  }, [isConnected, userId, username, send, subscribe, unsubscribe]);
 
   return { participants };
 }
