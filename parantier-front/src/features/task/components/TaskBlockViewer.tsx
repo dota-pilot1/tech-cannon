@@ -3,6 +3,7 @@ import {
   TYPE_META,
   parseFileContent,
   parseDbTableContent,
+  parseGithubContent,
 } from "../types/task.types";
 import { Mermaid } from "@/shared/ui/mermaid";
 import { LexicalViewer } from "@/shared/ui/lexical/LexicalViewer";
@@ -230,6 +231,60 @@ export default function TaskBlockViewer({ post }: Props) {
                             컬럼 정보가 없습니다.
                           </p>
                         )}
+                      </div>
+                    );
+                  })()}
+
+                {block.blockType === "GITHUB" &&
+                  (() => {
+                    const gh = parseGithubContent(block.content);
+                    const typeLabels: Record<string, string> = {
+                      repo: "📁 Repository",
+                      pr: "🔀 Pull Request",
+                      issue: "🐛 Issue",
+                      gist: "📋 Gist",
+                      other: "🔗 링크",
+                    };
+                    return (
+                      <div className="p-4 bg-card">
+                        <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border border-border hover:border-primary/30 transition-colors">
+                          <div className="text-3xl">🐙</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-semibold text-sm text-foreground truncate">
+                                {gh.title || gh.url || "GitHub 링크"}
+                              </span>
+                              <span className="text-xs px-2 py-0.5 bg-muted text-muted-foreground rounded-full shrink-0">
+                                {typeLabels[gh.type] ?? "🔗 링크"}
+                              </span>
+                            </div>
+                            {gh.url && (
+                              <a
+                                href={gh.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline truncate block mb-2"
+                              >
+                                {gh.url}
+                              </a>
+                            )}
+                            {gh.description && (
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {gh.description}
+                              </p>
+                            )}
+                          </div>
+                          {gh.url && (
+                            <a
+                              href={gh.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 text-xs bg-foreground text-background rounded hover:opacity-80 shrink-0"
+                            >
+                              열기
+                            </a>
+                          )}
+                        </div>
                       </div>
                     );
                   })()}

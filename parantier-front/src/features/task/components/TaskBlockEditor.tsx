@@ -5,10 +5,12 @@ import type {
   BlockType,
   DbColumn,
   DbTableContent,
+  GithubContent,
 } from "../types/task.types";
 import {
   TYPE_META,
   parseDbTableContent,
+  parseGithubContent,
   parseTsvToColumns,
 } from "../types/task.types";
 import { Checkbox } from "@/shared/ui/checkbox";
@@ -98,6 +100,11 @@ export default function TaskBlockEditor({
                     updateBlock(_idx, "content", newContent)
                   }
                 />
+              ) : block.blockType === "GITHUB" ? (
+                <GithubBlockEditor
+                  content={block.content}
+                  onChange={(val) => updateBlock(_idx, "content", val)}
+                />
               ) : block.blockType === "NOTE" ? (
                 <LexicalEditor
                   initialState={block.content}
@@ -147,6 +154,76 @@ export default function TaskBlockEditor({
             {meta.icon} {meta.label}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// GitHub 블록 전용 에디터
+function GithubBlockEditor({
+  content,
+  onChange,
+}: {
+  content: string;
+  onChange: (val: string) => void;
+}) {
+  const github = parseGithubContent(content);
+
+  const handleUpdate = (field: keyof GithubContent, value: string) => {
+    onChange(JSON.stringify({ ...github, [field]: value }));
+  };
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            GitHub URL *
+          </label>
+          <input
+            type="url"
+            value={github.url}
+            onChange={(e) => handleUpdate("url", e.target.value)}
+            placeholder="https://github.com/org/repo"
+            className="w-full border border-input rounded px-2 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            종류
+          </label>
+          <select
+            value={github.type}
+            onChange={(e) => handleUpdate("type", e.target.value)}
+            className="w-full border border-input rounded px-2 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="repo">📁 Repository</option>
+            <option value="pr">🔀 Pull Request</option>
+            <option value="issue">🐛 Issue</option>
+            <option value="gist">📋 Gist</option>
+            <option value="other">🔗 기타</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">제목</label>
+        <input
+          type="text"
+          value={github.title}
+          onChange={(e) => handleUpdate("title", e.target.value)}
+          placeholder="레포지토리 이름 또는 제목"
+          className="w-full border border-input rounded px-2 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">설명</label>
+        <textarea
+          value={github.description}
+          onChange={(e) => handleUpdate("description", e.target.value)}
+          rows={3}
+          placeholder="이 레포/PR/이슈에 대한 설명을 입력하세요"
+          className="w-full border border-input rounded px-2 py-1.5 text-sm bg-background text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+        />
       </div>
     </div>
   );

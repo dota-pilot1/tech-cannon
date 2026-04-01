@@ -25,6 +25,7 @@ import { WorkStatusPage } from "@/pages/work-status/WorkStatusPage";
 import { ToolsPage } from "@/pages/tools/ToolsPage";
 import { MeetingPage } from "@/pages/meeting/MeetingPage";
 import { WikiPage } from "@/pages/wiki/WikiPage";
+import { PrototypePage } from "@/pages/prototype/PrototypePage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -230,6 +231,14 @@ const wikiRoute = createRoute({
   component: WikiPage,
 });
 
+// Prototype (로그인 필요)
+const prototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype",
+  beforeLoad: () => requireAuth(),
+  component: PrototypePage,
+});
+
 // 업무 현황 페이지 (로그인 필요)
 const workStatusRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -263,6 +272,7 @@ const routeTree = rootRoute.addChildren([
   issuesRoute,
   pilotRoute,
   wikiRoute,
+  prototypeRoute,
   studyRoute,
   toolsRoute,
   meetingRoute,

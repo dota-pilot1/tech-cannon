@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.prototype.post.ProtoPostMapper">
+
+    <resultMap id="ProtoPostResultMap" type="com.mapo.palantier.prototype.post.ProtoPost">
+        <id property="id" column="id"/>
+        <result property="folderId" column="folder_id"/>
+        <result property="title" column="title"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="isPinned" column="is_pinned"/>
+        <result property="tags" column="tags"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="deletedAt" column="deleted_at"/>
+    </resultMap>
+
+    <resultMap id="ProtoPostWithBlocksResultMap" type="com.mapo.palantier.prototype.post.ProtoPost">
+        <id property="id" column="id"/>
+        <result property="folderId" column="folder_id"/>
+        <result property="title" column="title"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="isPinned" column="is_pinned"/>
+        <result property="tags" column="tags"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <collection property="blocks" ofType="com.mapo.palantier.prototype.block.ProtoBlock">
+            <id property="id" column="block_id"/>
+            <result property="postId" column="post_id"/>
+            <result property="blockType" column="block_type"/>
+            <result property="content" column="content"/>
+            <result property="sortOrder" column="sort_order"/>
+        </collection>
+    </resultMap>
+
+    <select id="findAll" resultMap="ProtoPostResultMap">
+        SELECT p.id, p.folder_id, p.title, p.author_id,
+               u.username as author_name,
+               p.is_pinned, p.tags,
+               p.created_at, p.updated_at
+        FROM prototype_posts p
+        JOIN users u ON p.author_id = u.id
+        WHERE p.deleted_at IS NULL
+        ORDER BY p.is_pinned DESC, p.updated_at DESC
+    </select>
+
+    <select id="findByFolderId" resultMap="ProtoPostResultMap">
+        SELECT p.id, p.folder_id, p.title, p.author_id,
+               u.username as author_name,
+               p.is_pinned, p.tags,
+               p.created_at, p.updated_at
+        FROM prototype_posts p
+        JOIN users u ON p.author_id = u.id
+        WHERE p.folder_id = #{folderId}
+          AND p.deleted_at IS NULL
+        ORDER BY p.is_pinned DESC, p.updated_at DESC
+    </select>
+
+    <select id="findById" resultMap="ProtoPostResultMap">
+        SELECT p.id, p.folder_id, p.title, p.author_id,
+               u.username as author_name,
+               p.is_pinned, p.tags,
+               p.created_at, p.updated_at
+        FROM prototype_posts p
+        JOIN users u ON p.author_id = u.id
+        WHERE p.id = #{id} AND p.deleted_at IS NULL
+    </select>
+
+    <select id="findByIdWithBlocks" resultMap="ProtoPostWithBlocksResultMap">
+        SELECT p.id, p.folder_id, p.title, p.author_id,
+               u.username as author_name,
+               p.is_pinned, p.tags,
+               p.created_at, p.updated_at,
+               b.id as block_id, b.post_id, b.block_type, b.content, b.sort_order
+        FROM prototype_posts p
+        JOIN users u ON p.author_id = u.id
+        LEFT JOIN prototype_blocks b ON p.id = b.post_id
+        WHERE p.id = #{id} AND p.deleted_at IS NULL
+        ORDER BY b.sort_order
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO prototype_posts (folder_id, title, author_id, is_pinned, tags)
+        VALUES (#{folderId}, #{title}, #{authorId}, #{isPinned}, #{tags})
+    </insert>
+
+    <update id="update">
+        UPDATE prototype_posts
+        SET title      = #{title},
+            folder_id  = #{folderId},
+            is_pinned  = #{isPinned},
+            tags       = #{tags},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE prototype_posts
+        SET deleted_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>
