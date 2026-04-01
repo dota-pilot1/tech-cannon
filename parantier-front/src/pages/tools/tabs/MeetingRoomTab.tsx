@@ -1,5 +1,20 @@
 import { useEffect, useRef, useMemo, useState } from "react";
 import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   WifiOff,
   Loader2,
   Users,
@@ -11,8 +26,6 @@ import {
   X,
   Settings,
   GripVertical,
-  ChevronUp,
-  ChevronDown,
   MessageCircle,
 } from "lucide-react";
 import { useStore } from "@tanstack/react-store";
@@ -43,6 +56,61 @@ import {
   useDeleteBookmark,
 } from "@/features/bookmark/hooks/useBookmarks";
 import type { CreateBookmarkRequest } from "@/entities/bookmark/types/bookmark";
+
+// ── 드래그 가능한 채널 아이템 ─────────────────────────────────────────────────
+function SortableChannelItem({
+  channel,
+  onDelete,
+  canDelete,
+}: {
+  channel: { id: number; name: string };
+  onDelete: () => void;
+  canDelete: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: channel.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40 transition-colors"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground hover:text-foreground touch-none"
+        title="드래그해서 순서 변경"
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <Hash className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+      <span className="flex-1 text-sm text-foreground truncate">
+        {channel.name}
+      </span>
+      <button
+        onClick={onDelete}
+        disabled={!canDelete}
+        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        title="삭제"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
 
 function ParticipantAvatar({ name }: { name: string }) {
   const initial = name ? name.charAt(name.length - 1).toUpperCase() : "?";
@@ -211,21 +279,18 @@ export function MeetingRoomTab() {
     });
   };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const items = [
-      { id: channels[index].id, orderNum: channels[index - 1].orderNum },
-      { id: channels[index - 1].id, orderNum: channels[index].orderNum },
-    ];
-    reorderChannels({ items });
-  };
+  const sensors = useSensors(useSensor(PointerSensor));
 
-  const handleMoveDown = (index: number) => {
-    if (index === channels.length - 1) return;
-    const items = [
-      { id: channels[index].id, orderNum: channels[index + 1].orderNum },
-      { id: channels[index + 1].id, orderNum: channels[index].orderNum },
-    ];
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = channels.findIndex((c) => c.id === active.id);
+    const newIndex = channels.findIndex((c) => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(channels, oldIndex, newIndex);
+    const items = reordered.map((c, i) => ({ id: c.id, orderNum: i + 1 }));
     reorderChannels({ items });
   };
 
@@ -359,50 +424,33 @@ export function MeetingRoomTab() {
           </div>
 
           {/* 채널 목록 */}
-          <div className="mt-2 space-y-1 max-h-[32rem] overflow-y-auto">
+          <div className="mt-2 max-h-[32rem] overflow-y-auto">
             {channels.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">
                 채널이 없습니다
               </p>
             ) : (
-              channels.map((channel, index) => (
-                <div
-                  key={channel.id}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40 transition-colors"
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={channels.map((c) => c.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <Hash className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="flex-1 text-sm text-foreground truncate">
-                    {channel.name}
-                  </span>
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <button
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      title="위로"
-                    >
-                      <ChevronUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === channels.length - 1}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      title="아래로"
-                    >
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => deleteChannel(channel.id)}
-                      disabled={channels.length <= 1}
-                      className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      title="삭제"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="space-y-1">
+                    {channels.map((channel) => (
+                      <SortableChannelItem
+                        key={channel.id}
+                        channel={channel}
+                        onDelete={() => deleteChannel(channel.id)}
+                        canDelete={channels.length > 1}
+                      />
+                    ))}
                   </div>
-                </div>
-              ))
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         </DialogContent>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Client } from "@stomp/stompjs";
 import { meetingChatApi } from "@/entities/meeting/api/meetingChatApi";
@@ -29,7 +30,9 @@ export function useCreateChannel() {
     mutationFn: (name: string) => meetingChatApi.createChannel(name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meeting-channels"] });
+      toast.success("채널이 추가됐습니다.");
     },
+    onError: () => toast.error("채널 추가에 실패했습니다."),
   });
 }
 
@@ -47,7 +50,9 @@ export function useUpdateChannel() {
     }) => meetingChatApi.updateChannel(id, name, orderNum),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meeting-channels"] });
+      toast.success("채널이 수정됐습니다.");
     },
+    onError: () => toast.error("채널 수정에 실패했습니다."),
   });
 }
 
@@ -57,7 +62,9 @@ export function useDeleteChannel() {
     mutationFn: (id: number) => meetingChatApi.deleteChannel(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meeting-channels"] });
+      toast.success("채널이 삭제됐습니다.");
     },
+    onError: () => toast.error("채널 삭제에 실패했습니다."),
   });
 }
 
@@ -69,6 +76,7 @@ export function useReorderChannels() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meeting-channels"] });
     },
+    onError: () => toast.error("순서 변경에 실패했습니다."),
   });
 }
 
