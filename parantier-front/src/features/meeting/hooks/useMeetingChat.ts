@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Client } from "@stomp/stompjs";
 import { meetingChatApi } from "@/entities/meeting/api/meetingChatApi";
+import type { ReorderChannelItem } from "@/entities/meeting/api/meetingChatApi";
 import type { MeetingChatMessageWithUser } from "@/entities/meeting/types/meetingChat";
 
 const WEBSOCKET_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws";
@@ -19,6 +20,55 @@ export function useMeetingChannels() {
     queryKey: ["meeting-channels"],
     queryFn: () => meetingChatApi.getChannels(),
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useCreateChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => meetingChatApi.createChannel(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meeting-channels"] });
+    },
+  });
+}
+
+export function useUpdateChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      name,
+      orderNum,
+    }: {
+      id: number;
+      name: string;
+      orderNum: number;
+    }) => meetingChatApi.updateChannel(id, name, orderNum),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meeting-channels"] });
+    },
+  });
+}
+
+export function useDeleteChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => meetingChatApi.deleteChannel(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meeting-channels"] });
+    },
+  });
+}
+
+export function useReorderChannels() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ items }: { items: ReorderChannelItem[] }) =>
+      meetingChatApi.reorderChannels(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meeting-channels"] });
+    },
   });
 }
 
@@ -49,15 +99,22 @@ export function useMeetingChat({
     null,
   );
 
-  // ── WebSocket 연결 (userId / username 바뀔 때만 재연결) ──────────────────
+  // ── WebSocket 연결 (enabled/userId/username 바뀔 때 재연결) ──────────────
   useEffect(() => {
-    if (!enabled || !userId || !username) return;
+    // enabled가 false면 기존 연결 해제 후 대기
+    if (!enabled || !userId || !username) {
+      if (clientRef.current?.active) {
+        clientRef.current.deactivate();
+        clientRef.current = null;
+      }
+      return;
+    }
 
     const accessToken = localStorage.getItem("accessToken");
 
     const client = new Client({
       brokerURL: WEBSOCKET_URL,
-      reconnectDelay: 5000,
+      reconnectDelay: 3000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       connectHeaders: accessToken

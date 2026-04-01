@@ -9,6 +9,11 @@ import {
   Trash2,
   Plus,
   X,
+  Settings,
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  MessageCircle,
 } from "lucide-react";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
@@ -19,8 +24,17 @@ import {
   useMeetingChat,
   useMeetingChatHistory,
   useMeetingChannels,
+  useCreateChannel,
+  useDeleteChannel,
+  useReorderChannels,
   type Participant,
 } from "@/features/meeting/hooks/useMeetingChat";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog";
 import type { MeetingChatMessageWithUser } from "@/entities/meeting/types/meetingChat";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import {
@@ -138,6 +152,8 @@ export function MeetingRoomTab() {
 
   const [selectedChannelId, setSelectedChannelId] = useState(1);
   const [isAddingBookmark, setIsAddingBookmark] = useState(false);
+  const [channelSettingOpen, setChannelSettingOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
 
   const [bookmarkForm, setBookmarkForm] = useState<CreateBookmarkRequest>({
     title: "",
@@ -179,6 +195,39 @@ export function MeetingRoomTab() {
 
   const { data: channels = [], isLoading: isChannelsLoading } =
     useMeetingChannels();
+
+  const { mutate: createChannel, isPending: isCreatingChannel } =
+    useCreateChannel();
+  const { mutate: deleteChannel } = useDeleteChannel();
+  const { mutate: reorderChannels } = useReorderChannels();
+
+  const isAdmin = user?.role === "ROLE_ADMIN";
+
+  const handleAddChannel = () => {
+    const name = newChannelName.trim();
+    if (!name) return;
+    createChannel(name, {
+      onSuccess: () => setNewChannelName(""),
+    });
+  };
+
+  const handleMoveUp = (index: number) => {
+    if (index === 0) return;
+    const items = [
+      { id: channels[index].id, orderNum: channels[index - 1].orderNum },
+      { id: channels[index - 1].id, orderNum: channels[index].orderNum },
+    ];
+    reorderChannels({ items });
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index === channels.length - 1) return;
+    const items = [
+      { id: channels[index].id, orderNum: channels[index + 1].orderNum },
+      { id: channels[index + 1].id, orderNum: channels[index].orderNum },
+    ];
+    reorderChannels({ items });
+  };
 
   const { data: history = [], isLoading } =
     useMeetingChatHistory(selectedChannelId);
@@ -233,8 +282,17 @@ export function MeetingRoomTab() {
       {/* 채널 사이드바 */}
       <div className="w-44 shrink-0 rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden">
         {/* 헤더 */}
-        <div className="px-4 py-3.5 border-b border-border shrink-0">
+        <div className="px-4 py-3.5 border-b border-border shrink-0 flex items-center justify-between">
           <span className="text-sm font-semibold text-foreground">채널</span>
+          {isAdmin && (
+            <button
+              onClick={() => setChannelSettingOpen(true)}
+              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              title="채널 관리"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* 채널 목록 */}
@@ -268,6 +326,87 @@ export function MeetingRoomTab() {
           )}
         </div>
       </div>
+
+      {/* 채널 관리 Dialog */}
+      <Dialog open={channelSettingOpen} onOpenChange={setChannelSettingOpen}>
+        <DialogContent className="w-full max-w-lg">
+          <DialogHeader>
+            <DialogTitle>채널 관리</DialogTitle>
+          </DialogHeader>
+
+          {/* 새 채널 추가 */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="text"
+              placeholder="새 채널 이름"
+              value={newChannelName}
+              onChange={(e) => setNewChannelName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddChannel()}
+              className="flex-1 text-sm px-3 py-2 rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <button
+              onClick={handleAddChannel}
+              disabled={isCreatingChannel || !newChannelName.trim()}
+              className="flex items-center gap-1 text-sm font-medium px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+            >
+              {isCreatingChannel ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" />
+              )}
+              추가
+            </button>
+          </div>
+
+          {/* 채널 목록 */}
+          <div className="mt-2 space-y-1 max-h-[32rem] overflow-y-auto">
+            {channels.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">
+                채널이 없습니다
+              </p>
+            ) : (
+              channels.map((channel, index) => (
+                <div
+                  key={channel.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40 transition-colors"
+                >
+                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <Hash className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className="flex-1 text-sm text-foreground truncate">
+                    {channel.name}
+                  </span>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      onClick={() => handleMoveUp(index)}
+                      disabled={index === 0}
+                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="위로"
+                    >
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleMoveDown(index)}
+                      disabled={index === channels.length - 1}
+                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="아래로"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => deleteChannel(channel.id)}
+                      disabled={channels.length <= 1}
+                      className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="삭제"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 채팅 카드 */}
       <div className="flex-1 min-w-0 rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden">
@@ -508,7 +647,7 @@ export function MeetingRoomTab() {
           ) : allMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                <span>&#128172;</span>
+                <MessageCircle className="w-6 h-6 text-primary/60" />
               </div>
               <p className="text-sm font-medium text-foreground">
                 아직 메시지가 없습니다

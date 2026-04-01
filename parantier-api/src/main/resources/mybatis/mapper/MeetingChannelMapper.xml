@@ -28,4 +28,44 @@
         ORDER BY order_num ASC
     </select>
 
+    <!-- 채널 생성 -->
+    <insert id="insert" parameterType="com.mapo.palantier.meeting.domain.MeetingChannel"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO meeting_channels (
+            name,
+            slug,
+            order_num,
+            is_active,
+            created_at
+        ) VALUES (
+            #{name},
+            #{slug},
+            #{orderNum},
+            #{isActive},
+            NOW()
+        )
+    </insert>
+
+    <!-- 채널 수정 (name, orderNum) -->
+    <update id="update" parameterType="com.mapo.palantier.meeting.domain.MeetingChannel">
+        UPDATE meeting_channels
+        SET
+            name      = #{name},
+            order_num = #{orderNum}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 채널 삭제 -->
+    <delete id="delete">
+        DELETE FROM meeting_channels
+        WHERE id = #{id}
+    </delete>
+
+    <!-- 채널 순서 변경 -->
+    <update id="updateOrderNum">
+        UPDATE meeting_channels
+        SET order_num = #{orderNum}
+        WHERE id = #{id}
+    </update>
+
 </mapper>

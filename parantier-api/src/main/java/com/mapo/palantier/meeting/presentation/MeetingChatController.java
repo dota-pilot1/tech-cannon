@@ -1,7 +1,6 @@
 package com.mapo.palantier.meeting.presentation;
 
 import com.mapo.palantier.meeting.application.MeetingChatService;
-import com.mapo.palantier.meeting.domain.MeetingChannel;
 import com.mapo.palantier.meeting.domain.MeetingChatMessageWithUser;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -19,22 +18,6 @@ public class MeetingChatController {
 
     public MeetingChatController(MeetingChatService meetingChatService) {
         this.meetingChatService = meetingChatService;
-    }
-
-    /**
-     * GET /api/meeting/channels
-     * 활성 채널 목록 조회
-     */
-    @GetMapping("/channels")
-    public ResponseEntity<List<MeetingChannel>> getChannels(
-        Authentication authentication
-    ) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
-        }
-
-        List<MeetingChannel> channels = meetingChatService.getChannels();
-        return ResponseEntity.ok(channels);
     }
 
     /**
