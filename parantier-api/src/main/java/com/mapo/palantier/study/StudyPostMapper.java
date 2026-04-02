@@ -10,7 +10,8 @@ public interface StudyPostMapper {
     List<StudyPost> findByCategory(
         @Param("categoryId") Long categoryId,
         @Param("currentUserId") Long currentUserId,
-        @Param("keyword") String keyword
+        @Param("keyword") String keyword,
+        @Param("isPublic") Boolean isPublic
     );
     Optional<StudyPost> findById(
         @Param("id") Long id,

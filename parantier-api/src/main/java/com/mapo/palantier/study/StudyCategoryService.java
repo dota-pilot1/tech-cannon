@@ -15,19 +15,20 @@ public class StudyCategoryService {
 
     private final StudyCategoryMapper studyCategoryMapper;
 
-    public List<StudyCategory> getCategoryTree() {
-        List<StudyCategory> flat = studyCategoryMapper.findAllFlat();
+    public List<StudyCategory> getCategoryTree(Long ownerId) {
+        List<StudyCategory> flat = studyCategoryMapper.findAllFlat(ownerId);
         return buildTree(flat);
     }
 
     @Transactional
-    public Long createCategory(StudyCategoryRequest req) {
+    public Long createCategory(StudyCategoryRequest req, Long authorId) {
         StudyCategory category = new StudyCategory();
         category.setName(req.getName());
         category.setParentId(req.getParentId());
         category.setIcon(req.getIcon());
         category.setDescription(req.getDescription());
         category.setOrderNum(req.getOrderNum());
+        category.setAuthorId(authorId);
         studyCategoryMapper.insert(category);
         return category.getId();
     }

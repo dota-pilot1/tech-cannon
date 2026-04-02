@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, BookOpen } from "lucide-react";
 import {
   useStudyCategoryTree,
   useCreateStudyCategory,
@@ -65,11 +65,11 @@ export function StudyHomePage({ onSelectCategory }: StudyHomePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
 
-  const { data: categories = [], isLoading } = useStudyCategoryTree();
-  const createCategory = useCreateStudyCategory();
-
   const user = useStore(authStore, (s) => s.user);
   const isAdmin = user?.role === "ADMIN" || user?.role === "ROLE_ADMIN";
+
+  const { data: categories = [], isLoading } = useStudyCategoryTree();
+  const createCategory = useCreateStudyCategory();
 
   const rootCategories = categories.filter((c) => c.parentId === null);
 
@@ -83,7 +83,12 @@ export function StudyHomePage({ onSelectCategory }: StudyHomePageProps) {
 
   const handleAddCategory = (name: string) => {
     createCategory.mutate(
-      { name, parentId: null, orderNum: null },
+      {
+        name,
+        parentId: null,
+        orderNum: null,
+        authorId: null,
+      },
       {
         onSuccess: () => setIsAddingCategory(false),
       },
@@ -92,9 +97,18 @@ export function StudyHomePage({ onSelectCategory }: StudyHomePageProps) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* 상단 검색 */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b bg-background sticky top-0 z-10">
-        <div className="flex items-center flex-1 max-w-md border rounded-lg px-3 py-1.5 gap-2 bg-muted/30 focus-within:border-primary/50 transition-colors">
+      {/* 헤더 + 검색 영역 */}
+      <div className="flex items-center gap-4 px-6 py-0 border-b bg-background sticky top-0 z-10">
+        {/* 타이틀 */}
+        <div className="flex items-center gap-2 shrink-0 py-3">
+          <BookOpen className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">
+            팀 스터디
+          </span>
+        </div>
+
+        {/* 검색바 */}
+        <div className="flex items-center flex-1 max-w-md border rounded-lg px-3 py-1.5 gap-2 bg-muted/30 focus-within:border-primary/50 transition-colors my-2">
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
             value={inputValue}
@@ -116,7 +130,7 @@ export function StudyHomePage({ onSelectCategory }: StudyHomePageProps) {
           )}
         </div>
 
-        {/* 어드민: 1차 카테고리 추가 */}
+        {/* 카테고리 추가 버튼 — 어드민만 */}
         {isAdmin &&
           (isAddingCategory ? (
             <InlineInput
@@ -159,7 +173,8 @@ export function StudyHomePage({ onSelectCategory }: StudyHomePageProps) {
             ))}
           </div>
         ) : rootCategories.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+          /* 빈 상태 */
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-4">
             <p className="text-sm">카테고리가 없습니다.</p>
             {isAdmin && (
               <button

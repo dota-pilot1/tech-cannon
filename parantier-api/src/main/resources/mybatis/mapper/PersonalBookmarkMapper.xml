@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.personal.bookmark.PersonalBookmarkMapper">
+
+    <resultMap id="PersonalBookmarkResultMap" type="com.mapo.palantier.personal.bookmark.PersonalBookmark">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="url" column="url"/>
+        <result property="description" column="description"/>
+        <result property="category" column="category"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="deletedAt" column="deleted_at"/>
+    </resultMap>
+
+    <select id="findByUserId" resultMap="PersonalBookmarkResultMap">
+        SELECT id, user_id, title, url, description, category, sort_order, created_at, updated_at, deleted_at
+        FROM personal_bookmarks
+        WHERE user_id = #{userId}
+          AND deleted_at IS NULL
+        ORDER BY sort_order ASC, created_at ASC
+    </select>
+
+    <select id="findById" resultMap="PersonalBookmarkResultMap">
+        SELECT id, user_id, title, url, description, category, sort_order, created_at, updated_at, deleted_at
+        FROM personal_bookmarks
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO personal_bookmarks (user_id, title, url, description, category, sort_order)
+        VALUES (#{userId}, #{title}, #{url}, #{description}, #{category}, #{sortOrder})
+    </insert>
+
+    <update id="update">
+        UPDATE personal_bookmarks
+        SET title      = #{title},
+            url        = #{url},
+            description = #{description},
+            category   = #{category},
+            sort_order = #{sortOrder},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE personal_bookmarks
+        SET deleted_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

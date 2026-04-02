@@ -20,12 +20,14 @@ import { ChatRoomPage } from "@/routes/chat/$roomId";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { IssuesPage } from "@/pages/issues/IssuesPage";
 import { StudyPage } from "@/pages/study/StudyPage";
+import { NotePage } from "@/pages/note/NotePage";
 import { PilotPage } from "@/pages/pilot/PilotPage";
 import { WorkStatusPage } from "@/pages/work-status/WorkStatusPage";
 import { ToolsPage } from "@/pages/tools/ToolsPage";
 import { MeetingPage } from "@/pages/meeting/MeetingPage";
 import { WikiPage } from "@/pages/wiki/WikiPage";
 import { PrototypePage } from "@/pages/prototype/PrototypePage";
+import { DbPage } from "@/pages/db/DbPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -207,6 +209,14 @@ const studyRoute = createRoute({
   component: StudyPage,
 });
 
+// 내 노트 페이지 (로그인 필요)
+const noteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/note",
+  beforeLoad: () => requireAuth(),
+  component: NotePage,
+});
+
 // 도구 페이지 (로그인 필요)
 const toolsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -229,6 +239,14 @@ const wikiRoute = createRoute({
   path: "/wiki",
   beforeLoad: () => requireAuth(),
   component: WikiPage,
+});
+
+// DB 관리 (로그인 필요)
+const dbRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/db",
+  beforeLoad: () => requireAuth(),
+  component: DbPage,
 });
 
 // Prototype (로그인 필요)
@@ -272,8 +290,10 @@ const routeTree = rootRoute.addChildren([
   issuesRoute,
   pilotRoute,
   wikiRoute,
+  dbRoute,
   prototypeRoute,
   studyRoute,
+  noteRoute,
   toolsRoute,
   meetingRoute,
   notFoundRoute,

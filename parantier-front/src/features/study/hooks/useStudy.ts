@@ -8,10 +8,10 @@ import type {
 import { toast } from "sonner";
 
 // 카테고리 트리 조회
-export function useStudyCategoryTree() {
+export function useStudyCategoryTree(ownerId?: number) {
   return useQuery({
-    queryKey: ["study-categories"],
-    queryFn: () => studyApi.getCategories(),
+    queryKey: ["study-categories", ownerId ?? null],
+    queryFn: () => studyApi.getCategories(ownerId),
   });
 }
 
@@ -60,10 +60,14 @@ export function useDeleteStudyCategory(onSuccess?: () => void) {
 }
 
 // 게시글 목록 조회
-export function useStudyPosts(categoryId: number | null, keyword?: string) {
+export function useStudyPosts(
+  categoryId: number | null,
+  keyword?: string,
+  isPublic?: boolean,
+) {
   return useQuery({
-    queryKey: ["study-posts", categoryId, keyword],
-    queryFn: () => studyApi.getPosts(categoryId!, keyword),
+    queryKey: ["study-posts", categoryId, keyword, isPublic ?? null],
+    queryFn: () => studyApi.getPosts(categoryId!, keyword, isPublic),
     enabled: !!categoryId,
   });
 }

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/shared/api/axios";
 import {
   DndContext,
   closestCenter,
@@ -268,6 +270,19 @@ export function MeetingRoomTab() {
   const { data: channels = [], isLoading: isChannelsLoading } =
     useMeetingChannels();
 
+  // 채널 활동량 조회 (30분간 메시지 수, 1분마다 자동 갱신)
+  const { data: activityMap = {} } = useQuery({
+    queryKey: ["meetingChannelActivity"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<Record<number, number>>(
+        "/meeting/chat/activity?minutes=30",
+      );
+      return data;
+    },
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
   const { mutate: createChannel, isPending: isCreatingChannel } =
     useCreateChannel();
   const { mutate: deleteChannel } = useDeleteChannel();
@@ -349,7 +364,7 @@ export function MeetingRoomTab() {
   return (
     <div className="h-full bg-muted/30 p-8 flex gap-5">
       {/* 채널 사이드바 */}
-      <div className="w-44 shrink-0 rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden">
+      <div className="w-56 shrink-0 rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden">
         {/* 헤더 */}
         <div className="px-4 py-3.5 border-b border-border shrink-0 flex items-center justify-between">
           <span className="text-sm font-semibold text-foreground">채널</span>
@@ -387,7 +402,12 @@ export function MeetingRoomTab() {
                     }`}
                   >
                     <Hash className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{channel.name}</span>
+                    <span className="truncate flex-1">{channel.name}</span>
+                    {(activityMap[channel.id] ?? 0) > 0 && (
+                      <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                        {activityMap[channel.id]}
+                      </span>
+                    )}
                   </button>
                 );
               })}

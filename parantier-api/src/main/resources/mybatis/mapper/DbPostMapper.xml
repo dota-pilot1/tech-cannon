@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.db.post.DbPostMapper">
+
+    <resultMap id="DbPostResultMap" type="com.mapo.palantier.db.post.DbPost">
+        <id property="id" column="id"/>
+        <result property="folderId" column="folder_id"/>
+        <result property="title" column="title"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="deletedAt" column="deleted_at"/>
+    </resultMap>
+
+    <resultMap id="DbPostWithBlocksResultMap" type="com.mapo.palantier.db.post.DbPost">
+        <id property="id" column="id"/>
+        <result property="folderId" column="folder_id"/>
+        <result property="title" column="title"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <collection property="blocks" ofType="com.mapo.palantier.db.block.DbBlock">
+            <id property="id" column="block_id"/>
+            <result property="postId" column="post_id"/>
+            <result property="blockType" column="block_type" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+            <result property="content" column="content"/>
+            <result property="sortOrder" column="sort_order"/>
+        </collection>
+    </resultMap>
+
+    <select id="findAll" resultMap="DbPostResultMap">
+        SELECT p.id, p.folder_id, p.title, p.author_id,
+               u.username AS author_name,
+               p.created_at, p.updated_at
+        FROM db_posts p
+        JOIN users u ON p.author_id = u.id
+        WHERE p.deleted_at IS NULL
+        ORDER BY p.updated_at DESC
+    </select>
+
+    <select id="findByFolderId" resultMap="DbPostResultMap">
+        SELECT p.id, p.folder_id, p.title, p.author_id,
+               u.username AS author_name,
+               p.created_at, p.updated_at
+        FROM db_posts p
+        JOIN users u ON p.author_id = u.id
+        WHERE p.folder_id = #{folderId}
+          AND p.deleted_at IS NULL
+        ORDER BY p.updated_at DESC
+    </select>
+
+    <select id="findById" resultMap="DbPostResultMap">
+        SELECT p.id, p.folder_id, p.title, p.author_id,
+               u.username AS author_name,
+               p.created_at, p.updated_at
+        FROM db_posts p
+        JOIN users u ON p.author_id = u.id
+        WHERE p.id = #{id} AND p.deleted_at IS NULL
+    </select>
+
+    <select id="findByIdWithBlocks" resultMap="DbPostWithBlocksResultMap">
+        SELECT p.id, p.folder_id, p.title, p.author_id,
+               u.username AS author_name,
+               p.created_at, p.updated_at,
+               b.id AS block_id, b.post_id, b.block_type, b.content, b.sort_order
+        FROM db_posts p
+        JOIN users u ON p.author_id = u.id
+        LEFT JOIN db_blocks b ON p.id = b.post_id
+        WHERE p.id = #{id} AND p.deleted_at IS NULL
+        ORDER BY b.sort_order
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO db_posts (folder_id, title, author_id)
+        VALUES (#{folderId}, #{title}, #{authorId})
+    </insert>
+
+    <update id="update">
+        UPDATE db_posts
+        SET title      = #{title},
+            folder_id  = #{folderId},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE db_posts
+        SET deleted_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

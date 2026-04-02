@@ -44,6 +44,7 @@ interface StudyPostEditFormProps {
   postId: number | null;
   onSaved: (id: number) => void;
   onCancel: () => void;
+  isPersonal?: boolean;
 }
 
 function StudyPostEditForm({
@@ -52,6 +53,7 @@ function StudyPostEditForm({
   postId,
   onSaved,
   onCancel,
+  isPersonal,
 }: StudyPostEditFormProps) {
   const [formTitle, setFormTitle] = useState(post?.title ?? "");
   const [blocks, setBlocks] = useState<TaskBlock[]>(() =>
@@ -74,7 +76,7 @@ function StudyPostEditForm({
         categoryId,
         title: formTitle.trim(),
         content,
-        isPublic: true,
+        isPublic: isPersonal ? false : true,
       });
     }
   };
@@ -125,6 +127,7 @@ interface StudyPostViewProps {
   onEdit: () => void;
   onDelete: () => void;
   onToggleLike: () => void;
+  isPersonal?: boolean;
 }
 
 function StudyPostView({
@@ -134,6 +137,7 @@ function StudyPostView({
   onEdit,
   onDelete,
   onToggleLike,
+  isPersonal,
 }: StudyPostViewProps) {
   // TaskBlockViewer가 TaskPost 형태를 기대하므로 변환
   const taskPost = {
@@ -159,23 +163,27 @@ function StudyPostView({
         </div>
         <div className="flex items-center gap-1.5">
           {/* 메타 정보 */}
-          <span className="flex items-center gap-1 text-xs text-muted-foreground mr-2">
-            <Eye className="w-3 h-3" />
-            {post.viewCount}
-          </span>
-          {/* 좋아요 */}
-          <button
-            onClick={onToggleLike}
-            className={cn(
-              "flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition-colors",
-              post.isLikedByMe
-                ? "bg-primary/10 border-primary/30 text-primary"
-                : "border-border text-muted-foreground hover:bg-muted",
-            )}
-          >
-            <ThumbsUp className="w-3 h-3" />
-            <span>{post.likeCount}</span>
-          </button>
+          {!isPersonal && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground mr-2">
+              <Eye className="w-3 h-3" />
+              {post.viewCount}
+            </span>
+          )}
+          {/* 좋아요 — 내 노트에서는 숨김 */}
+          {!isPersonal && (
+            <button
+              onClick={onToggleLike}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition-colors",
+                post.isLikedByMe
+                  ? "bg-primary/10 border-primary/30 text-primary"
+                  : "border-border text-muted-foreground hover:bg-muted",
+              )}
+            >
+              <ThumbsUp className="w-3 h-3" />
+              <span>{post.likeCount}</span>
+            </button>
+          )}
           {/* 편집/삭제 */}
           {(isAuthor || isAdmin) && (
             <>
@@ -213,10 +221,12 @@ function StudyPostView({
           {/* 블록 뷰어 */}
           <TaskBlockViewer post={taskPost} />
 
-          {/* 댓글 */}
-          <div className="border-t pt-4">
-            <StudyCommentList postId={post.id} />
-          </div>
+          {/* 댓글 — 내 노트에서는 숨김 */}
+          {!isPersonal && (
+            <div className="border-t pt-4">
+              <StudyCommentList postId={post.id} />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -232,6 +242,7 @@ interface StudyPostDetailProps {
   onToggleEdit: (editing: boolean) => void;
   onSaved: (id: number) => void;
   onDeleted: () => void;
+  isPersonal?: boolean;
 }
 
 export function StudyPostDetail({
@@ -241,6 +252,7 @@ export function StudyPostDetail({
   onToggleEdit,
   onSaved,
   onDeleted,
+  isPersonal,
 }: StudyPostDetailProps) {
   const { data: post, isLoading, isError } = useStudyPost(postId);
   const currentUser = useStore(authStore, (state) => state.user);
@@ -309,6 +321,7 @@ export function StudyPostDetail({
           postId={postId}
           onSaved={onSaved}
           onCancel={() => onToggleEdit(false)}
+          isPersonal={isPersonal}
         />
       ) : post ? (
         <StudyPostView
@@ -318,6 +331,7 @@ export function StudyPostDetail({
           onEdit={() => onToggleEdit(true)}
           onDelete={handleDelete}
           onToggleLike={() => toggleLike.mutate()}
+          isPersonal={isPersonal}
         />
       ) : null}
     </>

@@ -3,6 +3,7 @@ package com.mapo.palantier.meeting.presentation;
 import com.mapo.palantier.meeting.application.MeetingChatService;
 import com.mapo.palantier.meeting.domain.MeetingChatMessageWithUser;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,5 +38,22 @@ public class MeetingChatController {
         List<MeetingChatMessageWithUser> messages =
             meetingChatService.getRecentMessages(channelId, limit);
         return ResponseEntity.ok(messages);
+    }
+
+    /**
+     * GET /api/meeting/chat/activity?minutes=30
+     * 채널별 최근 N분간 메시지 수 집계
+     */
+    @GetMapping("/chat/activity")
+    public ResponseEntity<Map<Long, Integer>> getChannelActivity(
+        @RequestParam(defaultValue = "30") int minutes,
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(
+            meetingChatService.getRecentActivityCounts(minutes)
+        );
     }
 }

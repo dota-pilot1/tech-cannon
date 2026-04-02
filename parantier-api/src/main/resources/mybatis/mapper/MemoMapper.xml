@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.memo.MemoMapper">
+
+    <resultMap id="MemoResultMap" type="com.mapo.palantier.memo.Memo">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="deletedAt" column="deleted_at"/>
+    </resultMap>
+
+    <select id="findByUserId" resultMap="MemoResultMap">
+        SELECT id, user_id, title, content, sort_order, created_at, updated_at, deleted_at
+        FROM memos
+        WHERE user_id = #{userId}
+          AND deleted_at IS NULL
+        ORDER BY sort_order ASC, created_at ASC
+    </select>
+
+    <select id="findById" resultMap="MemoResultMap">
+        SELECT id, user_id, title, content, sort_order, created_at, updated_at, deleted_at
+        FROM memos
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO memos (user_id, title, content, sort_order)
+        VALUES (#{userId}, #{title}, #{content}, #{sortOrder})
+    </insert>
+
+    <update id="update">
+        UPDATE memos
+        SET title      = #{title},
+            content    = #{content},
+            sort_order = #{sortOrder},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE memos
+        SET deleted_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -11,8 +11,10 @@ import type {
 
 export const studyApi = {
   // 카테고리
-  getCategories: async (): Promise<StudyCategory[]> => {
-    const { data } = await apiClient.get("/study/categories");
+  getCategories: async (ownerId?: number): Promise<StudyCategory[]> => {
+    const { data } = await apiClient.get("/study/categories", {
+      params: { ownerId: ownerId ?? undefined },
+    });
     return data;
   },
 
@@ -36,9 +38,14 @@ export const studyApi = {
   getPosts: async (
     categoryId: number,
     keyword?: string,
+    isPublic?: boolean,
   ): Promise<StudyPost[]> => {
     const { data } = await apiClient.get("/study/posts", {
-      params: { categoryId, keyword: keyword || undefined },
+      params: {
+        categoryId,
+        keyword: keyword || undefined,
+        isPublic: isPublic !== undefined ? isPublic : undefined,
+      },
     });
     return data;
   },

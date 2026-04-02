@@ -15,12 +15,14 @@ public class StudyPostService {
     public List<StudyPost> getPostsByCategory(
         Long categoryId,
         Long currentUserId,
-        String keyword
+        String keyword,
+        Boolean isPublic
     ) {
         return studyPostMapper.findByCategory(
             categoryId,
             currentUserId,
-            keyword
+            keyword,
+            isPublic
         );
     }
 

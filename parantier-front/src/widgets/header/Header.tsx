@@ -16,6 +16,7 @@ import { ChevronDown, User, LogOut } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { navThemeStore } from "@/entities/ui/model/navThemeStore";
 import { NavThemePicker } from "./NavThemePicker";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 
 export function Header() {
   const auth = useStore(authStore, (state) => state);
@@ -134,81 +135,71 @@ export function Header() {
             <NavThemePicker />
 
             {auth.isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer outline-none ml-1 text-[var(--nav-user-text)] hover:text-[var(--nav-user-hover)]">
-                  {auth.user?.profileImageUrl ? (
-                    <img
-                      src={auth.user.profileImageUrl}
-                      alt={auth.user.username}
-                      className="w-8 h-8 rounded-full object-cover border-2 border-primary/20"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-                      {auth.user?.username?.[0]?.toUpperCase() || "U"}
-                    </div>
-                  )}
-                  {auth.user?.username}
-                  <ChevronDown className="w-4 h-4 opacity-60" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  data-nav-dropdown
-                  className="min-w-[200px]"
+              <div className="flex items-center gap-1.5 ml-1">
+                <Link
+                  to="/profile"
+                  className="hover:opacity-80 transition-opacity"
+                  title="프로필로 이동"
                 >
-                  <div className="px-2 py-1.5 text-sm">
-                    <div className="flex items-center gap-3 mb-2 text-popover-foreground">
-                      {auth.user?.profileImageUrl ? (
-                        <img
-                          src={auth.user.profileImageUrl}
-                          alt={auth.user.username}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                          {auth.user?.username?.[0]?.toUpperCase() || "U"}
-                        </div>
-                      )}
-                      <div>
-                        <div className="font-medium text-popover-foreground">
-                          {auth.user?.username}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {auth.user?.role}
+                  <UserAvatar user={auth.user} size="sm" />
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium transition-colors cursor-pointer outline-none text-[var(--nav-user-text)] hover:text-[var(--nav-user-hover)]">
+                    <span className="max-w-[100px] truncate">
+                      {auth.user?.username}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    data-nav-dropdown
+                    className="min-w-[200px]"
+                  >
+                    <div className="px-2 py-1.5 text-sm">
+                      <div className="flex items-center gap-3 mb-2 text-popover-foreground">
+                        <UserAvatar user={auth.user} size="md" />
+                        <div>
+                          <div className="font-medium text-popover-foreground">
+                            {auth.user?.username}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {auth.user?.role}
+                          </div>
                         </div>
                       </div>
+                      <div className="text-xs text-muted-foreground">
+                        {auth.user?.email}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {auth.user?.email}
-                    </div>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile" className="cursor-pointer">
-                      <User className="w-4 h-4 mr-2" />
-                      프로필
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                    onClick={() => {
-                      authStore.setState((prev) => ({
-                        ...prev,
-                        isAuthenticated: false,
-                        user: null,
-                        accessToken: null,
-                        refreshToken: null,
-                      }));
-                      localStorage.removeItem("accessToken");
-                      localStorage.removeItem("refreshToken");
-                      navigate({ to: "/" });
-                    }}
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    로그아웃
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="cursor-pointer">
+                        <User className="w-4 h-4 mr-2" />
+                        프로필
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                      onClick={() => {
+                        authStore.setState((prev) => ({
+                          ...prev,
+                          isAuthenticated: false,
+                          user: null,
+                          accessToken: null,
+                          refreshToken: null,
+                        }));
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("refreshToken");
+                        navigate({ to: "/" });
+                      }}
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      로그아웃
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (
               <>
                 <LoginForm />

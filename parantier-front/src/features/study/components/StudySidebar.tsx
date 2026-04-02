@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { useStore } from "@tanstack/react-store";
+import { authStore } from "@/entities/user/model/authStore";
 import { cn } from "@/shared/lib/utils";
 import {
   ArrowLeft,
@@ -34,6 +36,7 @@ interface StudySidebarProps {
   onGoHome: () => void;
   onClearPost?: () => void;
   onPostDeleted?: () => void;
+  isPersonal?: boolean;
 }
 
 // ── 컨텍스트 메뉴 공통 훅 ────────────────────────────────────────────────────
@@ -302,6 +305,7 @@ interface TreeNodeProps {
   selectedCatId?: number | null;
   setSelectedCatId: (id: number | null) => void;
   onClearPost?: () => void;
+  isPersonal?: boolean;
 }
 
 type InlineState =
@@ -338,9 +342,14 @@ function TreeNode({
   selectedCatId,
   setSelectedCatId,
   onClearPost,
+  isPersonal,
 }: TreeNodeProps) {
   const isExpanded = expandedIds.has(cat.id);
-  const { data: posts = [] } = useStudyPosts(isExpanded ? cat.id : null);
+  const { data: posts = [] } = useStudyPosts(
+    isExpanded ? cat.id : null,
+    undefined,
+    isPersonal ? false : undefined,
+  );
 
   const isRenamingThis = renamingCat?.id === cat.id;
   const isSelected = selectedCatId === cat.id;
@@ -479,6 +488,7 @@ function TreeNode({
               setSelectedCatId={setSelectedCatId}
               setExpandedIds={setExpandedIds}
               onClearPost={onClearPost}
+              isPersonal={isPersonal}
             />
           ))}
 
@@ -572,8 +582,12 @@ export function StudySidebar({
   onGoHome,
   onClearPost,
   onPostDeleted,
+  isPersonal,
 }: StudySidebarProps) {
-  const { data: allCategories = [] } = useStudyCategoryTree();
+  const user = useStore(authStore, (s) => s.user);
+  const { data: allCategories = [] } = useStudyCategoryTree(
+    isPersonal ? (user?.id ?? undefined) : undefined,
+  );
   const { confirm, ConfirmDialog } = useConfirm();
 
   // 검색
@@ -620,7 +634,11 @@ export function StudySidebar({
 
   const createPost = useCreateStudyPost((newId) => {
     setInlineState(null);
-    onEditPost(newId);
+    if (isPersonal) {
+      onSelectPost(newId);
+    } else {
+      onEditPost(newId);
+    }
   });
 
   const deletePost = useDeleteStudyPost(() => {
@@ -642,14 +660,19 @@ export function StudySidebar({
       categoryId: catId,
       title,
       content: "",
-      isPublic: true,
+      isPublic: isPersonal ? false : true,
     });
   };
 
   const handleCreateFolder = (parentId: number, name: string) => {
     setExpandedIds((p) => new Set([...p, parentId]));
     createCategory.mutate(
-      { name, parentId, orderNum: null },
+      {
+        name,
+        parentId,
+        orderNum: null,
+        authorId: isPersonal ? (user?.id ?? null) : null,
+      },
       { onSuccess: () => setInlineState(null) },
     );
   };
@@ -842,6 +865,7 @@ export function StudySidebar({
               setSelectedCatId={setSelectedCatId}
               setExpandedIds={setExpandedIds}
               onClearPost={onClearPost}
+              isPersonal={isPersonal}
             />
           )}
         </div>

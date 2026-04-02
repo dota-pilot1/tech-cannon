@@ -1,37 +1,50 @@
-import { useState, useRef } from 'react'
-import { useStore } from '@tanstack/react-store'
-import { authStore } from '@/entities/user/model/authStore'
-import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
-import { Card } from '@/shared/ui/card'
-import { User, Mail, Shield, Building2, Calendar, Edit, Eye, EyeOff, Upload, Camera } from 'lucide-react'
-import { profileApi } from '@/api/profileApi'
-import { toast } from 'sonner'
+import { useState, useRef } from "react";
+import { ProfilePanelTabs } from "@/features/profile/components/ProfilePanelTabs";
+import { useStore } from "@tanstack/react-store";
+import { authStore } from "@/entities/user/model/authStore";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Card } from "@/shared/ui/card";
+import {
+  User,
+  Mail,
+  Shield,
+  Building2,
+  Calendar,
+  Edit,
+  Eye,
+  EyeOff,
+  Upload,
+  Camera,
+} from "lucide-react";
+import { profileApi } from "@/api/profileApi";
+import { toast } from "sonner";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 
 export function ProfilePage() {
-  const authState = useStore(authStore, (state) => state)
-  const user = authState.user
+  const authState = useStore(authStore, (state) => state);
+  const user = authState.user;
 
-  const [isEditing, setIsEditing] = useState(false)
-  const [username, setUsername] = useState(user?.username || '')
-  const [isSaving, setIsSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
+  const [username, setUsername] = useState(user?.username || "");
+  const [isSaving, setIsSaving] = useState(false);
 
   // 비밀번호 변경
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // 비밀번호 보기/숨기기
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // 프로필 이미지 업로드
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const dropZoneRef = useRef<HTMLDivElement>(null)
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   if (!user) {
     return (
@@ -40,160 +53,153 @@ export function ProfilePage() {
           로그인이 필요합니다.
         </div>
       </div>
-    )
+    );
   }
 
   const handleSave = async () => {
-    setIsSaving(true)
+    setIsSaving(true);
     try {
-      const updatedUser = await profileApi.updateProfile(username)
+      const updatedUser = await profileApi.updateProfile(username);
 
       // authStore 업데이트
       authStore.setState((prev) => ({
         ...prev,
         user: updatedUser,
         isAuthenticated: true,
-      }))
+      }));
 
-      toast.success('프로필이 업데이트되었습니다.')
-      setIsEditing(false)
+      toast.success("프로필이 업데이트되었습니다.");
+      setIsEditing(false);
     } catch (error) {
-      console.error('Profile update error:', error)
-      toast.error('프로필 업데이트에 실패했습니다.')
+      console.error("Profile update error:", error);
+      toast.error("프로필 업데이트에 실패했습니다.");
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      toast.error('새 비밀번호가 일치하지 않습니다.')
-      return
+      toast.error("새 비밀번호가 일치하지 않습니다.");
+      return;
     }
 
     if (newPassword.length < 4) {
-      toast.error('비밀번호는 최소 4자 이상이어야 합니다.')
-      return
+      toast.error("비밀번호는 최소 4자 이상이어야 합니다.");
+      return;
     }
 
-    setIsChangingPassword(true)
+    setIsChangingPassword(true);
     try {
-      await profileApi.changePassword(currentPassword, newPassword)
-      toast.success('비밀번호가 변경되었습니다.')
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      await profileApi.changePassword(currentPassword, newPassword);
+      toast.success("비밀번호가 변경되었습니다.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (error) {
-      console.error('Password change error:', error)
-      toast.error('비밀번호 변경에 실패했습니다. 현재 비밀번호를 확인해주세요.')
+      console.error("Password change error:", error);
+      toast.error(
+        "비밀번호 변경에 실패했습니다. 현재 비밀번호를 확인해주세요.",
+      );
     } finally {
-      setIsChangingPassword(false)
+      setIsChangingPassword(false);
     }
-  }
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    await uploadImage(file)
+    await uploadImage(file);
 
     // input 초기화
     if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      fileInputRef.current.value = "";
     }
-  }
+  };
 
   const handleImageClick = () => {
-    fileInputRef.current?.click()
-  }
+    fileInputRef.current?.click();
+  };
 
   const uploadImage = async (file: File) => {
     // 파일 크기 체크 (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('파일 크기는 5MB 이하여야 합니다.')
-      return
+      toast.error("파일 크기는 5MB 이하여야 합니다.");
+      return;
     }
 
     // 파일 타입 체크
-    if (!file.type.startsWith('image/')) {
-      toast.error('이미지 파일만 업로드할 수 있습니다.')
-      return
+    if (!file.type.startsWith("image/")) {
+      toast.error("이미지 파일만 업로드할 수 있습니다.");
+      return;
     }
 
-    setIsUploadingImage(true)
+    setIsUploadingImage(true);
     try {
-      const updatedUser = await profileApi.uploadProfileImage(file)
+      const updatedUser = await profileApi.uploadProfileImage(file);
 
       // authStore 업데이트
       authStore.setState((prev) => ({
         ...prev,
         user: updatedUser,
         isAuthenticated: true,
-      }))
+      }));
 
-      toast.success('프로필 이미지가 업데이트되었습니다.')
+      toast.success("프로필 이미지가 업데이트되었습니다.");
     } catch (error) {
-      console.error('Image upload error:', error)
-      toast.error('이미지 업로드에 실패했습니다.')
+      console.error("Image upload error:", error);
+      toast.error("이미지 업로드에 실패했습니다.");
     } finally {
-      setIsUploadingImage(false)
+      setIsUploadingImage(false);
     }
-  }
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(true)
-  }
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-  }
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
 
   const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
 
-    const file = e.dataTransfer.files[0]
+    const file = e.dataTransfer.files[0];
     if (file) {
-      await uploadImage(file)
+      await uploadImage(file);
     }
-  }
+  };
 
   const handlePaste = async (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items
-    if (!items) return
+    const items = e.clipboardData?.items;
+    if (!items) return;
 
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith('image/')) {
-        const file = items[i].getAsFile()
+      if (items[i].type.startsWith("image/")) {
+        const file = items[i].getAsFile();
         if (file) {
-          e.preventDefault()
-          await uploadImage(file)
-          break
+          e.preventDefault();
+          await uploadImage(file);
+          break;
         }
       }
     }
-  }
+  };
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">프로필</h1>
-        <p className="text-muted-foreground">사용자 정보 및 설정</p>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 왼쪽 본문 영역 (2/3) */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="p-6">
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">구현 예정</p>
-            </div>
-          </Card>
+          <ProfilePanelTabs />
         </div>
 
         {/* 오른쪽 사이드바 (1/3) */}
@@ -201,7 +207,7 @@ export function ProfilePage() {
           {/* 기본 정보 */}
           <Card
             ref={dropZoneRef}
-            className={`p-6 transition-all ${isDragging ? 'border-primary border-2 bg-primary/5' : ''}`}
+            className={`p-6 transition-all ${isDragging ? "border-primary border-2 bg-primary/5" : ""}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -211,19 +217,7 @@ export function ProfilePage() {
             {/* 프로필 이미지 */}
             <div className="flex flex-col items-center mb-6">
               <div className="relative group">
-                <div className="w-24 h-24 rounded-lg overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
-                  {user.profileImageUrl ? (
-                    <img
-                      src={user.profileImageUrl}
-                      alt={user.username}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-4xl font-bold text-white">
-                      {user.username?.[0]?.toUpperCase() || 'U'}
-                    </span>
-                  )}
-                </div>
+                <UserAvatar user={user} size="xl" className="rounded-lg" />
                 {/* 호버 오버레이 */}
                 <button
                   onClick={handleImageClick}
@@ -341,10 +335,10 @@ export function ProfilePage() {
                       가입일
                     </label>
                     <p className="mt-1 text-base">
-                      {new Date(user.createdAt).toLocaleDateString('ko-KR', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
+                      {new Date(user.createdAt).toLocaleDateString("ko-KR", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
                       })}
                     </p>
                   </div>
@@ -355,13 +349,13 @@ export function ProfilePage() {
             {isEditing && (
               <div className="flex gap-2 mt-6">
                 <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? '저장 중...' : '저장'}
+                  {isSaving ? "저장 중..." : "저장"}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setUsername(user.username || '')
-                    setIsEditing(false)
+                    setUsername(user.username || "");
+                    setIsEditing(false);
                   }}
                   disabled={isSaving}
                 >
@@ -379,7 +373,7 @@ export function ProfilePage() {
                 <label className="text-sm font-medium">현재 비밀번호</label>
                 <div className="relative mt-1">
                   <Input
-                    type={showCurrentPassword ? 'text' : 'password'}
+                    type={showCurrentPassword ? "text" : "password"}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     className="pr-10"
@@ -401,7 +395,7 @@ export function ProfilePage() {
                 <label className="text-sm font-medium">새 비밀번호</label>
                 <div className="relative mt-1">
                   <Input
-                    type={showNewPassword ? 'text' : 'password'}
+                    type={showNewPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="pr-10"
@@ -423,7 +417,7 @@ export function ProfilePage() {
                 <label className="text-sm font-medium">새 비밀번호 확인</label>
                 <div className="relative mt-1">
                   <Input
-                    type={showConfirmPassword ? 'text' : 'password'}
+                    type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="pr-10"
@@ -450,12 +444,12 @@ export function ProfilePage() {
                   !confirmPassword
                 }
               >
-                {isChangingPassword ? '변경 중...' : '비밀번호 변경'}
+                {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
               </Button>
             </div>
           </Card>
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -5,7 +5,9 @@ import com.mapo.palantier.meeting.domain.MeetingChatMessage;
 import com.mapo.palantier.meeting.domain.MeetingChatMessageWithUser;
 import com.mapo.palantier.meeting.infrastructure.MeetingChannelMapper;
 import com.mapo.palantier.meeting.infrastructure.MeetingChatMapper;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,5 +60,21 @@ public class MeetingChatService {
      */
     public List<MeetingChannel> getChannels() {
         return meetingChannelMapper.findAllActive();
+    }
+
+    /**
+     * 채널별 최근 N분간 메시지 수 집계
+     */
+    public Map<Long, Integer> getRecentActivityCounts(int minutes) {
+        List<Map<String, Object>> raw = meetingChatMapper.countRecentByChannels(
+            minutes
+        );
+        Map<Long, Integer> result = new HashMap<>();
+        for (Map<String, Object> row : raw) {
+            Long channelId = ((Number) row.get("channelid")).longValue();
+            Integer count = ((Number) row.get("messagecount")).intValue();
+            result.put(channelId, count);
+        }
+        return result;
     }
 }

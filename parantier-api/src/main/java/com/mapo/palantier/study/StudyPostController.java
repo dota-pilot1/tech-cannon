@@ -18,16 +18,24 @@ public class StudyPostController {
 
     private final StudyPostService studyPostService;
 
-    @Operation(summary = "카테고리별 게시글 목록 조회")
+    @Operation(
+        summary = "카테고리별 게시글 목록 조회 (isPublic=false이면 개인 노트만)"
+    )
     @GetMapping
     public ResponseEntity<List<StudyPost>> getPosts(
         @RequestParam Long categoryId,
         @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) Boolean isPublic,
         Authentication auth
     ) {
         Long userId = getUserIdFromAuthOrNull(auth);
         return ResponseEntity.ok(
-            studyPostService.getPostsByCategory(categoryId, userId, keyword)
+            studyPostService.getPostsByCategory(
+                categoryId,
+                userId,
+                keyword,
+                isPublic
+            )
         );
     }
 

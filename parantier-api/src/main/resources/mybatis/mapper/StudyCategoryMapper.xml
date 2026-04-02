@@ -12,26 +12,34 @@
         <result property="description" column="description"/>
         <result property="orderNum" column="order_num"/>
         <result property="isActive" column="is_active"/>
+        <result property="authorId" column="author_id"/>
         <result property="depth" column="depth"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
     <!-- 재귀 CTE로 전체 카테고리 flat 조회 (depth + path 포함) -->
+    <!-- ownerId=null → 공용 카테고리(author_id IS NULL), ownerId=? → 개인 카테고리 -->
     <select id="findAllFlat" resultMap="StudyCategoryResultMap">
         WITH RECURSIVE category_tree AS (
             SELECT
-                id, name, parent_id, icon, description, order_num, is_active,
+                id, name, parent_id, icon, description, order_num, is_active, author_id,
                 0 AS depth,
                 ARRAY[order_num] AS path,
                 created_at, updated_at
             FROM study_categories
             WHERE parent_id IS NULL AND is_active = true
+              AND (
+                <choose>
+                    <when test="ownerId != null">author_id = #{ownerId}</when>
+                    <otherwise>author_id IS NULL</otherwise>
+                </choose>
+              )
 
             UNION ALL
 
             SELECT
-                c.id, c.name, c.parent_id, c.icon, c.description, c.order_num, c.is_active,
+                c.id, c.name, c.parent_id, c.icon, c.description, c.order_num, c.is_active, c.author_id,
                 ct.depth + 1,
                 ct.path || c.order_num,
                 c.created_at, c.updated_at
@@ -42,9 +50,9 @@
         SELECT * FROM category_tree ORDER BY path
     </select>
 
-    <!-- 카테고리 생성 -->
+    <!-- 카테고리 생성 (authorId=null이면 공용, 있으면 개인 카테고리) -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO study_categories (name, parent_id, icon, description, order_num)
+        INSERT INTO study_categories (name, parent_id, icon, description, order_num, author_id)
         VALUES (
             #{name},
             #{parentId},
@@ -53,7 +61,8 @@
             COALESCE(
                 #{orderNum},
                 (SELECT COALESCE(MAX(order_num), 0) + 1 FROM study_categories WHERE parent_id IS NOT DISTINCT FROM #{parentId})
-            )
+            ),
+            #{authorId}
         )
     </insert>
 

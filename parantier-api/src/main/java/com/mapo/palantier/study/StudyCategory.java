@@ -14,6 +14,7 @@ public class StudyCategory {
     private String description;
     private Integer orderNum;
     private Boolean isActive;
+    private Long authorId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

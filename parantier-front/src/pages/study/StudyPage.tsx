@@ -24,26 +24,35 @@ export function StudyPage() {
   const goToCategory = (catId: number) => {
     setCategoryId(catId);
     setPostId(null);
-    navigate({ to: "/study", search: { categoryId: String(catId) } });
+    navigate({
+      to: "/study",
+      search: { categoryId: String(catId) },
+    });
   };
 
   const clearPost = () => {
     setPostId(null);
     if (categoryId) {
-      navigate({ to: "/study", search: { categoryId: String(categoryId) } });
+      navigate({
+        to: "/study",
+        search: { categoryId: String(categoryId) },
+      });
     }
   };
 
   const goToPost = (id: number, catId?: number) => {
     setPostId(id);
     if (catId) setCategoryId(catId);
-    navigate({ to: "/study", search: { postId: String(id) } });
+    navigate({
+      to: "/study",
+      search: { postId: String(id) },
+    });
   };
 
   const goHome = () => {
     setPostId(null);
     setCategoryId(null);
-    navigate({ to: "/study", search: {} });
+    navigate({ to: "/study" });
   };
 
   if (isViewPage) {

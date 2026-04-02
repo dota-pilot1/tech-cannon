@@ -52,6 +52,15 @@
         ORDER BY sub.created_at ASC
     </select>
 
+    <!-- 채널별 최근 N분간 메시지 수 집계 -->
+    <select id="countRecentByChannels" resultType="map">
+        SELECT channel_id as channelId, COUNT(*) as messageCount
+        FROM meeting_chat_messages
+        WHERE is_deleted = false
+          AND created_at >= NOW() - (#{minutes} || ' minutes')::INTERVAL
+        GROUP BY channel_id
+    </select>
+
     <!-- 메시지 생성 -->
     <insert id="insert" parameterType="com.mapo.palantier.meeting.domain.MeetingChatMessage"
             useGeneratedKeys="true" keyProperty="id,createdAt,updatedAt"

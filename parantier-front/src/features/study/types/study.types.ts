@@ -7,6 +7,7 @@ export interface StudyCategory {
   orderNum: number;
   depth: number;
   children: StudyCategory[];
+  authorId?: number | null;
 }
 
 export interface StudyPost {
@@ -43,6 +44,7 @@ export interface StudyCategoryRequest {
   icon?: string | null;
   description?: string | null;
   orderNum?: number | null;
+  authorId?: number | null;
 }
 
 export interface StudyPostRequest {

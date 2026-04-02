@@ -363,15 +363,19 @@ interface StudyCategorySectionProps {
   category: StudyCategory;
   searchQuery: string;
   onSelectCategory: (categoryId: number) => void;
+  isPersonal?: boolean;
 }
 
 export function StudyCategorySection({
   category,
   searchQuery,
   onSelectCategory,
+  isPersonal,
 }: StudyCategorySectionProps) {
   const user = useStore(authStore, (s) => s.user);
   const isAdmin = user?.role === "ADMIN" || user?.role === "ROLE_ADMIN";
+  // 내 노트 탭: 로그인한 모든 유저가 편집 가능
+  const canEdit = isPersonal ? !!user : isAdmin;
 
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -452,7 +456,12 @@ export function StudyCategorySection({
   const handleAddSub = (name: string) => {
     if (!addingSubTo) return;
     createCategory.mutate(
-      { name, parentId: addingSubTo, orderNum: null },
+      {
+        name,
+        parentId: addingSubTo,
+        orderNum: null,
+        authorId: isPersonal ? (user?.id ?? null) : null,
+      },
       { onSuccess: () => setAddingSubTo(null) },
     );
   };
@@ -460,7 +469,12 @@ export function StudyCategorySection({
   // 1차 카테고리 추가
   const handleAddRoot = (name: string) => {
     createCategory.mutate(
-      { name, parentId: null, orderNum: null },
+      {
+        name,
+        parentId: null,
+        orderNum: null,
+        authorId: isPersonal ? (user?.id ?? null) : null,
+      },
       { onSuccess: () => setIsAddingRoot(false) },
     );
   };
@@ -513,7 +527,7 @@ export function StudyCategorySection({
         <div className="flex-1 h-px bg-border" />
 
         {/* 어드민: 인라인 액션 버튼들 (hover 시 노출) */}
-        {isAdmin && !isRenamingRoot && (
+        {canEdit && !isRenamingRoot && (
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {/* 주제 추가 */}
             <button
@@ -525,15 +539,19 @@ export function StudyCategorySection({
               <Plus className="w-3.5 h-3.5" />
               주제 추가
             </button>
-            {/* 편집 */}
-            <button
-              onClick={() => handleEditOpen(category)}
-              className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60
-                         rounded transition-colors"
-              title="편집"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
+            {/* 편집 — 내 노트에서는 어드민만 편집 모달 사용, 일반 유저는 이름 변경만 */}
+            {(isAdmin || isPersonal) && (
+              <button
+                onClick={() =>
+                  isAdmin ? handleEditOpen(category) : setIsRenamingRoot(true)
+                }
+                className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60
+                           rounded transition-colors"
+                title="편집"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
             {/* 삭제 */}
             <button
               onClick={() => handleDelete(category)}
@@ -553,7 +571,7 @@ export function StudyCategorySection({
           <SubCategoryCard
             key={sub.id}
             sub={sub}
-            isAdmin={isAdmin}
+            isAdmin={canEdit}
             isRenaming={renamingId === sub.id}
             onClick={() => onSelectCategory(sub.id)}
             onContextMenu={openCtxMenu}
@@ -578,7 +596,7 @@ export function StudyCategorySection({
         {/* 주제가 없을 때 */}
         {subCategories.length === 0 && addingSubTo !== category.id && (
           <p className="text-sm text-muted-foreground py-2">
-            {isAdmin ? (
+            {canEdit ? (
               <button
                 onClick={() => setAddingSubTo(category.id)}
                 className="hover:text-primary underline underline-offset-2 transition-colors"

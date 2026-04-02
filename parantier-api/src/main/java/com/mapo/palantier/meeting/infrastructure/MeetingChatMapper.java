@@ -3,6 +3,7 @@ package com.mapo.palantier.meeting.infrastructure;
 import com.mapo.palantier.meeting.domain.MeetingChatMessage;
 import com.mapo.palantier.meeting.domain.MeetingChatMessageWithUser;
 import java.util.List;
+import java.util.Map;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -20,4 +21,11 @@ public interface MeetingChatMapper {
      * 메시지 생성
      */
     void insert(MeetingChatMessage message);
+
+    /**
+     * 채널별 최근 N분간 메시지 수 집계
+     */
+    List<Map<String, Object>> countRecentByChannels(
+        @Param("minutes") int minutes
+    );
 }

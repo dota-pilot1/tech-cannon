@@ -41,7 +41,16 @@
         INNER JOIN study_categories sc ON p.category_id = sc.id
         INNER JOIN users u ON p.author_id = u.id
         WHERE p.category_id = #{categoryId}
-          AND (p.is_public = true OR p.author_id = #{currentUserId})
+          AND (
+            <choose>
+                <when test="isPublic != null and !isPublic">
+                    p.is_public = false AND p.author_id = #{currentUserId}
+                </when>
+                <otherwise>
+                    p.is_public = true OR p.author_id = #{currentUserId}
+                </otherwise>
+            </choose>
+          )
         <if test="keyword != null and keyword != ''">
           AND (p.title ILIKE CONCAT('%', #{keyword}, '%')
             OR p.content ILIKE CONCAT('%', #{keyword}, '%'))
