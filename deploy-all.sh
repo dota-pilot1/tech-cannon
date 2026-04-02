@@ -48,6 +48,7 @@ export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
 export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
 export AWS_S3_BUCKET_NAME=$AWS_S3_BUCKET_NAME
 export AWS_S3_REGION=$AWS_S3_REGION
+export OPENAI_API_KEY=$OPENAI_API_KEY
 
 nohup java -jar /home/ubuntu/parantier-api-0.0.1-SNAPSHOT.jar \
     --spring.profiles.active=prod \
