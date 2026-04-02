@@ -6,6 +6,7 @@ import { SqlHistoryItemView } from "@/features/sql/components/SqlHistoryItem";
 import { SqlSchemaSidebar } from "@/features/sql/components/SqlSchemaSidebar";
 import { SqlInputBar } from "@/features/sql/components/SqlInputBar";
 import { Database, Trash2 } from "lucide-react";
+import { ErdSidebar } from "@/features/sql/components/ErdSidebar";
 import { Button } from "@/shared/ui/button";
 
 export function SqlPage() {
@@ -77,6 +78,9 @@ export function SqlPage() {
 
   return (
     <div className="flex h-[calc(100vh-56px)] bg-background">
+      {/* 왼쪽: ERD 사이드바 */}
+      <ErdSidebar />
+
       {/* 가운데: 히스토리 + 입력창 */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* 헤더 */}

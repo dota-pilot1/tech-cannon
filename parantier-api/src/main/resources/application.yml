@@ -69,3 +69,8 @@ sql:
   # SQL Practice 초기화 파일 경로 (배포 시 외부 경로 지정 가능)
   init:
     dir: ${SQL_INIT_DIR:}
+
+# OpenAI Configuration
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  model: gpt-4o
