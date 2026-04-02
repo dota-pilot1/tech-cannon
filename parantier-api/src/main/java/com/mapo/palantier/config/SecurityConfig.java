@@ -4,6 +4,7 @@ import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -89,6 +90,9 @@ public class SecurityConfig {
                     .permitAll()
                     // SQL Practice endpoints - SQL 연습 API (인증 없이 접근 가능)
                     .requestMatchers("/api/sql/**")
+                    .permitAll()
+                    // GET 요청 전체 허용 - 조회는 인증 없이 접근 가능
+                    .requestMatchers(HttpMethod.GET, "/api/**")
                     .permitAll()
                     // Admin endpoints - 관리자 전용
                     .requestMatchers("/api/admin/**")
