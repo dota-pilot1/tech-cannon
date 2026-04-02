@@ -141,7 +141,7 @@ export function usePureWebSocket({ enabled = true }: UsePureWebSocketOptions = {
   const isConnected = useSyncExternalStore(wsManager.subscribeStore, wsManager.getSnapshot);
   const acquiredRef = useRef(false);
 
-  // enabled 변경 시 acquire/release
+  // enabled 변경 및 언마운트 시 acquire/release (하나의 effect로 통합)
   useEffect(() => {
     if (enabled && !acquiredRef.current) {
       acquiredRef.current = true;
@@ -150,17 +150,14 @@ export function usePureWebSocket({ enabled = true }: UsePureWebSocketOptions = {
       acquiredRef.current = false;
       wsManager.release();
     }
-  }, [enabled]);
-
-  // 언마운트 시 release (enabled가 true인 채로 언마운트)
-  useEffect(() => {
+    // cleanup: 언마운트 or enabled가 false로 바뀔 때
     return () => {
       if (acquiredRef.current) {
         acquiredRef.current = false;
         wsManager.release();
       }
     };
-  }, []);
+  }, [enabled]);
 
   const send = useCallback((msg: WsMessage) => wsManager.send(msg), []);
 
