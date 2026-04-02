@@ -64,6 +64,7 @@ public class AuthController {
 
         // 2. LoginResponse로 변환
         LoginResponse response = LoginResponse.of(
+            tokenResponse.getUserId(),
             tokenResponse.getAccessToken(),
             tokenResponse.getRefreshToken(),
             tokenResponse.getEmail(),

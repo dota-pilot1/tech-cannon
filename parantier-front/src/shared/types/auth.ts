@@ -24,6 +24,7 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
+  userId: number;
   accessToken: string;
   refreshToken: string;
   email: string;

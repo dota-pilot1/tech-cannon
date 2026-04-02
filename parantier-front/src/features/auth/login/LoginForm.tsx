@@ -26,7 +26,9 @@ export function LoginForm() {
       const roles = getRolesFromToken(response.accessToken);
       const authorities = getAuthoritiesFromToken(response.accessToken);
 
+      // 먼저 토큰 저장 (getCurrentUser 호출 전에 필요)
       authActions.login(response.accessToken, response.refreshToken, {
+        id: response.userId,
         email: response.email,
         username: response.username,
         role: response.role,
@@ -38,8 +40,9 @@ export function LoginForm() {
 
       setEmail("");
       setPassword("");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "로그인에 실패했습니다.");
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e?.response?.data?.message || "로그인에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }

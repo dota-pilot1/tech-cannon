@@ -95,6 +95,14 @@ export function useMeetingChat({
   username,
   channelId,
 }: UseMeetingChatOptions) {
+  console.log(
+    "[MeetingChat] render userId=",
+    userId,
+    "username=",
+    username,
+    "channelId=",
+    channelId,
+  );
   const [messages, setMessages] = useState<MeetingChatMessageWithUser[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
 

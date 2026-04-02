@@ -94,6 +94,7 @@ class WsManager {
   }
 
   addHandler(topic: string, handler: MessageHandler, onOpen?: () => void) {
+    console.log("[WS] addHandler", topic, "isOpen=", this.ws?.readyState === WebSocket.OPEN);
     let entry = this.topics.get(topic);
     if (!entry) {
       entry = { handlers: new Set(), onOpen };

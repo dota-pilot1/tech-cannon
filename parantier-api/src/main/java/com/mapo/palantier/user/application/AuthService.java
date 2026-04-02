@@ -48,8 +48,11 @@ public class AuthService {
     @Transactional
     public TokenResponse login(String email, String password) {
         // 1. 이메일로 사용자 조회
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthenticationException(ErrorCode.INVALID_CREDENTIALS));
+        User user = userRepository
+            .findByEmail(email)
+            .orElseThrow(() ->
+                new AuthenticationException(ErrorCode.INVALID_CREDENTIALS)
+            );
 
         // 2. 비밀번호 검증
         if (!passwordEncoder.matches(password, user.getPassword())) {
@@ -62,19 +65,39 @@ public class AuthService {
         }
 
         // 4. 액세스 토큰 및 리프레시 토큰 생성
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail());
+        String accessToken = jwtTokenProvider.generateAccessToken(
+            user.getId(),
+            user.getEmail(),
+            user.getRole().name()
+        );
+        String refreshToken = jwtTokenProvider.generateRefreshToken(
+            user.getEmail()
+        );
 
         // 5. 기존 리프레시 토큰 삭제 (1명당 1개의 토큰만 유지)
-        refreshTokenRepository.findByUserId(user.getId())
-                .ifPresent(existingToken -> refreshTokenRepository.deleteByUserId(user.getId()));
+        refreshTokenRepository
+            .findByUserId(user.getId())
+            .ifPresent(existingToken ->
+                refreshTokenRepository.deleteByUserId(user.getId())
+            );
 
         // 6. 새 리프레시 토큰 저장 (7일 유효)
-        RefreshToken newRefreshToken = RefreshToken.create(user.getId(), refreshToken, 7);
+        RefreshToken newRefreshToken = RefreshToken.create(
+            user.getId(),
+            refreshToken,
+            7
+        );
         refreshTokenRepository.save(newRefreshToken);
 
         // 7. 응답 생성
-        return TokenResponse.of(accessToken, refreshToken, user.getEmail(), user.getUsername(), user.getRole().name());
+        return TokenResponse.of(
+            user.getId(),
+            accessToken,
+            refreshToken,
+            user.getEmail(),
+            user.getUsername(),
+            user.getRole().name()
+        );
     }
 
     @Transactional
@@ -85,8 +108,11 @@ public class AuthService {
         }
 
         // 2. DB에서 리프레시 토큰 조회
-        RefreshToken storedToken = refreshTokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new InvalidTokenException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+        RefreshToken storedToken = refreshTokenRepository
+            .findByToken(refreshToken)
+            .orElseThrow(() ->
+                new InvalidTokenException(ErrorCode.REFRESH_TOKEN_NOT_FOUND)
+            );
 
         // 3. 만료 여부 확인
         if (storedToken.isExpired()) {
@@ -96,11 +122,18 @@ public class AuthService {
         }
 
         // 4. 사용자 조회
-        User user = userRepository.findById(storedToken.getUserId())
-                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository
+            .findById(storedToken.getUserId())
+            .orElseThrow(() ->
+                new UserNotFoundException(ErrorCode.USER_NOT_FOUND)
+            );
 
         // 5. 새 액세스 토큰 발급
-        return jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        return jwtTokenProvider.generateAccessToken(
+            user.getId(),
+            user.getEmail(),
+            user.getRole().name()
+        );
     }
 
     @Transactional
@@ -111,8 +144,11 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public User getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND));
+        return userRepository
+            .findByEmail(email)
+            .orElseThrow(() ->
+                new UserNotFoundException(ErrorCode.USER_NOT_FOUND)
+            );
     }
 
     @Transactional(readOnly = true)
