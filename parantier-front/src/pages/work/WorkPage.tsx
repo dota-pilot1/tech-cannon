@@ -8,7 +8,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import {
+  ChevronDown,
+  Search,
+  FileText,
+  Plus,
+  Trash2,
+  Edit2,
+  X,
+  Upload,
+  Image as ImageIcon,
+  Database,
+  Eye,
+  ExternalLink,
+  Unlink,
+  ChevronRight,
+  Link,
+} from "lucide-react";
 import { WorkChatPanel } from "@/features/work/components/WorkChatPanel";
 import { SubWorkSection } from "@/features/work/components/SubWorkSection";
 import { cn } from "@/shared/lib/utils";
@@ -105,21 +121,6 @@ import {
   parseDbTableContent,
   parseTsvToColumns,
 } from "@/entities/work/types/workDbTable";
-import {
-  Plus,
-  Edit2,
-  Trash2,
-  X,
-  Upload,
-  Image as ImageIcon,
-  ChevronRight,
-  FileText,
-  Database,
-  Eye,
-  Link,
-  Unlink,
-  ExternalLink,
-} from "lucide-react";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
 import { Mermaid } from "@/shared/ui/mermaid";
@@ -1954,13 +1955,16 @@ export function WorkPage() {
           <div className="w-px h-5 bg-border" />
 
           {/* 검색 */}
-          <input
-            type="text"
-            placeholder="제목 검색..."
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-            className="px-3 py-1.5 border border-input rounded-md text-sm h-9 w-48 focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+          <div className="relative group">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <input
+              type="text"
+              placeholder="제목 검색..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              className="pl-8 pr-3 py-1.5 border border-input rounded-md text-sm h-9 w-48 focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary transition-all bg-background/50 hover:bg-background"
+            />
+          </div>
 
           <div className="flex-1" />
 
@@ -2011,7 +2015,11 @@ export function WorkPage() {
           >
             🗄️ 백업(조회)
           </Button>
-          <Button onClick={handleNew} size="sm" className="bg-[#0f172a] hover:bg-[#1e293b]">
+          <Button
+            onClick={handleNew}
+            size="sm"
+            className="bg-[#0f172a] hover:bg-[#1e293b]"
+          >
             <Plus className="w-4 h-4 mr-1" />새 업무
           </Button>
         </div>

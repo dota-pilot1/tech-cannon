@@ -130,25 +130,25 @@ export function Header() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-3 h-full">
+          <div className="flex items-center gap-2 h-full">
             {/* 테마 피커 */}
             <NavThemePicker />
 
             {auth.isAuthenticated ? (
-              <div className="flex items-center gap-1 h-9 px-1 rounded-md border border-[var(--nav-border)] bg-[var(--nav-item-active-bg)]/20 hover:bg-[var(--nav-item-active-bg)]/40 transition-all ml-0.5">
+              <div className="flex items-center gap-0 h-9 rounded-lg border border-[var(--nav-border)] bg-[var(--nav-item-active-bg)]/10 overflow-hidden">
                 <Link
                   to="/profile"
-                  className="flex items-center shrink-0 p-1 hover:opacity-80 transition-opacity"
+                  className="flex items-center justify-center w-9 h-9 border-r border-[var(--nav-border)] hover:bg-[var(--nav-item-hover-bg)] transition-colors shrink-0"
                   title="프로필로 이동"
                 >
                   <UserAvatar user={auth.user} size="xs" />
                 </Link>
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center gap-1.5 h-full px-1.5 text-sm font-medium transition-colors cursor-pointer outline-none text-[var(--nav-user-text)] hover:text-[var(--nav-user-hover)]">
-                    <span className="max-w-[120px] truncate">
+                  <DropdownMenuTrigger className="flex items-center gap-1.5 h-9 px-3 text-sm font-medium transition-colors cursor-pointer outline-none text-[var(--nav-user-text)] hover:bg-[var(--nav-item-hover-bg)] hover:text-[var(--nav-user-hover)]">
+                    <span className="max-w-[100px] truncate">
                       {auth.user?.username}
                     </span>
-                    <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+                    <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"

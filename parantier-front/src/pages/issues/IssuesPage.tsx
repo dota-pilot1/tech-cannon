@@ -5,7 +5,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import {
+  ChevronDown,
+  Search,
+  FileText,
+  Plus,
+  Trash2,
+  Edit2,
+  X,
+  Upload,
+  Image as ImageIcon,
+  Users,
+  ChevronRight,
+  ChevronLeft,
+  Database,
+  Eye,
+  Figma,
+  ExternalLink,
+} from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
@@ -98,22 +115,6 @@ import {
   parseDbTableContent,
   parseTsvToColumns,
 } from "@/entities/issue/types/issueDbTable";
-import {
-  Plus,
-  Edit2,
-  Trash2,
-  X,
-  Upload,
-  Image as ImageIcon,
-  Users,
-  ChevronRight,
-  ChevronLeft,
-  FileText,
-  Database,
-  Eye,
-  Figma,
-  ExternalLink,
-} from "lucide-react";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
 import { Mermaid } from "@/shared/ui/mermaid";
@@ -1693,13 +1694,16 @@ export function IssuesPage() {
           <div className="w-px h-5 bg-border" />
 
           {/* 검색 */}
-          <input
-            type="text"
-            placeholder="제목 검색..."
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-            className="px-3 py-1.5 border border-input rounded-md text-sm h-9 w-48 focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+          <div className="relative group">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <input
+              type="text"
+              placeholder="제목 검색..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              className="pl-8 pr-3 py-1.5 border border-input rounded-md text-sm h-9 w-48 focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary transition-all bg-background/50 hover:bg-background"
+            />
+          </div>
 
           <div className="flex-1" />
 
@@ -1753,7 +1757,11 @@ export function IssuesPage() {
           >
             🗄️ 백업(조회)
           </Button>
-          <Button onClick={handleNew} size="sm" className="bg-[#0f172a] hover:bg-[#1e293b]">
+          <Button
+            onClick={handleNew}
+            size="sm"
+            className="bg-[#0f172a] hover:bg-[#1e293b]"
+          >
             <Plus className="w-4 h-4 mr-1" />새 이슈
           </Button>
         </div>
@@ -2686,9 +2694,35 @@ export function IssuesPage() {
               </div>
             </div>
           ) : (
-            /* 선택 안됨 */
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>왼쪽 목록에서 이슈를 선택하거나 새 이슈를 작성하세요.</p>
+            /* 선택 안됨 - 프리미엄 Empty State */
+            <div className="flex-1 flex items-center justify-center bg-muted/5 h-full">
+              <div className="text-center space-y-6 max-w-sm px-6">
+                <div className="relative mx-auto w-24 h-24">
+                  <div className="absolute inset-0 bg-primary/10 rounded-full animate-ping opacity-20" />
+                  <div className="relative w-full h-full bg-background border rounded-full flex items-center justify-center shadow-sm">
+                    <FileText className="w-10 h-10 text-primary/40" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    이슈를 선택하세요
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    왼쪽 목록에서 상세 내용을 확인할 이슈를 선택하거나, <br />
+                    상단 버튼을 통해 새로운 이슈를 작성할 수 있습니다.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    실시간 협업 및 상태 추적
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    담당자 배정 및 일정 관리
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -5,7 +5,8 @@ import type { SqlHistoryItem } from "@/features/sql/types/sqlTypes";
 import { SqlHistoryItemView } from "@/features/sql/components/SqlHistoryItem";
 import { SqlSchemaSidebar } from "@/features/sql/components/SqlSchemaSidebar";
 import { SqlInputBar } from "@/features/sql/components/SqlInputBar";
-import { Database } from "lucide-react";
+import { Database, Trash2 } from "lucide-react";
+import { Button } from "@/shared/ui/button";
 
 export function SqlPage() {
   const [tables, setTables] = useState<TableInfo[]>([]);
@@ -28,7 +29,7 @@ export function SqlPage() {
     } finally {
       setIsLoadingTables(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -70,11 +71,9 @@ export function SqlPage() {
     }
   }, []);
 
-  // 테이블 클릭 시 SELECT 자동 실행
   const handleSelectTable = useCallback((tableName: string) => {
     setSelectedTable(tableName);
-    executeQuery("SELECT * FROM " + tableName + " LIMIT 100");
-  }, [executeQuery]);
+  }, []);
 
   return (
     <div className="flex h-[calc(100vh-56px)] bg-background">
@@ -84,7 +83,22 @@ export function SqlPage() {
         <div className="px-4 py-3 border-b border-border bg-card flex items-center gap-2 shrink-0">
           <Database className="w-5 h-5 text-primary" />
           <span className="font-semibold text-foreground">SQL 연습장</span>
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">SQLite</span>
+          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+            SQLite
+          </span>
+          <div className="ml-auto">
+            {history.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setHistory([])}
+                className="w-7 h-7 text-muted-foreground hover:text-destructive"
+                title="히스토리 비우기"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* 히스토리 */}
@@ -94,7 +108,8 @@ export function SqlPage() {
               <Database className="w-16 h-16 mb-4 opacity-20" />
               <p className="text-lg font-medium mb-2">SQL을 실행해보세요</p>
               <div className="text-sm space-y-1 text-center">
-                <p>오른쪽에서 테이블을 클릭하면 바로 조회됩니다</p>
+                <p>아래 입력창에서 SQL을 직접 작성하거나</p>
+                <p>오른쪽 ℹ 버튼으로 스키마를 확인하세요</p>
               </div>
               <div className="mt-6 bg-muted rounded-lg p-4 text-left font-mono text-xs space-y-1 max-w-md">
                 <p className="text-primary">-- 연습 예시</p>
