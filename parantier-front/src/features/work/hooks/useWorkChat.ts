@@ -4,7 +4,6 @@ import { usePureWebSocket } from "@/shared/hooks/usePureWebSocket";
 
 interface UseWorkChatOptions {
   workId: number;
-  enabled?: boolean;
 }
 
 /**
@@ -14,12 +13,10 @@ interface UseWorkChatOptions {
  * - 컴포넌트가 마운트될 때 WebSocket 연결
  * - 컴포넌트가 언마운트될 때 WebSocket 연결 해제
  */
-export function useWorkChat({ workId, enabled = true }: UseWorkChatOptions) {
+export function useWorkChat({ workId }: UseWorkChatOptions) {
   const [messages, setMessages] = useState<WorkMessageWithUser[]>([]);
 
-  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket({
-    enabled: enabled && !!workId,
-  });
+  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket();
 
   useEffect(() => {
     if (!workId) return;

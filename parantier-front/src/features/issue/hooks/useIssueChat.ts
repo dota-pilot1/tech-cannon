@@ -4,7 +4,6 @@ import { usePureWebSocket } from "@/shared/hooks/usePureWebSocket";
 
 interface UseIssueChatOptions {
   issueId: number;
-  enabled?: boolean;
 }
 
 /**
@@ -14,12 +13,10 @@ interface UseIssueChatOptions {
  * - 컴포넌트가 마운트될 때 WebSocket 연결
  * - 컴포넌트가 언마운트될 때 WebSocket 연결 해제
  */
-export function useIssueChat({ issueId, enabled = true }: UseIssueChatOptions) {
+export function useIssueChat({ issueId }: UseIssueChatOptions) {
   const [messages, setMessages] = useState<MessageWithUser[]>([]);
 
-  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket({
-    enabled: enabled && !!issueId,
-  });
+  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket();
 
   useEffect(() => {
     if (!issueId) return;

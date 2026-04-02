@@ -85,14 +85,12 @@ export interface Participant {
 }
 
 interface UseMeetingChatOptions {
-  enabled?: boolean;
   userId?: number;
   username?: string;
   channelId: number;
 }
 
 export function useMeetingChat({
-  enabled = true,
   userId,
   username,
   channelId,
@@ -100,9 +98,7 @@ export function useMeetingChat({
   const [messages, setMessages] = useState<MeetingChatMessageWithUser[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
 
-  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket({
-    enabled: enabled && !!userId && !!username,
-  });
+  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket();
 
   const isConnecting = !isConnected;
 
@@ -201,9 +197,7 @@ export function useMeetingParticipants({
 }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
 
-  const { send, subscribe, unsubscribe } = usePureWebSocket({
-    enabled: !!userId && !!username,
-  });
+  const { send, subscribe, unsubscribe } = usePureWebSocket();
 
   useEffect(() => {
     if (!userId || !username) return;

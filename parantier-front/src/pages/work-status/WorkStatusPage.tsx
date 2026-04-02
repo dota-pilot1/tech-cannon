@@ -464,12 +464,7 @@ function LiveLogPanel({ summaries }: LiveLogPanelProps) {
   const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<LiveTab>("done");
   const [selectedWorkId, setSelectedWorkId] = useState<number | null>(null);
-  const user = useStore(authStore, (s) => s.user);
-  const isRestored = useStore(authStore, (s) => s.isRestored);
-
-  const { isConnected, subscribe, unsubscribe } = usePureWebSocket({
-    enabled: isRestored && !!user,
-  });
+  const { isConnected, subscribe, unsubscribe } = usePureWebSocket();
 
   // 최초 REST API로 최근 50개 로그 가져오기
   useEffect(() => {

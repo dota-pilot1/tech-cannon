@@ -17,22 +17,18 @@ export interface Participant {
 }
 
 interface UseWorkStatusChatOptions {
-  enabled?: boolean;
   userId?: number;
   username?: string;
 }
 
 export function useWorkStatusChat({
-  enabled = true,
   userId,
   username,
 }: UseWorkStatusChatOptions = {}) {
   const [messages, setMessages] = useState<WorkStatusChatMessageWithUser[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
 
-  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket({
-    enabled: enabled && !!userId && !!username,
-  });
+  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket();
 
   // 메시지 구독 (onOpen 패턴 - isConnected 가드 제거)
   useEffect(() => {
@@ -114,9 +110,7 @@ export function useWorkStatusParticipants({
 }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
 
-  const { send, subscribe, unsubscribe } = usePureWebSocket({
-    enabled: !!userId && !!username,
-  });
+  const { send, subscribe, unsubscribe } = usePureWebSocket();
 
   useEffect(() => {
     if (!userId || !username) return;
