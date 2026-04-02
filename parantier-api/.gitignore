@@ -39,3 +39,4 @@ out/
 ### Environment ###
 .env
 application-local.yml
+sql-practice.db

@@ -26,6 +26,7 @@ import { WorkStatusPage } from "@/pages/work-status/WorkStatusPage";
 import { ToolsPage } from "@/pages/tools/ToolsPage";
 import { MeetingPage } from "@/pages/meeting/MeetingPage";
 import { WikiPage } from "@/pages/wiki/WikiPage";
+import { PromptPage } from "@/pages/prompt/PromptPage";
 import { PrototypePage } from "@/pages/prototype/PrototypePage";
 import { DbPage } from "@/pages/db/DbPage";
 import { SqlPage } from "@/pages/sql/SqlPage";
@@ -234,6 +235,14 @@ const meetingRoute = createRoute({
   component: MeetingPage,
 });
 
+// 프롬프트 관리 (로그인 필요)
+const promptRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prompt",
+  beforeLoad: () => requireAuth(),
+  component: PromptPage,
+});
+
 // Tech Wiki (로그인 필요)
 const wikiRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -299,6 +308,7 @@ const routeTree = rootRoute.addChildren([
   issuesRoute,
   pilotRoute,
   wikiRoute,
+  promptRoute,
   dbRoute,
   sqlRoute,
   prototypeRoute,
