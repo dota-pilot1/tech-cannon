@@ -15,7 +15,22 @@ public class DashboardController {
     private final DashboardService dashboardService;
 
     @GetMapping("/stats")
-    public ResponseEntity<DashboardStatsResponse> getStats(Authentication authentication) {
+    public ResponseEntity<DashboardStatsResponse> getStats(
+        Authentication authentication
+    ) {
+        // 비로그인 시 빈 통계 반환
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.ok(
+                DashboardStatsResponse.builder()
+                    .myInProgressWorks(0)
+                    .todayDueWorks(0)
+                    .openIssues(0)
+                    .weekDoneWorks(0)
+                    .totalUsers(0)
+                    .weekCompletionRate(0)
+                    .build()
+            );
+        }
         Long userId = Long.parseLong(authentication.getName());
         return ResponseEntity.ok(dashboardService.getStats(userId));
     }

@@ -125,6 +125,10 @@ public class AuthController {
     public ResponseEntity<UserResponse> getCurrentUser(
         Authentication authentication
     ) {
+        // 비로그인 시 401 반환
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
         // principal은 JwtAuthenticationFilter에서 userId(Long)로 설정됨
         Long userId = (Long) authentication.getPrincipal();
         User user = userService.findById(userId);
