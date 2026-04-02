@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useStore } from "@tanstack/react-store";
-import { useWorkStatusParticipants } from "@/features/work/hooks/useWorkStatusChat";
-import { authStore } from "@/entities/user/model/authStore";
+
 import { WorkStatusChatPanel } from "@/features/work/components/WorkStatusChatPanel";
 import { usePureWebSocket } from "@/shared/hooks/usePureWebSocket";
 import {
@@ -916,14 +915,12 @@ function WorkDetailSheet({
 export function WorkStatusPage() {
   const { data: summaries = [] } = useTeamWorkSummary();
   const leftTab = useStore(workStatusStore, (s) => s.leftTab);
-  const user = useStore(authStore, (s) => s.user);
-  const isRestored = useStore(authStore, (s) => s.isRestored);
 
-  // 채팅 탭 미진입 상태에서도 항상 참여자 수 구독
-  const { participants: chatParticipants } = useWorkStatusParticipants({
-    userId: isRestored ? user?.id : undefined,
-    username: isRestored ? user?.username : undefined,
-  });
+  // 페이지가 살아있는 동안 WebSocket 연결 유지 (refCount 1 이상 보장)
+  usePureWebSocket();
+
+  // store에서 채팅 참가자 수 가져오기 (WorkStatusChatPanel이 마운트될 때만 업데이트)
+  const chatParticipants = useStore(workStatusStore, (s) => s.chatParticipants);
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
