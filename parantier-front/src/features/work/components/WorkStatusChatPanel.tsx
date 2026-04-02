@@ -1,5 +1,5 @@
-import { useEffect, useRef, useMemo } from "react";
-import { WifiOff, Loader2 } from "lucide-react";
+import { useEffect, useRef, useMemo, useState } from "react";
+import { WifiOff, Loader2, Trash2 } from "lucide-react";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
 import { workStatusActions } from "@/pages/work-status/store/workStatusStore";
@@ -36,14 +36,7 @@ function ChatMessageItem({
 }) {
   const isMe = myUserId === message.userId;
 
-  const toUtcDate = (dateStr: string) => {
-    if (!dateStr) return new Date();
-    if (dateStr.endsWith("Z") || dateStr.includes("+"))
-      return new Date(dateStr);
-    return new Date(dateStr + "Z");
-  };
-
-  const timeStr = formatDistanceToNow(toUtcDate(message.createdAt), {
+  const timeStr = formatDistanceToNow(new Date(message.createdAt), {
     addSuffix: true,
     locale: ko,
   });
@@ -97,10 +90,13 @@ export function WorkStatusChatPanel() {
   const isAuthenticated = useStore(authStore, (state) => state.isAuthenticated);
   const isRestored = useStore(authStore, (state) => state.isRestored);
 
+  // 메시지 로컬 숨기기 상태 (초기화 버튼)
+  const [localCleared, setLocalCleared] = useState(false);
+
   // REST API: 과거 메시지
   const { data: history = [], isLoading } = useWorkStatusChatHistory();
 
-  // WebSocket: 실시간 (userId 준비된 후 연결 + join 이벤트)
+  // WebSocket: 실시간
   const {
     messages: realtime,
     isConnected,
@@ -134,12 +130,18 @@ export function WorkStatusChatPanel() {
     );
   }, [history, realtime]);
 
+  // 표시할 메시지 (초기화 버튼 반영)
+  const displayMessages = useMemo(
+    () => (localCleared ? [] : allMessages),
+    [localCleared, allMessages],
+  );
+
   const allParticipants: Participant[] = participants;
 
   // 새 메시지 자동 스크롤
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [allMessages]);
+  }, [displayMessages]);
 
   const handleSend = (message: string) => {
     if (!user?.id) return;
@@ -148,7 +150,6 @@ export function WorkStatusChatPanel() {
 
   const isUserReady = isRestored && isAuthenticated && !!user?.id;
 
-  // 사용자 정보 복원 전 로딩 표시
   if (!isRestored) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2">
@@ -166,25 +167,39 @@ export function WorkStatusChatPanel() {
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             참여자
           </span>
-          <div className="flex items-center gap-1">
-            <span
-              className={`inline-block w-1.5 h-1.5 rounded-full ${
-                isConnected
-                  ? "bg-green-500 animate-pulse"
-                  : "bg-muted-foreground"
-              }`}
-            />
-            <span
-              className={`text-xs font-medium ${
-                isConnected
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-muted-foreground"
-              }`}
+          <div className="flex items-center gap-2">
+            {/* 메시지 초기화 버튼 */}
+            <button
+              onClick={() => setLocalCleared((v) => !v)}
+              title={localCleared ? "메시지 복원" : "메시지 초기화"}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
             >
-              {isConnected ? "연결됨" : "연결 중..."}
-            </span>
+              <Trash2 className="w-3 h-3" />
+              {localCleared ? "복원" : "초기화"}
+            </button>
+
+            {/* 연결 상태 */}
+            <div className="flex items-center gap-1">
+              <span
+                className={`inline-block w-1.5 h-1.5 rounded-full ${
+                  isConnected
+                    ? "bg-green-500 animate-pulse"
+                    : "bg-muted-foreground"
+                }`}
+              />
+              <span
+                className={`text-xs font-medium ${
+                  isConnected
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {isConnected ? "연결됨" : "연결 중..."}
+              </span>
+            </div>
           </div>
         </div>
+
         {allParticipants.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             아직 참여자가 없습니다.
@@ -220,18 +235,22 @@ export function WorkStatusChatPanel() {
               </div>
             ))}
           </div>
-        ) : allMessages.length === 0 ? (
+        ) : displayMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-8">
             <p className="text-sm font-medium text-foreground">
-              아직 메시지가 없습니다
+              {localCleared
+                ? "메시지가 초기화됐습니다"
+                : "아직 메시지가 없습니다"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              첫 메시지를 보내보세요 💬
+              {localCleared
+                ? "복원 버튼을 눌러 다시 볼 수 있어요"
+                : "첫 메시지를 보내보세요 💬"}
             </p>
           </div>
         ) : (
           <>
-            {allMessages.map((msg) => (
+            {displayMessages.map((msg) => (
               <ChatMessageItem key={msg.id} message={msg} myUserId={user?.id} />
             ))}
             <div ref={messagesEndRef} />
