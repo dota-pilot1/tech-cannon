@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "@tanstack/react-store";
 import { useWorkStatusParticipants } from "@/features/work/hooks/useWorkStatusChat";
 import { authStore } from "@/entities/user/model/authStore";
 import { WorkStatusChatPanel } from "@/features/work/components/WorkStatusChatPanel";
-import { Client } from "@stomp/stompjs";
+import { usePureWebSocket } from "@/shared/hooks/usePureWebSocket";
 import {
   RefreshCw,
   CheckCircle2,
@@ -460,12 +460,16 @@ interface LiveLogPanelProps {
 
 function LiveLogPanel({ summaries }: LiveLogPanelProps) {
   const [logs, setLogs] = useState<WorkStatusLog[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [newLogIds, setNewLogIds] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<LiveTab>("done");
   const [selectedWorkId, setSelectedWorkId] = useState<number | null>(null);
-  const clientRef = useRef<Client | null>(null);
+  const user = useStore(authStore, (s) => s.user);
+  const isRestored = useStore(authStore, (s) => s.isRestored);
+
+  const { isConnected, subscribe, unsubscribe } = usePureWebSocket({
+    enabled: isRestored && !!user,
+  });
 
   // 최초 REST API로 최근 50개 로그 가져오기
   useEffect(() => {
@@ -489,69 +493,37 @@ function LiveLogPanel({ summaries }: LiveLogPanelProps) {
       });
   }, []);
 
-  // WebSocket STOMP 연결
+  // 순수 WebSocket으로 work-status 로그 구독
   useEffect(() => {
-    const accessToken = localStorage.getItem("accessToken");
-
-    const client = new Client({
-      brokerURL: "ws://localhost:8080/ws",
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-      connectHeaders: accessToken
-        ? { Authorization: `Bearer ${accessToken}` }
-        : {},
-
-      onConnect: () => {
-        console.log("WorkStatus WebSocket Connected");
-        setIsConnected(true);
-
-        client.subscribe("/topic/work-status", (message) => {
-          try {
-            const log: WorkStatusLog = JSON.parse(message.body);
-            setLogs((prev) => {
-              // 같은 workId의 이전 로그 제거 후 맨 위에 추가
-              const filtered = prev.filter((l) => l.workId !== log.workId);
-              return [log, ...filtered].slice(0, MAX_LOGS);
-            });
-            // fade-in 애니메이션을 위해 새 로그 ID 추적
-            setNewLogIds((prev) => {
-              const next = new Set(prev);
-              next.add(log.id);
-              return next;
-            });
-            // 3초 후 애니메이션 클래스 제거
-            setTimeout(() => {
-              setNewLogIds((prev) => {
-                const next = new Set(prev);
-                next.delete(log.id);
-                return next;
-              });
-            }, 3000);
-          } catch (e) {
-            console.error("Failed to parse work-status message:", e);
-          }
+    const handler = (data: unknown) => {
+      try {
+        const log = data as WorkStatusLog;
+        if (!log || !log.workId) return;
+        setLogs((prev) => {
+          const filtered = prev.filter((l) => l.workId !== log.workId);
+          return [log, ...filtered].slice(0, MAX_LOGS);
         });
-      },
-
-      onStompError: (frame) => {
-        console.error("WorkStatus STOMP error:", frame);
-        setIsConnected(false);
-      },
-
-      onWebSocketClose: () => {
-        console.log("WorkStatus WebSocket Disconnected");
-        setIsConnected(false);
-      },
-    });
-
-    clientRef.current = client;
-    client.activate();
-
-    return () => {
-      client.deactivate();
+        setNewLogIds((prev) => {
+          const next = new Set(prev);
+          next.add(log.id);
+          return next;
+        });
+        setTimeout(() => {
+          setNewLogIds((prev) => {
+            const next = new Set(prev);
+            next.delete(log.id);
+            return next;
+          });
+        }, 3000);
+      } catch (e) {
+        console.error("Failed to parse work-status log:", e);
+      }
     };
-  }, []);
+
+    // 백엔드가 "work-status-log" 토픽으로 LOG 타입 메시지를 브로드캐스트
+    subscribe("work-status-log", handler);
+    return () => unsubscribe("work-status-log", handler);
+  }, [subscribe, unsubscribe]);
 
   const [, setTick] = useState(0);
   useEffect(() => {

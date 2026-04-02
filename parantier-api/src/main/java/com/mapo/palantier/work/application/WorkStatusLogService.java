@@ -47,10 +47,10 @@ public class WorkStatusLogService {
 
         logMapper.insert(log);
 
-        // 순수 WebSocket 브로드캐스트
+        // 순수 WebSocket 브로드캐스트 (로그 전용 토픽)
         pureWebSocketHandler.broadcast(
-            "work-status",
-            new WsMessage("LOG", "work-status", log)
+            "work-status-log",
+            new WsMessage("LOG", "work-status-log", log)
         );
     }
 
