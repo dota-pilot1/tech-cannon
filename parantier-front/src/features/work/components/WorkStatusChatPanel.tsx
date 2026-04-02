@@ -104,6 +104,7 @@ export function WorkStatusChatPanel() {
   const {
     messages: realtime,
     isConnected,
+    isConnecting,
     participants,
     sendMessage,
   } = useWorkStatusChat({
@@ -238,8 +239,8 @@ export function WorkStatusChatPanel() {
         )}
       </div>
 
-      {/* 연결 경고 */}
-      {!isConnected && !isLoading && (
+      {/* 연결 경고 - 초기 연결/재연결 중엔 숨김 */}
+      {!isConnected && !isConnecting && !isLoading && (
         <div className="shrink-0 px-0 py-2">
           <div className="flex items-center gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
             <WifiOff className="w-3.5 h-3.5 text-destructive shrink-0" />

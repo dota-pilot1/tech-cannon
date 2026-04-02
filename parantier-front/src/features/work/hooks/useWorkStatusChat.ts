@@ -28,7 +28,8 @@ export function useWorkStatusChat({
   const [messages, setMessages] = useState<WorkStatusChatMessageWithUser[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
 
-  const { isConnected, send, subscribe, unsubscribe } = usePureWebSocket();
+  const { isConnected, isConnecting, send, subscribe, unsubscribe } =
+    usePureWebSocket();
 
   // 메시지 구독 (onOpen 패턴 - isConnected 가드 제거)
   useEffect(() => {
@@ -95,6 +96,7 @@ export function useWorkStatusChat({
   return {
     messages,
     isConnected,
+    isConnecting,
     participants,
     sendMessage,
   };

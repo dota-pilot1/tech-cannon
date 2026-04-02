@@ -20,16 +20,20 @@ class WsManager {
   private ws: WebSocket | null = null;
   private topics = new Map<string, TopicEntry>();
   private connected = false;
+  private connecting = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private refCount = 0;
   private storeListeners = new Set<() => void>();
 
   getSnapshot = () => this.connected;
+  getConnectingSnapshot = () => this.connecting;
   subscribeStore = (cb: () => void) => {
     this.storeListeners.add(cb);
     return () => this.storeListeners.delete(cb);
   };
-  private notify() { this.storeListeners.forEach((l) => l()); }
+  private notify() {
+    this.storeListeners.forEach((l) => l());
+  }
 
   acquire() {
     this.refCount++;
@@ -44,10 +48,16 @@ class WsManager {
   }
 
   private teardown() {
-    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.ws?.close();
     this.ws = null;
-    if (this.connected) { this.connected = false; this.notify(); }
+    if (this.connected) {
+      this.connected = false;
+      this.notify();
+    }
   }
 
   private connect() {
@@ -55,12 +65,15 @@ class WsManager {
     if (this.ws?.readyState === WebSocket.OPEN) return;
     if (this.ws?.readyState === WebSocket.CONNECTING) return;
 
+    this.connecting = true;
+    this.notify();
     const ws = new WebSocket(WS_URL);
     this.ws = ws;
 
     ws.onopen = () => {
       console.log("[WS] connected, topics=", [...this.topics.keys()]);
       this.connected = true;
+      this.connecting = false;
       this.notify();
       this.topics.forEach(({ onOpen }, topic) => {
         ws.send(JSON.stringify({ type: "SUBSCRIBE", topic, data: null }));
@@ -73,18 +86,23 @@ class WsManager {
         const msg: WsMessage = JSON.parse(event.data);
         const entry = this.topics.get(msg.topic);
         if (entry) entry.handlers.forEach((h) => h(msg.data));
-      } catch (e) { console.error("[WS] parse error:", e); }
+      } catch (e) {
+        console.error("[WS] parse error:", e);
+      }
     };
 
     ws.onclose = () => {
       this.connected = false;
+      this.connecting = false;
       this.notify();
       if (this.refCount > 0) {
         this.reconnectTimer = setTimeout(() => this.connect(), 2000);
       }
     };
 
-    ws.onerror = (e) => { console.error("[WS] error:", e); };
+    ws.onerror = (e) => {
+      console.error("[WS] error:", e);
+    };
   }
 
   send(msg: WsMessage) {
@@ -94,7 +112,12 @@ class WsManager {
   }
 
   addHandler(topic: string, handler: MessageHandler, onOpen?: () => void) {
-    console.log("[WS] addHandler", topic, "isOpen=", this.ws?.readyState === WebSocket.OPEN);
+    console.log(
+      "[WS] addHandler",
+      topic,
+      "isOpen=",
+      this.ws?.readyState === WebSocket.OPEN,
+    );
     let entry = this.topics.get(topic);
     if (!entry) {
       entry = { handlers: new Set(), onOpen };
@@ -117,7 +140,9 @@ class WsManager {
     if (entry.handlers.size === 0) {
       this.topics.delete(topic);
       if (this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({ type: "UNSUBSCRIBE", topic, data: null }));
+        this.ws.send(
+          JSON.stringify({ type: "UNSUBSCRIBE", topic, data: null }),
+        );
       }
     }
   }
@@ -128,7 +153,14 @@ const wsManager = new WsManager();
 // ── React 훅 ─────────────────────────────────────────────────────────────────
 
 export function usePureWebSocket() {
-  const isConnected = useSyncExternalStore(wsManager.subscribeStore, wsManager.getSnapshot);
+  const isConnected = useSyncExternalStore(
+    wsManager.subscribeStore,
+    wsManager.getSnapshot,
+  );
+  const isConnecting = useSyncExternalStore(
+    wsManager.subscribeStore,
+    wsManager.getConnectingSnapshot,
+  );
 
   // 마운트 시 한 번만 acquire, 언마운트 시 한 번만 release
   // enabled는 addHandler 시점에 체크 (wsManager.acquire는 항상 호출)
@@ -145,15 +177,12 @@ export function usePureWebSocket() {
     (topic: string, handler: MessageHandler, onOpen?: () => void) => {
       wsManager.addHandler(topic, handler, onOpen);
     },
-    []
+    [],
   );
 
-  const unsubscribe = useCallback(
-    (topic: string, handler: MessageHandler) => {
-      wsManager.removeHandler(topic, handler);
-    },
-    []
-  );
+  const unsubscribe = useCallback((topic: string, handler: MessageHandler) => {
+    wsManager.removeHandler(topic, handler);
+  }, []);
 
-  return { isConnected, send, subscribe, unsubscribe };
+  return { isConnected, isConnecting, send, subscribe, unsubscribe };
 }
