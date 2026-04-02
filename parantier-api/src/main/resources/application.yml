@@ -2,6 +2,13 @@ spring:
   application:
     name: parantier-api
 
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      adjust-dates-to-context-time-zone: false
+    time-zone: UTC
+
   # Active Profile (default: local)
   profiles:
     active: local
