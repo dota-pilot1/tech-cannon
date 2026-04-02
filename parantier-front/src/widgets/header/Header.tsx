@@ -54,7 +54,7 @@ export function Header() {
               to="/"
               className="text-xl font-bold transition-opacity cursor-pointer mr-6 text-[var(--nav-logo)] hover:text-[var(--nav-logo-hover)]"
             >
-              Palantier
+              TechCannon
             </Link>
 
             <nav className="flex items-center gap-0.5 h-full">
