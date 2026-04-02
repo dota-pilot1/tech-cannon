@@ -5,39 +5,55 @@ PEM_FILE="../배포 가이드/hibot-d-server-key.pem"
 EC2_HOST="ubuntu@43.200.241.26"
 JAR_FILE="build/libs/parantier-api-0.0.1-SNAPSHOT.jar"
 
+# SQLite 관련 경로
+SQL_DB_DIR="/home/ubuntu/data"
+SQL_DB_PATH="$SQL_DB_DIR/sql-practice.db"
+SQL_INIT_DIR="$SQL_DB_DIR/sql"
+
 echo "🚀 백엔드 배포 시작..."
 
 # 1. 빌드
 echo "📦 빌드 중..."
 ./gradlew clean bootJar
 
-# 2. EC2에 업로드
+# 2. EC2에 JAR 업로드
 echo "☁️  EC2 업로드 중..."
 scp -i "$PEM_FILE" "$JAR_FILE" "$EC2_HOST:/home/ubuntu/"
 
-# 3. 기존 프로세스 종료
+# 3. 디렉토리 생성
+echo "📁 디렉토리 확인..."
+ssh -i "$PEM_FILE" "$EC2_HOST" "mkdir -p $SQL_DB_DIR $SQL_INIT_DIR"
+
+# 4. SQL 초기화 파일 업로드 (항상 최신 파일로 갱신)
+echo "📄 SQL 초기화 파일 업로드..."
+scp -i "$PEM_FILE" src/main/resources/sql/schema.sql "$EC2_HOST:$SQL_INIT_DIR/"
+scp -i "$PEM_FILE" src/main/resources/sql/data.sql   "$EC2_HOST:$SQL_INIT_DIR/"
+
+# 5. 기존 프로세스 종료
 echo "🛑 기존 프로세스 종료 중..."
 ssh -i "$PEM_FILE" "$EC2_HOST" "pkill -f 'java -jar parantier-api' || true"
 
-# 4. 새 애플리케이션 시작
+# 6. 새 애플리케이션 시작
 echo "▶️  새 애플리케이션 시작 중..."
 ssh -i "$PEM_FILE" "$EC2_HOST" \
-    "nohup java -jar /home/ubuntu/parantier-api-0.0.1-SNAPSHOT.jar \
+    "SQL_PRACTICE_DB_PATH=$SQL_DB_PATH SQL_INIT_DIR=$SQL_INIT_DIR \
+    nohup java -jar /home/ubuntu/parantier-api-0.0.1-SNAPSHOT.jar \
     --spring.profiles.active=prod \
     > /home/ubuntu/app.log 2>&1 &"
 
-# 5. 헬스체크 대기
+# 7. 헬스체크 대기
 echo "⏳ 애플리케이션 시작 대기 중 (15초)..."
 sleep 15
 
-# 6. 헬스체크
+# 8. 헬스체크
 echo "🏥 헬스체크 중..."
 HEALTH=$(curl -s http://43.200.241.26:8080/actuator/health)
 echo "$HEALTH"
 
 if echo "$HEALTH" | grep -q '"status":"UP"'; then
     echo "✅ 백엔드 배포 완료!"
-    echo "🌐 https://api.dxline-tallent.com"
+    echo "📦 SQLite DB: $SQL_DB_PATH"
+    echo "📄 SQL 파일: $SQL_INIT_DIR"
 else
     echo "❌ 배포 실패! 로그를 확인하세요."
     ssh -i "$PEM_FILE" "$EC2_HOST" "tail -50 /home/ubuntu/app.log"

@@ -1548,7 +1548,7 @@ export function IssuesPage() {
           {/* 카테고리 드롭다운 */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Button variant="outline" size="sm" className="h-9 gap-1 text-xs">
                 카테고리
                 {filterCategory !== "ALL" && (
                   <span className="ml-0.5 font-bold text-primary">
@@ -1615,7 +1615,7 @@ export function IssuesPage() {
           {/* 우선순위 드롭다운 */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Button variant="outline" size="sm" className="h-9 gap-1 text-xs">
                 우선순위
                 {filterPriority !== "ALL" && (
                   <span
@@ -1698,7 +1698,7 @@ export function IssuesPage() {
             placeholder="제목 검색..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
-            className="px-3 py-1.5 border border-input rounded-md text-sm h-8 w-48 focus:outline-none focus:ring-1 focus:ring-ring"
+            className="px-3 py-1.5 border border-input rounded-md text-sm h-9 w-48 focus:outline-none focus:ring-1 focus:ring-ring"
           />
 
           <div className="flex-1" />
@@ -1738,21 +1738,22 @@ export function IssuesPage() {
               ↩️ 복원
             </Button>
           )}
-          <button
+          <Button
+            variant={isBackupTab ? "default" : "outline"}
+            size="sm"
             onClick={() => {
               setIsBackupTab(!isBackupTab);
               setSelectedIssueId(null);
             }}
             className={cn(
-              "px-3 py-1.5 text-sm font-medium rounded-md transition-colors border h-8",
               isBackupTab
-                ? "bg-amber-500 text-white border-amber-500"
-                : "bg-background text-muted-foreground border-border hover:bg-muted",
+                ? "bg-amber-500 text-white border-amber-500 hover:bg-amber-600"
+                : "text-muted-foreground",
             )}
           >
             🗄️ 백업(조회)
-          </button>
-          <Button onClick={handleNew} size="sm">
+          </Button>
+          <Button onClick={handleNew} size="sm" className="bg-[#0f172a] hover:bg-[#1e293b]">
             <Plus className="w-4 h-4 mr-1" />새 이슈
           </Button>
         </div>

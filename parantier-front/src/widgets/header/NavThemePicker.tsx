@@ -18,9 +18,9 @@ export function NavThemePicker() {
         <CustomButton
           variant="ghost"
           size="icon"
-          borderColor="white"
+          borderColor="var(--nav-border)"
           textColor="var(--nav-text)"
-          className="hover:bg-[var(--nav-item-hover-bg)] hover:text-[var(--nav-text-hover)]"
+          className="hover:bg-[var(--nav-item-hover-bg)] hover:text-[var(--nav-text-hover)] h-9 w-9 rounded-md transition-all"
           title="헤더 테마 변경"
         >
           <Palette className="w-4 h-4" />

@@ -59,3 +59,13 @@ aws:
     secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
     bucket-name: ${AWS_S3_BUCKET_NAME:hibot-docu}
     region: ${AWS_S3_REGION:ap-northeast-2}
+
+# SQL Practice SQLite DB
+sql:
+  practice:
+    db:
+      path: ${SQL_PRACTICE_DB_PATH:./sql-practice.db}
+
+  # SQL Practice 초기화 파일 경로 (배포 시 외부 경로 지정 가능)
+  init:
+    dir: ${SQL_INIT_DIR:}

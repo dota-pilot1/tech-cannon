@@ -28,6 +28,7 @@ import { MeetingPage } from "@/pages/meeting/MeetingPage";
 import { WikiPage } from "@/pages/wiki/WikiPage";
 import { PrototypePage } from "@/pages/prototype/PrototypePage";
 import { DbPage } from "@/pages/db/DbPage";
+import { SqlPage } from "@/pages/sql/SqlPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -249,6 +250,14 @@ const dbRoute = createRoute({
   component: DbPage,
 });
 
+// SQL 연습장 (로그인 필요)
+const sqlRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sql",
+  beforeLoad: () => requireAuth(),
+  component: SqlPage,
+});
+
 // Prototype (로그인 필요)
 const prototypeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -291,6 +300,7 @@ const routeTree = rootRoute.addChildren([
   pilotRoute,
   wikiRoute,
   dbRoute,
+  sqlRoute,
   prototypeRoute,
   studyRoute,
   noteRoute,

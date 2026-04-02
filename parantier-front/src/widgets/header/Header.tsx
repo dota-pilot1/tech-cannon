@@ -48,8 +48,8 @@ export function Header() {
       )}
     >
       <div className="max-w-full px-6 py-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between h-14">
+          <div className="flex items-center gap-1 h-full">
             <Link
               to="/"
               className="text-xl font-bold transition-opacity cursor-pointer mr-6 text-[var(--nav-logo)] hover:text-[var(--nav-logo-hover)]"
@@ -130,25 +130,25 @@ export function Header() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2 py-3">
+          <div className="flex items-center gap-3 h-full">
             {/* 테마 피커 */}
             <NavThemePicker />
 
             {auth.isAuthenticated ? (
-              <div className="flex items-center gap-1.5 ml-1">
+              <div className="flex items-center gap-1 h-9 px-1 rounded-md border border-[var(--nav-border)] bg-[var(--nav-item-active-bg)]/20 hover:bg-[var(--nav-item-active-bg)]/40 transition-all ml-0.5">
                 <Link
                   to="/profile"
-                  className="hover:opacity-80 transition-opacity"
+                  className="flex items-center shrink-0 p-1 hover:opacity-80 transition-opacity"
                   title="프로필로 이동"
                 >
-                  <UserAvatar user={auth.user} size="sm" />
+                  <UserAvatar user={auth.user} size="xs" />
                 </Link>
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium transition-colors cursor-pointer outline-none text-[var(--nav-user-text)] hover:text-[var(--nav-user-hover)]">
-                    <span className="max-w-[100px] truncate">
+                  <DropdownMenuTrigger className="flex items-center gap-1.5 h-full px-1.5 text-sm font-medium transition-colors cursor-pointer outline-none text-[var(--nav-user-text)] hover:text-[var(--nav-user-hover)]">
+                    <span className="max-w-[120px] truncate">
                       {auth.user?.username}
                     </span>
-                    <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                    <ChevronDown className="w-3.5 h-3.5 opacity-50" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
