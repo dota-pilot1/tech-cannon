@@ -107,7 +107,6 @@ export function WorkStatusChatPanel() {
     participants,
     sendMessage,
   } = useWorkStatusChat({
-    enabled: isRestored && !!user,
     userId: user?.id,
     username: user?.username,
   });

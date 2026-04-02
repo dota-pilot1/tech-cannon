@@ -308,7 +308,6 @@ export function MeetingRoomTab() {
     participants,
     sendMessage,
   } = useMeetingChat({
-    enabled: isRestored && !!user,
     userId: user?.id,
     username: user?.username,
     channelId: selectedChannelId,
