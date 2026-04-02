@@ -106,12 +106,13 @@ export function useMeetingChat({
 
   const isConnecting = !isConnected;
 
-  // 채널 구독 (isConnected 의존 제거 - subscribe 내부에서 OPEN 체크)
+  // 채널 구독
+  const chatHandlerRef = useRef<((data: unknown) => void) | null>(null);
   useEffect(() => {
     if (!channelId) return;
     const topic = `meeting/${channelId}`;
 
-    subscribe(topic, (data) => {
+    const handler = (data: unknown) => {
       const raw = data as MeetingChatMessageWithUser & { senderName?: string };
       setMessages((prev) => [
         ...prev,
@@ -121,30 +122,34 @@ export function useMeetingChat({
           createdAt: raw.createdAt ?? new Date().toISOString(),
         },
       ]);
-    });
+    };
+    chatHandlerRef.current = handler;
+    subscribe(topic, handler);
 
-    return () => unsubscribe(topic);
+    return () => {
+      unsubscribe(topic, handler);
+      chatHandlerRef.current = null;
+    };
   }, [channelId, subscribe, unsubscribe]);
 
-  // 참여자 구독 + JOIN (onOpen으로 등록해서 재연결 시에도 자동 재참여)
+  // 참여자 구독 + JOIN (onOpen으로 재연결 시에도 자동 재참여)
+  const participantHandlerRef = useRef<((data: unknown) => void) | null>(null);
   useEffect(() => {
     if (!userId || !username) return;
 
-    subscribe(
-      "meeting-participants",
-      (data) => {
-        const payload = data as { participants: Participant[] };
-        setParticipants(payload.participants ?? []);
-      },
-      // onOpen: 연결/재연결 시 자동으로 JOIN 전송
-      () => {
-        send({
-          type: "JOIN",
-          topic: "meeting-participants",
-          data: { userId, username },
-        });
-      },
-    );
+    const handler = (data: unknown) => {
+      const payload = data as { participants: Participant[] };
+      setParticipants(payload.participants ?? []);
+    };
+    participantHandlerRef.current = handler;
+
+    subscribe("meeting-participants", handler, () => {
+      send({
+        type: "JOIN",
+        topic: "meeting-participants",
+        data: { userId, username },
+      });
+    });
 
     return () => {
       send({
@@ -152,7 +157,8 @@ export function useMeetingChat({
         topic: "meeting-participants",
         data: { userId, username },
       });
-      unsubscribe("meeting-participants");
+      unsubscribe("meeting-participants", handler);
+      participantHandlerRef.current = null;
     };
   }, [userId, username, send, subscribe, unsubscribe]);
 
@@ -202,20 +208,18 @@ export function useMeetingParticipants({
   useEffect(() => {
     if (!userId || !username) return;
 
-    subscribe(
-      "meeting-participants",
-      (data) => {
-        const payload = data as { participants: Participant[] };
-        setParticipants(payload.participants ?? []);
-      },
-      () => {
-        send({
-          type: "JOIN",
-          topic: "meeting-participants",
-          data: { userId, username },
-        });
-      },
-    );
+    const handler = (data: unknown) => {
+      const payload = data as { participants: Participant[] };
+      setParticipants(payload.participants ?? []);
+    };
+
+    subscribe("meeting-participants", handler, () => {
+      send({
+        type: "JOIN",
+        topic: "meeting-participants",
+        data: { userId, username },
+      });
+    });
 
     return () => {
       send({
@@ -223,7 +227,7 @@ export function useMeetingParticipants({
         topic: "meeting-participants",
         data: { userId, username },
       });
-      unsubscribe("meeting-participants");
+      unsubscribe("meeting-participants", handler);
       setParticipants([]);
     };
   }, [userId, username, send, subscribe, unsubscribe]);

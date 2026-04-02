@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws";
 
-interface WsMessage {
+export interface WsMessage {
   type: string;
   topic: string;
   data: unknown;
@@ -10,59 +10,47 @@ interface WsMessage {
 
 type MessageHandler = (data: unknown) => void;
 
-interface SubscriptionEntry {
-  handler: MessageHandler;
+// 토픽별 핸들러 엔트리 (다중 핸들러 + onOpen 콜백)
+interface TopicEntry {
+  handlers: Set<MessageHandler>;
   onOpen?: () => void;
 }
 
-// ── 싱글톤 WebSocket 관리자 ──────────────────────────────────────────────────
-
+// ── 싱글톤 WsManager ──────────────────────────────────────────────────────────
 class WsManager {
   private ws: WebSocket | null = null;
-  private subscriptions = new Map<string, SubscriptionEntry>();
+  private topics = new Map<string, TopicEntry>();
   private connected = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private refCount = 0; // 몇 개의 훅이 enable 중인지
-  private listeners = new Set<() => void>();
+  private refCount = 0;
+  private storeListeners = new Set<() => void>();
 
+  // useSyncExternalStore 인터페이스
   getSnapshot = () => this.connected;
-
-  subscribeStore = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+  subscribeStore = (cb: () => void) => {
+    this.storeListeners.add(cb);
+    return () => this.storeListeners.delete(cb);
   };
+  private notify() { this.storeListeners.forEach((l) => l()); }
 
-  private notify() {
-    this.listeners.forEach((l) => l());
-  }
-
-  /** enabled=true 인 훅 하나가 마운트될 때 호출 */
+  // 연결 수명: 여러 훅이 acquire/release 해도 안전
   acquire() {
     this.refCount++;
-    if (this.refCount === 1) {
-      this.connect();
-    }
+    console.log("[WS] acquire refCount=", this.refCount);
+    if (this.refCount === 1) this.connect();
   }
 
-  /** enabled=true 인 훅 하나가 언마운트되거나 enabled=false 될 때 호출 */
   release() {
     this.refCount = Math.max(0, this.refCount - 1);
-    if (this.refCount === 0) {
-      this.teardown();
-    }
+    console.log("[WS] release refCount=", this.refCount);
+    if (this.refCount === 0) this.teardown();
   }
 
   private teardown() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     this.ws?.close();
     this.ws = null;
-    if (this.connected) {
-      this.connected = false;
-      this.notify();
-    }
+    if (this.connected) { this.connected = false; this.notify(); }
   }
 
   private connect() {
@@ -70,15 +58,16 @@ class WsManager {
     if (this.ws?.readyState === WebSocket.OPEN) return;
     if (this.ws?.readyState === WebSocket.CONNECTING) return;
 
+    console.log("[WS] connecting to", WS_URL);
     const ws = new WebSocket(WS_URL);
     this.ws = ws;
 
     ws.onopen = () => {
+      console.log("[WS] connected, topics=", [...this.topics.keys()]);
       this.connected = true;
       this.notify();
-
-      // 모든 구독 복원: SUBSCRIBE 전송 + onOpen 콜백 실행
-      this.subscriptions.forEach(({ onOpen }, topic) => {
+      // 재연결 시 모든 구독 복원 + onOpen 재실행
+      this.topics.forEach(({ onOpen }, topic) => {
         ws.send(JSON.stringify({ type: "SUBSCRIBE", topic, data: null }));
         onOpen?.();
       });
@@ -87,25 +76,21 @@ class WsManager {
     ws.onmessage = (event) => {
       try {
         const msg: WsMessage = JSON.parse(event.data);
-        const entry = this.subscriptions.get(msg.topic);
-        if (entry) entry.handler(msg.data);
-      } catch (e) {
-        console.error("WS parse error:", e);
-      }
+        const entry = this.topics.get(msg.topic);
+        if (entry) entry.handlers.forEach((h) => h(msg.data));
+      } catch (e) { console.error("[WS] parse error:", e); }
     };
 
     ws.onclose = () => {
+      console.log("[WS] closed, refCount=", this.refCount);
       this.connected = false;
       this.notify();
-      // 아직 사용 중이면 재연결
       if (this.refCount > 0) {
         this.reconnectTimer = setTimeout(() => this.connect(), 2000);
       }
     };
 
-    ws.onerror = (e) => {
-      console.error("WS error:", e);
-    };
+    ws.onerror = (e) => { console.error("[WS] error:", e); };
   }
 
   send(msg: WsMessage) {
@@ -114,47 +99,49 @@ class WsManager {
     }
   }
 
-  addSubscription(topic: string, entry: SubscriptionEntry) {
-    this.subscriptions.set(topic, entry);
+  // 핸들러 추가 (토픽당 여러 핸들러 가능)
+  addHandler(topic: string, handler: MessageHandler, onOpen?: () => void) {
+    let entry = this.topics.get(topic);
+    if (!entry) {
+      entry = { handlers: new Set(), onOpen };
+      this.topics.set(topic, entry);
+    } else {
+      if (onOpen) entry.onOpen = onOpen; // 나중 등록이 우선
+    }
+    entry.handlers.add(handler);
+
     // 이미 연결돼있으면 즉시 SUBSCRIBE + onOpen 실행
     if (this.ws?.readyState === WebSocket.OPEN) {
+      console.log("[WS] addHandler immediate SUBSCRIBE+onOpen for", topic);
       this.ws.send(JSON.stringify({ type: "SUBSCRIBE", topic, data: null }));
-      entry.onOpen?.();
+      onOpen?.();
     }
   }
 
-  removeSubscription(topic: string) {
-    this.subscriptions.delete(topic);
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: "UNSUBSCRIBE", topic, data: null }));
+  // 핸들러 제거 (해당 토픽 핸들러가 모두 없어지면 UNSUBSCRIBE)
+  removeHandler(topic: string, handler: MessageHandler) {
+    const entry = this.topics.get(topic);
+    if (!entry) return;
+    entry.handlers.delete(handler);
+    if (entry.handlers.size === 0) {
+      this.topics.delete(topic);
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: "UNSUBSCRIBE", topic, data: null }));
+      }
     }
-  }
-
-  isOpen() {
-    return this.ws?.readyState === WebSocket.OPEN;
   }
 }
 
-// 전역 싱글톤
 const wsManager = new WsManager();
 
 // ── React 훅 ─────────────────────────────────────────────────────────────────
+interface UsePureWebSocketOptions { enabled?: boolean; }
 
-interface UsePureWebSocketOptions {
-  enabled?: boolean;
-}
-
-export function usePureWebSocket({
-  enabled = true,
-}: UsePureWebSocketOptions = {}) {
-  const isConnected = useSyncExternalStore(
-    wsManager.subscribeStore,
-    wsManager.getSnapshot,
-  );
-
-  // 이 훅 인스턴스가 현재 acquire 중인지 추적
+export function usePureWebSocket({ enabled = true }: UsePureWebSocketOptions = {}) {
+  const isConnected = useSyncExternalStore(wsManager.subscribeStore, wsManager.getSnapshot);
   const acquiredRef = useRef(false);
 
+  // enabled 변경 시 acquire/release
   useEffect(() => {
     if (enabled && !acquiredRef.current) {
       acquiredRef.current = true;
@@ -165,7 +152,7 @@ export function usePureWebSocket({
     }
   }, [enabled]);
 
-  // 언마운트 시 정리
+  // 언마운트 시 release (enabled가 true인 채로 언마운트)
   useEffect(() => {
     return () => {
       if (acquiredRef.current) {
@@ -175,20 +162,21 @@ export function usePureWebSocket({
     };
   }, []);
 
-  const send = useCallback((msg: WsMessage) => {
-    wsManager.send(msg);
-  }, []);
+  const send = useCallback((msg: WsMessage) => wsManager.send(msg), []);
 
   const subscribe = useCallback(
     (topic: string, handler: MessageHandler, onOpen?: () => void) => {
-      wsManager.addSubscription(topic, { handler, onOpen });
+      wsManager.addHandler(topic, handler, onOpen);
     },
-    [],
+    []
   );
 
-  const unsubscribe = useCallback((topic: string) => {
-    wsManager.removeSubscription(topic);
-  }, []);
+  const unsubscribe = useCallback(
+    (topic: string, handler: MessageHandler) => {
+      wsManager.removeHandler(topic, handler);
+    },
+    []
+  );
 
   return { isConnected, send, subscribe, unsubscribe };
 }

@@ -25,7 +25,7 @@ export function useIssueChat({ issueId, enabled = true }: UseIssueChatOptions) {
     if (!issueId) return;
     const topic = `issue/${issueId}`;
 
-    subscribe(topic, (data) => {
+    const handler = (data: unknown) => {
       const raw = data as MessageWithUser & { senderName?: string };
       setMessages((prev) => [
         ...prev,
@@ -35,9 +35,11 @@ export function useIssueChat({ issueId, enabled = true }: UseIssueChatOptions) {
           createdAt: raw.createdAt ?? new Date().toISOString(),
         },
       ]);
-    });
+    };
 
-    return () => unsubscribe(topic);
+    subscribe(topic, handler);
+
+    return () => unsubscribe(topic, handler);
   }, [issueId, subscribe, unsubscribe]);
 
   /**

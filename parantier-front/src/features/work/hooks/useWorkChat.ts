@@ -25,7 +25,7 @@ export function useWorkChat({ workId, enabled = true }: UseWorkChatOptions) {
     if (!workId) return;
     const topic = `work/${workId}`;
 
-    subscribe(topic, (data) => {
+    const handler = (data: unknown) => {
       const raw = data as WorkMessageWithUser & { senderName?: string };
       setMessages((prev) => [
         ...prev,
@@ -35,9 +35,11 @@ export function useWorkChat({ workId, enabled = true }: UseWorkChatOptions) {
           createdAt: raw.createdAt ?? new Date().toISOString(),
         },
       ]);
-    });
+    };
 
-    return () => unsubscribe(topic);
+    subscribe(topic, handler);
+
+    return () => unsubscribe(topic, handler);
   }, [workId, subscribe, unsubscribe]);
 
   /**

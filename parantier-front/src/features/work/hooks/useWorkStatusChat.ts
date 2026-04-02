@@ -38,7 +38,7 @@ export function useWorkStatusChat({
   useEffect(() => {
     if (!userId || !username) return;
 
-    subscribe("work-status", (data) => {
+    const chatHandler = (data: unknown) => {
       const raw = data as WorkStatusChatMessageWithUser & {
         senderName?: string;
       };
@@ -50,30 +50,29 @@ export function useWorkStatusChat({
           createdAt: raw.createdAt ?? new Date().toISOString(),
         },
       ]);
-    });
+    };
 
-    return () => unsubscribe("work-status");
+    subscribe("work-status", chatHandler);
+
+    return () => unsubscribe("work-status", chatHandler);
   }, [userId, username, subscribe, unsubscribe]);
 
   // 참여자 구독 + JOIN (onOpen 패턴)
   useEffect(() => {
     if (!userId || !username) return;
 
-    subscribe(
-      "work-status-participants",
-      (data) => {
-        const payload = data as { participants: Participant[] };
-        setParticipants(payload.participants ?? []);
-      },
-      // onOpen: 연결/재연결 시 자동으로 JOIN 전송
-      () => {
-        send({
-          type: "JOIN",
-          topic: "work-status-participants",
-          data: { userId, username },
-        });
-      },
-    );
+    const participantHandler = (data: unknown) => {
+      const payload = data as { participants: Participant[] };
+      setParticipants(payload.participants ?? []);
+    };
+
+    subscribe("work-status-participants", participantHandler, () => {
+      send({
+        type: "JOIN",
+        topic: "work-status-participants",
+        data: { userId, username },
+      });
+    });
 
     return () => {
       send({
@@ -81,7 +80,7 @@ export function useWorkStatusChat({
         topic: "work-status-participants",
         data: { userId, username },
       });
-      unsubscribe("work-status-participants");
+      unsubscribe("work-status-participants", participantHandler);
     };
   }, [userId, username, send, subscribe, unsubscribe]);
 
@@ -122,21 +121,18 @@ export function useWorkStatusParticipants({
   useEffect(() => {
     if (!userId || !username) return;
 
-    subscribe(
-      "work-status-participants",
-      (data) => {
-        const payload = data as { participants: Participant[] };
-        setParticipants(payload.participants ?? []);
-      },
-      // onOpen: 연결/재연결 시 자동으로 JOIN 전송
-      () => {
-        send({
-          type: "JOIN",
-          topic: "work-status-participants",
-          data: { userId, username },
-        });
-      },
-    );
+    const handler = (data: unknown) => {
+      const payload = data as { participants: Participant[] };
+      setParticipants(payload.participants ?? []);
+    };
+
+    subscribe("work-status-participants", handler, () => {
+      send({
+        type: "JOIN",
+        topic: "work-status-participants",
+        data: { userId, username },
+      });
+    });
 
     return () => {
       send({
@@ -144,7 +140,7 @@ export function useWorkStatusParticipants({
         topic: "work-status-participants",
         data: { userId, username },
       });
-      unsubscribe("work-status-participants");
+      unsubscribe("work-status-participants", handler);
       setParticipants([]);
     };
   }, [userId, username, send, subscribe, unsubscribe]);
