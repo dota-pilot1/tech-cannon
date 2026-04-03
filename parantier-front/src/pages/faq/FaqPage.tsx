@@ -26,27 +26,33 @@ function FaqBlockViewer({ block }: { block: FaqBlock }) {
 
   if (isQuestion) {
     return (
-      <div className="flex justify-start mb-4">
-        <div className="flex items-start gap-3 max-w-[95%] w-full">
-          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0 text-sm font-bold text-muted-foreground mt-1">
+      <div className="flex mb-3">
+        {/* Q 왼쪽 고정 */}
+        <div className="flex items-start gap-3 w-[48%]">
+          <div className="w-8 h-8 rounded-full bg-muted border-2 border-border flex items-center justify-center shrink-0 text-sm font-bold text-foreground mt-1">
             Q
           </div>
-          <div className="bg-muted rounded-2xl rounded-tl-none px-4 py-3 min-w-0 flex-1">
+          <div className="flex-1 bg-muted border border-border rounded-2xl rounded-tl-none px-4 py-3 min-w-0">
             <LexicalViewer content={block.content} />
           </div>
         </div>
+        {/* 오른쪽 빈 공간 */}
+        <div className="w-[52%]" />
       </div>
     );
   }
 
   if (isAnswer) {
     return (
-      <div className="flex justify-end mb-4">
-        <div className="flex items-start gap-3 max-w-[95%] w-full flex-row-reverse">
+      <div className="flex mb-3">
+        {/* 왼쪽 빈 공간 */}
+        <div className="w-[52%]" />
+        {/* A 오른쪽 고정 */}
+        <div className="flex items-start gap-3 w-[48%] flex-row-reverse">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 text-sm font-bold text-primary-foreground mt-1">
             A
           </div>
-          <div className="bg-primary/10 border border-primary/20 rounded-2xl rounded-tr-none px-4 py-3 min-w-0 flex-1">
+          <div className="flex-1 bg-primary/15 border border-primary/30 rounded-2xl rounded-tr-none px-4 py-3 min-w-0">
             <LexicalViewer content={block.content} />
           </div>
         </div>
@@ -546,7 +552,7 @@ export default function FaqPage() {
 
         {/* 섹션 선택됨 */}
         {selectedSectionId && (
-          <div className="relative max-w-5xl mx-auto px-6 py-6">
+          <div className="relative px-6 py-6">
             {/* 편집 버튼 - 우상단 고정 (ADMIN, 뷰어 모드에서만) */}
             {isAdmin && !isEditing && (
               <div className="absolute top-4 right-6">
