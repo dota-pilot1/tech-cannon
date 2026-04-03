@@ -7,6 +7,7 @@ import com.mapo.palantier.architecture.domain.ArchitectureSection;
 import com.mapo.palantier.architecture.dto.BlockDto;
 import com.mapo.palantier.architecture.dto.CategoryRequest;
 import com.mapo.palantier.architecture.dto.ReorderRequest;
+import com.mapo.palantier.architecture.dto.ReorderRequest.ReorderItem;
 import com.mapo.palantier.architecture.dto.SectionRequest;
 import com.mapo.palantier.user.domain.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -71,11 +72,11 @@ public class ArchitectureController {
 
     @Operation(summary = "카테고리 순서 변경 [ADMIN]")
     @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping("/categories/reorder")
+    @PutMapping("/categories/reorder")
     public ResponseEntity<Void> reorderCategories(
-        @RequestBody ReorderRequest req
+        @RequestBody List<ReorderItem> items
     ) {
-        architectureService.reorderCategories(req.getItems());
+        architectureService.reorderCategories(items);
         return ResponseEntity.ok().build();
     }
 
@@ -126,11 +127,11 @@ public class ArchitectureController {
 
     @Operation(summary = "섹션 순서 변경 [ADMIN]")
     @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping("/sections/reorder")
+    @PutMapping("/sections/reorder")
     public ResponseEntity<Void> reorderSections(
-        @RequestBody ReorderRequest req
+        @RequestBody List<ReorderItem> items
     ) {
-        architectureService.reorderSections(req.getItems());
+        architectureService.reorderSections(items);
         return ResponseEntity.ok().build();
     }
 

@@ -7,6 +7,7 @@ import com.mapo.palantier.textbook.domain.TextbookSection;
 import com.mapo.palantier.textbook.dto.TextbookBlockDto;
 import com.mapo.palantier.textbook.dto.TextbookCategoryRequest;
 import com.mapo.palantier.textbook.dto.TextbookReorderRequest;
+import com.mapo.palantier.textbook.dto.TextbookReorderRequest.ReorderItem;
 import com.mapo.palantier.textbook.dto.TextbookSectionRequest;
 import com.mapo.palantier.user.domain.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -71,11 +72,11 @@ public class TextbookController {
 
     @Operation(summary = "카테고리 순서 변경 [ADMIN]")
     @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping("/categories/reorder")
+    @PutMapping("/categories/reorder")
     public ResponseEntity<Void> reorderCategories(
-        @RequestBody TextbookReorderRequest req
+        @RequestBody List<ReorderItem> items
     ) {
-        textbookService.reorderCategories(req.getItems());
+        textbookService.reorderCategories(items);
         return ResponseEntity.ok().build();
     }
 
@@ -88,9 +89,7 @@ public class TextbookController {
     public ResponseEntity<List<TextbookSection>> getSections(
         @PathVariable Long id
     ) {
-        return ResponseEntity.ok(
-            textbookService.getSectionsByCategoryId(id)
-        );
+        return ResponseEntity.ok(textbookService.getSectionsByCategoryId(id));
     }
 
     // ──────────────────────────────────────────
@@ -100,7 +99,9 @@ public class TextbookController {
     @Operation(summary = "섹션 생성 [ADMIN]")
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/sections")
-    public ResponseEntity<Void> createSection(@RequestBody TextbookSectionRequest req) {
+    public ResponseEntity<Void> createSection(
+        @RequestBody TextbookSectionRequest req
+    ) {
         textbookService.createSection(req);
         return ResponseEntity.ok().build();
     }
@@ -126,11 +127,11 @@ public class TextbookController {
 
     @Operation(summary = "섹션 순서 변경 [ADMIN]")
     @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping("/sections/reorder")
+    @PutMapping("/sections/reorder")
     public ResponseEntity<Void> reorderSections(
-        @RequestBody TextbookReorderRequest req
+        @RequestBody List<ReorderItem> items
     ) {
-        textbookService.reorderSections(req.getItems());
+        textbookService.reorderSections(items);
         return ResponseEntity.ok().build();
     }
 

@@ -7,6 +7,7 @@ import com.mapo.palantier.faq.domain.FaqSection;
 import com.mapo.palantier.faq.dto.FaqBlockDto;
 import com.mapo.palantier.faq.dto.FaqCategoryRequest;
 import com.mapo.palantier.faq.dto.FaqReorderRequest;
+import com.mapo.palantier.faq.dto.FaqReorderRequest.ReorderItem;
 import com.mapo.palantier.faq.dto.FaqSectionRequest;
 import com.mapo.palantier.user.domain.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -71,11 +72,11 @@ public class FaqController {
 
     @Operation(summary = "카테고리 순서 변경 [ADMIN]")
     @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping("/categories/reorder")
+    @PutMapping("/categories/reorder")
     public ResponseEntity<Void> reorderCategories(
-        @RequestBody FaqReorderRequest req
+        @RequestBody List<ReorderItem> items
     ) {
-        faqService.reorderCategories(req.getItems());
+        faqService.reorderCategories(items);
         return ResponseEntity.ok().build();
     }
 
@@ -85,9 +86,7 @@ public class FaqController {
 
     @Operation(summary = "카테고리별 섹션 목록 조회")
     @GetMapping("/categories/{id}/sections")
-    public ResponseEntity<List<FaqSection>> getSections(
-        @PathVariable Long id
-    ) {
+    public ResponseEntity<List<FaqSection>> getSections(@PathVariable Long id) {
         return ResponseEntity.ok(faqService.getSectionsByCategoryId(id));
     }
 
@@ -98,7 +97,9 @@ public class FaqController {
     @Operation(summary = "섹션 생성 [ADMIN]")
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/sections")
-    public ResponseEntity<Void> createSection(@RequestBody FaqSectionRequest req) {
+    public ResponseEntity<Void> createSection(
+        @RequestBody FaqSectionRequest req
+    ) {
         faqService.createSection(req);
         return ResponseEntity.ok().build();
     }
@@ -124,11 +125,11 @@ public class FaqController {
 
     @Operation(summary = "섹션 순서 변경 [ADMIN]")
     @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping("/sections/reorder")
+    @PutMapping("/sections/reorder")
     public ResponseEntity<Void> reorderSections(
-        @RequestBody FaqReorderRequest req
+        @RequestBody List<ReorderItem> items
     ) {
-        faqService.reorderSections(req.getItems());
+        faqService.reorderSections(items);
         return ResponseEntity.ok().build();
     }
 
@@ -138,9 +139,7 @@ public class FaqController {
 
     @Operation(summary = "섹션별 블록 목록 조회")
     @GetMapping("/sections/{id}/blocks")
-    public ResponseEntity<List<FaqBlock>> getBlocks(
-        @PathVariable Long id
-    ) {
+    public ResponseEntity<List<FaqBlock>> getBlocks(@PathVariable Long id) {
         return ResponseEntity.ok(faqService.getBlocksBySectionId(id));
     }
 
