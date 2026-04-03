@@ -16,14 +16,12 @@ export function NavThemePicker() {
     <Popover>
       <PopoverTrigger asChild>
         <CustomButton
-          variant="ghost"
+          variant="outline"
           size="icon"
-          borderColor="var(--nav-border)"
-          textColor="var(--nav-text)"
-          className="hover:bg-[var(--nav-item-hover-bg)] hover:text-[var(--nav-text-hover)] h-9 w-9 rounded-md transition-all"
+          className="border border-[var(--nav-border)] bg-[var(--nav-item-active-bg)]/20 hover:bg-[var(--nav-item-hover-bg)] hover:text-[var(--nav-text-hover)] hover:border-[var(--nav-border)]/80 h-9 w-9 rounded-lg transition-all shadow-sm"
           title="헤더 테마 변경"
         >
-          <Palette className="w-4 h-4" />
+          <Palette className="w-4 h-4 text-[var(--nav-text)]" />
         </CustomButton>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-48 p-2">

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.architecture.infrastructure.ArchitectureBlockMapper">
+
+    <resultMap id="ArchitectureBlockResultMap" type="com.mapo.palantier.architecture.domain.ArchitectureBlock">
+        <id property="id" column="id"/>
+        <result property="sectionId" column="section_id"/>
+        <result property="blockType" column="block_type"/>
+        <result property="content" column="content"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+    </resultMap>
+
+    <select id="findBySectionId" resultMap="ArchitectureBlockResultMap">
+        SELECT id, section_id, block_type, content, sort_order, created_at, updated_at, updated_by
+        FROM architecture_blocks
+        WHERE section_id = #{sectionId}
+        ORDER BY sort_order ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO architecture_blocks (section_id, block_type, content, sort_order, updated_by)
+        VALUES (#{sectionId}, #{blockType}, #{content}, #{sortOrder}, #{updatedBy})
+    </insert>
+
+    <delete id="deleteBySectionId">
+        DELETE FROM architecture_blocks
+        WHERE section_id = #{sectionId}
+    </delete>
+
+</mapper>

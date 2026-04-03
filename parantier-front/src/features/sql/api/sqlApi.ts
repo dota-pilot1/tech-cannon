@@ -29,8 +29,11 @@ export interface SqlExecuteResponse {
 }
 
 export const sqlApi = {
-  execute: async (query: string): Promise<SqlExecuteResponse> => {
-    const res = await fetch(`${BASE}/sql/execute`, {
+  execute: async (
+    query: string,
+    setId: number = 1,
+  ): Promise<SqlExecuteResponse> => {
+    const res = await fetch(`${BASE}/sql/execute?set=${setId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
@@ -38,13 +41,16 @@ export const sqlApi = {
     return res.json();
   },
 
-  getTables: async (): Promise<TableInfo[]> => {
-    const res = await fetch(`${BASE}/sql/tables`);
+  getTables: async (setId: number = 1): Promise<TableInfo[]> => {
+    const res = await fetch(`${BASE}/sql/tables?set=${setId}`);
     return res.json();
   },
 
-  getTable: async (tableName: string): Promise<TableInfo> => {
-    const res = await fetch(`${BASE}/sql/tables/${tableName}`);
+  getTable: async (
+    tableName: string,
+    setId: number = 1,
+  ): Promise<TableInfo> => {
+    const res = await fetch(`${BASE}/sql/tables/${tableName}?set=${setId}`);
     return res.json();
   },
 };

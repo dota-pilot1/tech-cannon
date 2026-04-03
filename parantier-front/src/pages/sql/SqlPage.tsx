@@ -15,23 +15,27 @@ export function SqlPage() {
   const [history, setHistory] = useState<SqlHistoryItem[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [isLoadingTables, setIsLoadingTables] = useState(false);
+  const [activeSet, setActiveSet] = useState(1);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const loadTables = useCallback(async () => {
-    setIsLoadingTables(true);
-    try {
-      const data = await sqlApi.getTables();
-      setTables(data);
-      if (!selectedTable && data.length > 0) {
-        setSelectedTable(data[0].tableName);
+  const loadTables = useCallback(
+    async (setId: number = activeSet) => {
+      setIsLoadingTables(true);
+      try {
+        const data = await sqlApi.getTables(setId);
+        setTables(data);
+        if (!selectedTable && data.length > 0) {
+          setSelectedTable(data[0].tableName);
+        }
+      } catch (e) {
+        console.error("테이블 로드 실패", e);
+      } finally {
+        setIsLoadingTables(false);
       }
-    } catch (e) {
-      console.error("테이블 로드 실패", e);
-    } finally {
-      setIsLoadingTables(false);
-    }
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    [activeSet],
+  );
 
   useEffect(() => {
     loadTables();
@@ -41,40 +45,53 @@ export function SqlPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [history]);
 
-  const executeQuery = useCallback(async (query: string) => {
-    setIsExecuting(true);
-    try {
-      const response = await sqlApi.execute(query);
-      const item: SqlHistoryItem = {
-        id: Date.now().toString(),
-        query,
-        response,
-        timestamp: new Date(),
-      };
-      setHistory((prev) => [...prev, item]);
+  const executeQuery = useCallback(
+    async (query: string) => {
+      setIsExecuting(true);
+      try {
+        const response = await sqlApi.execute(query, activeSet);
+        const item: SqlHistoryItem = {
+          id: Date.now().toString(),
+          query,
+          response,
+          timestamp: new Date(),
+        };
+        setHistory((prev) => [...prev, item]);
 
-      const upper = query.trim().toUpperCase();
-      if (
-        upper.startsWith("CREATE") ||
-        upper.startsWith("DROP") ||
-        upper.startsWith("ALTER") ||
-        upper.startsWith("INSERT") ||
-        upper.startsWith("UPDATE") ||
-        upper.startsWith("DELETE")
-      ) {
-        const data = await sqlApi.getTables();
-        setTables(data);
+        const upper = query.trim().toUpperCase();
+        if (
+          upper.startsWith("CREATE") ||
+          upper.startsWith("DROP") ||
+          upper.startsWith("ALTER") ||
+          upper.startsWith("INSERT") ||
+          upper.startsWith("UPDATE") ||
+          upper.startsWith("DELETE")
+        ) {
+          const data = await sqlApi.getTables(activeSet);
+          setTables(data);
+        }
+      } catch (e) {
+        console.error("쿼리 실행 실패", e);
+      } finally {
+        setIsExecuting(false);
       }
-    } catch (e) {
-      console.error("쿼리 실행 실패", e);
-    } finally {
-      setIsExecuting(false);
-    }
-  }, []);
+    },
+    [activeSet],
+  );
 
   const handleSelectTable = useCallback((tableName: string) => {
     setSelectedTable(tableName);
   }, []);
+
+  const handleSetChange = useCallback(
+    (set: number) => {
+      setActiveSet(set);
+      setHistory([]);
+      setSelectedTable(null);
+      loadTables(set);
+    },
+    [loadTables],
+  );
 
   return (
     <div className="flex h-[calc(100vh-56px)] bg-background">
@@ -88,7 +105,7 @@ export function SqlPage() {
           <Database className="w-5 h-5 text-primary" />
           <span className="font-semibold text-foreground">SQL 연습장</span>
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-            SQLite
+            SQLite · SET {activeSet}
           </span>
           <div className="ml-auto">
             {history.length > 0 && (
@@ -141,8 +158,10 @@ export function SqlPage() {
         tables={tables}
         selectedTable={selectedTable}
         onSelectTable={handleSelectTable}
-        onRefresh={loadTables}
+        onRefresh={() => loadTables(activeSet)}
         isLoading={isLoadingTables}
+        activeSet={activeSet}
+        onSetChange={handleSetChange}
       />
     </div>
   );

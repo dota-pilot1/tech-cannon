@@ -24,6 +24,7 @@ import { NotePage } from "@/pages/note/NotePage";
 import { PilotPage } from "@/pages/pilot/PilotPage";
 import { WorkStatusPage } from "@/pages/work-status/WorkStatusPage";
 import { ToolsPage } from "@/pages/tools/ToolsPage";
+import { FaqPage } from "@/pages/faq/FaqPage";
 import { ChallengePage } from "@/pages/challenge/ChallengePage";
 import { MeetingPage } from "@/pages/meeting/MeetingPage";
 import { WikiPage } from "@/pages/wiki/WikiPage";
@@ -31,6 +32,7 @@ import { PromptPage } from "@/pages/prompt/PromptPage";
 import { PrototypePage } from "@/pages/prototype/PrototypePage";
 import { DbPage } from "@/pages/db/DbPage";
 import { SqlPage } from "@/pages/sql/SqlPage";
+import ArchitecturePage from "@/pages/architecture/ArchitecturePage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -268,12 +270,28 @@ const sqlRoute = createRoute({
   component: SqlPage,
 });
 
+// FAQ 페이지 (로그인 필요)
+const faqRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/faq",
+  beforeLoad: () => requireAuth(),
+  component: FaqPage,
+});
+
 // 챌린지 페이지 (로그인 필요)
 const challengeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/challenge",
   beforeLoad: () => requireAuth(),
   component: ChallengePage,
+});
+
+// 아키텍처 페이지 (로그인 필요)
+const architectureRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/architecture",
+  beforeLoad: () => requireAuth(),
+  component: ArchitecturePage,
 });
 
 // Prototype (로그인 필요)
@@ -326,6 +344,8 @@ const routeTree = rootRoute.addChildren([
   toolsRoute,
   meetingRoute,
   challengeRoute,
+  faqRoute,
+  architectureRoute,
   notFoundRoute,
 ]);
 

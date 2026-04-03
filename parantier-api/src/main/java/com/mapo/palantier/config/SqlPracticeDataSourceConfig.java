@@ -1,22 +1,19 @@
 package com.mapo.palantier.config;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.sqlite.SQLiteDataSource;
-
-import javax.sql.DataSource;
 
 @Configuration
 public class SqlPracticeDataSourceConfig {
 
     @Value("${sql.practice.db.path:./sql-practice.db}")
-    private String dbPath;
+    private String dbBasePath;
 
-    @Bean(name = "sqlPracticeDataSource")
-    public DataSource sqlPracticeDataSource() {
-        SQLiteDataSource ds = new SQLiteDataSource();
-        ds.setUrl("jdbc:sqlite:" + dbPath);
-        return ds;
+    public String getDbPath(int setId) {
+        if (setId <= 0 || setId > 10) return dbBasePath;
+        String base = dbBasePath.endsWith(".db")
+            ? dbBasePath.substring(0, dbBasePath.length() - 3)
+            : dbBasePath;
+        return base + "-" + setId + ".db";
     }
 }

@@ -9,6 +9,8 @@ interface SqlSchemaSidebarProps {
   onSelectTable: (tableName: string) => void;
   onRefresh: () => void;
   isLoading: boolean;
+  activeSet: number;
+  onSetChange: (set: number) => void;
 }
 
 interface SchemaDialogProps {
@@ -120,18 +122,22 @@ function SchemaDialog({ table, onClose }: SchemaDialogProps) {
   );
 }
 
+const SET_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
 export function SqlSchemaSidebar({
   tables,
   selectedTable,
   onSelectTable,
   onRefresh,
   isLoading,
+  activeSet,
+  onSetChange,
 }: SqlSchemaSidebarProps) {
   const [schemaDialog, setSchemaDialog] = useState<TableInfo | null>(null);
 
   return (
     <>
-      <div className="w-56 border-l border-border bg-card flex flex-col shrink-0">
+      <div className="w-64 border-l border-border bg-card flex flex-col shrink-0">
         {/* 헤더 */}
         <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
           <h3 className="font-semibold text-foreground text-sm">테이블 정보</h3>
@@ -146,6 +152,32 @@ export function SqlSchemaSidebar({
               className={"w-3.5 h-3.5 " + (isLoading ? "animate-spin" : "")}
             />
           </Button>
+        </div>
+
+        {/* 세트 선택 */}
+        <div className="px-3 py-2.5 border-b border-border shrink-0">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
+            SET
+          </p>
+          <div className="grid grid-cols-5 gap-1">
+            {SET_NUMBERS.map((set) => {
+              const isActive = activeSet === set;
+              return (
+                <button
+                  key={set}
+                  onClick={() => onSetChange(set)}
+                  className={
+                    "rounded text-xs font-bold py-1 transition-colors " +
+                    (isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80")
+                  }
+                >
+                  {set}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* 테이블 목록 */}

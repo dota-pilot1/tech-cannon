@@ -1,100 +1,128 @@
-import { useState, useEffect } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { useMenuTree } from '@/features/menu/hooks/useMenuTree'
-import { menuApi } from '@/entities/menu/api/menuApi'
-import { Button } from '@/shared/ui/button'
-import type { Menu, CreateMenuRequest } from '@/types/menu'
-import { TreeView } from './components/TreeView'
-import { MenuEditForm } from './components/MenuEditForm'
-import { ContextMenu } from './components/ContextMenu'
-import { DeleteConfirmDialog } from './components/DeleteConfirmDialog'
-import { DebugPanel } from './components/DebugPanel'
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useMenuTree } from "@/features/menu/hooks/useMenuTree";
+import { menuApi } from "@/entities/menu/api/menuApi";
+import { Button } from "@/shared/ui/button";
+import type { Menu, CreateMenuRequest } from "@/types/menu";
+import { TreeView } from "./components/TreeView";
+import { MenuEditForm } from "./components/MenuEditForm";
+import { ContextMenu } from "./components/ContextMenu";
+import { DeleteConfirmDialog } from "./components/DeleteConfirmDialog";
+import { MoveMenuDialog } from "./components/MoveMenuDialog";
+import { DebugPanel } from "./components/DebugPanel";
 
 export function MenusPage() {
-  const queryClient = useQueryClient()
-  const { data: menus = [], isLoading } = useMenuTree()
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
-  const [selectedMenu, setSelectedMenu] = useState<Menu | null>(null)
-  const [isCreating, setIsCreating] = useState(false)
-  const [parentMenu, setParentMenu] = useState<Menu | null>(null)
-  const [addingChildToId, setAddingChildToId] = useState<number | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<Menu | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [inputValue, setInputValue] = useState('')
+  const queryClient = useQueryClient();
+  const { data: menus = [], isLoading } = useMenuTree();
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [selectedMenu, setSelectedMenu] = useState<Menu | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [parentMenu, setParentMenu] = useState<Menu | null>(null);
+  const [addingChildToId, setAddingChildToId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Menu | null>(null);
+  const [moveTarget, setMoveTarget] = useState<Menu | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [contextMenu, setContextMenu] = useState<{
-    x: number
-    y: number
-    menu: Menu
-  } | null>(null)
+    x: number;
+    y: number;
+    menu: Menu;
+  } | null>(null);
 
   // Create mutation
   const createMutation = useMutation({
     mutationFn: (data: CreateMenuRequest) => menuApi.createMenu(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menus', 'tree'] })
-      toast.success('메뉴가 추가되었습니다')
-      setIsCreating(false)
-      setSelectedMenu(null)
-      setParentMenu(null)
+      queryClient.invalidateQueries({ queryKey: ["menus", "tree"] });
+      toast.success("메뉴가 추가되었습니다");
+      setIsCreating(false);
+      setSelectedMenu(null);
+      setParentMenu(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || '메뉴 추가에 실패했습니다')
+      toast.error(error.response?.data?.message || "메뉴 추가에 실패했습니다");
     },
-  })
+  });
 
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: CreateMenuRequest }) =>
       menuApi.updateMenu(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menus', 'tree'] })
-      toast.success('메뉴가 수정되었습니다')
-      setSelectedMenu(null)
-      setParentMenu(null)
+      queryClient.invalidateQueries({ queryKey: ["menus", "tree"] });
+      toast.success("메뉴가 수정되었습니다");
+      setSelectedMenu(null);
+      setParentMenu(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || '메뉴 수정에 실패했습니다')
+      toast.error(error.response?.data?.message || "메뉴 수정에 실패했습니다");
     },
-  })
+  });
+
+  // Move mutation
+  const moveMutation = useMutation({
+    mutationFn: ({
+      menu,
+      newParentId,
+    }: {
+      menu: Menu;
+      newParentId: number | null;
+    }) =>
+      menuApi.updateMenu(menu.id, {
+        name: menu.name,
+        path: menu.path ?? null,
+        parentId: newParentId,
+        menuType: newParentId !== null ? "SUB" : "HEADER",
+        orderNum: menu.orderNum,
+        requiredRole: menu.requiredRole ?? null,
+        icon: menu.icon ?? null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["menus", "tree"] });
+      toast.success("메뉴가 이동되었습니다");
+      setMoveTarget(null);
+    },
+    onError: () => toast.error("메뉴 이동에 실패했습니다"),
+  });
 
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id: number) => menuApi.deleteMenu(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menus', 'tree'] })
-      toast.success('메뉴가 삭제되었습니다')
-      setSelectedMenu(null)
+      queryClient.invalidateQueries({ queryKey: ["menus", "tree"] });
+      toast.success("메뉴가 삭제되었습니다");
+      setSelectedMenu(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || '메뉴 삭제에 실패했습니다')
+      toast.error(error.response?.data?.message || "메뉴 삭제에 실패했습니다");
     },
-  })
+  });
 
   // 확장/축소 토글
   const handleToggle = (id: number) => {
     setExpandedIds((prev) => {
-      const next = new Set(prev)
+      const next = new Set(prev);
       if (next.has(id)) {
-        next.delete(id)
+        next.delete(id);
       } else {
-        next.add(id)
+        next.add(id);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   // 메뉴 선택
   const handleSelect = (menu: Menu) => {
-    setSelectedMenu(menu)
-    setIsCreating(false)
-  }
+    setSelectedMenu(menu);
+    setIsCreating(false);
+  };
 
   // 새 메뉴 추가 모드
   const handleCreateNew = () => {
-    setSelectedMenu(null)
-    setIsCreating(true)
-  }
+    setSelectedMenu(null);
+    setIsCreating(true);
+  };
 
   // 저장 처리
   const handleSave = (menuData: Partial<Menu>) => {
@@ -106,255 +134,279 @@ export function MenusPage() {
       orderNum: menuData.orderNum,
       requiredRole: menuData.requiredRole || undefined,
       icon: menuData.icon || undefined,
-    }
+    };
 
     if (menuData.id) {
       // 수정
-      updateMutation.mutate({ id: menuData.id, data: requestData })
+      updateMutation.mutate({ id: menuData.id, data: requestData });
     } else {
       // 생성
-      createMutation.mutate(requestData)
+      createMutation.mutate(requestData);
     }
-  }
+  };
 
   // 하위 메뉴 개수 계산
   const countChildren = (menuId: number): number => {
     const flattenMenus = (menuList: Menu[]): Menu[] => {
-      const result: Menu[] = []
+      const result: Menu[] = [];
       menuList.forEach((menu) => {
-        result.push(menu)
+        result.push(menu);
         if (menu.children && menu.children.length > 0) {
-          result.push(...flattenMenus(menu.children))
+          result.push(...flattenMenus(menu.children));
         }
-      })
-      return result
-    }
+      });
+      return result;
+    };
 
-    const allMenus = flattenMenus(menus)
-    const children = allMenus.filter((m) => m.parentId === menuId)
+    const allMenus = flattenMenus(menus);
+    const children = allMenus.filter((m) => m.parentId === menuId);
 
-    let count = children.length
+    let count = children.length;
     children.forEach((child) => {
-      count += countChildren(child.id)
-    })
+      count += countChildren(child.id);
+    });
 
-    return count
-  }
+    return count;
+  };
 
   // 삭제 처리 (다이얼로그 열기)
   const handleDelete = (id: number) => {
-    const menu = menus.find((m) => m.id === id)
+    const menu = menus.find((m) => m.id === id);
     if (!menu) {
       // 중첩된 메뉴 검색
       const flattenMenus = (menuList: Menu[]): Menu[] => {
-        const result: Menu[] = []
+        const result: Menu[] = [];
         menuList.forEach((m) => {
-          result.push(m)
+          result.push(m);
           if (m.children && m.children.length > 0) {
-            result.push(...flattenMenus(m.children))
+            result.push(...flattenMenus(m.children));
           }
-        })
-        return result
-      }
-      const allMenus = flattenMenus(menus)
-      const foundMenu = allMenus.find((m) => m.id === id)
+        });
+        return result;
+      };
+      const allMenus = flattenMenus(menus);
+      const foundMenu = allMenus.find((m) => m.id === id);
       if (foundMenu) {
-        setDeleteTarget(foundMenu)
+        setDeleteTarget(foundMenu);
       }
     } else {
-      setDeleteTarget(menu)
+      setDeleteTarget(menu);
     }
-  }
+  };
 
   // 삭제 확인
   const handleConfirmDelete = () => {
     if (deleteTarget) {
-      deleteMutation.mutate(deleteTarget.id)
-      setDeleteTarget(null)
+      deleteMutation.mutate(deleteTarget.id);
+      setDeleteTarget(null);
     }
-  }
+  };
 
   // 삭제 취소
   const handleCancelDelete = () => {
-    setDeleteTarget(null)
-  }
+    setDeleteTarget(null);
+  };
 
   // 취소
   const handleCancel = () => {
-    setSelectedMenu(null)
-    setIsCreating(false)
-  }
+    setSelectedMenu(null);
+    setIsCreating(false);
+  };
 
   // 메뉴 필터링 및 매칭된 메뉴의 부모 자동 확장
   const getFilteredMenusAndExpandedIds = (): {
-    filteredMenus: Menu[]
-    highlightedIds: Set<number>
-    autoExpandedIds: Set<number>
+    filteredMenus: Menu[];
+    highlightedIds: Set<number>;
+    autoExpandedIds: Set<number>;
   } => {
     if (!searchQuery.trim()) {
       return {
         filteredMenus: menus,
         highlightedIds: new Set(),
         autoExpandedIds: new Set(),
-      }
+      };
     }
 
-    const query = searchQuery.toLowerCase()
+    const query = searchQuery.toLowerCase();
     const flattenMenus = (menuList: Menu[]): Menu[] => {
-      const result: Menu[] = []
+      const result: Menu[] = [];
       menuList.forEach((menu) => {
-        result.push(menu)
+        result.push(menu);
         if (menu.children && menu.children.length > 0) {
-          result.push(...flattenMenus(menu.children))
+          result.push(...flattenMenus(menu.children));
         }
-      })
-      return result
-    }
+      });
+      return result;
+    };
 
-    const allMenus = flattenMenus(menus)
+    const allMenus = flattenMenus(menus);
 
     // 매칭된 메뉴 찾기
     const matchedMenus = allMenus.filter((menu) =>
-      menu.name.toLowerCase().includes(query)
-    )
+      menu.name.toLowerCase().includes(query),
+    );
 
-    const highlightedIds = new Set(matchedMenus.map((m) => m.id))
+    const highlightedIds = new Set(matchedMenus.map((m) => m.id));
 
     // 매칭된 메뉴의 모든 부모 ID 수집
     const getParentIds = (menuId: number | null): number[] => {
-      if (!menuId) return []
-      const parent = allMenus.find((m) => m.id === menuId)
-      if (!parent || !parent.parentId) return []
-      return [parent.parentId, ...getParentIds(parent.parentId)]
-    }
+      if (!menuId) return [];
+      const parent = allMenus.find((m) => m.id === menuId);
+      if (!parent || !parent.parentId) return [];
+      return [parent.parentId, ...getParentIds(parent.parentId)];
+    };
 
-    const autoExpandedIds = new Set<number>()
+    const autoExpandedIds = new Set<number>();
     matchedMenus.forEach((menu) => {
-      const parentIds = getParentIds(menu.id)
-      parentIds.forEach((id) => autoExpandedIds.add(id))
-    })
+      const parentIds = getParentIds(menu.id);
+      parentIds.forEach((id) => autoExpandedIds.add(id));
+    });
 
     return {
       filteredMenus: menus,
       highlightedIds,
       autoExpandedIds,
-    }
-  }
+    };
+  };
 
   const { filteredMenus, highlightedIds, autoExpandedIds } =
-    getFilteredMenusAndExpandedIds()
+    getFilteredMenusAndExpandedIds();
 
   // 검색어가 있을 때 자동 확장 적용
   useEffect(() => {
     if (searchQuery.trim()) {
       if (autoExpandedIds.size > 0) {
         // 검색 결과가 있으면 매칭된 메뉴의 부모만 확장
-        setExpandedIds(autoExpandedIds)
+        setExpandedIds(autoExpandedIds);
       } else {
         // 검색 결과가 없으면 모두 접기
-        setExpandedIds(new Set())
+        setExpandedIds(new Set());
       }
     }
-  }, [searchQuery, autoExpandedIds])
+  }, [searchQuery, autoExpandedIds]);
 
   // 전체 펼치기
   const handleExpandAll = () => {
     const flattenMenus = (menuList: Menu[]): number[] => {
-      const ids: number[] = []
+      const ids: number[] = [];
       menuList.forEach((menu) => {
-        ids.push(menu.id)
+        ids.push(menu.id);
         if (menu.children && menu.children.length > 0) {
-          ids.push(...flattenMenus(menu.children))
+          ids.push(...flattenMenus(menu.children));
         }
-      })
-      return ids
-    }
-    setExpandedIds(new Set(flattenMenus(menus)))
-  }
+      });
+      return ids;
+    };
+    setExpandedIds(new Set(flattenMenus(menus)));
+  };
 
   // 전체 접기
   const handleCollapseAll = () => {
-    setExpandedIds(new Set())
-  }
+    setExpandedIds(new Set());
+  };
 
   // 컨텍스트 메뉴 열기
   const handleContextMenu = (x: number, y: number, menu: Menu) => {
-    setContextMenu({ x, y, menu })
-  }
+    setContextMenu({ x, y, menu });
+  };
 
   // 컨텍스트 메뉴 닫기
   const closeContextMenu = () => {
-    setContextMenu(null)
-  }
+    setContextMenu(null);
+  };
 
   // 하위 메뉴 추가 (인라인 입력 모드)
   const handleAddChildMenu = () => {
     if (contextMenu) {
       // 부모 메뉴 자동 확장
-      setExpandedIds((prev) => new Set(prev).add(contextMenu.menu.id))
+      setExpandedIds((prev) => new Set(prev).add(contextMenu.menu.id));
       // 인라인 입력 모드 활성화
-      setAddingChildToId(contextMenu.menu.id)
+      setAddingChildToId(contextMenu.menu.id);
     }
-  }
+  };
 
   // 인라인 입력에서 메뉴 이름 제출
   const handleInlineSubmit = (parentId: number, name: string) => {
     const requestData: CreateMenuRequest = {
       name,
       parentId,
-      menuType: 'SUB', // 기본값: 하위 메뉴는 SUB 타입
+      menuType: "SUB", // 기본값: 하위 메뉴는 SUB 타입
       orderNum: 0,
-    }
+    };
 
     createMutation.mutate(requestData, {
       onSuccess: (newMenu) => {
         // 생성된 메뉴 자동 선택 (상세 편집 가능)
-        setSelectedMenu(newMenu)
-        setIsCreating(false)
-        setParentMenu(null)
-        setAddingChildToId(null)
+        setSelectedMenu(newMenu);
+        setIsCreating(false);
+        setParentMenu(null);
+        setAddingChildToId(null);
       },
-    })
-  }
+    });
+  };
 
   // 인라인 입력 취소
   const handleInlineCancel = () => {
-    setAddingChildToId(null)
-  }
+    setAddingChildToId(null);
+  };
 
   // 컨텍스트 메뉴에서 편집
   const handleEditFromContext = () => {
     if (contextMenu) {
-      setSelectedMenu(contextMenu.menu)
-      setIsCreating(false)
-      setParentMenu(null)
+      setSelectedMenu(contextMenu.menu);
+      setIsCreating(false);
+      setParentMenu(null);
     }
-  }
+  };
+
+  // 컨텍스트 메뉴에서 이동
+  const handleMoveFromContext = () => {
+    if (contextMenu) {
+      setMoveTarget(contextMenu.menu);
+    }
+  };
 
   // 컨텍스트 메뉴에서 삭제
   const handleDeleteFromContext = () => {
     if (contextMenu) {
-      handleDelete(contextMenu.menu.id)
+      handleDelete(contextMenu.menu.id);
     }
-  }
+  };
+
+  // 이동 확인
+  const handleMoveConfirm = (newParentId: number | null) => {
+    if (moveTarget) {
+      moveMutation.mutate({ menu: moveTarget, newParentId });
+    }
+  };
+
+  // 전체 메뉴 flat 배열
+  const flattenAllMenus = (menuList: Menu[]): Menu[] => {
+    const result: Menu[] = [];
+    for (const m of menuList) {
+      result.push(m);
+      if (m.children) result.push(...flattenAllMenus(m.children));
+    }
+    return result;
+  };
 
   // Outside click & ESC 키 감지
   useEffect(() => {
-    if (!contextMenu) return
+    if (!contextMenu) return;
 
-    const handleClickOutside = () => closeContextMenu()
+    const handleClickOutside = () => closeContextMenu();
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeContextMenu()
-    }
+      if (e.key === "Escape") closeContextMenu();
+    };
 
-    document.addEventListener('click', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener('click', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [contextMenu])
+      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [contextMenu]);
 
   return (
     <div className="p-8">
@@ -410,9 +462,9 @@ export function MenusPage() {
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        setSearchQuery(inputValue)
-                        e.currentTarget.blur()
+                      if (e.key === "Enter") {
+                        setSearchQuery(inputValue);
+                        e.currentTarget.blur();
                       }
                     }}
                     placeholder="메뉴 검색 후 Enter..."
@@ -421,8 +473,8 @@ export function MenusPage() {
                   {(inputValue || searchQuery) && (
                     <button
                       onClick={() => {
-                        setInputValue('')
-                        setSearchQuery('')
+                        setInputValue("");
+                        setSearchQuery("");
                       }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
@@ -430,7 +482,11 @@ export function MenusPage() {
                     </button>
                   )}
                 </div>
-                <Button onClick={handleCreateNew} size="sm" className="flex-shrink-0">
+                <Button
+                  onClick={handleCreateNew}
+                  size="sm"
+                  className="flex-shrink-0"
+                >
                   +
                 </Button>
               </div>
@@ -440,11 +496,14 @@ export function MenusPage() {
                 <div className="mt-2 text-xs text-gray-600">
                   {highlightedIds.size > 0
                     ? `${highlightedIds.size}개의 메뉴 찾음`
-                    : '검색 결과 없음'}
+                    : "검색 결과 없음"}
                 </div>
               )}
             </div>
-            <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+            <div
+              className="overflow-y-auto p-4"
+              style={{ maxHeight: "calc(100vh - 350px)" }}
+            >
               <TreeView
                 menus={filteredMenus}
                 expandedIds={expandedIds}
@@ -467,6 +526,7 @@ export function MenusPage() {
               y={contextMenu.y}
               onClose={closeContextMenu}
               onAddChild={handleAddChildMenu}
+              onMove={handleMoveFromContext}
               onEdit={handleEditFromContext}
               onDelete={handleDeleteFromContext}
             />
@@ -478,6 +538,7 @@ export function MenusPage() {
               <MenuEditForm
                 menu={selectedMenu}
                 parentMenu={parentMenu}
+                allMenus={menus}
                 onSave={handleSave}
                 onDelete={handleDelete}
                 onCancel={handleCancel}
@@ -520,8 +581,20 @@ export function MenusPage() {
         />
       )}
 
+      {/* 이동 다이얼로그 */}
+      {moveTarget && (
+        <MoveMenuDialog
+          menu={moveTarget}
+          allMenus={flattenAllMenus(menus)}
+          onMove={handleMoveConfirm}
+          onClose={() => setMoveTarget(null)}
+        />
+      )}
+
       {/* 디버그 패널 (최하단 토글) */}
-      {menus.length > 0 && <DebugPanel data={menus} title="트리 구조 확인 (Debug)" />}
+      {menus.length > 0 && (
+        <DebugPanel data={menus} title="트리 구조 확인 (Debug)" />
+      )}
     </div>
-  )
+  );
 }

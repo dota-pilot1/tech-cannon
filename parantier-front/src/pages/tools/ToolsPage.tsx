@@ -1,13 +1,30 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Star, Terminal, BookOpen, FolderOpen, HelpCircle } from "lucide-react";
+import {
+  Star,
+  Terminal,
+  BookOpen,
+  FolderOpen,
+  HelpCircle,
+  Braces,
+  LayoutTemplate,
+} from "lucide-react";
 import { BookmarkTab } from "./tabs/BookmarkTab";
 import { CommandTab } from "./tabs/CommandTab";
 import { DevlogTab } from "./tabs/DevlogTab";
 import { FilesTab } from "./tabs/FilesTab";
 import { FaqTab } from "./tabs/FaqTab";
+import { SnippetTab } from "./tabs/SnippetTab";
+import { TemplateTab } from "./tabs/TemplateTab";
 
-type TabKey = "bookmark" | "command" | "devlog" | "files" | "faq";
+type TabKey =
+  | "bookmark"
+  | "command"
+  | "devlog"
+  | "files"
+  | "faq"
+  | "snippet"
+  | "template";
 
 const menuItems: {
   key: TabKey;
@@ -57,6 +74,22 @@ const menuItems: {
     emoji: "❓",
     comingSoon: true,
   },
+  {
+    key: "snippet",
+    icon: <Braces className="w-5 h-5" />,
+    label: "코드 스니펫",
+    description: "자주 쓰는 코드 스니펫을 저장하고 공유하세요.",
+    emoji: "📝",
+    comingSoon: true,
+  },
+  {
+    key: "template",
+    icon: <LayoutTemplate className="w-5 h-5" />,
+    label: "템플릿",
+    description: "반복 사용하는 문서/코드 템플릿을 관리하세요.",
+    emoji: "🗂️",
+    comingSoon: true,
+  },
 ];
 
 const validTabs = new Set<TabKey>([
@@ -65,6 +98,8 @@ const validTabs = new Set<TabKey>([
   "devlog",
   "files",
   "faq",
+  "snippet",
+  "template",
 ]);
 
 function getInitialTab(): TabKey | null {
@@ -86,6 +121,10 @@ function renderTab(tab: TabKey) {
       return <FilesTab />;
     case "faq":
       return <FaqTab />;
+    case "snippet":
+      return <SnippetTab />;
+    case "template":
+      return <TemplateTab />;
   }
 }
 

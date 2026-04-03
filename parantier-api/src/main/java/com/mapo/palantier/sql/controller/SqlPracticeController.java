@@ -1,14 +1,13 @@
 package com.mapo.palantier.sql.controller;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
 import com.mapo.palantier.sql.dto.*;
 import com.mapo.palantier.sql.service.SqlPracticeService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Tag(name = "SQL Practice", description = "SQL 연습 API")
 @RestController
@@ -20,7 +19,10 @@ public class SqlPracticeController {
 
     @Operation(summary = "SQL 쿼리 실행")
     @PostMapping("/execute")
-    public ResponseEntity<SqlExecuteResponse> execute(@RequestBody SqlExecuteRequest request) {
+    public ResponseEntity<SqlExecuteResponse> execute(
+        @RequestBody SqlExecuteRequest request,
+        @RequestParam(defaultValue = "1") int set
+    ) {
         if (request.getQuery() == null || request.getQuery().isBlank()) {
             return ResponseEntity.badRequest().body(
                 SqlExecuteResponse.builder()
@@ -29,19 +31,26 @@ public class SqlPracticeController {
                     .build()
             );
         }
-        return ResponseEntity.ok(sqlPracticeService.execute(request.getQuery().trim()));
+        return ResponseEntity.ok(
+            sqlPracticeService.execute(request.getQuery().trim(), set)
+        );
     }
 
     @Operation(summary = "테이블 목록 조회")
     @GetMapping("/tables")
-    public ResponseEntity<List<TableInfo>> getTables() {
-        return ResponseEntity.ok(sqlPracticeService.getTables());
+    public ResponseEntity<List<TableInfo>> getTables(
+        @RequestParam(defaultValue = "1") int set
+    ) {
+        return ResponseEntity.ok(sqlPracticeService.getTables(set));
     }
 
     @Operation(summary = "특정 테이블 정보 조회")
     @GetMapping("/tables/{tableName}")
-    public ResponseEntity<TableInfo> getTable(@PathVariable String tableName) {
-        TableInfo info = sqlPracticeService.getTable(tableName);
+    public ResponseEntity<TableInfo> getTable(
+        @PathVariable String tableName,
+        @RequestParam(defaultValue = "1") int set
+    ) {
+        TableInfo info = sqlPracticeService.getTable(tableName, set);
         if (info == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(info);
     }

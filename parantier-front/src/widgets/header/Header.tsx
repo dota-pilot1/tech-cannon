@@ -135,7 +135,7 @@ export function Header() {
             <NavThemePicker />
 
             {auth.isAuthenticated ? (
-              <div className="flex items-center gap-0 h-9 rounded-lg border border-[var(--nav-border)] bg-[var(--nav-item-active-bg)]/10 overflow-hidden">
+              <div className="flex items-center gap-0 h-9 rounded-lg border border-[var(--nav-border)] bg-[var(--nav-item-active-bg)]/20 overflow-hidden shadow-sm transition-all hover:border-[var(--nav-border)]/80">
                 <Link
                   to="/profile"
                   className="flex items-center justify-center w-9 h-9 border-r border-[var(--nav-border)] hover:bg-[var(--nav-item-hover-bg)] transition-colors shrink-0"

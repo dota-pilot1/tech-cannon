@@ -1,15 +1,13 @@
 package com.mapo.palantier.sql.service;
 
+import com.mapo.palantier.config.SqlPracticeDataSourceConfig;
 import com.mapo.palantier.sql.dto.*;
-import jakarta.annotation.PostConstruct;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.sql.*;
 import java.util.*;
-import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -19,58 +17,96 @@ import org.springframework.util.StringUtils;
 @Service
 public class SqlPracticeService {
 
-    private final DataSource dataSource;
+    private final SqlPracticeDataSourceConfig config;
 
     @Value("${sql.init.dir:}")
     private String externalInitDir;
 
-    public SqlPracticeService(
-        @Qualifier("sqlPracticeDataSource") DataSource dataSource
-    ) {
-        this.dataSource = dataSource;
+    public SqlPracticeService(SqlPracticeDataSourceConfig config) {
+        this.config = config;
     }
 
-    @PostConstruct
-    public void init() {
-        if (!isNewDatabase()) {
-            log.info("[SQL Practice] 기존 DB 감지 - 초기화 스킵");
-            return;
-        }
-        log.info("[SQL Practice] 새 DB 감지 - 초기화 시작");
-        runSqlFile("schema.sql");
-        runSqlFile("data.sql");
-        log.info("[SQL Practice] 초기화 완료");
+    private Connection getConnection(int setId) throws SQLException {
+        String path = config.getDbPath(setId);
+        return DriverManager.getConnection("jdbc:sqlite:" + path);
     }
 
-    // DB가 비어있는지 확인 (테이블이 하나도 없으면 새 DB)
-    private boolean isNewDatabase() {
-        try (
-            Connection conn = dataSource.getConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-            )
-        ) {
-            return rs.next() && rs.getInt(1) == 0;
+    private void initIfNeeded(int setId, Connection conn) {
+        try {
+            boolean isNew;
+            try (
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+                )
+            ) {
+                isNew = rs.next() && rs.getInt(1) == 0;
+            }
+
+            if (!isNew) {
+                log.info(
+                    "[SQL Practice] set={} 기존 DB 감지 - 초기화 스킵",
+                    setId
+                );
+                return;
+            }
+
+            log.info("[SQL Practice] set={} 새 DB 감지 - 초기화 시작", setId);
+            String schemaFile = resolveFileName("schema", setId);
+            String dataFile = resolveFileName("data", setId);
+            runSqlFile(schemaFile, conn);
+            runSqlFile(dataFile, conn);
+            log.info("[SQL Practice] set={} 초기화 완료", setId);
         } catch (SQLException e) {
-            return true;
+            log.error(
+                "[SQL Practice] set={} 초기화 확인 실패: {}",
+                setId,
+                e.getMessage()
+            );
         }
     }
 
-    private void runSqlFile(String fileName) {
+    // 세트별 파일 우선 탐색: schema-2.sql 없으면 schema.sql 폴백
+    private String resolveFileName(String base, int setId) {
+        if (setId > 1) {
+            String setFileName = base + "-" + setId + ".sql";
+            // 외부 경로 확인
+            if (StringUtils.hasText(externalInitDir)) {
+                Path external = Paths.get(externalInitDir, setFileName);
+                if (Files.exists(external)) return setFileName;
+            }
+            // classpath 확인
+            ClassPathResource resource = new ClassPathResource(
+                "sql/" + setFileName
+            );
+            if (resource.exists()) return setFileName;
+        }
+        return base + ".sql";
+    }
+
+    private void runSqlFile(String fileName, Connection conn) {
         try {
             String sql = readSqlFile(fileName);
             if (sql == null || sql.isBlank()) return;
 
-            try (
-                Connection conn = dataSource.getConnection();
-                Statement stmt = conn.createStatement()
-            ) {
-                // 세미콜론으로 구분하여 각 문장 실행
-                String[] statements = sql.split(";");
+            // 라인 단위로 주석(--) 제거 후 다시 합쳐서 세미콜론으로 분리
+            StringBuilder cleaned = new StringBuilder();
+            for (String line : sql.split("\n")) {
+                String trimmedLine = line.trim();
+                if (trimmedLine.startsWith("--")) continue; // 주석 라인 제거
+                // 인라인 주석 제거 (-- 이후 부분)
+                int commentIdx = line.indexOf("--");
+                if (commentIdx >= 0) {
+                    line = line.substring(0, commentIdx);
+                }
+                cleaned.append(line).append("\n");
+            }
+
+            try (Statement stmt = conn.createStatement()) {
+                String[] statements = cleaned.toString().split(";");
                 for (String s : statements) {
                     String trimmed = s.trim();
-                    if (!trimmed.isEmpty() && !trimmed.startsWith("--")) {
+                    if (!trimmed.isEmpty()) {
                         stmt.execute(trimmed);
                     }
                 }
@@ -80,13 +116,13 @@ public class SqlPracticeService {
             log.error(
                 "[SQL Practice] {} 실행 실패: {}",
                 fileName,
-                e.getMessage()
+                e.getMessage(),
+                e
             );
         }
     }
 
     private String readSqlFile(String fileName) throws IOException {
-        // 1. 외부 경로 우선 (배포 환경: SQL_INIT_DIR 환경변수)
         if (StringUtils.hasText(externalInitDir)) {
             Path external = Paths.get(externalInitDir, fileName);
             if (Files.exists(external)) {
@@ -94,7 +130,6 @@ public class SqlPracticeService {
                 return Files.readString(external, StandardCharsets.UTF_8);
             }
         }
-        // 2. classpath 폴백 (로컬 개발)
         ClassPathResource resource = new ClassPathResource("sql/" + fileName);
         if (resource.exists()) {
             try (InputStream is = resource.getInputStream()) {
@@ -105,13 +140,14 @@ public class SqlPracticeService {
         return null;
     }
 
-    public SqlExecuteResponse execute(String query) {
+    public SqlExecuteResponse execute(String query, int setId) {
         long start = System.currentTimeMillis();
         String trimmed = query.trim();
         String upperQuery = trimmed.toUpperCase();
         String type = detectQueryType(upperQuery);
 
-        try (Connection conn = dataSource.getConnection()) {
+        try (Connection conn = getConnection(setId)) {
+            initIfNeeded(setId, conn);
             if (
                 type.equals("SELECT") ||
                 upperQuery.startsWith("PRAGMA") ||
@@ -196,26 +232,28 @@ public class SqlPracticeService {
         }
     }
 
-    public List<TableInfo> getTables() {
+    public List<TableInfo> getTables(int setId) {
         List<TableInfo> tables = new ArrayList<>();
-        try (
-            Connection conn = dataSource.getConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-            )
-        ) {
-            while (rs.next()) {
-                String tableName = rs.getString("name");
-                List<ColumnInfo> columns = getColumns(conn, tableName);
-                long rowCount = getRowCount(conn, tableName);
-                tables.add(
-                    TableInfo.builder()
-                        .tableName(tableName)
-                        .columns(columns)
-                        .rowCount(rowCount)
-                        .build()
-                );
+        try (Connection conn = getConnection(setId)) {
+            initIfNeeded(setId, conn);
+            try (
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+                )
+            ) {
+                while (rs.next()) {
+                    String tableName = rs.getString("name");
+                    List<ColumnInfo> columns = getColumns(conn, tableName);
+                    long rowCount = getRowCount(conn, tableName);
+                    tables.add(
+                        TableInfo.builder()
+                            .tableName(tableName)
+                            .columns(columns)
+                            .rowCount(rowCount)
+                            .build()
+                    );
+                }
             }
         } catch (SQLException e) {
             log.error("Error fetching tables: {}", e.getMessage());
@@ -223,8 +261,8 @@ public class SqlPracticeService {
         return tables;
     }
 
-    public TableInfo getTable(String tableName) {
-        try (Connection conn = dataSource.getConnection()) {
+    public TableInfo getTable(String tableName, int setId) {
+        try (Connection conn = getConnection(setId)) {
             return TableInfo.builder()
                 .tableName(tableName)
                 .columns(getColumns(conn, tableName))
