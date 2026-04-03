@@ -27,7 +27,7 @@ function FaqBlockViewer({ block }: { block: FaqBlock }) {
   if (isQuestion) {
     return (
       <div className="flex justify-start mb-4">
-        <div className="flex items-start gap-3 max-w-[80%]">
+        <div className="flex items-start gap-3 max-w-[95%] w-full">
           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0 text-sm font-bold text-muted-foreground mt-1">
             Q
           </div>
@@ -42,7 +42,7 @@ function FaqBlockViewer({ block }: { block: FaqBlock }) {
   if (isAnswer) {
     return (
       <div className="flex justify-end mb-4">
-        <div className="flex items-start gap-3 max-w-[80%] flex-row-reverse">
+        <div className="flex items-start gap-3 max-w-[95%] w-full flex-row-reverse">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 text-sm font-bold text-primary-foreground mt-1">
             A
           </div>
@@ -546,7 +546,7 @@ export default function FaqPage() {
 
         {/* 섹션 선택됨 */}
         {selectedSectionId && (
-          <div className="relative max-w-4xl mx-auto px-8 py-6">
+          <div className="relative max-w-5xl mx-auto px-6 py-6">
             {/* 편집 버튼 - 우상단 고정 (ADMIN, 뷰어 모드에서만) */}
             {isAdmin && !isEditing && (
               <div className="absolute top-4 right-6">
