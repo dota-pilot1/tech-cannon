@@ -11,6 +11,7 @@ import type {
 import type { BlockType } from "@/features/task/types/task.types";
 import { TYPE_META } from "@/features/task/types/task.types";
 import { LexicalViewer } from "@/shared/ui/lexical/LexicalViewer";
+import { LexicalEditor } from "@/shared/ui/lexical/LexicalEditor";
 import { Mermaid } from "@/shared/ui/mermaid";
 import { toast } from "sonner";
 import { Plus, Pencil, Save, X } from "lucide-react";
@@ -30,10 +31,8 @@ function FaqBlockViewer({ block }: { block: FaqBlock }) {
           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0 text-sm font-bold text-muted-foreground mt-1">
             Q
           </div>
-          <div className="bg-muted rounded-2xl rounded-tl-none px-4 py-3">
-            <p className="text-sm text-foreground whitespace-pre-wrap">
-              {block.content}
-            </p>
+          <div className="bg-muted rounded-2xl rounded-tl-none px-4 py-3 min-w-0 flex-1">
+            <LexicalViewer content={block.content} />
           </div>
         </div>
       </div>
@@ -47,10 +46,8 @@ function FaqBlockViewer({ block }: { block: FaqBlock }) {
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 text-sm font-bold text-primary-foreground mt-1">
             A
           </div>
-          <div className="bg-primary/10 border border-primary/20 rounded-2xl rounded-tr-none px-4 py-3">
-            <p className="text-sm text-foreground whitespace-pre-wrap">
-              {block.content}
-            </p>
+          <div className="bg-primary/10 border border-primary/20 rounded-2xl rounded-tr-none px-4 py-3 min-w-0 flex-1">
+            <LexicalViewer content={block.content} />
           </div>
         </div>
       </div>
@@ -626,24 +623,26 @@ export default function FaqPage() {
                           >
                             {block.blockType === "QUESTION" ? "Q" : "A"}
                           </span>
-                          <textarea
-                            value={block.content}
-                            onChange={(e) => {
-                              const updated = [...editBlocks];
-                              updated[idx] = {
-                                ...updated[idx],
-                                content: e.target.value,
-                              };
-                              setEditBlocks(updated);
-                            }}
-                            placeholder={
-                              block.blockType === "QUESTION"
-                                ? "질문을 입력하세요..."
-                                : "답변을 입력하세요..."
-                            }
-                            className="flex-1 bg-transparent text-sm text-foreground resize-none focus:outline-none min-h-[60px] placeholder:text-muted-foreground"
-                            rows={3}
-                          />
+                          <div className="flex-1 min-w-0">
+                            <LexicalEditor
+                              key={`${idx}-${block.blockType}`}
+                              initialState={block.content || undefined}
+                              onChange={(val) => {
+                                const updated = [...editBlocks];
+                                updated[idx] = {
+                                  ...updated[idx],
+                                  content: val,
+                                };
+                                setEditBlocks(updated);
+                              }}
+                              placeholder={
+                                block.blockType === "QUESTION"
+                                  ? "질문을 입력하세요..."
+                                  : "답변을 입력하세요..."
+                              }
+                              minHeight="80px"
+                            />
+                          </div>
                           <button
                             onClick={() =>
                               setEditBlocks(
