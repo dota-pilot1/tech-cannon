@@ -1,5 +1,6 @@
 import { useStore } from "@tanstack/react-store";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   BarChart,
   Bar,
@@ -14,10 +15,22 @@ import { authStore } from "@/entities/user/model/authStore";
 import { dashboardApi } from "@/api/dashboardApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 
+// ─── status 매핑 ─────────────────────────────────────────────────────────────
+
+const STATUS_MAP: Record<string, string> = {
+  완료: "DONE",
+  "진행 중": "IN_PROGRESS",
+  테스트: "TEST",
+  대기: "TODO",
+  보류: "HOLD",
+  막힘: "BLOCKED",
+};
+
 // ─── MainPage ────────────────────────────────────────────────────────────────
 
 export function MainPage() {
   const auth = useStore(authStore, (state) => state);
+  const navigate = useNavigate();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard", "stats"],
@@ -27,6 +40,30 @@ export function MainPage() {
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
+
+  // ─── 클릭 핸들러 ───────────────────────────────────────────────────────────
+
+  const handleWorkBarClick = (payload: { name?: string }) => {
+    if (!payload || payload.name === "전체") {
+      navigate({ to: "/work" });
+    } else {
+      const status = payload.name ? STATUS_MAP[payload.name] : undefined;
+      if (status) navigate({ to: "/work", search: { status } });
+      else navigate({ to: "/work" });
+    }
+  };
+
+  const handleIssueBarClick = (payload: { name?: string }) => {
+    if (!payload || payload.name === "전체") {
+      navigate({ to: "/issues" });
+    } else {
+      const status = payload.name ? STATUS_MAP[payload.name] : undefined;
+      if (status) navigate({ to: "/issues", search: { status } });
+      else navigate({ to: "/issues" });
+    }
+  };
+
+  // ─── 인증 체크 ─────────────────────────────────────────────────────────────
 
   if (!auth.isAuthenticated) {
     return (
@@ -80,10 +117,15 @@ export function MainPage() {
         {/* 업무 현황 카드 */}
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-foreground flex items-center">
-              📋 업무 현황
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                전체 {stats?.totalWorks ?? 0}개
+            <CardTitle className="text-base font-semibold text-foreground flex items-center justify-between">
+              <div className="flex items-center">
+                📋 업무 현황
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  전체 {stats?.totalWorks ?? 0}개
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                클릭하여 이동 →
               </span>
             </CardTitle>
           </CardHeader>
@@ -106,6 +148,14 @@ export function MainPage() {
                   data={workData}
                   layout="vertical"
                   margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
+                  onClick={(data) => {
+                    const payload = (
+                      data as {
+                        activePayload?: { payload: { name?: string } }[];
+                      }
+                    )?.activePayload?.[0]?.payload;
+                    if (payload) handleWorkBarClick(payload);
+                  }}
                 >
                   <XAxis type="number" hide />
                   <YAxis
@@ -126,7 +176,12 @@ export function MainPage() {
                       color: "var(--card-foreground)",
                     }}
                   />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                  <Bar
+                    dataKey="value"
+                    radius={[0, 4, 4, 0]}
+                    maxBarSize={28}
+                    style={{ cursor: "pointer" }}
+                  >
                     {workData.map((entry, index) => (
                       <Cell key={index} fill={entry.color} />
                     ))}
@@ -149,10 +204,15 @@ export function MainPage() {
         {/* 이슈 현황 카드 */}
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-foreground flex items-center">
-              🚨 이슈 현황
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                전체 {stats?.totalIssues ?? 0}개
+            <CardTitle className="text-base font-semibold text-foreground flex items-center justify-between">
+              <div className="flex items-center">
+                🚨 이슈 현황
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  전체 {stats?.totalIssues ?? 0}개
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                클릭하여 이동 →
               </span>
             </CardTitle>
           </CardHeader>
@@ -175,6 +235,14 @@ export function MainPage() {
                   data={issueData}
                   layout="vertical"
                   margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
+                  onClick={(data) => {
+                    const payload = (
+                      data as {
+                        activePayload?: { payload: { name?: string } }[];
+                      }
+                    )?.activePayload?.[0]?.payload;
+                    if (payload) handleIssueBarClick(payload);
+                  }}
                 >
                   <XAxis type="number" hide />
                   <YAxis
@@ -195,7 +263,12 @@ export function MainPage() {
                       color: "var(--card-foreground)",
                     }}
                   />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                  <Bar
+                    dataKey="value"
+                    radius={[0, 4, 4, 0]}
+                    maxBarSize={28}
+                    style={{ cursor: "pointer" }}
+                  >
                     {issueData.map((entry, index) => (
                       <Cell key={index} fill={entry.color} />
                     ))}

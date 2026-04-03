@@ -124,7 +124,7 @@ import { useAllUsers } from "@/features/user/hooks/useAllUsers";
 import mermaid from "mermaid";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 // AG-Grid 모듈 등록
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -143,7 +143,10 @@ export function IssuesPage() {
   const [modifiedRowIds, setModifiedRowIds] = useState<Set<number>>(new Set());
 
   // 필터 상태
-  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const search = useSearch({ strict: false });
+  const [filterStatus, setFilterStatus] = useState<string>(
+    (search as Record<string, string>)?.status ?? "ALL",
+  );
   const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [filterPriority, setFilterPriority] = useState<string>("ALL");
   const [searchKeyword, setSearchKeyword] = useState("");
