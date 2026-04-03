@@ -124,4 +124,24 @@ export const architectureApi = {
     }).then((r) => {
       if (!r.ok) throw new Error();
     }),
+
+  reorderCategories: (
+    items: { id: number; orderNum: number }[],
+  ): Promise<void> =>
+    fetch(`${BASE}/architecture/categories/reorder`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(items),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
+    }),
+
+  reorderSections: (items: { id: number; orderNum: number }[]): Promise<void> =>
+    fetch(`${BASE}/architecture/sections/reorder`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(items),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
+    }),
 };

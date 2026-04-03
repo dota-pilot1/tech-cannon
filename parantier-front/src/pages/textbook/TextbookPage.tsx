@@ -14,8 +14,50 @@ import { TYPE_META } from "@/features/task/types/task.types";
 import { LexicalViewer } from "@/shared/ui/lexical/LexicalViewer";
 import { Mermaid } from "@/shared/ui/mermaid";
 import { toast } from "sonner";
-import { Plus, Pencil, Save, X } from "lucide-react";
+import { Plus, Pencil, Save, X, Trash2, GripVertical } from "lucide-react";
 import { Button } from "@/shared/ui/button";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+// ─────────────────────────────────────────────
+// SortableItem 컴포넌트
+// ─────────────────────────────────────────────
+function SortableItem({
+  id,
+  children,
+  isDragging,
+}: {
+  id: number;
+  children: (dragHandleProps: Record<string, unknown>) => React.ReactNode;
+  isDragging: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────
 // BlockViewer 인라인 컴포넌트
@@ -156,8 +198,7 @@ export default function TextbookPage() {
   // Mutations
   // ─────────────────────────────────────────────
   const saveMutation = useMutation({
-    mutationFn: () =>
-      textbookApi.saveBlocks(selectedSectionId!, editBlocks),
+    mutationFn: () => textbookApi.saveBlocks(selectedSectionId!, editBlocks),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["textbook", "blocks", selectedSectionId],
@@ -204,6 +245,89 @@ export default function TextbookPage() {
     onError: () => toast.error("섹션 추가 실패"),
   });
 
+  const reorderCategoryMutation = useMutation({
+    mutationFn: (items: { id: number; orderNum: number }[]) =>
+      textbookApi.reorderCategories(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["textbook", "categories"] });
+    },
+    onError: () => toast.error("순서 변경 실패"),
+  });
+
+  const reorderSectionMutation = useMutation({
+    mutationFn: (items: { id: number; orderNum: number }[]) =>
+      textbookApi.reorderSections(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["textbook", "sections", selectedCategoryId],
+      });
+    },
+    onError: () => toast.error("순서 변경 실패"),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: number) => textbookApi.deleteCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["textbook", "categories"] });
+      setSelectedCategoryId(null);
+      setSelectedSectionId(null);
+      toast.success("카테고리가 삭제되었습니다");
+    },
+    onError: () => toast.error("카테고리 삭제 실패"),
+  });
+
+  const deleteSectionMutation = useMutation({
+    mutationFn: (id: number) => textbookApi.deleteSection(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["textbook", "sections", selectedCategoryId],
+      });
+      setSelectedSectionId(null);
+      toast.success("섹션이 삭제되었습니다");
+    },
+    onError: () => toast.error("섹션 삭제 실패"),
+  });
+
+  // ─────────────────────────────────────────────
+  // DnD state & sensors
+  // ─────────────────────────────────────────────
+  const [activeCatId, setActiveCatId] = useState<number | null>(null);
+  const [activeSecId, setActiveSecId] = useState<number | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleCatDragStart = (e: DragStartEvent) =>
+    setActiveCatId(e.active.id as number);
+  const handleCatDragEnd = (e: DragEndEvent) => {
+    setActiveCatId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = categories.findIndex((c) => c.id === active.id);
+    const newIdx = categories.findIndex((c) => c.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(categories, oldIdx, newIdx);
+    reorderCategoryMutation.mutate(
+      reordered.map((c, i) => ({ id: c.id, orderNum: i })),
+    );
+  };
+
+  const handleSecDragStart = (e: DragStartEvent) =>
+    setActiveSecId(e.active.id as number);
+  const handleSecDragEnd = (e: DragEndEvent) => {
+    setActiveSecId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = sections.findIndex((s) => s.id === active.id);
+    const newIdx = sections.findIndex((s) => s.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(sections, oldIdx, newIdx);
+    reorderSectionMutation.mutate(
+      reordered.map((s, i) => ({ id: s.id, orderNum: i })),
+    );
+  };
+
   // ─────────────────────────────────────────────
   // Handlers
   // ─────────────────────────────────────────────
@@ -239,7 +363,11 @@ export default function TextbookPage() {
   const handleAddSectionKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
   ) => {
-    if (e.key === "Enter") handleAddSectionConfirm();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!e.nativeEvent.isComposing && !addSectionMutation.isPending)
+        handleAddSectionConfirm();
+    }
     if (e.key === "Escape") {
       setIsAddingSection(false);
       setNewSectionTitle("");
@@ -255,7 +383,11 @@ export default function TextbookPage() {
   const handleAddCategoryKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
   ) => {
-    if (e.key === "Enter") handleAddCategoryConfirm();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!e.nativeEvent.isComposing && !addCategoryMutation.isPending)
+        handleAddCategoryConfirm();
+    }
     if (e.key === "Escape") {
       setIsAddingCategory(false);
       setNewCategoryName("");
@@ -307,20 +439,75 @@ export default function TextbookPage() {
 
         {/* 카테고리 목록 */}
         <nav className="flex-1 overflow-y-auto py-2">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => handleCategoryClick(cat.id)}
-              className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] ${
-                selectedCategoryId === cat.id
-                  ? "border-l-primary bg-background text-primary font-bold shadow-sm"
-                  : "border-l-transparent text-foreground/60 hover:bg-background/60 hover:text-foreground"
-              }`}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleCatDragStart}
+            onDragEnd={handleCatDragEnd}
+          >
+            <SortableContext
+              items={categories.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <span>{cat.emoji || cat.icon}</span>
-              <span className="truncate">{cat.name}</span>
-            </button>
-          ))}
+              {categories.map((cat) => (
+                <SortableItem
+                  key={cat.id}
+                  id={cat.id}
+                  isDragging={activeCatId === cat.id}
+                >
+                  {(dragHandleProps) => (
+                    <div className="relative group">
+                      <button
+                        onClick={() => handleCategoryClick(cat.id)}
+                        className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] pr-8 ${
+                          selectedCategoryId === cat.id
+                            ? "border-l-primary bg-background text-primary font-bold shadow-sm"
+                            : "border-l-transparent text-foreground/60 hover:bg-background/60 hover:text-foreground"
+                        }`}
+                      >
+                        {isAdmin && (
+                          <span
+                            {...dragHandleProps}
+                            onClick={(e) => e.stopPropagation()}
+                            className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                          >
+                            <GripVertical className="w-3 h-3" />
+                          </span>
+                        )}
+                        <span>{cat.emoji || cat.icon}</span>
+                        <span className="truncate">{cat.name}</span>
+                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (
+                              confirm(
+                                `"${cat.name}" 카테고리를 삭제할까요? 하위 섹션과 내용이 모두 삭제됩니다.`,
+                              )
+                            ) {
+                              deleteCategoryMutation.mutate(cat.id);
+                            }
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1 rounded"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </SortableItem>
+              ))}
+            </SortableContext>
+            <DragOverlay>
+              {activeCatId && (
+                <div className="bg-card border border-border rounded px-3 py-2 text-sm shadow-lg opacity-90">
+                  {categories.find((c) => c.id === activeCatId)?.name}
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
 
           {/* 카테고리 추가 인라인 입력 */}
           {isAddingCategory && (
@@ -416,28 +603,81 @@ export default function TextbookPage() {
             </p>
           ) : (
             <>
-              {sections.map((sec) => (
-                <button
-                  key={sec.id}
-                  onClick={() => handleSectionClick(sec.id)}
-                  className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-l-[3px] ${
-                    selectedSectionId === sec.id
-                      ? "border-l-primary bg-primary/10 text-primary font-bold"
-                      : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
-                  }`}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleSecDragStart}
+                onDragEnd={handleSecDragEnd}
+              >
+                <SortableContext
+                  items={sections.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <span
-                    className={
-                      selectedSectionId === sec.id
-                        ? "text-primary"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    ·
-                  </span>
-                  <span className="truncate">{sec.title}</span>
-                </button>
-              ))}
+                  {sections.map((sec) => (
+                    <SortableItem
+                      key={sec.id}
+                      id={sec.id}
+                      isDragging={activeSecId === sec.id}
+                    >
+                      {(dragHandleProps) => (
+                        <div className="relative group">
+                          <button
+                            onClick={() => handleSectionClick(sec.id)}
+                            className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-l-[3px] pr-8 ${
+                              selectedSectionId === sec.id
+                                ? "border-l-primary bg-primary/10 text-primary font-bold"
+                                : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {isAdmin && (
+                              <span
+                                {...dragHandleProps}
+                                onClick={(e) => e.stopPropagation()}
+                                className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                              >
+                                <GripVertical className="w-3 h-3" />
+                              </span>
+                            )}
+                            <span
+                              className={
+                                selectedSectionId === sec.id
+                                  ? "text-primary"
+                                  : "text-muted-foreground"
+                              }
+                            >
+                              ·
+                            </span>
+                            <span className="truncate">{sec.title}</span>
+                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (
+                                  confirm(`"${sec.title}" 섹션을 삭제할까요?`)
+                                ) {
+                                  deleteSectionMutation.mutate(sec.id);
+                                }
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1 rounded"
+                              title="삭제"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </SortableItem>
+                  ))}
+                </SortableContext>
+                <DragOverlay>
+                  {activeSecId && (
+                    <div className="bg-card border border-border rounded px-3 py-2 text-sm shadow-lg opacity-90">
+                      {sections.find((s) => s.id === activeSecId)?.title}
+                    </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
 
               {/* 섹션 추가 인라인 입력 */}
               {isAddingSection && (
