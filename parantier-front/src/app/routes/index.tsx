@@ -33,6 +33,7 @@ import { PrototypePage } from "@/pages/prototype/PrototypePage";
 import { DbPage } from "@/pages/db/DbPage";
 import { SqlPage } from "@/pages/sql/SqlPage";
 import ArchitecturePage from "@/pages/architecture/ArchitecturePage";
+import TextbookPage from "@/pages/textbook/TextbookPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -294,6 +295,14 @@ const architectureRoute = createRoute({
   component: ArchitecturePage,
 });
 
+// TextBook 페이지 (로그인 필요)
+const textbookRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/textbook",
+  beforeLoad: () => requireAuth(),
+  component: TextbookPage,
+});
+
 // Prototype (로그인 필요)
 const prototypeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -346,6 +355,7 @@ const routeTree = rootRoute.addChildren([
   challengeRoute,
   faqRoute,
   architectureRoute,
+  textbookRoute,
   notFoundRoute,
 ]);
 
