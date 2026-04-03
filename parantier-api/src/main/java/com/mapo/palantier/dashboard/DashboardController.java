@@ -3,9 +3,7 @@ package com.mapo.palantier.dashboard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -18,16 +16,23 @@ public class DashboardController {
     public ResponseEntity<DashboardStatsResponse> getStats(
         Authentication authentication
     ) {
-        // 비로그인 시 빈 통계 반환
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.ok(
                 DashboardStatsResponse.builder()
-                    .myInProgressWorks(0)
-                    .todayDueWorks(0)
-                    .openIssues(0)
-                    .weekDoneWorks(0)
-                    .totalUsers(0)
-                    .weekCompletionRate(0)
+                    .totalWorks(0)
+                    .doneWorks(0)
+                    .inProgressWorks(0)
+                    .testWorks(0)
+                    .todoWorks(0)
+                    .holdWorks(0)
+                    .blockedWorks(0)
+                    .totalIssues(0)
+                    .doneIssues(0)
+                    .inProgressIssues(0)
+                    .testIssues(0)
+                    .todoIssues(0)
+                    .holdIssues(0)
+                    .blockedIssues(0)
                     .build()
             );
         }

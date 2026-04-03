@@ -31,6 +31,7 @@ import type {
   CellStyle,
   RowDragEndEvent,
   IRowNode,
+  ICellRendererParams,
 } from "ag-grid-community";
 import {
   ModuleRegistry,
@@ -50,6 +51,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import {
   Dialog,
   DialogContent,
+  FullscreenDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -135,7 +137,7 @@ export function IssuesPage() {
   // 상태 관리
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const editPanelRef = useRef<HTMLDivElement>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   // 수정된 행 추적
   const [modifiedRowIds, setModifiedRowIds] = useState<Set<number>>(new Set());
@@ -151,8 +153,9 @@ export function IssuesPage() {
   const [formTitle, setFormTitle] = useState("");
   const [formContent, setFormContent] = useState("");
   const [formCategory, setFormCategory] = useState<IssueCategory>("COMMON");
-  const [formStatus, setFormStatus] = useState<IssueStatus>("OPEN");
+  const [formStatus, setFormStatus] = useState<IssueStatus>("TODO");
   const [formPriority, setFormPriority] = useState<IssuePriority>("MEDIUM");
+  const [formDueDate, setFormDueDate] = useState<string>("");
 
   // API 호출
   const { data: issuesData } = useIssues({
@@ -339,9 +342,12 @@ export function IssuesPage() {
 
   // 상태 레이블
   const statusLabels: Record<IssueStatus, string> = {
-    OPEN: "진행 전",
+    TODO: "대기",
     IN_PROGRESS: "진행 중",
-    CLOSED: "완료",
+    TEST: "테스트",
+    DONE: "완료",
+    HOLD: "보류",
+    BLOCKED: "막힘",
   };
 
   // 셀 값 변경 핸들러 (수정 플래그만 설정, 저장은 안함)
@@ -419,7 +425,7 @@ export function IssuesPage() {
       title: "",
       content: "",
       category: "COMMON",
-      status: "OPEN",
+      status: "TODO",
       priority: "MEDIUM",
       authorId: currentUser.id,
       authorName: currentUser.username,
@@ -566,7 +572,7 @@ export function IssuesPage() {
           title: row.title || "제목 없음",
           content: row.content || "",
           category: row.category || "COMMON",
-          status: row.status || "OPEN",
+          status: row.status || "TODO",
           priority: row.priority || "MEDIUM",
         });
       }
@@ -607,9 +613,12 @@ export function IssuesPage() {
 
   // 상태별 배지 색상 (그리드/상세뷰 공통)
   const statusColors = {
-    OPEN: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-    IN_PROGRESS: "bg-amber-100 text-amber-700 hover:bg-amber-100",
-    CLOSED: "bg-green-100 text-green-700 hover:bg-green-100",
+    TODO: "bg-slate-100 text-slate-700 hover:bg-slate-100",
+    IN_PROGRESS: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+    TEST: "bg-purple-100 text-purple-700 hover:bg-purple-100",
+    DONE: "bg-green-100 text-green-700 hover:bg-green-100",
+    HOLD: "bg-amber-100 text-amber-700 hover:bg-amber-100",
+    BLOCKED: "bg-red-100 text-red-700 hover:bg-red-100",
   };
 
   // 우선순위별 배지 색상 (파스텔톤)
@@ -766,19 +775,26 @@ export function IssuesPage() {
                 </PopoverTrigger>
                 <PopoverContent className="w-32 p-2" align="center">
                   <div className="flex flex-col gap-1">
-                    {(["OPEN", "IN_PROGRESS", "CLOSED"] as IssueStatus[]).map(
-                      (s) => (
-                        <Button
-                          key={s}
-                          variant={s === status ? "default" : "ghost"}
-                          size="sm"
-                          className="justify-start h-8"
-                          onClick={() => handleStatusChange(s)}
-                        >
-                          {statusLabels[s]}
-                        </Button>
-                      ),
-                    )}
+                    {(
+                      [
+                        "TODO",
+                        "IN_PROGRESS",
+                        "TEST",
+                        "DONE",
+                        "HOLD",
+                        "BLOCKED",
+                      ] as IssueStatus[]
+                    ).map((s) => (
+                      <Button
+                        key={s}
+                        variant={s === status ? "default" : "ghost"}
+                        size="sm"
+                        className="justify-start h-8"
+                        onClick={() => handleStatusChange(s)}
+                      >
+                        {statusLabels[s]}
+                      </Button>
+                    ))}
                   </div>
                 </PopoverContent>
               </Popover>
@@ -840,6 +856,66 @@ export function IssuesPage() {
           );
         },
       },
+      {
+        headerName: "마감일",
+        field: "dueDate",
+        width: 110,
+        headerClass: "ag-header-cell-center",
+        editable: false,
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "12px",
+        } as CellStyle,
+        cellRenderer: (params: any) => {
+          if (!params.value) return "-";
+          const date = new Date(params.value);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const isOverdue = date < today;
+          const formatted = date.toLocaleDateString("ko-KR", {
+            month: "2-digit",
+            day: "2-digit",
+          });
+          return `<span style="color: ${isOverdue ? "#ef4444" : "inherit"}">${formatted}${isOverdue ? " ×" : ""}</span>`;
+        },
+      },
+      {
+        headerName: "상세",
+        field: "id",
+        width: 70,
+        minWidth: 70,
+        maxWidth: 70,
+        headerClass: "ag-header-cell-center",
+        sortable: false,
+        resizable: false,
+        suppressMovable: true,
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0",
+        } as CellStyle,
+        cellRenderer: (params: ICellRendererParams<Issue>) => {
+          const DetailButtonCell = () => (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!params.data) return;
+                setSelectedIssueId(params.data.id);
+                setIsEditing(false);
+                setIsDetailOpen(true);
+              }}
+              className="flex items-center justify-center w-7 h-7 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+              title="상세 보기"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+          );
+          return <DetailButtonCell />;
+        },
+      },
     ],
     [statusColors, priorityColors, priorityLabels],
   );
@@ -861,33 +937,10 @@ export function IssuesPage() {
     [modifiedRowIds, selectedIssueId],
   );
 
-  // 행 클릭 이벤트 (상세 보기)
+  // 행 클릭 이벤트 (선택만, 패널 열지 않음)
   const onRowClicked = (event: any) => {
     setSelectedIssueId(event.data.id);
-    setIsEditing(false);
   };
-
-  // 편집 모드에서 외부 클릭 시 취소
-  useEffect(() => {
-    if (!isEditing) return;
-    const handleMouseDown = (e: MouseEvent) => {
-      if (
-        editPanelRef.current &&
-        !editPanelRef.current.contains(e.target as Node)
-      ) {
-        handleCancel();
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleCancel();
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isEditing]);
 
   // 신규 작성
   const handleNew = () => {
@@ -895,9 +948,11 @@ export function IssuesPage() {
     setFormTitle("");
     setFormContent("");
     setFormCategory("COMMON");
-    setFormStatus("OPEN");
+    setFormStatus("TODO");
     setFormPriority("MEDIUM");
+    setFormDueDate("");
     setIsEditing(true);
+    setIsDetailOpen(true);
   };
 
   // 수정 모드로 전환
@@ -908,7 +963,9 @@ export function IssuesPage() {
     setFormCategory(issueDetail.category);
     setFormStatus(issueDetail.status);
     setFormPriority(issueDetail.priority);
+    setFormDueDate(issueDetail.dueDate ? issueDetail.dueDate.slice(0, 10) : "");
     setIsEditing(true);
+    // setIsDetailOpen은 이미 true 상태
   };
 
   // 저장
@@ -928,6 +985,7 @@ export function IssuesPage() {
       category: formCategory,
       status: formStatus,
       priority: formPriority,
+      dueDate: formDueDate ? formDueDate + "T00:00:00" : null,
     };
 
     if (selectedIssueId) {
@@ -953,11 +1011,10 @@ export function IssuesPage() {
 
   // 취소
   const handleCancel = () => {
-    if (selectedIssueId) {
-      setIsEditing(false);
-    } else {
-      setIsEditing(false);
-      setSelectedIssueId(null);
+    setIsEditing(false);
+    setFormDueDate("");
+    if (!selectedIssueId) {
+      setIsDetailOpen(false);
     }
   };
 
@@ -977,6 +1034,7 @@ export function IssuesPage() {
     if (confirmed) {
       deleteIssue(selectedIssueId, {
         onSuccess: () => {
+          setIsDetailOpen(false);
           setSelectedIssueId(null);
           setIsEditing(false);
         },
@@ -1463,10 +1521,12 @@ export function IssuesPage() {
   const statusCounts = useMemo(() => {
     const allIssues = issuesData?.items || [];
     return {
-      OPEN: allIssues.filter((issue) => issue.status === "OPEN").length,
-      IN_PROGRESS: allIssues.filter((issue) => issue.status === "IN_PROGRESS")
-        .length,
-      CLOSED: allIssues.filter((issue) => issue.status === "CLOSED").length,
+      TODO: allIssues.filter((i) => i.status === "TODO").length,
+      IN_PROGRESS: allIssues.filter((i) => i.status === "IN_PROGRESS").length,
+      TEST: allIssues.filter((i) => i.status === "TEST").length,
+      DONE: allIssues.filter((i) => i.status === "DONE").length,
+      HOLD: allIssues.filter((i) => i.status === "HOLD").length,
+      BLOCKED: allIssues.filter((i) => i.status === "BLOCKED").length,
       ALL: allIssues.length,
     };
   }, [issuesData]);
@@ -1506,13 +1566,16 @@ export function IssuesPage() {
             {(
               [
                 { key: "ALL", label: "전체", count: statusCounts.ALL },
-                { key: "OPEN", label: "진행 전", count: statusCounts.OPEN },
+                { key: "TODO", label: "대기", count: statusCounts.TODO },
                 {
                   key: "IN_PROGRESS",
                   label: "진행 중",
                   count: statusCounts.IN_PROGRESS,
                 },
-                { key: "CLOSED", label: "완료", count: statusCounts.CLOSED },
+                { key: "TEST", label: "테스트", count: statusCounts.TEST },
+                { key: "DONE", label: "완료", count: statusCounts.DONE },
+                { key: "HOLD", label: "보류", count: statusCounts.HOLD },
+                { key: "BLOCKED", label: "막힘", count: statusCounts.BLOCKED },
               ] as { key: string; label: string; count: number }[]
             ).map(({ key, label, count }) => (
               <button
@@ -1797,206 +1860,237 @@ export function IssuesPage() {
             />
           </div>
         </div>
+      </div>
 
-        {/* 우측: 이슈 상세 */}
-        <div className="flex-1 p-6 overflow-y-auto bg-muted/30 border-l border-border">
+      {/* 상세 / 편집 Dialog */}
+      <Dialog
+        open={isDetailOpen}
+        onOpenChange={(open) => {
+          setIsDetailOpen(open);
+          if (!open) {
+            setIsEditing(false);
+          }
+        }}
+      >
+        <FullscreenDialogContent>
           {isEditing ? (
             /* 편집 모드 */
-            <div ref={editPanelRef}>
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">
-                  {selectedIssueId ? "이슈 수정" : "새 이슈 작성"}
-                </h2>
-                <div className="flex gap-2">
-                  <Button onClick={handleSave}>저장</Button>
-                  <Button variant="outline" onClick={handleCancel}>
-                    <X className="w-4 h-4 mr-2" />
-                    취소
-                  </Button>
+            <div className="h-full overflow-y-auto p-6">
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">
+                    {selectedIssueId ? "이슈 수정" : "새 이슈 작성"}
+                  </h2>
+                  <div className="flex gap-2">
+                    <Button onClick={handleSave}>저장</Button>
+                    <Button variant="outline" onClick={handleCancel}>
+                      <X className="w-4 h-4 mr-2" />
+                      취소
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        카테고리
+                      </label>
+                      <Select
+                        value={formCategory}
+                        onValueChange={(v) =>
+                          setFormCategory(v as IssueCategory)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="COMMON">일반</SelectItem>
+                          <SelectItem value="BUG">버그</SelectItem>
+                          <SelectItem value="FEATURE">기능</SelectItem>
+                          <SelectItem value="IMPROVEMENT">개선</SelectItem>
+                          <SelectItem value="QUESTION">질문</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        상태
+                      </label>
+                      <Select
+                        value={formStatus}
+                        onValueChange={(v) => setFormStatus(v as IssueStatus)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TODO">대기</SelectItem>
+                          <SelectItem value="IN_PROGRESS">진행 중</SelectItem>
+                          <SelectItem value="TEST">테스트</SelectItem>
+                          <SelectItem value="DONE">완료</SelectItem>
+                          <SelectItem value="HOLD">보류</SelectItem>
+                          <SelectItem value="BLOCKED">막힘</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      카테고리
+                      우선순위
                     </label>
                     <Select
-                      value={formCategory}
-                      onValueChange={(v) => setFormCategory(v as IssueCategory)}
+                      value={formPriority}
+                      onValueChange={(v) => setFormPriority(v as IssuePriority)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="COMMON">일반</SelectItem>
-                        <SelectItem value="BUG">버그</SelectItem>
-                        <SelectItem value="FEATURE">기능</SelectItem>
-                        <SelectItem value="IMPROVEMENT">개선</SelectItem>
-                        <SelectItem value="QUESTION">질문</SelectItem>
+                        <SelectItem value="LOW">낮음</SelectItem>
+                        <SelectItem value="MEDIUM">보통</SelectItem>
+                        <SelectItem value="HIGH">높음</SelectItem>
+                        <SelectItem value="CRITICAL">긴급</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      상태
+                      마감일
                     </label>
-                    <Select
-                      value={formStatus}
-                      onValueChange={(v) => setFormStatus(v as IssueStatus)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="OPEN">진행 전</SelectItem>
-                        <SelectItem value="IN_PROGRESS">진행 중</SelectItem>
-                        <SelectItem value="CLOSED">완료</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <input
+                      type="date"
+                      value={formDueDate}
+                      onChange={(e) => setFormDueDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    우선순위
-                  </label>
-                  <Select
-                    value={formPriority}
-                    onValueChange={(v) => setFormPriority(v as IssuePriority)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="LOW">낮음</SelectItem>
-                      <SelectItem value="MEDIUM">보통</SelectItem>
-                      <SelectItem value="HIGH">높음</SelectItem>
-                      <SelectItem value="CRITICAL">긴급</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      제목 *
+                    </label>
+                    <input
+                      type="text"
+                      value={formTitle}
+                      onChange={(e) => setFormTitle(e.target.value)}
+                      className="w-full px-3 py-2 border border-input rounded-md"
+                      placeholder="이슈 제목을 입력하세요"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    제목 *
-                  </label>
-                  <input
-                    type="text"
-                    value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    className="w-full px-3 py-2 border border-input rounded-md"
-                    placeholder="이슈 제목을 입력하세요"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    내용 *
-                  </label>
-                  <textarea
-                    value={formContent}
-                    onChange={(e) => setFormContent(e.target.value)}
-                    rows={10}
-                    className="w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                    placeholder="이슈 내용을 입력하세요"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      내용 *
+                    </label>
+                    <textarea
+                      value={formContent}
+                      onChange={(e) => setFormContent(e.target.value)}
+                      rows={10}
+                      className="w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                      placeholder="이슈 내용을 입력하세요"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           ) : issueDetail ? (
             /* 조회 모드 */
-            <div>
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2">
-                    {issueDetail.title}
-                  </h2>
-                  <div className="flex gap-2 items-center text-sm text-muted-foreground">
-                    <span>#{issueDetail.id}</span>
-                    <span>•</span>
-                    <span>{issueDetail.authorName}</span>
-                    <span>•</span>
-                    <span>
-                      {new Date(issueDetail.createdAt).toLocaleDateString(
-                        "ko-KR",
-                      )}
-                    </span>
+            <div className="h-full overflow-y-auto p-6">
+              <div>
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">
+                      {issueDetail.title}
+                    </h2>
+                    <div className="flex gap-2 items-center text-sm text-muted-foreground">
+                      <span>#{issueDetail.id}</span>
+                      <span>•</span>
+                      <span>{issueDetail.authorName}</span>
+                      <span>•</span>
+                      <span>
+                        {new Date(issueDetail.createdAt).toLocaleDateString(
+                          "ko-KR",
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleEdit}>
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      수정
+                    </Button>
+                    <Button variant="destructive" onClick={handleDelete}>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      삭제
+                    </Button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleEdit}>
-                    <Edit2 className="w-4 h-4 mr-2" />
-                    수정
-                  </Button>
-                  <Button variant="destructive" onClick={handleDelete}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    삭제
-                  </Button>
-                </div>
-              </div>
 
-              {/* 기본 정보 */}
-              <div className="border rounded-lg overflow-hidden mb-6">
-                <table className="w-full text-sm">
-                  <tbody>
-                    <tr className="border-b">
-                      <td className="bg-muted px-4 py-2 font-medium w-32">
-                        카테고리
-                      </td>
-                      <td className="px-4 py-2">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Badge
-                              variant="outline"
-                              className="cursor-pointer hover:bg-accent"
-                            >
-                              {categoryLabels[issueDetail.category]}
-                            </Badge>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-40 p-2">
-                            <div className="space-y-1">
-                              {(
-                                Object.keys(categoryLabels) as IssueCategory[]
-                              ).map((cat) => (
-                                <div
-                                  key={cat}
-                                  className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
-                                    cat === issueDetail.category
-                                      ? "bg-accent"
-                                      : ""
-                                  }`}
-                                  onClick={() => handleCategoryChange(cat)}
-                                >
-                                  {categoryLabels[cat]}
-                                </div>
-                              ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </td>
-                      <td className="bg-muted px-4 py-2 font-medium w-32">
-                        작성자
-                      </td>
-                      <td className="px-4 py-2">{issueDetail.authorName}</td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="bg-muted px-4 py-2 font-medium">상태</td>
-                      <td className="px-4 py-2">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Badge
-                              className={`cursor-pointer ${statusColors[issueDetail.status]}`}
-                            >
-                              {statusLabels[issueDetail.status]}
-                            </Badge>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-40 p-2">
-                            <div className="space-y-1">
-                              {(Object.keys(statusLabels) as IssueStatus[]).map(
-                                (status) => (
+                {/* 기본 정보 */}
+                <div className="border rounded-lg overflow-hidden mb-6">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      <tr className="border-b">
+                        <td className="bg-muted px-4 py-2 font-medium w-32">
+                          카테고리
+                        </td>
+                        <td className="px-4 py-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className="cursor-pointer hover:bg-accent"
+                              >
+                                {categoryLabels[issueDetail.category]}
+                              </Badge>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-40 p-2">
+                              <div className="space-y-1">
+                                {(
+                                  Object.keys(categoryLabels) as IssueCategory[]
+                                ).map((cat) => (
+                                  <div
+                                    key={cat}
+                                    className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
+                                      cat === issueDetail.category
+                                        ? "bg-accent"
+                                        : ""
+                                    }`}
+                                    onClick={() => handleCategoryChange(cat)}
+                                  >
+                                    {categoryLabels[cat]}
+                                  </div>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </td>
+                        <td className="bg-muted px-4 py-2 font-medium w-32">
+                          작성자
+                        </td>
+                        <td className="px-4 py-2">{issueDetail.authorName}</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">상태</td>
+                        <td className="px-4 py-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Badge
+                                className={`cursor-pointer ${statusColors[issueDetail.status]}`}
+                              >
+                                {statusLabels[issueDetail.status]}
+                              </Badge>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-40 p-2">
+                              <div className="space-y-1">
+                                {(
+                                  Object.keys(statusLabels) as IssueStatus[]
+                                ).map((status) => (
                                   <div
                                     key={status}
                                     className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
@@ -2008,725 +2102,737 @@ export function IssuesPage() {
                                   >
                                     {statusLabels[status]}
                                   </div>
-                                ),
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </td>
+                        <td className="bg-muted px-4 py-2 font-medium">
+                          우선순위
+                        </td>
+                        <td className="px-4 py-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Badge
+                                className={`cursor-pointer ${priorityColors[issueDetail.priority]}`}
+                              >
+                                {priorityLabels[issueDetail.priority]}
+                              </Badge>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-40 p-2">
+                              <div className="space-y-1">
+                                {(
+                                  Object.keys(priorityLabels) as IssuePriority[]
+                                ).map((priority) => (
+                                  <div
+                                    key={priority}
+                                    className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
+                                      priority === issueDetail.priority
+                                        ? "bg-accent"
+                                        : ""
+                                    }`}
+                                    onClick={() =>
+                                      handlePriorityChange(priority)
+                                    }
+                                  >
+                                    {priorityLabels[priority]}
+                                  </div>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">
+                          담당자
+                        </td>
+                        <td className="px-4 py-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {issueAssignees && issueAssignees.length > 0 ? (
+                                <>
+                                  {issueAssignees.map((assignee) => (
+                                    <Badge
+                                      key={assignee.userId}
+                                      variant="outline"
+                                    >
+                                      {assignee.username}
+                                    </Badge>
+                                  ))}
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  미지정
+                                </span>
                               )}
                             </div>
-                          </PopoverContent>
-                        </Popover>
-                      </td>
-                      <td className="bg-muted px-4 py-2 font-medium">
-                        우선순위
-                      </td>
-                      <td className="px-4 py-2">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Badge
-                              className={`cursor-pointer ${priorityColors[issueDetail.priority]}`}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={openAssigneeDialog}
+                              className="h-6 px-2"
                             >
-                              {priorityLabels[issueDetail.priority]}
-                            </Badge>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-40 p-2">
-                            <div className="space-y-1">
-                              {(
-                                Object.keys(priorityLabels) as IssuePriority[]
-                              ).map((priority) => (
-                                <div
-                                  key={priority}
-                                  className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
-                                    priority === issueDetail.priority
-                                      ? "bg-accent"
-                                      : ""
-                                  }`}
-                                  onClick={() => handlePriorityChange(priority)}
-                                >
-                                  {priorityLabels[priority]}
-                                </div>
-                              ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="bg-muted px-4 py-2 font-medium">담당자</td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {issueAssignees && issueAssignees.length > 0 ? (
-                              <>
-                                {issueAssignees.map((assignee) => (
-                                  <Badge
-                                    key={assignee.userId}
-                                    variant="outline"
-                                  >
-                                    {assignee.username}
-                                  </Badge>
-                                ))}
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">
-                                미지정
-                              </span>
-                            )}
+                              <Users className="w-3 h-3 mr-1" />
+                              변경
+                            </Button>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={openAssigneeDialog}
-                            className="h-6 px-2"
-                          >
-                            <Users className="w-3 h-3 mr-1" />
-                            변경
-                          </Button>
-                        </div>
-                      </td>
-                      <td className="bg-muted px-4 py-2 font-medium">폴더</td>
-                      <td className="px-4 py-2">
-                        {issueDetail.folderId || "-"}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="bg-muted px-4 py-2 font-medium">작성일</td>
-                      <td className="px-4 py-2">
-                        {new Date(issueDetail.createdAt).toLocaleDateString(
-                          "ko-KR",
-                          {
-                            year: "numeric",
-                            month: "2-digit",
-                            day: "2-digit",
-                          },
-                        )}{" "}
-                        오전{" "}
-                        {new Date(issueDetail.createdAt).toLocaleTimeString(
-                          "ko-KR",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                            hour12: false,
-                          },
-                        )}
-                      </td>
-                      <td className="bg-muted px-4 py-2 font-medium">수정일</td>
-                      <td className="px-4 py-2">
-                        {new Date(issueDetail.updatedAt).toLocaleDateString(
-                          "ko-KR",
-                          {
-                            year: "numeric",
-                            month: "2-digit",
-                            day: "2-digit",
-                          },
-                        )}{" "}
-                        오후{" "}
-                        {new Date(issueDetail.updatedAt).toLocaleTimeString(
-                          "ko-KR",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                            hour12: false,
-                          },
-                        )}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* 첨부 파일 */}
-              <div
-                className="border rounded-lg overflow-hidden mb-3"
-                onPaste={handlePaste}
-              >
-                <div className="bg-muted/30 border-b px-4 py-1.5">
-                  <span className="font-bold text-sm">첨부 파일</span>
+                        </td>
+                        <td className="bg-muted px-4 py-2 font-medium">폴더</td>
+                        <td className="px-4 py-2">
+                          {issueDetail.folderId || "-"}
+                        </td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="bg-muted px-4 py-2 font-medium w-32">
+                          마감일
+                        </td>
+                        <td className="px-4 py-2" colSpan={3}>
+                          {issueDetail.dueDate ? (
+                            <span
+                              className={
+                                new Date(issueDetail.dueDate) < new Date()
+                                  ? "text-red-500 font-medium"
+                                  : ""
+                              }
+                            >
+                              {new Date(issueDetail.dueDate).toLocaleDateString(
+                                "ko-KR",
+                                {
+                                  year: "numeric",
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                },
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="bg-muted px-4 py-2 font-medium">
+                          작성일
+                        </td>
+                        <td className="px-4 py-2">
+                          {new Date(issueDetail.createdAt).toLocaleDateString(
+                            "ko-KR",
+                            {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                            },
+                          )}{" "}
+                          오전{" "}
+                          {new Date(issueDetail.createdAt).toLocaleTimeString(
+                            "ko-KR",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                              hour12: false,
+                            },
+                          )}
+                        </td>
+                        <td className="bg-muted px-4 py-2 font-medium">
+                          수정일
+                        </td>
+                        <td className="px-4 py-2">
+                          {new Date(issueDetail.updatedAt).toLocaleDateString(
+                            "ko-KR",
+                            {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                            },
+                          )}{" "}
+                          오후{" "}
+                          {new Date(issueDetail.updatedAt).toLocaleTimeString(
+                            "ko-KR",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                              hour12: false,
+                            },
+                          )}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-                <div className="p-2">
-                  <Tabs defaultValue="images" className="w-full">
-                    <TabsList className="mb-3">
-                      <TabsTrigger value="images">
-                        이미지{" "}
-                        {issueImages && issueImages.length > 0 && (
-                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                            {issueImages.length}
-                          </span>
-                        )}
-                      </TabsTrigger>
-                      <TabsTrigger value="mmd">
-                        마인드맵 (MMD){" "}
-                        {mindmaps && mindmaps.length > 0 && (
-                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                            {mindmaps.length}
-                          </span>
-                        )}
-                      </TabsTrigger>
-                      <TabsTrigger value="tasks">
-                        DB 테이블{" "}
-                        {dbTables && dbTables.length > 0 && (
-                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                            {dbTables.length}
-                          </span>
-                        )}
-                      </TabsTrigger>
-                      <TabsTrigger value="figmas">
-                        피그마{" "}
-                        {figmas && figmas.length > 0 && (
-                          <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                            {figmas.length}
-                          </span>
-                        )}
-                      </TabsTrigger>
-                    </TabsList>
 
-                    {/* 이미지 탭 */}
-                    <TabsContent value="images">
-                      <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-semibold">이미지 첨부</h3>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => imageInputRef.current?.click()}
-                          disabled={isUploading}
+                {/* 첨부 파일 */}
+                <div
+                  className="border rounded-lg overflow-hidden mb-3"
+                  onPaste={handlePaste}
+                >
+                  <div className="bg-muted/30 border-b px-4 py-1.5">
+                    <span className="font-bold text-sm">첨부 파일</span>
+                  </div>
+                  <div className="p-2">
+                    <Tabs defaultValue="images" className="w-full">
+                      <TabsList className="mb-3">
+                        <TabsTrigger value="images">
+                          이미지{" "}
+                          {issueImages && issueImages.length > 0 && (
+                            <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                              {issueImages.length}
+                            </span>
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="mmd">
+                          마인드맵 (MMD){" "}
+                          {mindmaps && mindmaps.length > 0 && (
+                            <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                              {mindmaps.length}
+                            </span>
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="tasks">
+                          DB 테이블{" "}
+                          {dbTables && dbTables.length > 0 && (
+                            <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                              {dbTables.length}
+                            </span>
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="figmas">
+                          피그마{" "}
+                          {figmas && figmas.length > 0 && (
+                            <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                              {figmas.length}
+                            </span>
+                          )}
+                        </TabsTrigger>
+                      </TabsList>
+
+                      {/* 이미지 탭 */}
+                      <TabsContent value="images">
+                        <div className="flex justify-between items-center mb-3">
+                          <h3 className="font-semibold">이미지 첨부</h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => imageInputRef.current?.click()}
+                            disabled={isUploading}
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {isUploading ? "업로드 중..." : "이미지 추가"}
+                          </Button>
+                          <input
+                            ref={imageInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) =>
+                              e.target.files &&
+                              handleImageUpload(e.target.files)
+                            }
+                          />
+                        </div>
+
+                        {/* 드래그앤드롭 영역 */}
+                        <div
+                          ref={uploadAreaRef}
+                          tabIndex={0}
+                          className={`border-2 border-dashed rounded-lg p-6 transition-all cursor-pointer outline-none ${
+                            isPasteMode
+                              ? "border-primary bg-primary/10 ring-2 ring-primary/20"
+                              : isDragging
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/50"
+                          }`}
+                          onClick={handleUploadAreaClick}
+                          onBlur={handleUploadAreaBlur}
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
                         >
-                          <Upload className="w-4 h-4 mr-2" />
-                          {isUploading ? "업로드 중..." : "이미지 추가"}
-                        </Button>
-                        <input
-                          ref={imageInputRef}
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={(e) =>
-                            e.target.files && handleImageUpload(e.target.files)
-                          }
-                        />
-                      </div>
-
-                      {/* 드래그앤드롭 영역 */}
-                      <div
-                        ref={uploadAreaRef}
-                        tabIndex={0}
-                        className={`border-2 border-dashed rounded-lg p-6 transition-all cursor-pointer outline-none ${
-                          isPasteMode
-                            ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-                            : isDragging
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={handleUploadAreaClick}
-                        onBlur={handleUploadAreaBlur}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                      >
-                        {issueImages &&
-                        issueImages.filter(
-                          (img) => img.fileType === "image" || !img.fileType,
-                        ).length > 0 ? (
-                          <div className="grid grid-cols-3 gap-2">
-                            {issueImages
-                              .filter(
-                                (img) =>
-                                  img.fileType === "image" || !img.fileType,
-                              )
-                              .map((image) => (
-                                <div
-                                  key={image.id}
-                                  className="relative group aspect-square rounded overflow-hidden border bg-gray-100"
-                                >
-                                  <img
-                                    src={image.url}
-                                    alt={image.filename}
-                                    className="w-full h-full object-cover cursor-pointer"
-                                    onClick={() =>
-                                      window.open(image.url, "_blank")
-                                    }
-                                  />
-                                  <button
-                                    onClick={() => deleteImage(image.id)}
-                                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity leading-none"
+                          {issueImages &&
+                          issueImages.filter(
+                            (img) => img.fileType === "image" || !img.fileType,
+                          ).length > 0 ? (
+                            <div className="grid grid-cols-3 gap-2">
+                              {issueImages
+                                .filter(
+                                  (img) =>
+                                    img.fileType === "image" || !img.fileType,
+                                )
+                                .map((image) => (
+                                  <div
+                                    key={image.id}
+                                    className="relative group aspect-square rounded overflow-hidden border bg-gray-100"
                                   >
-                                    ✕
-                                  </button>
-                                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {image.filename}
-                                  </div>
-                                </div>
-                              ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                            {isPasteMode ? (
-                              <p className="text-sm text-primary font-medium">
-                                Ctrl+V로 이미지를 붙여넣으세요
-                              </p>
-                            ) : (
-                              <p className="text-sm">
-                                이미지를 드래그하여 놓거나, 클릭하여 활성화 후
-                                Ctrl+V로 붙여넣으세요
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-
-                    {/* MMD 탭 */}
-                    <TabsContent value="mmd">
-                      <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-semibold">마인드맵 (MMD)</h3>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenMindmapDialog()}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          마인드맵 추가
-                        </Button>
-                      </div>
-
-                      <div className="space-y-2">
-                        {mindmaps && mindmaps.length > 0 ? (
-                          mindmaps.map((mindmap) => (
-                            <div
-                              key={mindmap.id}
-                              className="flex items-center justify-between p-3 border rounded hover:bg-accent group"
-                            >
-                              <div className="flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">
-                                  {mindmap.title}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 opacity-0 group-hover:opacity-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenMindmapDialog(mindmap.id);
-                                  }}
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteMindmap(mindmap.id);
-                                  }}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2"
-                                  onClick={() => handleViewMindmap(mindmap.id)}
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                            <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">마인드맵을 추가하세요</p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-
-                    {/* DB 테이블 탭 */}
-                    <TabsContent value="tasks">
-                      <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-semibold">DB 테이블 정보</h3>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenDbTableDialog()}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          테이블 정보 추가
-                        </Button>
-                      </div>
-
-                      <div className="space-y-4">
-                        {dbTables && dbTables.length > 0 ? (
-                          dbTables.map((dbTable) => {
-                            const content = parseDbTableContent(
-                              dbTable.tableInfo,
-                            );
-                            return (
-                              <div
-                                key={dbTable.id}
-                                className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"
-                              >
-                                {/* 테이블 헤더 */}
-                                <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <Database className="w-5 h-5 text-blue-600" />
-                                    <div>
-                                      <h4 className="font-semibold text-base">
-                                        {content.tableName}
-                                      </h4>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                        {content.schema && (
-                                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                                            {content.schema}
-                                          </span>
-                                        )}
-                                        {content.category && (
-                                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
-                                            {content.category}
-                                          </span>
-                                        )}
-                                      </div>
+                                    <img
+                                      src={image.url}
+                                      alt={image.filename}
+                                      className="w-full h-full object-cover cursor-pointer"
+                                      onClick={() =>
+                                        window.open(image.url, "_blank")
+                                      }
+                                    />
+                                    <button
+                                      onClick={() => deleteImage(image.id)}
+                                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity leading-none"
+                                    >
+                                      ✕
+                                    </button>
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                      {image.filename}
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() =>
-                                        handleOpenDbTableDialog(dbTable.id)
-                                      }
-                                    >
-                                      <Edit2 className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() =>
-                                        handleDeleteDbTable(dbTable.id)
-                                      }
-                                    >
-                                      <Trash2 className="w-4 h-4 text-destructive" />
-                                    </Button>
-                                  </div>
-                                </div>
-
-                                {/* 테이블 설명 */}
-                                {content.description && (
-                                  <div className="px-4 py-2 bg-blue-50 border-b text-sm text-blue-900">
-                                    💬 {content.description}
-                                  </div>
-                                )}
-
-                                {/* 컬럼 테이블 */}
-                                {content.columns &&
-                                content.columns.length > 0 ? (
-                                  <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                      <thead className="bg-gray-700 text-white">
-                                        <tr>
-                                          <th className="px-3 py-2 text-left">
-                                            column_name
-                                          </th>
-                                          <th className="px-3 py-2 text-left">
-                                            data_type
-                                          </th>
-                                          <th className="px-3 py-2 text-center w-20">
-                                            nullable
-                                          </th>
-                                          <th className="px-3 py-2 text-center w-12">
-                                            pk
-                                          </th>
-                                          <th className="px-3 py-2 text-center w-12">
-                                            fk
-                                          </th>
-                                          <th className="px-3 py-2 text-center w-16">
-                                            unique_key
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {content.columns.map((col, idx) => (
-                                          <tr
-                                            key={idx}
-                                            className={`border-t hover:bg-blue-50 ${
-                                              col.pk === "PK"
-                                                ? "bg-amber-50"
-                                                : ""
-                                            }`}
-                                          >
-                                            <td className="px-3 py-2 font-medium font-mono text-sm">
-                                              {col.column_name}
-                                            </td>
-                                            <td className="px-3 py-2 font-mono text-xs text-blue-600">
-                                              {col.data_type}
-                                            </td>
-                                            <td className="px-3 py-2 text-center text-muted-foreground">
-                                              {col.nullable}
-                                            </td>
-                                            <td className="px-3 py-2 text-center">
-                                              {col.pk === "PK" && (
-                                                <span className="text-amber-600">
-                                                  ✓
-                                                </span>
-                                              )}
-                                            </td>
-                                            <td className="px-3 py-2 text-center">
-                                              {col.fk === "FK" && (
-                                                <span className="text-green-600">
-                                                  ✓
-                                                </span>
-                                              )}
-                                            </td>
-                                            <td className="px-3 py-2 text-center">
-                                              {col.unique_key === "UQ" && (
-                                                <span className="text-purple-600">
-                                                  ✓
-                                                </span>
-                                              )}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                ) : (
-                                  <div className="p-4">
-                                    <pre className="bg-gray-50 border rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre">
-                                      {content.queryResult}
-                                    </pre>
-                                  </div>
-                                )}
-
-                                {/* 푸터 */}
-                                <div className="px-4 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
-                                  {content.columns.length > 0
-                                    ? `${content.columns.length}개 컬럼`
-                                    : "원본 데이터"}
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                            <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">
-                              DB 테이블 정보를 추가하세요
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-
-                    {/* 피그마 탭 */}
-                    <TabsContent value="figmas">
-                      <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-semibold">피그마 링크</h3>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenFigmaDialog()}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          피그마 추가
-                        </Button>
-                      </div>
-
-                      {figmas && figmas.length > 0 ? (
-                        <div className="space-y-2">
-                          {figmas.map((figma) => (
-                            <div
-                              key={figma.id}
-                              className="flex items-start justify-between border rounded-lg p-3 hover:bg-muted/30 transition-colors"
-                            >
-                              <div className="flex items-start gap-3 flex-1 min-w-0">
-                                <Figma className="w-5 h-5 text-[#F24E1E] shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">
-                                    {figma.title}
-                                  </p>
-                                  {figma.description && (
-                                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                      {figma.description}
-                                    </p>
-                                  )}
-                                  <a
-                                    href={figma.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-primary hover:underline flex items-center gap-1 mt-1 truncate"
-                                  >
-                                    <ExternalLink className="w-3 h-3 shrink-0" />
-                                    <span className="truncate">
-                                      {figma.url}
-                                    </span>
-                                  </a>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1 ml-2 shrink-0">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0"
-                                  onClick={() =>
-                                    handleOpenFigmaDialog(figma.id)
-                                  }
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteFigma(figma.id)}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
+                                ))}
                             </div>
-                          ))}
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                              {isPasteMode ? (
+                                <p className="text-sm text-primary font-medium">
+                                  Ctrl+V로 이미지를 붙여넣으세요
+                                </p>
+                              ) : (
+                                <p className="text-sm">
+                                  이미지를 드래그하여 놓거나, 클릭하여 활성화 후
+                                  Ctrl+V로 붙여넣으세요
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                          <Figma className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                          <p className="text-sm">피그마 링크를 추가하세요</p>
-                        </div>
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              </div>
+                      </TabsContent>
 
-              {/* 내용 */}
-              <div className="border rounded-lg overflow-hidden mb-3">
-                <div className="bg-muted/30 border-b px-4 py-1.5 flex items-center justify-between">
-                  <span className="font-bold text-sm">내용</span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    <Edit2 className="w-3.5 h-3.5 mr-1" />
-                    편집
-                  </Button>
-                </div>
-                <div className="p-2 whitespace-pre-wrap text-sm">
-                  {issueDetail.content}
-                </div>
-              </div>
-
-              {/* 체크리스트 */}
-              <div className="border rounded-lg overflow-hidden mb-3">
-                <div className="bg-muted/30 border-b px-4 py-1.5">
-                  <span className="font-bold text-sm">체크리스트</span>
-                </div>
-                <div className="p-2">
-                  {/* 체크리스트 목록 */}
-                  <div className="space-y-2 mb-3">
-                    {checklists && checklists.length > 0 ? (
-                      checklists.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-2 p-2 hover:bg-accent rounded group"
-                        >
-                          <Checkbox
-                            checked={item.checked}
-                            onCheckedChange={() => toggleChecklist(item.id)}
-                          />
-                          <span
-                            className={`flex-1 text-sm ${item.checked ? "line-through text-muted-foreground" : ""}`}
-                          >
-                            {item.content}
-                          </span>
+                      {/* MMD 탭 */}
+                      <TabsContent value="mmd">
+                        <div className="flex justify-between items-center mb-3">
+                          <h3 className="font-semibold">마인드맵 (MMD)</h3>
                           <Button
+                            variant="outline"
                             size="sm"
-                            variant="ghost"
-                            className="opacity-0 group-hover:opacity-100"
-                            onClick={() => handleDeleteChecklistItem(item.id)}
+                            onClick={() => handleOpenMindmapDialog()}
                           >
-                            <Trash2 className="w-4 h-4 text-destructive" />
+                            <Plus className="w-4 h-4 mr-2" />
+                            마인드맵 추가
                           </Button>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        체크리스트가 없습니다
-                      </p>
-                    )}
-                  </div>
 
-                  {/* 새 항목 추가 */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newChecklistContent}
-                      onChange={(e) => setNewChecklistContent(e.target.value)}
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && handleAddChecklist()
-                      }
-                      placeholder="새 항목 추가..."
-                      className="flex-1 px-3 py-2 border border-input rounded-md text-sm"
-                    />
-                    <Button size="sm" onClick={handleAddChecklist}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      추가
+                        <div className="space-y-2">
+                          {mindmaps && mindmaps.length > 0 ? (
+                            mindmaps.map((mindmap) => (
+                              <div
+                                key={mindmap.id}
+                                className="flex items-center justify-between p-3 border rounded hover:bg-accent group"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <FileText className="w-4 h-4 text-muted-foreground" />
+                                  <span className="text-sm font-medium">
+                                    {mindmap.title}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2 opacity-0 group-hover:opacity-100"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenMindmapDialog(mindmap.id);
+                                    }}
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteMindmap(mindmap.id);
+                                    }}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2"
+                                    onClick={() =>
+                                      handleViewMindmap(mindmap.id)
+                                    }
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                              <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm">마인드맵을 추가하세요</p>
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      {/* DB 테이블 탭 */}
+                      <TabsContent value="tasks">
+                        <div className="flex justify-between items-center mb-3">
+                          <h3 className="font-semibold">DB 테이블 정보</h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenDbTableDialog()}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            테이블 정보 추가
+                          </Button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {dbTables && dbTables.length > 0 ? (
+                            dbTables.map((dbTable) => {
+                              const content = parseDbTableContent(
+                                dbTable.tableInfo,
+                              );
+                              return (
+                                <div
+                                  key={dbTable.id}
+                                  className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"
+                                >
+                                  {/* 테이블 헤더 */}
+                                  <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <Database className="w-5 h-5 text-blue-600" />
+                                      <div>
+                                        <h4 className="font-semibold text-base">
+                                          {content.tableName}
+                                        </h4>
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                          {content.schema && (
+                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                              {content.schema}
+                                            </span>
+                                          )}
+                                          {content.category && (
+                                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                              {content.category}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() =>
+                                          handleOpenDbTableDialog(dbTable.id)
+                                        }
+                                      >
+                                        <Edit2 className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() =>
+                                          handleDeleteDbTable(dbTable.id)
+                                        }
+                                      >
+                                        <Trash2 className="w-4 h-4 text-destructive" />
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  {/* 테이블 설명 */}
+                                  {content.description && (
+                                    <div className="px-4 py-2 bg-blue-50 border-b text-sm text-blue-900">
+                                      💬 {content.description}
+                                    </div>
+                                  )}
+
+                                  {/* 컬럼 테이블 */}
+                                  {content.columns &&
+                                  content.columns.length > 0 ? (
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-sm">
+                                        <thead className="bg-gray-700 text-white">
+                                          <tr>
+                                            <th className="px-3 py-2 text-left">
+                                              column_name
+                                            </th>
+                                            <th className="px-3 py-2 text-left">
+                                              data_type
+                                            </th>
+                                            <th className="px-3 py-2 text-center w-20">
+                                              nullable
+                                            </th>
+                                            <th className="px-3 py-2 text-center w-12">
+                                              pk
+                                            </th>
+                                            <th className="px-3 py-2 text-center w-12">
+                                              fk
+                                            </th>
+                                            <th className="px-3 py-2 text-center w-16">
+                                              unique_key
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {content.columns.map((col, idx) => (
+                                            <tr
+                                              key={idx}
+                                              className={`border-t hover:bg-blue-50 ${
+                                                col.pk === "PK"
+                                                  ? "bg-amber-50"
+                                                  : ""
+                                              }`}
+                                            >
+                                              <td className="px-3 py-2 font-medium font-mono text-sm">
+                                                {col.column_name}
+                                              </td>
+                                              <td className="px-3 py-2 font-mono text-xs text-blue-600">
+                                                {col.data_type}
+                                              </td>
+                                              <td className="px-3 py-2 text-center text-muted-foreground">
+                                                {col.nullable}
+                                              </td>
+                                              <td className="px-3 py-2 text-center">
+                                                {col.pk === "PK" && (
+                                                  <span className="text-amber-600">
+                                                    ✓
+                                                  </span>
+                                                )}
+                                              </td>
+                                              <td className="px-3 py-2 text-center">
+                                                {col.fk === "FK" && (
+                                                  <span className="text-green-600">
+                                                    ✓
+                                                  </span>
+                                                )}
+                                              </td>
+                                              <td className="px-3 py-2 text-center">
+                                                {col.unique_key === "UQ" && (
+                                                  <span className="text-purple-600">
+                                                    ✓
+                                                  </span>
+                                                )}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  ) : (
+                                    <div className="p-4">
+                                      <pre className="bg-gray-50 border rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre">
+                                        {content.queryResult}
+                                      </pre>
+                                    </div>
+                                  )}
+
+                                  {/* 푸터 */}
+                                  <div className="px-4 py-2 bg-gray-50 border-t text-xs text-muted-foreground">
+                                    {content.columns.length > 0
+                                      ? `${content.columns.length}개 컬럼`
+                                      : "원본 데이터"}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                              <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm">
+                                DB 테이블 정보를 추가하세요
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      {/* 피그마 탭 */}
+                      <TabsContent value="figmas">
+                        <div className="flex justify-between items-center mb-3">
+                          <h3 className="font-semibold">피그마 링크</h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenFigmaDialog()}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            피그마 추가
+                          </Button>
+                        </div>
+
+                        {figmas && figmas.length > 0 ? (
+                          <div className="space-y-2">
+                            {figmas.map((figma) => (
+                              <div
+                                key={figma.id}
+                                className="flex items-start justify-between border rounded-lg p-3 hover:bg-muted/30 transition-colors"
+                              >
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  <Figma className="w-5 h-5 text-[#F24E1E] shrink-0 mt-0.5" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">
+                                      {figma.title}
+                                    </p>
+                                    {figma.description && (
+                                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                        {figma.description}
+                                      </p>
+                                    )}
+                                    <a
+                                      href={figma.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-primary hover:underline flex items-center gap-1 mt-1 truncate"
+                                    >
+                                      <ExternalLink className="w-3 h-3 shrink-0" />
+                                      <span className="truncate">
+                                        {figma.url}
+                                      </span>
+                                    </a>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 ml-2 shrink-0">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() =>
+                                      handleOpenFigmaDialog(figma.id)
+                                    }
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                    onClick={() => handleDeleteFigma(figma.id)}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                            <Figma className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">피그마 링크를 추가하세요</p>
+                          </div>
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                </div>
+
+                {/* 내용 */}
+                <div className="border rounded-lg overflow-hidden mb-3">
+                  <div className="bg-muted/30 border-b px-4 py-1.5 flex items-center justify-between">
+                    <span className="font-bold text-sm">내용</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      <Edit2 className="w-3.5 h-3.5 mr-1" />
+                      편집
                     </Button>
                   </div>
+                  <div className="p-2 whitespace-pre-wrap text-sm">
+                    {issueDetail.content}
+                  </div>
                 </div>
-              </div>
 
-              {/* 부가 이슈 섹션 */}
-              <div className="border rounded-lg overflow-hidden mb-3">
-                <div className="bg-muted/30 border-b px-4 py-1.5">
-                  <span className="font-bold text-sm">부가 이슈</span>
-                </div>
-                <div className="p-2">
-                  <SubIssueSection issueId={issueDetail.id} />
-                </div>
-              </div>
+                {/* 체크리스트 */}
+                <div className="border rounded-lg overflow-hidden mb-3">
+                  <div className="bg-muted/30 border-b px-4 py-1.5">
+                    <span className="font-bold text-sm">체크리스트</span>
+                  </div>
+                  <div className="p-2">
+                    {/* 체크리스트 목록 */}
+                    <div className="space-y-2 mb-3">
+                      {checklists && checklists.length > 0 ? (
+                        checklists.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-2 p-2 hover:bg-accent rounded group"
+                          >
+                            <Checkbox
+                              checked={item.checked}
+                              onCheckedChange={() => toggleChecklist(item.id)}
+                            />
+                            <span
+                              className={`flex-1 text-sm ${item.checked ? "line-through text-muted-foreground" : ""}`}
+                            >
+                              {item.content}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="opacity-0 group-hover:opacity-100"
+                              onClick={() => handleDeleteChecklistItem(item.id)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          체크리스트가 없습니다
+                        </p>
+                      )}
+                    </div>
 
-              {/* 채팅 섹션 */}
-              <div className="border rounded-lg overflow-hidden">
-                <ChatPanel issueId={issueDetail.id} />
+                    {/* 새 항목 추가 */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newChecklistContent}
+                        onChange={(e) => setNewChecklistContent(e.target.value)}
+                        onKeyPress={(e) =>
+                          e.key === "Enter" && handleAddChecklist()
+                        }
+                        placeholder="새 항목 추가..."
+                        className="flex-1 px-3 py-2 border border-input rounded-md text-sm"
+                      />
+                      <Button size="sm" onClick={handleAddChecklist}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        추가
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 부가 이슈 섹션 */}
+                <div className="border rounded-lg overflow-hidden mb-3">
+                  <div className="bg-muted/30 border-b px-4 py-1.5">
+                    <span className="font-bold text-sm">부가 이슈</span>
+                  </div>
+                  <div className="p-2">
+                    <SubIssueSection issueId={issueDetail.id} />
+                  </div>
+                </div>
+
+                {/* 채팅 섹션 */}
+                <div className="border rounded-lg overflow-hidden">
+                  <ChatPanel issueId={issueDetail.id} />
+                </div>
               </div>
             </div>
           ) : (
-            /* 선택 안됨 - 프리미엄 Empty State */
-            <div className="flex-1 flex items-center justify-center bg-muted/5 h-full">
-              <div className="text-center space-y-6 max-w-sm px-6">
-                <div className="relative mx-auto w-24 h-24">
-                  <div className="absolute inset-0 bg-primary/10 rounded-full animate-ping opacity-20" />
-                  <div className="relative w-full h-full bg-background border rounded-full flex items-center justify-center shadow-sm">
-                    <FileText className="w-10 h-10 text-primary/40" />
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    이슈를 선택하세요
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    왼쪽 목록에서 상세 내용을 확인할 이슈를 선택하거나, <br />
-                    상단 버튼을 통해 새로운 이슈를 작성할 수 있습니다.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                    실시간 협업 및 상태 추적
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                    담당자 배정 및 일정 관리
-                  </div>
-                </div>
-              </div>
+            /* 로딩 중 */
+            <div className="flex items-center justify-center h-full">
+              <p className="text-muted-foreground">로딩 중...</p>
             </div>
           )}
-        </div>
-      </div>
+        </FullscreenDialogContent>
+      </Dialog>
 
       <ConfirmDialog />
 

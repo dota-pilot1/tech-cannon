@@ -147,7 +147,7 @@ public class IssueController {
         issue.setStatus(
             request.getStatus() != null
                 ? request.getStatus()
-                : com.mapo.palantier.issue.domain.IssueStatus.OPEN
+                : com.mapo.palantier.issue.domain.IssueStatus.TODO
         );
         issue.setPriority(
             request.getPriority() != null

@@ -1,17 +1,25 @@
-import { apiClient } from '@/shared/api/axios'
+import { apiClient } from "@/shared/api/axios";
 
 export interface DashboardStats {
-  myInProgressWorks: number
-  todayDueWorks: number
-  openIssues: number
-  weekDoneWorks: number
-  totalUsers: number
-  weekCompletionRate: number
+  totalWorks: number;
+  doneWorks: number;
+  inProgressWorks: number;
+  testWorks: number;
+  todoWorks: number;
+  holdWorks: number;
+  blockedWorks: number;
+  totalIssues: number;
+  doneIssues: number;
+  inProgressIssues: number;
+  testIssues: number;
+  todoIssues: number;
+  holdIssues: number;
+  blockedIssues: number;
 }
 
 export const dashboardApi = {
   getStats: async (): Promise<DashboardStats> => {
-    const { data } = await apiClient.get<DashboardStats>('/dashboard/stats')
-    return data
+    const { data } = await apiClient.get<DashboardStats>("/dashboard/stats");
+    return data;
   },
-}
+};

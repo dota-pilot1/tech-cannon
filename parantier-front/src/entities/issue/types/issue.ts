@@ -1,4 +1,10 @@
-export type IssueStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
+export type IssueStatus =
+  | "TODO"
+  | "IN_PROGRESS"
+  | "TEST"
+  | "DONE"
+  | "HOLD"
+  | "BLOCKED";
 export type IssuePriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type IssueCategory =
   | "COMMON"
@@ -26,6 +32,7 @@ export interface Issue {
   folderId?: number;
   orderNum?: number;
   isArchived?: boolean;
+  dueDate?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +45,7 @@ export interface CreateIssueRequest {
   priority?: IssuePriority;
   assigneeId?: number;
   folderId?: number;
+  dueDate?: string | null;
 }
 
 export interface UpdateIssueRequest extends CreateIssueRequest {}

@@ -4,10 +4,10 @@ import com.mapo.palantier.issue.domain.Issue;
 import com.mapo.palantier.issue.domain.IssueCategory;
 import com.mapo.palantier.issue.domain.IssuePriority;
 import com.mapo.palantier.issue.domain.IssueStatus;
-
 import java.time.LocalDateTime;
 
 public class IssueResponse {
+
     private Long id;
     private String title;
     private String content;
@@ -24,6 +24,7 @@ public class IssueResponse {
     private String assigneeEmail;
 
     private Long folderId;
+    private LocalDateTime dueDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -45,6 +46,7 @@ public class IssueResponse {
         response.assigneeEmail = issue.getAssigneeEmail();
 
         response.folderId = issue.getFolderId();
+        response.dueDate = issue.getDueDate();
         response.createdAt = issue.getCreatedAt();
         response.updatedAt = issue.getUpdatedAt();
 
@@ -102,6 +104,10 @@ public class IssueResponse {
 
     public Long getFolderId() {
         return folderId;
+    }
+
+    public LocalDateTime getDueDate() {
+        return dueDate;
     }
 
     public LocalDateTime getCreatedAt() {

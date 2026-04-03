@@ -1,59 +1,84 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-
 <mapper namespace="com.mapo.palantier.dashboard.DashboardMapper">
 
-    <!-- 내 진행 중 업무 수 -->
-    <select id="countMyInProgressWorks" resultType="int">
-        SELECT COUNT(*)
-        FROM works
+    <!-- 업무 (내 담당 전체, 아카이브 제외) -->
+    <select id="countTotalWorks" resultType="int">
+        SELECT COUNT(*) FROM works
+        WHERE assignee_id = #{userId}
+          AND is_archived = false
+    </select>
+
+    <select id="countDoneWorks" resultType="int">
+        SELECT COUNT(*) FROM works
+        WHERE assignee_id = #{userId}
+          AND status = 'DONE'
+          AND is_archived = false
+    </select>
+
+    <select id="countInProgressWorks" resultType="int">
+        SELECT COUNT(*) FROM works
         WHERE assignee_id = #{userId}
           AND status = 'IN_PROGRESS'
           AND is_archived = false
     </select>
 
-    <!-- 오늘 마감 업무 수 (본인 담당) -->
-    <select id="countTodayDueWorks" resultType="int">
-        SELECT COUNT(*)
-        FROM works
+    <select id="countTestWorks" resultType="int">
+        SELECT COUNT(*) FROM works
         WHERE assignee_id = #{userId}
-          AND DATE(due_date) = CURRENT_DATE
+          AND status = 'TEST'
           AND is_archived = false
     </select>
 
-    <!-- 미해결 이슈 수 (OPEN + IN_PROGRESS) -->
-    <select id="countOpenIssues" resultType="int">
-        SELECT COUNT(*)
-        FROM issues
-        WHERE status IN ('OPEN', 'IN_PROGRESS')
-          AND is_archived = false
-    </select>
-
-    <!-- 이번 주 완료 업무 수 (본인 담당) -->
-    <select id="countWeekDoneWorks" resultType="int">
-        SELECT COUNT(*)
-        FROM works
+    <select id="countTodoWorks" resultType="int">
+        SELECT COUNT(*) FROM works
         WHERE assignee_id = #{userId}
-          AND status = 'DONE'
-          AND updated_at >= DATE_TRUNC('week', CURRENT_TIMESTAMP)
+          AND status = 'TODO'
           AND is_archived = false
     </select>
 
-    <!-- 이번 주 전체 업무 수 (본인 담당, 완료율 계산용) -->
-    <select id="countWeekTotalWorks" resultType="int">
-        SELECT COUNT(*)
-        FROM works
+    <select id="countHoldWorks" resultType="int">
+        SELECT COUNT(*) FROM works
         WHERE assignee_id = #{userId}
-          AND created_at >= DATE_TRUNC('week', CURRENT_TIMESTAMP)
+          AND status = 'HOLD'
           AND is_archived = false
     </select>
 
-    <!-- 전체 활성 사용자 수 -->
-    <select id="countTotalUsers" resultType="int">
-        SELECT COUNT(*)
-        FROM users
-        WHERE is_active = true
+    <select id="countBlockedWorks" resultType="int">
+        SELECT COUNT(*) FROM works
+        WHERE assignee_id = #{userId}
+          AND status = 'BLOCKED'
+          AND is_archived = false
+    </select>
+
+    <!-- 이슈 (전체, 아카이브 제외) -->
+    <select id="countTotalIssues" resultType="int">
+        SELECT COUNT(*) FROM issues WHERE is_archived = false
+    </select>
+
+    <select id="countDoneIssues" resultType="int">
+        SELECT COUNT(*) FROM issues WHERE status = 'DONE' AND is_archived = false
+    </select>
+
+    <select id="countInProgressIssues" resultType="int">
+        SELECT COUNT(*) FROM issues WHERE status = 'IN_PROGRESS' AND is_archived = false
+    </select>
+
+    <select id="countTestIssues" resultType="int">
+        SELECT COUNT(*) FROM issues WHERE status = 'TEST' AND is_archived = false
+    </select>
+
+    <select id="countTodoIssues" resultType="int">
+        SELECT COUNT(*) FROM issues WHERE status = 'TODO' AND is_archived = false
+    </select>
+
+    <select id="countHoldIssues" resultType="int">
+        SELECT COUNT(*) FROM issues WHERE status = 'HOLD' AND is_archived = false
+    </select>
+
+    <select id="countBlockedIssues" resultType="int">
+        SELECT COUNT(*) FROM issues WHERE status = 'BLOCKED' AND is_archived = false
     </select>
 
 </mapper>

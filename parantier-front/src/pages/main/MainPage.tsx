@@ -1,51 +1,20 @@
 import { useStore } from "@tanstack/react-store";
 import { useQuery } from "@tanstack/react-query";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  LabelList,
+} from "recharts";
 import { authStore } from "@/entities/user/model/authStore";
 import { dashboardApi } from "@/api/dashboardApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
-import { AlertCircle, Calendar, CheckCircle } from "lucide-react";
 
-function StatCard({
-  title,
-  icon: Icon,
-  value,
-  sub,
-  loading,
-  accent,
-}: {
-  title: string;
-  icon: React.ElementType;
-  value: string | number;
-  sub: string;
-  loading: boolean;
-  accent?: string;
-}) {
-  return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            {title}
-          </CardTitle>
-          <Icon className="h-4 w-4 text-muted-foreground" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="space-y-2 animate-pulse">
-            <div className="h-8 w-16 bg-muted rounded" />
-            <div className="h-4 w-24 bg-muted rounded" />
-          </div>
-        ) : (
-          <>
-            <div className={`text-3xl font-bold ${accent ?? ""}`}>{value}</div>
-            <p className="text-xs text-muted-foreground mt-1">{sub}</p>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+// ─── MainPage ────────────────────────────────────────────────────────────────
 
 export function MainPage() {
   const auth = useStore(authStore, (state) => state);
@@ -54,9 +23,9 @@ export function MainPage() {
     queryKey: ["dashboard", "stats"],
     queryFn: dashboardApi.getStats,
     enabled: auth.isAuthenticated,
-    staleTime: 0, // 항상 stale → 포커스 시 즉시 refetch
-    refetchInterval: 60_000, // 1분마다 백그라운드 갱신
-    refetchOnWindowFocus: true, // 탭/창 포커스 시 자동 갱신
+    staleTime: 0,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 
   if (!auth.isAuthenticated) {
@@ -72,8 +41,33 @@ export function MainPage() {
     );
   }
 
+  const workData = stats
+    ? [
+        { name: "전체", value: stats.totalWorks, color: "#6366f1" },
+        { name: "완료", value: stats.doneWorks, color: "#22c55e" },
+        { name: "진행 중", value: stats.inProgressWorks, color: "#3b82f6" },
+        { name: "테스트", value: stats.testWorks, color: "#a855f7" },
+        { name: "대기", value: stats.todoWorks, color: "#94a3b8" },
+        { name: "보류", value: stats.holdWorks, color: "#f59e0b" },
+        { name: "막힘", value: stats.blockedWorks, color: "#ef4444" },
+      ]
+    : [];
+
+  const issueData = stats
+    ? [
+        { name: "전체", value: stats.totalIssues, color: "#6366f1" },
+        { name: "완료", value: stats.doneIssues, color: "#22c55e" },
+        { name: "진행 중", value: stats.inProgressIssues, color: "#3b82f6" },
+        { name: "테스트", value: stats.testIssues, color: "#a855f7" },
+        { name: "대기", value: stats.todoIssues, color: "#94a3b8" },
+        { name: "보류", value: stats.holdIssues, color: "#f59e0b" },
+        { name: "막힘", value: stats.blockedIssues, color: "#ef4444" },
+      ]
+    : [];
+
   return (
     <div className="container mx-auto px-6 py-8">
+      {/* 헤더 */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">대시보드</h1>
         <p className="text-muted-foreground">
@@ -81,31 +75,145 @@ export function MainPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard
-          title="오늘 마감 업무"
-          icon={Calendar}
-          value={stats?.todayDueWorks ?? 0}
-          sub="오늘까지 완료해야 하는 업무"
-          loading={isLoading}
-          accent={(stats?.todayDueWorks ?? 0) > 0 ? "text-red-500" : ""}
-        />
-        <StatCard
-          title="이번 주 완료"
-          icon={CheckCircle}
-          value={stats?.weekDoneWorks ?? 0}
-          sub="이번 주 완료된 내 업무"
-          loading={isLoading}
-          accent={(stats?.weekDoneWorks ?? 0) > 0 ? "text-green-500" : ""}
-        />
-        <StatCard
-          title="미해결 이슈"
-          icon={AlertCircle}
-          value={stats?.openIssues ?? 0}
-          sub="진행 전 + 진행 중 이슈"
-          loading={isLoading}
-          accent={(stats?.openIssues ?? 0) > 0 ? "text-orange-500" : ""}
-        />
+      {/* 차트 2개 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* 업무 현황 카드 */}
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-semibold text-foreground flex items-center">
+              📋 업무 현황
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                전체 {stats?.totalWorks ?? 0}개
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="animate-pulse space-y-3">
+                {[65, 80, 55, 70, 45, 60, 50].map((w, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="h-4 w-14 bg-muted rounded" />
+                    <div
+                      className="h-7 bg-muted rounded"
+                      style={{ width: `${w}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={workData.length * 44}>
+                <BarChart
+                  data={workData}
+                  layout="vertical"
+                  margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={56}
+                    tick={{ fontSize: 13 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value) => [value, "건"]}
+                    contentStyle={{
+                      borderRadius: 8,
+                      fontSize: 13,
+                      border: "1px solid var(--border)",
+                      backgroundColor: "var(--card)",
+                      color: "var(--card-foreground)",
+                    }}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                    {workData.map((entry, index) => (
+                      <Cell key={index} fill={entry.color} />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        fill: "var(--foreground)",
+                      }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 이슈 현황 카드 */}
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-semibold text-foreground flex items-center">
+              🚨 이슈 현황
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                전체 {stats?.totalIssues ?? 0}개
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="animate-pulse space-y-3">
+                {[65, 80, 55, 70, 45, 60, 50].map((w, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="h-4 w-14 bg-muted rounded" />
+                    <div
+                      className="h-7 bg-muted rounded"
+                      style={{ width: `${w}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={issueData.length * 44}>
+                <BarChart
+                  data={issueData}
+                  layout="vertical"
+                  margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={56}
+                    tick={{ fontSize: 13 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value) => [value, "건"]}
+                    contentStyle={{
+                      borderRadius: 8,
+                      fontSize: 13,
+                      border: "1px solid var(--border)",
+                      backgroundColor: "var(--card)",
+                      color: "var(--card-foreground)",
+                    }}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                    {issueData.map((entry, index) => (
+                      <Cell key={index} fill={entry.color} />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        fill: "var(--foreground)",
+                      }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

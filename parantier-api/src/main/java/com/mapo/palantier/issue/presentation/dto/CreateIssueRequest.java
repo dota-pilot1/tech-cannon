@@ -3,8 +3,10 @@ package com.mapo.palantier.issue.presentation.dto;
 import com.mapo.palantier.issue.domain.IssueCategory;
 import com.mapo.palantier.issue.domain.IssuePriority;
 import com.mapo.palantier.issue.domain.IssueStatus;
+import java.time.LocalDateTime;
 
 public class CreateIssueRequest {
+
     private String title;
     private String content;
     private IssueCategory category;
@@ -12,6 +14,7 @@ public class CreateIssueRequest {
     private IssuePriority priority;
     private Long assigneeId;
     private Long folderId;
+    private LocalDateTime dueDate;
 
     public String getTitle() {
         return title;
@@ -67,5 +70,13 @@ public class CreateIssueRequest {
 
     public void setFolderId(Long folderId) {
         this.folderId = folderId;
+    }
+
+    public LocalDateTime getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(LocalDateTime dueDate) {
+        this.dueDate = dueDate;
     }
 }

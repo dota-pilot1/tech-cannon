@@ -6,10 +6,22 @@ import lombok.Getter;
 @Getter
 @Builder
 public class DashboardStatsResponse {
-    private int myInProgressWorks;   // 내 진행 중 업무
-    private int todayDueWorks;       // 오늘 마감 업무
-    private int openIssues;          // 미해결 이슈 (OPEN + IN_PROGRESS)
-    private int weekDoneWorks;       // 이번 주 완료 업무
-    private int totalUsers;          // 전체 활성 사용자 수
-    private int weekCompletionRate;  // 이번 주 완료율 (%)
+
+    // 업무 (내 담당 전체, 아카이브 제외)
+    private int totalWorks; // 전체
+    private int doneWorks; // 완료 (DONE)
+    private int inProgressWorks; // 진행 중 (IN_PROGRESS)
+    private int testWorks; // 테스트 중 (TEST)
+    private int todoWorks; // 대기 (TODO)
+    private int holdWorks; // 보류 (HOLD)
+    private int blockedWorks; // 막힘 (BLOCKED)
+
+    // 이슈 (전체, 아카이브 제외)
+    private int totalIssues; // 전체
+    private int doneIssues; // 완료 (DONE)
+    private int inProgressIssues; // 진행 중 (IN_PROGRESS)
+    private int testIssues; // 테스트 중 (TEST)
+    private int todoIssues; // 대기 (TODO)
+    private int holdIssues; // 보류 (HOLD)
+    private int blockedIssues; // 막힘 (BLOCKED)
 }

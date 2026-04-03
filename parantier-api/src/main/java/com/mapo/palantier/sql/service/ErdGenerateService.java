@@ -25,7 +25,7 @@ public class ErdGenerateService {
 
     private final ObjectMapper objectMapper;
 
-    @Value("${openai.api-key}")
+    @Value("${openai.api-key:}")
     private String apiKey;
 
     @Value("${openai.model:gpt-4o}")
