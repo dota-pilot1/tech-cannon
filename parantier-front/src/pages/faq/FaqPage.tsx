@@ -1,407 +1,741 @@
-import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import {
-  HelpCircle,
-  Code2,
-  BookOpen,
-  Shield,
-  MessageSquare,
-  ChevronDown,
-  ChevronRight,
-  Search,
-} from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useStore } from "@tanstack/react-store";
+import { authStore } from "@/entities/user/model/authStore";
+import { faqApi } from "@/features/faq/api/faqApi";
+import type {
+  FaqCategory,
+  FaqSection,
+  FaqBlock,
+} from "@/features/faq/api/faqApi";
+import type { BlockType } from "@/features/task/types/task.types";
+import { TYPE_META } from "@/features/task/types/task.types";
+import { LexicalViewer } from "@/shared/ui/lexical/LexicalViewer";
+import { Mermaid } from "@/shared/ui/mermaid";
+import { toast } from "sonner";
+import { Plus, Pencil, Save, X } from "lucide-react";
+import { Button } from "@/shared/ui/button";
 
-type TabKey = "general" | "dev" | "onboarding" | "policy" | "contact";
+// ─────────────────────────────────────────────
+// FaqBlockViewer - Q/A 말풍선 스타일
+// ─────────────────────────────────────────────
+function FaqBlockViewer({ block }: { block: FaqBlock }) {
+  const isQuestion = block.blockType === "QUESTION";
+  const isAnswer = block.blockType === "ANSWER";
 
-const menuItems: {
-  key: TabKey;
-  icon: React.ReactNode;
-  label: string;
-  emoji: string;
-  comingSoon?: boolean;
-}[] = [
-  {
-    key: "general",
-    icon: <HelpCircle className="w-5 h-5" />,
-    label: "일반 FAQ",
-    emoji: "❓",
-  },
-  {
-    key: "dev",
-    icon: <Code2 className="w-5 h-5" />,
-    label: "개발 FAQ",
-    emoji: "💻",
-  },
-  {
-    key: "onboarding",
-    icon: <BookOpen className="w-5 h-5" />,
-    label: "온보딩 가이드",
-    emoji: "📚",
-    comingSoon: true,
-  },
-  {
-    key: "policy",
-    icon: <Shield className="w-5 h-5" />,
-    label: "정책/규정",
-    emoji: "📋",
-    comingSoon: true,
-  },
-  {
-    key: "contact",
-    icon: <MessageSquare className="w-5 h-5" />,
-    label: "문의하기",
-    emoji: "💬",
-    comingSoon: true,
-  },
-];
-
-const validTabs = new Set<TabKey>(["general", "dev", "onboarding", "policy", "contact"]);
-
-function getInitialTab(): TabKey | null {
-  const params = new URLSearchParams(window.location.search);
-  const tab = params.get("tab");
-  if (tab && validTabs.has(tab as TabKey)) return tab as TabKey;
-  return null;
-}
-
-/* ─────────────────── 일반 FAQ ─────────────────── */
-const generalFaqs = [
-  {
-    id: 1,
-    question: "TechCannon은 어떤 서비스인가요?",
-    answer:
-      "TechCannon은 팀의 생산성을 높이기 위한 개발자 협업 플랫폼입니다. 이슈 관리, 스터디, 챌린지, 문서 관리 등 다양한 기능을 제공합니다.",
-  },
-  {
-    id: 2,
-    question: "계정을 만들려면 어떻게 하나요?",
-    answer:
-      "우측 상단의 '회원가입' 버튼을 클릭하여 이메일과 비밀번호를 입력하면 바로 가입할 수 있습니다.",
-  },
-  {
-    id: 3,
-    question: "비밀번호를 잊어버렸어요.",
-    answer:
-      "현재 비밀번호 재설정 기능은 준비 중입니다. 관리자에게 문의해 주세요.",
-  },
-  {
-    id: 4,
-    question: "팀원을 초대하려면?",
-    answer:
-      "관리자 권한이 있는 경우 Admin > 유저 관리 메뉴에서 팀원을 추가할 수 있습니다.",
-  },
-  {
-    id: 5,
-    question: "다크 모드를 지원하나요?",
-    answer:
-      "네, 우측 상단의 테마 토글 버튼을 통해 라이트/다크 모드를 전환할 수 있습니다.",
-  },
-];
-
-function GeneralFaqTab() {
-  const [openId, setOpenId] = useState<number | null>(null);
-
-  const toggle = (id: number) => {
-    setOpenId((prev) => (prev === id ? null : id));
-  };
-
-  return (
-    <div className="p-6">
-      {/* 헤더 */}
-      <div className="mb-5">
-        <h1 className="text-xl font-bold text-foreground">❓ 일반 FAQ</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          서비스 이용에 관한 자주 묻는 질문을 확인하세요.
-        </p>
+  if (isQuestion) {
+    return (
+      <div className="flex justify-start mb-4">
+        <div className="flex items-start gap-3 max-w-[80%]">
+          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0 text-sm font-bold text-muted-foreground mt-1">
+            Q
+          </div>
+          <div className="bg-muted rounded-2xl rounded-tl-none px-4 py-3">
+            <p className="text-sm text-foreground whitespace-pre-wrap">
+              {block.content}
+            </p>
+          </div>
+        </div>
       </div>
-
-      {/* 검색 인풋 */}
-      <div className="relative mb-5">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="FAQ 검색..."
-          className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-      </div>
-
-      {/* 아코디언 목록 */}
-      <ul className="space-y-2">
-        {generalFaqs.map((faq) => {
-          const isOpen = openId === faq.id;
-          return (
-            <li
-              key={faq.id}
-              className="rounded-lg border border-border overflow-hidden"
-            >
-              <button
-                onClick={() => toggle(faq.id)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left bg-card hover:bg-muted/50 transition-colors"
-              >
-                <span className="text-sm font-medium text-foreground">
-                  {faq.question}
-                </span>
-                {isOpen ? (
-                  <ChevronDown className="w-4 h-4 text-primary shrink-0 rotate-0 transition-transform" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 transition-transform" />
-                )}
-              </button>
-              {isOpen && (
-                <div className="px-4 py-3 bg-muted/30 border-t border-border">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {faq.answer}
-                  </p>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-/* ─────────────────── 개발 FAQ ─────────────────── */
-const devFaqCategories = [
-  {
-    category: "환경 설정",
-    items: [
-      {
-        id: 101,
-        question: "로컬 개발 환경 설정은?",
-        answer:
-          "Node.js 18+, Java 21 환경이 필요합니다. README.md를 참고해 주세요.",
-      },
-      {
-        id: 102,
-        question: "백엔드 API 포트는?",
-        answer:
-          "기본 포트는 8080입니다. 프론트는 Vite 기본 포트 5173을 사용합니다.",
-      },
-    ],
-  },
-  {
-    category: "배포",
-    items: [
-      {
-        id: 201,
-        question: "배포는 어떻게 하나요?",
-        answer:
-          "deploy.sh 스크립트를 실행하거나 GitHub Actions를 통해 자동 배포됩니다.",
-      },
-      {
-        id: 202,
-        question: "환경 변수 설정은?",
-        answer:
-          ".env 파일을 루트에 생성하고 VITE_API_BASE_URL 등을 설정해 주세요.",
-      },
-    ],
-  },
-  {
-    category: "트러블슈팅",
-    items: [
-      {
-        id: 301,
-        question: "CORS 에러가 발생해요.",
-        answer:
-          "백엔드 SecurityConfig의 CORS 설정을 확인하세요. 개발 환경에서는 http://localhost:5173을 허용해야 합니다.",
-      },
-      {
-        id: 302,
-        question: "JWT 토큰 만료 처리는?",
-        answer:
-          "현재 액세스 토큰 만료 시 자동 갱신 기능은 개발 중입니다. 만료 시 재로그인이 필요합니다.",
-      },
-    ],
-  },
-];
-
-function DevFaqTab() {
-  const [openId, setOpenId] = useState<number | null>(null);
-
-  const toggle = (id: number) => {
-    setOpenId((prev) => (prev === id ? null : id));
-  };
-
-  return (
-    <div className="p-6">
-      {/* 헤더 */}
-      <div className="mb-5">
-        <h1 className="text-xl font-bold text-foreground">💻 개발 FAQ</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          개발 환경, 배포, 트러블슈팅 관련 FAQ입니다.
-        </p>
-      </div>
-
-      {/* 카테고리별 섹션 */}
-      <div className="space-y-5">
-        {devFaqCategories.map((cat) => (
-          <section key={cat.category}>
-            {/* 카테고리 헤더 */}
-            <div className="mb-2 px-3 py-1.5 rounded-md bg-primary/10 inline-block">
-              <span className="text-xs font-semibold text-primary">
-                {cat.category}
-              </span>
-            </div>
-
-            {/* 아코디언 목록 */}
-            <ul className="space-y-1.5">
-              {cat.items.map((faq) => {
-                const isOpen = openId === faq.id;
-                return (
-                  <li
-                    key={faq.id}
-                    className="rounded-lg border border-border overflow-hidden"
-                  >
-                    <button
-                      onClick={() => toggle(faq.id)}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left bg-card hover:bg-muted/50 transition-colors"
-                    >
-                      <span className="text-sm font-medium text-foreground">
-                        {faq.question}
-                      </span>
-                      {isOpen ? (
-                        <ChevronDown className="w-4 h-4 text-primary shrink-0" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                      )}
-                    </button>
-                    {isOpen && (
-                      <div className="px-4 py-3 bg-muted/30 border-t border-border">
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {faq.answer}
-                        </p>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────── Coming Soon 탭 ─────────────────── */
-function ComingSoonTab({ emoji, label }: { emoji: string; label: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-8">
-      <span className="text-4xl mb-4">{emoji}</span>
-      <h2 className="text-lg font-semibold text-foreground mb-2">{label}</h2>
-      <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-        해당 기능은 현재 준비 중입니다.
-        <br />
-        조금만 기다려 주세요!
-      </p>
-      <span className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
-        Coming Soon
-      </span>
-    </div>
-  );
-}
-
-/* ─────────────────── renderTab ─────────────────── */
-function renderTab(tab: TabKey) {
-  switch (tab) {
-    case "general":
-      return <GeneralFaqTab />;
-    case "dev":
-      return <DevFaqTab />;
-    case "onboarding":
-      return <ComingSoonTab emoji="📚" label="온보딩 가이드" />;
-    case "policy":
-      return <ComingSoonTab emoji="📋" label="정책/규정" />;
-    case "contact":
-      return <ComingSoonTab emoji="💬" label="문의하기" />;
+    );
   }
-}
 
-/* ─────────────────── FaqPage ─────────────────── */
-export function FaqPage() {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabKey | null>(getInitialTab);
+  if (isAnswer) {
+    return (
+      <div className="flex justify-end mb-4">
+        <div className="flex items-start gap-3 max-w-[80%] flex-row-reverse">
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 text-sm font-bold text-primary-foreground mt-1">
+            A
+          </div>
+          <div className="bg-primary/10 border border-primary/20 rounded-2xl rounded-tr-none px-4 py-3">
+            <p className="text-sm text-foreground whitespace-pre-wrap">
+              {block.content}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const handleTabChange = (tab: TabKey) => {
-    setActiveTab(tab);
-    navigate({ to: "/faq", search: { tab } });
-  };
-
-  const handleHome = () => {
-    setActiveTab(null);
-    navigate({ to: "/faq" });
+  // 그 외 블록 타입 (NOTE, MMD 등) - 기존 방식 유지
+  const meta = TYPE_META[block.blockType as BlockType] ?? {
+    icon: "📄",
+    label: block.blockType,
+    color: "bg-muted text-muted-foreground",
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-background flex items-center justify-center p-8">
-      <div className="w-full max-w-4xl h-[680px] flex rounded-2xl border border-border shadow-lg overflow-hidden bg-card">
-        {/* ── 왼쪽 사이드바 ── */}
-        <aside className="w-52 border-r border-border bg-muted/30 flex flex-col shrink-0">
-          {/* 헤더 */}
-          <button
-            onClick={handleHome}
-            className="px-4 pt-5 pb-4 border-b border-border text-left hover:bg-muted/50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-base">❓</span>
-              <h2 className="text-sm font-semibold text-foreground">FAQ</h2>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
+    <div className="mb-6">
+      <span
+        className={`text-xs px-2 py-0.5 rounded-full font-medium mb-2 inline-block ${meta.color}`}
+      >
+        {meta.icon} {meta.label}
+      </span>
+      {block.blockType === "NOTE" && <LexicalViewer content={block.content} />}
+      {block.blockType === "MMD" && <Mermaid chart={block.content} />}
+      {block.blockType !== "NOTE" && block.blockType !== "MMD" && (
+        <pre className="text-xs font-mono bg-muted p-3 rounded-lg border border-border overflow-x-auto whitespace-pre-wrap">
+          {block.content}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// 메인 페이지
+// ─────────────────────────────────────────────
+export default function FaqPage() {
+  const queryClient = useQueryClient();
+  const { user } = useStore(authStore, (s) => s);
+  const isAdmin = user?.role === "ROLE_ADMIN";
+
+  // ── 사이드바 넓이 (localStorage 복원)
+  const [cat1Width, setCat1Width] = useState(() => {
+    const saved = localStorage.getItem("faq-cat1-width");
+    return saved ? Number(saved) : 192;
+  });
+  const [cat2Width, setCat2Width] = useState(() => {
+    const saved = localStorage.getItem("faq-cat2-width");
+    return saved ? Number(saved) : 240;
+  });
+  const isResizing1 = useRef(false);
+  const isResizing2 = useRef(false);
+
+  const startResize1 = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing1.current = true;
+      const startX = e.clientX;
+      const startW = cat1Width;
+      const onMove = (ev: MouseEvent) => {
+        if (!isResizing1.current) return;
+        const next = Math.min(320, Math.max(120, startW + ev.clientX - startX));
+        setCat1Width(next);
+        localStorage.setItem("faq-cat1-width", String(next));
+      };
+      const onUp = () => {
+        isResizing1.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [cat1Width],
+  );
+
+  const startResize2 = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing2.current = true;
+      const startX = e.clientX;
+      const startW = cat2Width;
+      const onMove = (ev: MouseEvent) => {
+        if (!isResizing2.current) return;
+        const next = Math.min(400, Math.max(140, startW + ev.clientX - startX));
+        setCat2Width(next);
+        localStorage.setItem("faq-cat2-width", String(next));
+      };
+      const onUp = () => {
+        isResizing2.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [cat2Width],
+  );
+
+  // ── 선택 상태
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
+    null,
+  );
+
+  // ── 편집 상태
+  const [isEditing, setIsEditing] = useState(false);
+  const [editBlocks, setEditBlocks] = useState<FaqBlock[]>([]);
+
+  // ── 섹션 추가 상태
+  const [isAddingSection, setIsAddingSection] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+
+  // ── 카테고리 추가 상태
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryEmoji, setNewCategoryEmoji] = useState("❓");
+
+  // ─────────────────────────────────────────────
+  // Queries
+  // ─────────────────────────────────────────────
+  const { data: categories = [] } = useQuery<FaqCategory[]>({
+    queryKey: ["faq", "categories"],
+    queryFn: faqApi.getCategories,
+  });
+
+  const { data: sections = [] } = useQuery<FaqSection[]>({
+    queryKey: ["faq", "sections", selectedCategoryId],
+    queryFn: () => faqApi.getSections(selectedCategoryId!),
+    enabled: !!selectedCategoryId,
+  });
+
+  const { data: blocks = [] } = useQuery<FaqBlock[]>({
+    queryKey: ["faq", "blocks", selectedSectionId],
+    queryFn: () => faqApi.getBlocks(selectedSectionId!),
+    enabled: !!selectedSectionId,
+  });
+
+  // ─────────────────────────────────────────────
+  // Mutations
+  // ─────────────────────────────────────────────
+  const saveMutation = useMutation({
+    mutationFn: () => faqApi.saveBlocks(selectedSectionId!, editBlocks),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["faq", "blocks", selectedSectionId],
+      });
+      setIsEditing(false);
+      toast.success("저장되었습니다");
+    },
+    onError: () => toast.error("저장 실패"),
+  });
+
+  const addCategoryMutation = useMutation({
+    mutationFn: (data: { name: string; emoji: string }) =>
+      faqApi.createCategory({
+        name: data.name,
+        icon: "Folder",
+        emoji: data.emoji,
+        orderNum: categories.length,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["faq", "categories"] });
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+      setNewCategoryEmoji("❓");
+      toast.success("카테고리가 추가되었습니다");
+    },
+    onError: () => toast.error("카테고리 추가 실패"),
+  });
+
+  const addSectionMutation = useMutation({
+    mutationFn: (title: string) =>
+      faqApi.createSection({
+        categoryId: selectedCategoryId!,
+        title,
+        orderNum: sections.length,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["faq", "sections", selectedCategoryId],
+      });
+      setIsAddingSection(false);
+      setNewSectionTitle("");
+      toast.success("FAQ가 추가되었습니다");
+    },
+    onError: () => toast.error("FAQ 추가 실패"),
+  });
+
+  // ─────────────────────────────────────────────
+  // Handlers
+  // ─────────────────────────────────────────────
+  const handleCategoryClick = (id: number) => {
+    setSelectedCategoryId(id);
+    setSelectedSectionId(null);
+    setIsEditing(false);
+    setIsAddingSection(false);
+    setNewSectionTitle("");
+  };
+
+  const handleSectionClick = (id: number) => {
+    setSelectedSectionId(id);
+    setIsEditing(false);
+  };
+
+  const handleEdit = () => {
+    setEditBlocks([...blocks]);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditBlocks([]);
+  };
+
+  const handleAddSectionConfirm = () => {
+    const title = newSectionTitle.trim();
+    if (!title) return;
+    addSectionMutation.mutate(title);
+  };
+
+  const handleAddSectionKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter") handleAddSectionConfirm();
+    if (e.key === "Escape") {
+      setIsAddingSection(false);
+      setNewSectionTitle("");
+    }
+  };
+
+  const handleAddCategoryConfirm = () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    addCategoryMutation.mutate({ name, emoji: newCategoryEmoji });
+  };
+
+  const handleAddCategoryKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter") handleAddCategoryConfirm();
+    if (e.key === "Escape") {
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+      setNewCategoryEmoji("❓");
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // 선택된 카테고리 / 섹션 정보
+  // ─────────────────────────────────────────────
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const selectedSection = sections.find((s) => s.id === selectedSectionId);
+
+  // ─────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────
+  return (
+    <div className="flex h-[calc(100vh-64px)] bg-background">
+      {/* ───────────────────────────────────────────
+          1차 사이드바: 카테고리 목록
+      ─────────────────────────────────────────── */}
+      <aside
+        className="shrink-0 border-r border-border bg-muted flex flex-col relative"
+        style={{ width: cat1Width }}
+      >
+        {/* 헤더 */}
+        <div
+          className="px-4 border-b border-border flex items-center justify-between"
+          style={{ minHeight: "49px" }}
+        >
+          <div>
+            <p className="text-sm font-semibold text-foreground leading-tight">
+              ❓ FAQ
+            </p>
+            <p className="text-[10px] text-muted-foreground leading-tight">
               자주 묻는 질문
             </p>
-          </button>
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => setIsAddingCategory(true)}
+              className="shrink-0 flex items-center gap-0.5 text-xs text-primary hover:text-primary/80 transition-colors"
+              title="카테고리 추가"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
 
-          {/* 메뉴 */}
-          <nav className="flex-1 overflow-y-auto py-2">
-            <ul className="space-y-0.5 px-2">
-              {menuItems.map(({ key, icon, label, comingSoon }) => (
-                <li key={key}>
-                  <button
-                    onClick={() => handleTabChange(key)}
-                    className={[
-                      "w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
-                      activeTab === key
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    ].join(" ")}
-                  >
-                    <span className="flex items-center gap-2.5">
-                      {icon}
-                      <span>{label}</span>
-                    </span>
-                    {comingSoon && (
-                      <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full shrink-0">
-                        Soon
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </aside>
+        {/* 카테고리 목록 */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => handleCategoryClick(cat.id)}
+              className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] ${
+                selectedCategoryId === cat.id
+                  ? "border-l-primary bg-background text-primary font-bold shadow-sm"
+                  : "border-l-transparent text-foreground/60 hover:bg-background/60 hover:text-foreground"
+              }`}
+            >
+              <span>{cat.emoji || cat.icon}</span>
+              <span className="truncate">{cat.name}</span>
+            </button>
+          ))}
 
-        {/* ── 오른쪽 본문 ── */}
-        <main className="flex-1 overflow-y-auto bg-background">
-          {activeTab ? (
-            renderTab(activeTab)
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center px-8">
-              <span className="text-4xl mb-4">❓</span>
-              <h2 className="text-lg font-semibold text-foreground mb-2">
-                FAQ를 선택하세요
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                왼쪽 메뉴에서 보고 싶은 FAQ를 선택하면
-                <br />
-                여기에 내용이 표시됩니다.
-              </p>
+          {/* 카테고리 추가 인라인 입력 */}
+          {isAddingCategory && (
+            <div className="px-2 py-2 space-y-1">
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={newCategoryEmoji}
+                  onChange={(e) => setNewCategoryEmoji(e.target.value)}
+                  className="w-10 text-center text-sm border border-input rounded px-1 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  placeholder="❓"
+                  maxLength={2}
+                />
+                <input
+                  autoFocus
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={handleAddCategoryKeyDown}
+                  placeholder="카테고리명..."
+                  className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div className="flex items-center gap-1 justify-end">
+                <button
+                  onClick={handleAddCategoryConfirm}
+                  disabled={addCategoryMutation.isPending}
+                  className="text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
+                >
+                  추가
+                </button>
+                <button
+                  onClick={() => {
+                    setIsAddingCategory(false);
+                    setNewCategoryName("");
+                    setNewCategoryEmoji("❓");
+                  }}
+                  className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
+                >
+                  취소
+                </button>
+              </div>
             </div>
           )}
-        </main>
-      </div>
+
+          {categories.length === 0 && !isAddingCategory && (
+            <p className="text-xs text-muted-foreground px-4 py-3">
+              카테고리 없음
+            </p>
+          )}
+        </nav>
+
+        {/* 1차 리사이즈 핸들 */}
+        <div
+          onMouseDown={startResize1}
+          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-10"
+        />
+      </aside>
+
+      {/* ───────────────────────────────────────────
+          2차 사이드바: 섹션(FAQ 항목) 목록
+      ─────────────────────────────────────────── */}
+      <aside
+        className="shrink-0 border-r border-border bg-card flex flex-col relative"
+        style={{ width: cat2Width }}
+      >
+        {/* 헤더 */}
+        <div
+          className="px-3 border-b border-border flex items-center justify-between gap-2"
+          style={{ minHeight: "49px" }}
+        >
+          <p className="text-sm font-semibold text-foreground truncate">
+            {selectedCategory
+              ? `${selectedCategory.emoji} ${selectedCategory.name}`
+              : "FAQ 항목"}
+          </p>
+          {isAdmin && selectedCategoryId && (
+            <button
+              onClick={() => setIsAddingSection(true)}
+              className="shrink-0 flex items-center gap-0.5 text-xs text-primary hover:text-primary/80 transition-colors"
+              title="FAQ 항목 추가"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>추가</span>
+            </button>
+          )}
+        </div>
+
+        {/* 섹션 목록 / 안내 */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          {!selectedCategoryId ? (
+            <p className="text-xs text-muted-foreground px-4 py-3">
+              ← 카테고리를 먼저 선택하세요
+            </p>
+          ) : (
+            <>
+              {sections.map((sec) => (
+                <button
+                  key={sec.id}
+                  onClick={() => handleSectionClick(sec.id)}
+                  className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-l-[3px] ${
+                    selectedSectionId === sec.id
+                      ? "border-l-primary bg-primary/10 text-primary font-bold"
+                      : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <span
+                    className={
+                      selectedSectionId === sec.id
+                        ? "text-primary"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    ·
+                  </span>
+                  <span className="truncate">{sec.title}</span>
+                </button>
+              ))}
+
+              {/* 섹션 추가 인라인 입력 */}
+              {isAddingSection && (
+                <div className="px-3 py-2 flex items-center gap-1">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newSectionTitle}
+                    onChange={(e) => setNewSectionTitle(e.target.value)}
+                    onKeyDown={handleAddSectionKeyDown}
+                    placeholder="FAQ 항목 이름..."
+                    className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <button
+                    onClick={handleAddSectionConfirm}
+                    disabled={addSectionMutation.isPending}
+                    className="text-primary hover:text-primary/80 disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsAddingSection(false);
+                      setNewSectionTitle("");
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {sections.length === 0 && !isAddingSection && (
+                <p className="text-xs text-muted-foreground px-4 py-3">
+                  FAQ 항목이 없습니다
+                </p>
+              )}
+            </>
+          )}
+        </nav>
+
+        {/* 2차 리사이즈 핸들 */}
+        <div
+          onMouseDown={startResize2}
+          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-10"
+        />
+      </aside>
+
+      {/* ───────────────────────────────────────────
+          본문 패널
+      ─────────────────────────────────────────── */}
+      <main className="flex-1 overflow-y-auto bg-background">
+        {/* 카테고리 미선택 */}
+        {!selectedCategoryId && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+            <span className="text-5xl">❓</span>
+            <p className="text-base font-medium">카테고리를 선택하세요</p>
+            <p className="text-sm">
+              왼쪽 사이드바에서 카테고리를 선택하면 내용이 표시됩니다.
+            </p>
+          </div>
+        )}
+
+        {/* 섹션 미선택 */}
+        {selectedCategoryId && !selectedSectionId && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+            <span className="text-5xl">❓</span>
+            <p className="text-base font-medium">← FAQ를 선택하세요</p>
+            <p className="text-sm">FAQ 항목을 선택하면 내용이 표시됩니다.</p>
+          </div>
+        )}
+
+        {/* 섹션 선택됨 */}
+        {selectedSectionId && (
+          <div className="relative max-w-4xl mx-auto px-8 py-6">
+            {/* 편집 버튼 - 우상단 고정 (ADMIN, 뷰어 모드에서만) */}
+            {isAdmin && !isEditing && (
+              <div className="absolute top-4 right-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEdit}
+                  className="flex items-center gap-1.5"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  편집
+                </Button>
+              </div>
+            )}
+
+            {/* 섹션 헤더 */}
+            <div className="mb-6">
+              <p className="text-xs text-muted-foreground mb-0.5">
+                {selectedCategory?.emoji} {selectedCategory?.name}
+              </p>
+              <h2 className="text-xl font-bold text-foreground">
+                {selectedSection?.title ?? ""}
+              </h2>
+            </div>
+
+            {/* ── 편집 모드 */}
+            {isEditing ? (
+              <div>
+                {/* Q/A 빠른 추가 버튼 */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() =>
+                      setEditBlocks([
+                        ...editBlocks,
+                        { blockType: "QUESTION", content: "" },
+                      ])
+                    }
+                    className="text-xs px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground border border-border flex items-center gap-1.5"
+                  >
+                    💬 Q 추가
+                  </button>
+                  <button
+                    onClick={() =>
+                      setEditBlocks([
+                        ...editBlocks,
+                        { blockType: "ANSWER", content: "" },
+                      ])
+                    }
+                    className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 flex items-center gap-1.5"
+                  >
+                    💡 A 추가
+                  </button>
+                </div>
+
+                {/* 블록 목록 */}
+                <div className="space-y-3 mb-6">
+                  {editBlocks.map((block, idx) => (
+                    <div key={idx} className="relative group">
+                      {block.blockType === "QUESTION" ||
+                      block.blockType === "ANSWER" ? (
+                        <div
+                          className={`flex items-start gap-2 p-3 rounded-xl border ${
+                            block.blockType === "QUESTION"
+                              ? "border-border bg-muted/30"
+                              : "border-primary/20 bg-primary/5"
+                          }`}
+                        >
+                          <span
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-1 ${
+                              block.blockType === "QUESTION"
+                                ? "bg-muted text-muted-foreground"
+                                : "bg-primary text-primary-foreground"
+                            }`}
+                          >
+                            {block.blockType === "QUESTION" ? "Q" : "A"}
+                          </span>
+                          <textarea
+                            value={block.content}
+                            onChange={(e) => {
+                              const updated = [...editBlocks];
+                              updated[idx] = {
+                                ...updated[idx],
+                                content: e.target.value,
+                              };
+                              setEditBlocks(updated);
+                            }}
+                            placeholder={
+                              block.blockType === "QUESTION"
+                                ? "질문을 입력하세요..."
+                                : "답변을 입력하세요..."
+                            }
+                            className="flex-1 bg-transparent text-sm text-foreground resize-none focus:outline-none min-h-[60px] placeholder:text-muted-foreground"
+                            rows={3}
+                          />
+                          <button
+                            onClick={() =>
+                              setEditBlocks(
+                                editBlocks.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        /* NOTE/MMD 등 기타 블록 */
+                        <div className="flex items-start gap-2 p-3 rounded-xl border border-border bg-card">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0 mt-1">
+                            {block.blockType}
+                          </span>
+                          <textarea
+                            value={block.content}
+                            onChange={(e) => {
+                              const updated = [...editBlocks];
+                              updated[idx] = {
+                                ...updated[idx],
+                                content: e.target.value,
+                              };
+                              setEditBlocks(updated);
+                            }}
+                            className="flex-1 bg-transparent text-xs font-mono text-foreground resize-none focus:outline-none min-h-[60px] placeholder:text-muted-foreground"
+                            rows={3}
+                          />
+                          <button
+                            onClick={() =>
+                              setEditBlocks(
+                                editBlocks.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 저장 / 취소 버튼 */}
+                <div className="flex gap-3 pt-4 border-t border-border">
+                  <Button
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Save className="w-4 h-4 mr-1.5" />
+                    {saveMutation.isPending ? "저장 중..." : "저장"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    disabled={saveMutation.isPending}
+                    className="flex items-center gap-1.5"
+                  >
+                    <X className="w-4 h-4 mr-1.5" />
+                    취소
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* ── 뷰어 모드 */
+              <div>
+                {blocks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-2 text-muted-foreground">
+                    <span className="text-4xl">❓</span>
+                    <p className="text-sm">아직 내용이 없습니다.</p>
+                    {isAdmin && (
+                      <p className="text-xs text-muted-foreground">
+                        우상단 편집 버튼으로 Q&A를 추가하세요.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-2">
+                    {blocks.map((block, idx) => (
+                      <FaqBlockViewer key={block.id ?? idx} block={block} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

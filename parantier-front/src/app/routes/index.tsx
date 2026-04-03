@@ -24,7 +24,7 @@ import { NotePage } from "@/pages/note/NotePage";
 import { PilotPage } from "@/pages/pilot/PilotPage";
 import { WorkStatusPage } from "@/pages/work-status/WorkStatusPage";
 import { ToolsPage } from "@/pages/tools/ToolsPage";
-import { FaqPage } from "@/pages/faq/FaqPage";
+import FaqPage from "@/pages/faq/FaqPage";
 import { ChallengePage } from "@/pages/challenge/ChallengePage";
 import { MeetingPage } from "@/pages/meeting/MeetingPage";
 import { WikiPage } from "@/pages/wiki/WikiPage";
