@@ -256,7 +256,7 @@ export function useAllChannelParticipantCounts({
   const [participantCounts, setParticipantCounts] = useState<
     Record<number, number>
   >({});
-  const { subscribe, unsubscribe, send } = usePureWebSocket();
+  const { subscribe, unsubscribe, send, isConnected } = usePureWebSocket();
 
   // channelIds.join(",") 을 의존성으로 써서 배열 참조 변경에 안정적으로 반응
   const channelIdsKey = channelIds.join(",");
@@ -285,7 +285,7 @@ export function useAllChannelParticipantCounts({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelIdsKey]);
 
-  // 2. 모든 채널 구독 + PING으로 현재 참가자 즉시 요청
+  // 2. 모든 채널 구독
   useEffect(() => {
     if (!userId || !username || channelIds.length === 0) return;
 
@@ -304,15 +304,7 @@ export function useAllChannelParticipantCounts({
         }));
       };
       handlers.push({ topic, handler });
-
-      // 구독만 등록 (PING은 아래 별도 send로 처리)
       subscribe(topic, handler);
-    });
-
-    // 구독 완료 후 즉시 PING 전송 (onOpen 타이밍 의존 제거)
-    channelIds.forEach((channelId) => {
-      const topic = `meeting-participants/${channelId}`;
-      send({ type: "PING", topic, data: {} });
     });
 
     return () => {
@@ -321,7 +313,20 @@ export function useAllChannelParticipantCounts({
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, username, channelIdsKey, subscribe, unsubscribe, send]);
+  }, [userId, username, channelIdsKey, subscribe, unsubscribe]);
+
+  // 3. WebSocket 연결 완료 시 PING 전송 (새로고침 후 연결 타이밍 보장)
+  useEffect(() => {
+    if (!isConnected || !userId || channelIds.length === 0) return;
+    channelIds.forEach((channelId) => {
+      send({
+        type: "PING",
+        topic: `meeting-participants/${channelId}`,
+        data: {},
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, userId, channelIdsKey, send]);
 
   return { participantCounts };
 }
