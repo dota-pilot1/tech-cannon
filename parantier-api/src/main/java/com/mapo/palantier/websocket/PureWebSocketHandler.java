@@ -123,6 +123,7 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
                 case "CHAT" -> handleChat(session, topic, data);
                 case "JOIN" -> handleJoin(session, topic, data);
                 case "LEAVE" -> handleLeave(session, topic, data);
+                case "PING" -> handlePing(session, topic, data);
                 default -> log.warn("Unknown WS message type: {}", type);
             }
         } catch (Exception e) {
@@ -361,6 +362,53 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
     }
 
     // -----------------------------------------------------------------------
+    // PING 처리
+    // -----------------------------------------------------------------------
+
+    /**
+     * PING: 특정 채널의 현재 참가자 목록을 요청자에게 즉시 전송
+     * 클라이언트가 페이지 진입 시 초기 참가자수를 받기 위해 사용
+     */
+    private void handlePing(
+        WebSocketSession session,
+        String topic,
+        Map<String, Object> data
+    ) {
+        if (topic.startsWith("meeting-participants/")) {
+            try {
+                Long channelId = Long.parseLong(
+                    topic.substring("meeting-participants/".length())
+                );
+                ConcurrentHashMap<Long, String> channelMap =
+                    meetingChannelParticipants.get(channelId);
+
+                List<Map<String, Object>> list = new ArrayList<>();
+                if (channelMap != null) {
+                    channelMap.forEach((uid, uname) -> {
+                        Map<String, Object> p = new HashMap<>();
+                        p.put("userId", uid);
+                        p.put("username", uname);
+                        list.add(p);
+                    });
+                }
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("participants", list);
+                sendToSession(
+                    session,
+                    new WsMessage("PARTICIPANTS", topic, payload)
+                );
+                log.info(
+                    "PING response sent for topic={}, count={}",
+                    topic,
+                    list.size()
+                );
+            } catch (NumberFormatException e) {
+                log.warn("PING: invalid channelId in topic={}", topic);
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // PARTICIPANTS 브로드캐스트
     // -----------------------------------------------------------------------
 
@@ -396,6 +444,21 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
             "work-status-participants",
             new WsMessage("PARTICIPANTS", "work-status-participants", payload)
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // 외부에서 호출 가능한 메서드
+    // -----------------------------------------------------------------------
+
+    /**
+     * 채널별 현재 참가자수 반환 (REST API용 초기 스냅샷)
+     */
+    public Map<Long, Integer> getMeetingChannelParticipantCounts() {
+        Map<Long, Integer> result = new HashMap<>();
+        meetingChannelParticipants.forEach((channelId, participants) -> {
+            result.put(channelId, participants.size());
+        });
+        return result;
     }
 
     // -----------------------------------------------------------------------

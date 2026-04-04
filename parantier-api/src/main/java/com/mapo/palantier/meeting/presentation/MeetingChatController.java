@@ -2,6 +2,7 @@ package com.mapo.palantier.meeting.presentation;
 
 import com.mapo.palantier.meeting.application.MeetingChatService;
 import com.mapo.palantier.meeting.domain.MeetingChatMessageWithUser;
+import com.mapo.palantier.websocket.PureWebSocketHandler;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class MeetingChatController {
 
     private final MeetingChatService meetingChatService;
+    private final PureWebSocketHandler webSocketHandler;
 
-    public MeetingChatController(MeetingChatService meetingChatService) {
+    public MeetingChatController(
+        MeetingChatService meetingChatService,
+        PureWebSocketHandler webSocketHandler
+    ) {
         this.meetingChatService = meetingChatService;
+        this.webSocketHandler = webSocketHandler;
     }
 
     /**
@@ -54,6 +60,22 @@ public class MeetingChatController {
         }
         return ResponseEntity.ok(
             meetingChatService.getRecentActivityCounts(minutes)
+        );
+    }
+
+    /**
+     * GET /api/meeting/channels/participant-counts
+     * 채널별 현재 참가자수 조회 (초기 스냅샷용)
+     */
+    @GetMapping("/channels/participant-counts")
+    public ResponseEntity<Map<Long, Integer>> getChannelParticipantCounts(
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(
+            webSocketHandler.getMeetingChannelParticipantCounts()
         );
     }
 }

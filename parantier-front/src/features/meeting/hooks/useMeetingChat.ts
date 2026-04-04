@@ -256,11 +256,36 @@ export function useAllChannelParticipantCounts({
   const [participantCounts, setParticipantCounts] = useState<
     Record<number, number>
   >({});
-  const { subscribe, unsubscribe } = usePureWebSocket();
+  const { subscribe, unsubscribe, send } = usePureWebSocket();
 
   // channelIds.join(",") 을 의존성으로 써서 배열 참조 변경에 안정적으로 반응
   const channelIdsKey = channelIds.join(",");
 
+  // 1. 초기 REST API로 전체 채널 스냅샷 로드
+  useEffect(() => {
+    if (channelIds.length === 0) return;
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    fetch(
+      `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/meeting/channels/participant-counts`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+      .then((r) => r.json())
+      .then((data: Record<string, number>) => {
+        const counts: Record<number, number> = {};
+        Object.entries(data).forEach(([k, v]) => {
+          counts[Number(k)] = v;
+        });
+        setParticipantCounts(counts);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelIdsKey]);
+
+  // 2. 모든 채널 구독 + PING으로 현재 참가자 즉시 요청
   useEffect(() => {
     if (!userId || !username || channelIds.length === 0) return;
 
@@ -270,15 +295,20 @@ export function useAllChannelParticipantCounts({
     channelIds.forEach((channelId) => {
       const topic = `meeting-participants/${channelId}`;
       const handler = (data: unknown) => {
-        const payload = data as { participants: Participant[] };
+        const payload = data as {
+          participants: { userId: number; username: string }[];
+        };
         setParticipantCounts((prev) => ({
           ...prev,
           [channelId]: payload.participants?.length ?? 0,
         }));
       };
       handlers.push({ topic, handler });
-      // JOIN 없이 구독만 - useMeetingChat이 현재 채널 JOIN 시 브로드캐스트 수신
-      subscribe(topic, handler);
+
+      // 구독 + onOpen 시 PING 전송 (현재 참가자 즉시 요청)
+      subscribe(topic, handler, () => {
+        send({ type: "PING", topic, data: {} });
+      });
     });
 
     return () => {
@@ -287,7 +317,7 @@ export function useAllChannelParticipantCounts({
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, username, channelIdsKey, subscribe, unsubscribe]);
+  }, [userId, username, channelIdsKey, subscribe, unsubscribe, send]);
 
   return { participantCounts };
 }
