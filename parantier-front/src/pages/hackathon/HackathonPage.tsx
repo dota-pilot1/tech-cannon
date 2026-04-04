@@ -39,6 +39,8 @@ import {
   useCreateFaq,
   useUpdateFaq,
   useDeleteFaq,
+  useJoinTeam,
+  useLeaveTeam,
 } from "@/features/hackathon/hooks/useHackathon";
 import type {
   HackathonTeamResponse,
@@ -1231,10 +1233,21 @@ function ApiDocDialog({
 }
 
 // ── 팀 카드 ───────────────────────────────────────────────────────────────────
-function TeamCard({ team }: { team: HackathonTeamResponse }) {
+function TeamCard({
+  team,
+  currentUserId,
+}: {
+  team: HackathonTeamResponse;
+  currentUserId?: number;
+}) {
   const [activeTab, setActiveTab] = useState<TabId>("figma");
   const [apiDocOpen, setApiDocOpen] = useState(false);
   const theme = getTheme(team.colorTheme);
+  const joinTeam = useJoinTeam();
+  const leaveTeam = useLeaveTeam();
+
+  const isMember =
+    !!currentUserId && team.members.some((m) => m.userId === currentUserId);
 
   return (
     <div
@@ -1261,16 +1274,47 @@ function TeamCard({ team }: { team: HackathonTeamResponse }) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            {team.members.slice(0, 5).map((m) => (
-              <div
-                key={m.userId}
-                className="w-6 h-6 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-semibold text-muted-foreground"
-                title={m.username}
-              >
-                {m.username[0]}
-              </div>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              {team.members.slice(0, 5).map((m) => (
+                <div
+                  key={m.userId}
+                  className="w-6 h-6 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-semibold text-muted-foreground"
+                  title={m.username}
+                >
+                  {m.username[0]}
+                </div>
+              ))}
+            </div>
+            {currentUserId &&
+              team.id !== 0 &&
+              (isMember ? (
+                <button
+                  onClick={() =>
+                    leaveTeam.mutate({ teamId: team.id, userId: currentUserId })
+                  }
+                  disabled={leaveTeam.isPending}
+                  className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {leaveTeam.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : null}
+                  탈퇴
+                </button>
+              ) : (
+                <button
+                  onClick={() =>
+                    joinTeam.mutate({ teamId: team.id, userId: currentUserId })
+                  }
+                  disabled={joinTeam.isPending}
+                  className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg ${theme.accent} bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50 shrink-0`}
+                >
+                  {joinTeam.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : null}
+                  참가
+                </button>
+              ))}
           </div>
         </div>
       </div>
@@ -1556,7 +1600,11 @@ export function HackathonPage() {
             </div>
           ) : (
             displayTeams.map((team, idx) => (
-              <TeamCard key={team.id || idx} team={team} />
+              <TeamCard
+                key={team.id || idx}
+                team={team}
+                currentUserId={auth.user?.id}
+              />
             ))
           )}
         </div>
