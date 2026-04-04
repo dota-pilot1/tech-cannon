@@ -46,7 +46,7 @@ import type {
   HackathonTeamIssue,
   HackathonTeamFaq,
 } from "@/features/hackathon/types/hackathon.types";
-import ApiDocPage from "@/pages/apidoc/ApiDocPage";
+import { HackathonApiDocPage } from "@/features/hackathon/components/HackathonApiDocPage";
 
 // ── 팀 색상 테마 매핑 ─────────────────────────────────────────────────────────
 const TEAM_THEMES: Record<
@@ -1197,9 +1197,11 @@ function FaqTab({ teamId }: { teamId: number }) {
 
 // ── API 문서 다이얼로그 ────────────────────────────────────────────────────────
 function ApiDocDialog({
+  teamId,
   teamName,
   onClose,
 }: {
+  teamId: number;
   teamName: string;
   onClose: () => void;
 }) {
@@ -1209,6 +1211,9 @@ function ApiDocDialog({
         <div className="flex items-center gap-2">
           <Plug className="w-4 h-4 text-primary" />
           <span className="text-sm font-semibold">{teamName} · API 문서</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+            팀 전용
+          </span>
         </div>
         <button
           onClick={onClose}
@@ -1218,7 +1223,7 @@ function ApiDocDialog({
         </button>
       </div>
       <div className="flex-1 overflow-hidden">
-        <ApiDocPage />
+        <HackathonApiDocPage teamId={teamId} teamName={teamName} />
       </div>
     </div>,
     document.body,
@@ -1296,6 +1301,7 @@ function TeamCard({ team }: { team: HackathonTeamResponse }) {
 
       {apiDocOpen && (
         <ApiDocDialog
+          teamId={team.id}
           teamName={team.name}
           onClose={() => setApiDocOpen(false)}
         />

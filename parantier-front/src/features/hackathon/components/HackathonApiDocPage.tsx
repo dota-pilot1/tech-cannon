@@ -1,0 +1,1140 @@
+import { useState, useRef, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useStore } from "@tanstack/react-store";
+import { authStore } from "@/entities/user/model/authStore";
+import { hackathonApiDocApi } from "../api/hackathonApiDocApi";
+import type {
+  HackathonApiDocCategory,
+  HackathonApiDocSection,
+} from "../api/hackathonApiDocApi";
+import { ApiTesterPanel } from "@/features/apidoc/components/ApiTesterPanel";
+import type { ApiDocBlock } from "@/features/apidoc/api/apiDocApi";
+import {
+  apiEnvStore,
+  apiEnvActions,
+} from "@/features/apidoc/model/apiEnvStore";
+import type { ApiBlockContent } from "@/features/apidoc/types/apiDoc.types";
+import { METHOD_COLORS } from "@/features/apidoc/types/apiDoc.types";
+import type { HttpMethod } from "@/features/apidoc/types/apiDoc.types";
+import { toast } from "sonner";
+import {
+  Plus,
+  Save,
+  X,
+  Trash2,
+  GripVertical,
+  Pencil,
+  Check,
+  Settings2,
+  RotateCcw,
+} from "lucide-react";
+import { createPortal } from "react-dom";
+
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+// ─────────────────────────────────────────────
+// 섹션 타이틀 파싱 헬퍼
+// "POST /auth/login" → { method: "POST", path: "/auth/login" }
+// "/auth/login" or "로그인 API" → { method: null, path: title }
+// ─────────────────────────────────────────────
+function parseSectionTitle(title: string): {
+  method: HttpMethod | null;
+  path: string;
+} {
+  const methods: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+  const parts = title.trim().split(/\s+/);
+  if (parts.length >= 2 && methods.includes(parts[0] as HttpMethod)) {
+    return { method: parts[0] as HttpMethod, path: parts.slice(1).join(" ") };
+  }
+  return { method: null, path: title };
+}
+
+// ─────────────────────────────────────────────
+// SortableItem 컴포넌트
+// ─────────────────────────────────────────────
+function SortableItem({
+  id,
+  children,
+  isDragging,
+}: {
+  id: number;
+  children: (dragHandleProps: Record<string, unknown>) => React.ReactNode;
+  isDragging: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// 메인 컴포넌트 (팀별 독립 동작)
+// ─────────────────────────────────────────────
+export function HackathonApiDocPage({
+  teamId,
+  teamName,
+}: {
+  teamId: number;
+  teamName: string;
+}) {
+  const queryClient = useQueryClient();
+  const { user } = useStore(authStore, (s) => s);
+  const isAdmin = user?.role === "ROLE_ADMIN";
+  const savePanelRef = useRef<(() => void) | null>(null);
+  const resetPanelRef = useRef<(() => void) | null>(null);
+
+  // 환경변수 스토어
+  const { environments, activeEnvId } = useStore(apiEnvStore, (s) => s);
+
+  // ── 환경변수 편집 모달 상태
+  const [envModalOpen, setEnvModalOpen] = useState(false);
+  const [editingEnvId, setEditingEnvId] = useState<string | null>(null);
+  const [editingVars, setEditingVars] = useState<
+    { key: string; value: string; description?: string }[]
+  >([]);
+
+  const handleOpenEnvModal = (envId: string) => {
+    apiEnvActions.setActiveEnv(envId);
+    const env = environments.find((e) => e.id === envId);
+    if (env) {
+      setEditingVars(env.variables.map((v) => ({ ...v })));
+    }
+    setEditingEnvId(envId);
+    setEnvModalOpen(true);
+  };
+
+  const handleCloseEnvModal = () => {
+    setEnvModalOpen(false);
+    setEditingEnvId(null);
+  };
+
+  const handleEnvVarChange = (
+    idx: number,
+    field: "key" | "value" | "description",
+    val: string,
+  ) => {
+    setEditingVars((prev) =>
+      prev.map((v, i) => (i === idx ? { ...v, [field]: val } : v)),
+    );
+  };
+
+  const handleAddEnvVar = () => {
+    setEditingVars((prev) => [
+      ...prev,
+      { key: "", value: "", description: "" },
+    ]);
+  };
+
+  const handleRemoveEnvVar = (idx: number) => {
+    setEditingVars((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveEnvVars = () => {
+    if (!editingEnvId) return;
+    const updated = environments.map((e) =>
+      e.id === editingEnvId
+        ? { ...e, variables: editingVars.filter((v) => v.key.trim()) }
+        : e,
+    );
+    apiEnvActions.updateEnvironments(updated);
+    toast.success("환경변수가 저장되었습니다");
+    handleCloseEnvModal();
+  };
+
+  // ── 사이드바 넓이 (팀별 localStorage 키로 저장)
+  const cat1Key = `hackathon-apidoc-cat1-width-${teamId}`;
+  const cat2Key = `hackathon-apidoc-cat2-width-${teamId}`;
+
+  const [cat1Width, setCat1Width] = useState(() => {
+    const saved = localStorage.getItem(cat1Key);
+    return saved ? Number(saved) : 192;
+  });
+  const [cat2Width, setCat2Width] = useState(() => {
+    const saved = localStorage.getItem(cat2Key);
+    return saved ? Number(saved) : 260;
+  });
+  const isResizing1 = useRef(false);
+  const isResizing2 = useRef(false);
+
+  const startResize1 = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing1.current = true;
+      const startX = e.clientX;
+      const startW = cat1Width;
+      const onMove = (ev: MouseEvent) => {
+        if (!isResizing1.current) return;
+        const next = Math.min(320, Math.max(120, startW + ev.clientX - startX));
+        setCat1Width(next);
+        localStorage.setItem(cat1Key, String(next));
+      };
+      const onUp = () => {
+        isResizing1.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [cat1Width, cat1Key],
+  );
+
+  const startResize2 = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing2.current = true;
+      const startX = e.clientX;
+      const startW = cat2Width;
+      const onMove = (ev: MouseEvent) => {
+        if (!isResizing2.current) return;
+        const next = Math.min(480, Math.max(160, startW + ev.clientX - startX));
+        setCat2Width(next);
+        localStorage.setItem(cat2Key, String(next));
+      };
+      const onUp = () => {
+        isResizing2.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [cat2Width, cat2Key],
+  );
+
+  // ── 선택 상태
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
+    null,
+  );
+
+  // ── 섹션 추가 상태
+  const [isAddingSection, setIsAddingSection] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+
+  // ── 섹션 타이틀 수정 상태
+  const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+  const [editingSectionTitle, setEditingSectionTitle] = useState("");
+
+  // ── 카테고리 추가 상태
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryEmoji, setNewCategoryEmoji] = useState("📁");
+
+  // ─────────────────────────────────────────────
+  // Queries (팀별 queryKey)
+  // ─────────────────────────────────────────────
+  const { data: categories = [] } = useQuery<HackathonApiDocCategory[]>({
+    queryKey: ["hackathon-apidoc", teamId, "categories"],
+    queryFn: () => hackathonApiDocApi.getCategories(teamId),
+  });
+
+  const { data: sections = [] } = useQuery<HackathonApiDocSection[]>({
+    queryKey: ["hackathon-apidoc", teamId, "sections", selectedCategoryId],
+    queryFn: () => hackathonApiDocApi.getSections(teamId, selectedCategoryId!),
+    enabled: !!selectedCategoryId,
+  });
+
+  const { data: blocks = [] } = useQuery<ApiDocBlock[]>({
+    queryKey: ["hackathon-apidoc", teamId, "blocks", selectedSectionId],
+    queryFn: () =>
+      hackathonApiDocApi
+        .getBlocks(teamId, selectedSectionId!)
+        .then((d) => d as ApiDocBlock[]),
+    enabled: !!selectedSectionId,
+  });
+
+  // ─────────────────────────────────────────────
+  // Mutations
+  // ─────────────────────────────────────────────
+  const saveMutation = useMutation({
+    mutationFn: (content: ApiBlockContent) =>
+      hackathonApiDocApi.saveBlocks(teamId, selectedSectionId!, [
+        { blockType: "API", content: JSON.stringify(content) },
+      ]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["hackathon-apidoc", teamId, "blocks", selectedSectionId],
+      });
+      toast.success("저장되었습니다");
+    },
+    onError: () => toast.error("저장 실패"),
+  });
+
+  const addCategoryMutation = useMutation({
+    mutationFn: (data: { name: string; emoji: string }) =>
+      hackathonApiDocApi.createCategory(teamId, {
+        name: data.name,
+        icon: "Folder",
+        emoji: data.emoji,
+        orderNum: categories.length,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["hackathon-apidoc", teamId, "categories"],
+      });
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+      setNewCategoryEmoji("📁");
+      toast.success("카테고리가 추가되었습니다");
+    },
+    onError: () => toast.error("카테고리 추가 실패"),
+  });
+
+  const addSectionMutation = useMutation({
+    mutationFn: (title: string) =>
+      hackathonApiDocApi.createSection(teamId, {
+        categoryId: selectedCategoryId!,
+        title,
+        orderNum: sections.length,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["hackathon-apidoc", teamId, "sections", selectedCategoryId],
+      });
+      setIsAddingSection(false);
+      setNewSectionTitle("");
+      toast.success("섹션이 추가되었습니다");
+    },
+    onError: () => toast.error("섹션 추가 실패"),
+  });
+
+  const reorderCategoryMutation = useMutation({
+    mutationFn: (items: { id: number; orderNum: number }[]) =>
+      hackathonApiDocApi.reorderCategories(teamId, items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["hackathon-apidoc", teamId, "categories"],
+      });
+    },
+    onError: () => toast.error("순서 변경 실패"),
+  });
+
+  const reorderSectionMutation = useMutation({
+    mutationFn: (items: { id: number; orderNum: number }[]) =>
+      hackathonApiDocApi.reorderSections(teamId, items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["hackathon-apidoc", teamId, "sections", selectedCategoryId],
+      });
+    },
+    onError: () => toast.error("순서 변경 실패"),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: number) => hackathonApiDocApi.deleteCategory(teamId, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["hackathon-apidoc", teamId, "categories"],
+      });
+      setSelectedCategoryId(null);
+      setSelectedSectionId(null);
+      toast.success("카테고리가 삭제되었습니다");
+    },
+    onError: () => toast.error("카테고리 삭제 실패"),
+  });
+
+  const deleteSectionMutation = useMutation({
+    mutationFn: (id: number) => hackathonApiDocApi.deleteSection(teamId, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["hackathon-apidoc", teamId, "sections", selectedCategoryId],
+      });
+      setSelectedSectionId(null);
+      toast.success("섹션이 삭제되었습니다");
+    },
+    onError: () => toast.error("섹션 삭제 실패"),
+  });
+
+  const updateSectionMutation = useMutation({
+    mutationFn: ({ id, title }: { id: number; title: string }) =>
+      hackathonApiDocApi.updateSection(teamId, id, {
+        title,
+        orderNum: sections.find((s) => s.id === id)?.orderNum ?? 0,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["hackathon-apidoc", teamId, "sections", selectedCategoryId],
+      });
+      setEditingSectionId(null);
+      setEditingSectionTitle("");
+      toast.success("수정되었습니다");
+    },
+    onError: () => toast.error("수정 실패"),
+  });
+
+  // ─────────────────────────────────────────────
+  // DnD state & sensors
+  // ─────────────────────────────────────────────
+  const [activeCatId, setActiveCatId] = useState<number | null>(null);
+  const [activeSecId, setActiveSecId] = useState<number | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleCatDragStart = (e: DragStartEvent) =>
+    setActiveCatId(e.active.id as number);
+  const handleCatDragEnd = (e: DragEndEvent) => {
+    setActiveCatId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = categories.findIndex((c) => c.id === active.id);
+    const newIdx = categories.findIndex((c) => c.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(categories, oldIdx, newIdx);
+    reorderCategoryMutation.mutate(
+      reordered.map((c, i) => ({ id: c.id, orderNum: i })),
+    );
+  };
+
+  const handleSecDragStart = (e: DragStartEvent) =>
+    setActiveSecId(e.active.id as number);
+  const handleSecDragEnd = (e: DragEndEvent) => {
+    setActiveSecId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = sections.findIndex((s) => s.id === active.id);
+    const newIdx = sections.findIndex((s) => s.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(sections, oldIdx, newIdx);
+    reorderSectionMutation.mutate(
+      reordered.map((s, i) => ({ id: s.id, orderNum: i })),
+    );
+  };
+
+  // ─────────────────────────────────────────────
+  // Handlers
+  // ─────────────────────────────────────────────
+  const handleCategoryClick = (id: number) => {
+    setSelectedCategoryId(id);
+    setSelectedSectionId(null);
+    setIsAddingSection(false);
+    setNewSectionTitle("");
+  };
+
+  const handleSectionClick = (id: number) => {
+    if (editingSectionId !== null) return;
+    setSelectedSectionId(id);
+  };
+
+  const handleSectionEditStart = (
+    e: React.MouseEvent,
+    sec: HackathonApiDocSection,
+  ) => {
+    e.stopPropagation();
+    setEditingSectionId(sec.id);
+    setEditingSectionTitle(sec.title);
+  };
+
+  const handleSectionEditConfirm = (id: number) => {
+    const title = editingSectionTitle.trim();
+    if (!title) return;
+    updateSectionMutation.mutate({ id, title });
+  };
+
+  const handleSectionEditKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    id: number,
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!e.nativeEvent.isComposing) handleSectionEditConfirm(id);
+    }
+    if (e.key === "Escape") {
+      setEditingSectionId(null);
+      setEditingSectionTitle("");
+    }
+  };
+
+  const handleAddSectionConfirm = () => {
+    const title = newSectionTitle.trim();
+    if (!title) return;
+    addSectionMutation.mutate(title);
+  };
+
+  const handleAddSectionKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!e.nativeEvent.isComposing && !addSectionMutation.isPending)
+        handleAddSectionConfirm();
+    }
+    if (e.key === "Escape") {
+      setIsAddingSection(false);
+      setNewSectionTitle("");
+    }
+  };
+
+  const handleAddCategoryConfirm = () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    addCategoryMutation.mutate({ name, emoji: newCategoryEmoji });
+  };
+
+  const handleAddCategoryKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!e.nativeEvent.isComposing && !addCategoryMutation.isPending)
+        handleAddCategoryConfirm();
+    }
+    if (e.key === "Escape") {
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+      setNewCategoryEmoji("📁");
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // 선택된 카테고리 / 섹션 정보
+  // ─────────────────────────────────────────────
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const selectedSection = sections.find((s) => s.id === selectedSectionId);
+
+  // ─────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────
+  return (
+    <div className="flex h-full bg-background">
+      {/* ───────────────────────────────────────────
+          1차 사이드바: 카테고리 목록
+      ─────────────────────────────────────────── */}
+      <aside
+        className="shrink-0 border-r border-border bg-muted flex flex-col relative"
+        style={{ width: cat1Width }}
+      >
+        {/* 헤더 */}
+        <div
+          className="px-4 border-b border-border flex items-center justify-between"
+          style={{ height: "49px" }}
+        >
+          <p className="text-sm font-semibold text-foreground truncate">
+            🔌 {teamName} API
+          </p>
+          {isAdmin && (
+            <button
+              onClick={() => setIsAddingCategory(true)}
+              className="shrink-0 flex items-center gap-0.5 text-xs text-primary hover:text-primary/80 transition-colors"
+              title="카테고리 추가"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* 카테고리 목록 */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleCatDragStart}
+            onDragEnd={handleCatDragEnd}
+          >
+            <SortableContext
+              items={categories.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {categories.map((cat) => (
+                <SortableItem
+                  key={cat.id}
+                  id={cat.id}
+                  isDragging={activeCatId === cat.id}
+                >
+                  {(dragHandleProps) => (
+                    <div className="relative group">
+                      <button
+                        onClick={() => handleCategoryClick(cat.id)}
+                        className={`w-full text-left px-4 h-10 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] pr-8 ${
+                          selectedCategoryId === cat.id
+                            ? "border-l-primary bg-background text-primary font-bold shadow-sm"
+                            : "border-l-transparent text-foreground/60 hover:bg-background/60 hover:text-foreground"
+                        }`}
+                      >
+                        {isAdmin && (
+                          <span
+                            {...dragHandleProps}
+                            onClick={(e) => e.stopPropagation()}
+                            className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                          >
+                            <GripVertical className="w-3 h-3" />
+                          </span>
+                        )}
+                        <span>{cat.emoji || cat.icon}</span>
+                        <span className="truncate">{cat.name}</span>
+                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (
+                              confirm(
+                                `"${cat.name}" 카테고리를 삭제할까요? 하위 섹션과 내용이 모두 삭제됩니다.`,
+                              )
+                            ) {
+                              deleteCategoryMutation.mutate(cat.id);
+                            }
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1 rounded"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </SortableItem>
+              ))}
+            </SortableContext>
+            <DragOverlay>
+              {activeCatId && (
+                <div className="bg-card border border-border rounded px-3 py-2 text-sm shadow-lg opacity-90">
+                  {categories.find((c) => c.id === activeCatId)?.name}
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+
+          {/* 카테고리 추가 인라인 입력 */}
+          {isAddingCategory && (
+            <div className="px-2 py-2 space-y-1">
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={newCategoryEmoji}
+                  onChange={(e) => setNewCategoryEmoji(e.target.value)}
+                  className="w-10 text-center text-sm border border-input rounded px-1 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  placeholder="📁"
+                  maxLength={2}
+                />
+                <input
+                  autoFocus
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={handleAddCategoryKeyDown}
+                  placeholder="카테고리명..."
+                  className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div className="flex items-center gap-1 justify-end">
+                <button
+                  onClick={handleAddCategoryConfirm}
+                  disabled={addCategoryMutation.isPending}
+                  className="text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
+                >
+                  추가
+                </button>
+                <button
+                  onClick={() => {
+                    setIsAddingCategory(false);
+                    setNewCategoryName("");
+                    setNewCategoryEmoji("📁");
+                  }}
+                  className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          )}
+
+          {categories.length === 0 && !isAddingCategory && (
+            <p className="text-xs text-muted-foreground px-4 py-3">
+              카테고리 없음
+            </p>
+          )}
+        </nav>
+
+        {/* 1차 리사이즈 핸들 */}
+        <div
+          onMouseDown={startResize1}
+          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-10"
+        />
+      </aside>
+
+      {/* ───────────────────────────────────────────
+          2차 사이드바: 섹션 목록 (API 엔드포인트)
+      ─────────────────────────────────────────── */}
+      <aside
+        className="shrink-0 border-r border-border bg-card flex flex-col relative"
+        style={{ width: cat2Width }}
+      >
+        {/* 헤더 */}
+        <div
+          className="px-3 border-b border-border flex items-center justify-between gap-2"
+          style={{ height: "49px" }}
+        >
+          <p className="text-sm font-semibold text-foreground truncate">
+            {selectedCategory
+              ? `${selectedCategory.emoji} ${selectedCategory.name}`
+              : "엔드포인트"}
+          </p>
+          {isAdmin && selectedCategoryId && (
+            <button
+              onClick={() => setIsAddingSection(true)}
+              className="shrink-0 flex items-center gap-0.5 text-xs text-primary hover:text-primary/80 transition-colors"
+              title="섹션 추가"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>추가</span>
+            </button>
+          )}
+        </div>
+
+        {/* 섹션(엔드포인트) 목록 */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          {!selectedCategoryId ? (
+            <p className="text-xs text-muted-foreground px-4 py-3">
+              ← 카테고리를 먼저 선택하세요
+            </p>
+          ) : (
+            <>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleSecDragStart}
+                onDragEnd={handleSecDragEnd}
+              >
+                <SortableContext
+                  items={sections.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {sections.map((sec) => (
+                    <SortableItem
+                      key={sec.id}
+                      id={sec.id}
+                      isDragging={activeSecId === sec.id}
+                    >
+                      {(dragHandleProps) => (
+                        <div className="relative group">
+                          {/* 수정 모드 */}
+                          {isAdmin && editingSectionId === sec.id ? (
+                            <div className="flex items-center gap-1 px-3 py-1.5 border-l-[3px] border-l-primary bg-primary/5">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editingSectionTitle}
+                                onChange={(e) =>
+                                  setEditingSectionTitle(e.target.value)
+                                }
+                                onKeyDown={(e) =>
+                                  handleSectionEditKeyDown(e, sec.id)
+                                }
+                                className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                              <button
+                                onClick={() => handleSectionEditConfirm(sec.id)}
+                                disabled={updateSectionMutation.isPending}
+                                className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingSectionId(null);
+                                  setEditingSectionTitle("");
+                                }}
+                                className="text-muted-foreground hover:text-foreground shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleSectionClick(sec.id)}
+                              className={`w-full text-left px-3 h-10 text-sm flex items-center gap-1.5 transition-colors border-l-[3px] pr-16 ${
+                                selectedSectionId === sec.id
+                                  ? "border-l-primary bg-primary/10 text-primary font-bold"
+                                  : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
+                              }`}
+                            >
+                              {isAdmin && (
+                                <span
+                                  {...dragHandleProps}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                                >
+                                  <GripVertical className="w-3 h-3" />
+                                </span>
+                              )}
+                              {/* 메서드 배지 + 경로 */}
+                              {(() => {
+                                const { method, path } = parseSectionTitle(
+                                  sec.title,
+                                );
+                                return (
+                                  <>
+                                    {method && (
+                                      <span
+                                        className={`text-[9px] font-bold px-1 py-0.5 rounded shrink-0 ${METHOD_COLORS[method]}`}
+                                      >
+                                        {method}
+                                      </span>
+                                    )}
+                                    <span className="truncate text-xs">
+                                      {path}
+                                    </span>
+                                  </>
+                                );
+                              })()}
+                            </button>
+                          )}
+                          {isAdmin && editingSectionId !== sec.id && (
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                              <button
+                                onClick={(e) => handleSectionEditStart(e, sec)}
+                                className="text-muted-foreground hover:text-primary p-1 rounded"
+                                title="수정"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (
+                                    confirm(`"${sec.title}" 섹션을 삭제할까요?`)
+                                  ) {
+                                    deleteSectionMutation.mutate(sec.id);
+                                  }
+                                }}
+                                className="text-muted-foreground hover:text-destructive p-1 rounded"
+                                title="삭제"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </SortableItem>
+                  ))}
+                </SortableContext>
+                <DragOverlay>
+                  {activeSecId && (
+                    <div className="bg-card border border-border rounded px-3 py-2 text-sm shadow-lg opacity-90">
+                      {sections.find((s) => s.id === activeSecId)?.title}
+                    </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
+
+              {/* 섹션 추가 인라인 입력 */}
+              {isAddingSection && (
+                <div className="px-3 py-2 flex items-center gap-1">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newSectionTitle}
+                    onChange={(e) => setNewSectionTitle(e.target.value)}
+                    onKeyDown={handleAddSectionKeyDown}
+                    placeholder="예: POST /auth/login"
+                    className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <button
+                    onClick={handleAddSectionConfirm}
+                    disabled={addSectionMutation.isPending}
+                    className="text-primary hover:text-primary/80 disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsAddingSection(false);
+                      setNewSectionTitle("");
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {sections.length === 0 && !isAddingSection && (
+                <p className="text-xs text-muted-foreground px-4 py-3">
+                  엔드포인트가 없습니다
+                </p>
+              )}
+            </>
+          )}
+        </nav>
+
+        {/* 2차 리사이즈 핸들 */}
+        <div
+          onMouseDown={startResize2}
+          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-10"
+        />
+      </aside>
+
+      {/* ───────────────────────────────────────────
+          본문 패널
+      ─────────────────────────────────────────── */}
+      <main className="flex-1 overflow-hidden flex flex-col">
+        {/* 카테고리 미선택 */}
+        {!selectedCategoryId && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+            <span className="text-5xl">🔌</span>
+            <p className="text-base font-medium">카테고리를 선택하세요</p>
+            <p className="text-sm">
+              왼쪽 사이드바에서 카테고리를 선택하면 내용이 표시됩니다.
+            </p>
+          </div>
+        )}
+
+        {/* 섹션 미선택 */}
+        {selectedCategoryId && !selectedSectionId && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+            <span className="text-5xl">🔌</span>
+            <p className="text-base font-medium">← 엔드포인트를 선택하세요</p>
+            <p className="text-sm">섹션을 선택하면 API 테스터가 열립니다.</p>
+          </div>
+        )}
+
+        {/* 섹션 선택됨 - 통합 헤더(49px) + ApiTesterPanel */}
+        {selectedSectionId && (
+          <>
+            {/* 통합 헤더: 환경변수 탭 + breadcrumb + 저장 버튼 - 높이 49px 고정 */}
+            <div
+              className="shrink-0 flex items-center gap-3 px-4 border-b border-border bg-card"
+              style={{ height: "49px" }}
+            >
+              <span className="text-xs text-muted-foreground font-medium shrink-0">
+                환경
+              </span>
+              <div className="flex items-center gap-1.5">
+                {environments.map((env) => (
+                  <button
+                    key={env.id}
+                    onClick={() => handleOpenEnvModal(env.id)}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium transition-colors ${
+                      activeEnvId === env.id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground border border-border"
+                    }`}
+                  >
+                    {env.name}
+                    <Settings2 className="w-2.5 h-2.5 opacity-60" />
+                  </button>
+                ))}
+              </div>
+              <div className="flex-1" />
+              <span className="text-[10px] text-muted-foreground truncate max-w-xs hidden sm:block">
+                {selectedCategory?.emoji} {selectedCategory?.name}
+                {" / "}
+                {selectedSection?.title}
+              </span>
+              <button
+                onClick={() => resetPanelRef.current?.()}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm"
+                title="초기화"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                초기화
+              </button>
+              <button
+                onClick={() => savePanelRef.current?.()}
+                disabled={saveMutation.isPending}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                <Save className="w-3.5 h-3.5" />
+                저장
+              </button>
+            </div>
+
+            {/* 본문 영역: API 테스터 패널 */}
+            <div className="flex-1 overflow-hidden">
+              <ApiTesterPanel
+                key={selectedSectionId}
+                sectionId={selectedSectionId!}
+                blocks={blocks}
+                isAdmin={isAdmin}
+                onSave={(content: ApiBlockContent) => {
+                  saveMutation.mutate(content);
+                }}
+                onRegisterSave={(fn) => {
+                  savePanelRef.current = fn;
+                }}
+                onRegisterReset={(fn) => {
+                  resetPanelRef.current = fn;
+                }}
+              />
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* ── 환경변수 편집 모달 ── */}
+      {envModalOpen &&
+        editingEnvId &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center"
+            onClick={handleCloseEnvModal}
+          >
+            {/* 배경 오버레이 */}
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+            {/* 모달 본체 */}
+            <div
+              className="relative z-10 w-[820px] max-h-[80vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 모달 헤더 */}
+              <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">
+                    {environments.find((e) => e.id === editingEnvId)?.name}{" "}
+                    환경변수
+                  </span>
+                </div>
+                {/* 환경 탭 전환 */}
+                <div className="flex items-center gap-1 bg-muted/60 rounded-lg p-0.5 mx-4">
+                  {environments.map((env) => (
+                    <button
+                      key={env.id}
+                      onClick={() => {
+                        apiEnvActions.setActiveEnv(env.id);
+                        const e = environments.find((e) => e.id === env.id);
+                        if (e)
+                          setEditingVars(e.variables.map((v) => ({ ...v })));
+                        setEditingEnvId(env.id);
+                      }}
+                      className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${
+                        editingEnvId === env.id
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {env.name}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleCloseEnvModal}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-muted"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 변수 목록 */}
+              <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2">
+                {/* 컬럼 헤더 */}
+                <div className="grid grid-cols-2 gap-3 px-1 mb-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Key
+                  </span>
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Value
+                  </span>
+                </div>
+
+                {editingVars.map((v, idx) => (
+                  <div key={idx} className="flex items-center gap-2 group">
+                    <input
+                      type="text"
+                      value={v.key}
+                      onChange={(e) =>
+                        handleEnvVarChange(idx, "key", e.target.value)
+                      }
+                      placeholder="KEY"
+                      className="flex-1 min-w-0 text-xs font-mono border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    <input
+                      type="text"
+                      value={v.value}
+                      onChange={(e) =>
+                        handleEnvVarChange(idx, "value", e.target.value)
+                      }
+                      placeholder="value"
+                      className="flex-1 min-w-0 text-xs font-mono border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    <button
+                      onClick={() => handleRemoveEnvVar(idx)}
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+
+                {/* 변수 추가 */}
+                <button
+                  onClick={handleAddEnvVar}
+                  className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 mt-2 px-1 py-1 rounded transition-colors w-fit"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  변수 추가
+                </button>
+
+                {/* 사용 안내 */}
+                <div className="mt-3 rounded-xl bg-muted/50 border border-border px-4 py-3 text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="font-semibold text-foreground mb-1">
+                    💡 사용 방법
+                  </p>
+                  <p>
+                    URL에{" "}
+                    <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-foreground">
+                      {"{{KEY}}"}
+                    </code>{" "}
+                    형태로 입력하면 요청 시 자동 치환됩니다.
+                  </p>
+                  <p className="mt-1.5 font-mono text-[10px] text-primary/70 bg-primary/5 rounded px-2 py-1">
+                    {
+                      "{{BASE_URL}}/api/products  →  http://localhost:8080/api/products"
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* 모달 푸터 */}
+              <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-3 border-t border-border bg-muted/20">
+                <button
+                  onClick={handleCloseEnvModal}
+                  className="px-4 py-2 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSaveEnvVars}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  저장
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
