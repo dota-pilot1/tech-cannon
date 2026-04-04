@@ -225,7 +225,8 @@ export function MeetingRoomTab() {
   const isAuthenticated = useStore(authStore, (state) => state.isAuthenticated);
   const isRestored = useStore(authStore, (state) => state.isRestored);
 
-  const [selectedChannelId, setSelectedChannelId] = useState(1);
+  const [selectedChannelId, setSelectedChannelId] = useState<number>(0);
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
   const [isAddingBookmark, setIsAddingBookmark] = useState(false);
   const [channelSettingOpen, setChannelSettingOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
@@ -270,6 +271,15 @@ export function MeetingRoomTab() {
 
   const { data: channels = [], isLoading: isChannelsLoading } =
     useMeetingChannels();
+
+  // 채널 로드 완료 시 첫 번째 채널 자동 선택 (최초 1회)
+  useEffect(() => {
+    if (channels.length > 0 && !hasAutoSelected) {
+      setHasAutoSelected(true);
+      setSelectedChannelId(channels[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channels.length, hasAutoSelected]);
 
   const channelIds = channels.map((c) => c.id);
   const { participantCounts } = useAllChannelParticipantCounts({
@@ -412,11 +422,15 @@ export function MeetingRoomTab() {
                     <Hash className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate flex-1">{channel.name}</span>
                     <div className="flex items-center gap-1 shrink-0">
-                      {/* 참가자수 - 모든 채널 표시 */}
-                      {(participantCounts[channel.id] ?? 0) > 0 && (
+                      {/* 참가자수 - 현재 채널은 participants(정확한 실시간값), 나머지는 participantCounts */}
+                      {(isSelected
+                        ? participants.length
+                        : (participantCounts[channel.id] ?? 0)) > 0 && (
                         <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                          {participantCounts[channel.id]}
+                          {isSelected
+                            ? participants.length
+                            : participantCounts[channel.id]}
                         </span>
                       )}
                       {/* 미읽은 메시지 뱃지 */}

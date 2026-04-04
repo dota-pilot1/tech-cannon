@@ -267,13 +267,17 @@ export function useAllChannelParticipantCounts({
     const token = localStorage.getItem("accessToken");
     if (!token) return;
 
-    fetch(
-      `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/meeting/channels/participant-counts`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    )
-      .then((r) => r.json())
+    // VITE_API_URL이 /api 포함 여부에 따라 처리
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8080";
+    const baseUrl = apiBase.endsWith("/api") ? apiBase : `${apiBase}/api`;
+
+    fetch(`${baseUrl}/meeting/channels/participant-counts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data: Record<string, number>) => {
         const counts: Record<number, number> = {};
         Object.entries(data).forEach(([k, v]) => {
