@@ -1460,52 +1460,47 @@ export function HackathonPage() {
     <div className="flex flex-col h-[calc(100vh-64px)] bg-muted/30 p-4 gap-4 overflow-hidden">
       {/* ── 상단 요약 카드 ─────────────────────────────────────────────────── */}
       <div className="shrink-0 grid grid-cols-4 gap-3">
-        <div className="rounded-xl border border-border bg-card shadow-sm px-4 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <Trophy className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground">참가 팀</p>
-            <p className="text-xl font-bold text-foreground">
-              {eventLoading ? "…" : `${teams.length}팀`}
-            </p>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card shadow-sm px-4 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
-            <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground">참가 인원</p>
-            <p className="text-xl font-bold text-foreground">
-              {eventLoading ? "…" : `${totalMembers}명`}
-            </p>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card shadow-sm px-4 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground">남은 시간</p>
-            <p
-              className={`text-xl font-bold font-mono ${remaining === "종료" ? "text-destructive" : "text-foreground"}`}
+        {[
+          {
+            icon: <Trophy className="w-4 h-4 text-muted-foreground/40" />,
+            bg: "bg-muted/30",
+            label: "참가 팀",
+          },
+          {
+            icon: <Users className="w-4 h-4 text-muted-foreground/40" />,
+            bg: "bg-muted/30",
+            label: "참가 인원",
+          },
+          {
+            icon: <Clock className="w-4 h-4 text-muted-foreground/40" />,
+            bg: "bg-muted/30",
+            label: "남은 시간",
+          },
+          {
+            icon: (
+              <MessageSquare className="w-4 h-4 text-muted-foreground/40" />
+            ),
+            bg: "bg-muted/30",
+            label: "채팅",
+          },
+        ].map(({ icon, bg, label }) => (
+          <div
+            key={label}
+            className="rounded-xl border border-border bg-card shadow-sm px-4 py-3 flex items-center gap-3"
+          >
+            <div
+              className={`w-9 h-9 rounded-full ${bg} flex items-center justify-center shrink-0`}
             >
-              {eventLoading ? "…" : remaining || "—"}
-            </p>
+              {icon}
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">{label}</p>
+              <p className="text-sm font-medium text-muted-foreground/50">
+                구현 예정
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card shadow-sm px-4 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-            <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground">채팅</p>
-            <p className="text-xl font-bold text-foreground">
-              {messages.length}개
-            </p>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* ── 본문 ──────────────────────────────────────────────────────────── */}
