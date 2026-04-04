@@ -305,10 +305,14 @@ export function useAllChannelParticipantCounts({
       };
       handlers.push({ topic, handler });
 
-      // 구독 + onOpen 시 PING 전송 (현재 참가자 즉시 요청)
-      subscribe(topic, handler, () => {
-        send({ type: "PING", topic, data: {} });
-      });
+      // 구독만 등록 (PING은 아래 별도 send로 처리)
+      subscribe(topic, handler);
+    });
+
+    // 구독 완료 후 즉시 PING 전송 (onOpen 타이밍 의존 제거)
+    channelIds.forEach((channelId) => {
+      const topic = `meeting-participants/${channelId}`;
+      send({ type: "PING", topic, data: {} });
     });
 
     return () => {
