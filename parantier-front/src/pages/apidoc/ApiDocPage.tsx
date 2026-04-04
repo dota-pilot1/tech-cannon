@@ -26,6 +26,7 @@ import {
   Pencil,
   Check,
   Settings2,
+  RotateCcw,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 
@@ -97,6 +98,7 @@ export default function ApiDocPage() {
   const { user } = useStore(authStore, (s) => s);
   const isAdmin = user?.role === "ROLE_ADMIN";
   const savePanelRef = useRef<(() => void) | null>(null);
+  const resetPanelRef = useRef<(() => void) | null>(null);
 
   // 환경변수 스토어
   const { environments, activeEnvId } = useStore(apiEnvStore, (s) => s);
@@ -925,6 +927,22 @@ export default function ApiDocPage() {
                 {" / "}
                 {selectedSection?.title}
               </span>
+              <button
+                onClick={() => resetPanelRef.current?.()}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm"
+                title="초기화"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                초기화
+              </button>
+              <button
+                onClick={() => savePanelRef.current?.()}
+                disabled={saveMutation.isPending}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                <Save className="w-3.5 h-3.5" />
+                저장
+              </button>
             </div>
 
             {/* 본문 영역: API 테스터 패널 */}
@@ -939,6 +957,9 @@ export default function ApiDocPage() {
                 }}
                 onRegisterSave={(fn) => {
                   savePanelRef.current = fn;
+                }}
+                onRegisterReset={(fn) => {
+                  resetPanelRef.current = fn;
                 }}
               />
             </div>

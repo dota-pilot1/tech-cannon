@@ -24,6 +24,7 @@ interface ApiTesterPanelProps {
   isAdmin: boolean;
   onSave: (content: ApiBlockContent) => void;
   onRegisterSave?: (fn: () => void) => void;
+  onRegisterReset?: (fn: () => void) => void;
 }
 
 // ─────────────────────────────────────────────
@@ -190,6 +191,7 @@ export function ApiTesterPanel({
   isAdmin,
   onSave,
   onRegisterSave,
+  onRegisterReset,
 }: ApiTesterPanelProps) {
   // suppress lint
   void sectionId;
@@ -222,6 +224,20 @@ export function ApiTesterPanel({
       onRegisterSave(handleSaveCallback);
     }
   }, [handleSaveCallback, onRegisterSave]);
+
+  // 부모 초기화 콜백 등록
+  const handleResetCallback = useCallback(() => {
+    if (!confirm("현재 입력한 내용을 초기화할까요?")) return;
+    setApiContent(defaultApiBlockContent());
+    setResponse(null);
+    setActiveTab("params");
+  }, []);
+
+  useEffect(() => {
+    if (onRegisterReset) {
+      onRegisterReset(handleResetCallback);
+    }
+  }, [handleResetCallback, onRegisterReset]);
 
   // ── 헬퍼: apiContent 필드 업데이트 ──
   const patch = (partial: Partial<ApiBlockContent>) => {
