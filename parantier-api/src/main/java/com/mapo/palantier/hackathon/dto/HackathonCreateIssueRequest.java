@@ -8,7 +8,7 @@ public class HackathonCreateIssueRequest {
     private String priority;
     private Long assigneeId;
 
-    public CreateIssueRequest() {}
+    public HackathonCreateIssueRequest() {}
 
     public String getTitle() {
         return title;
