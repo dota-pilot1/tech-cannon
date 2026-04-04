@@ -36,6 +36,7 @@ import ArchitecturePage from "@/pages/architecture/ArchitecturePage";
 import FrontendPage from "@/pages/frontend/FrontendPage";
 import TextbookPage from "@/pages/textbook/TextbookPage";
 import ApiDocPage from "@/pages/apidoc/ApiDocPage";
+import { HackathonPage } from "@/pages/hackathon/HackathonPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -321,6 +322,14 @@ const apiDocRoute = createRoute({
   component: ApiDocPage,
 });
 
+// 해커톤 (로그인 필요)
+const hackathonRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/hackathon",
+  beforeLoad: () => requireAuth(),
+  component: HackathonPage,
+});
+
 // Prototype (로그인 필요)
 const prototypeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -373,6 +382,7 @@ const routeTree = rootRoute.addChildren([
   challengeRoute,
   faqRoute,
   architectureRoute,
+  hackathonRoute,
   frontendRoute,
   textbookRoute,
   apiDocRoute,
