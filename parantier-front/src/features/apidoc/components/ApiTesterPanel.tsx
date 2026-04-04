@@ -221,10 +221,8 @@ export function ApiTesterPanel({
   type ResponseTab = "body" | "headers";
   const [activeResTab, setActiveResTab] = useState<ResponseTab>("body");
 
-  // tokenInput 동기화 (외부에서 token이 바뀌면)
-  useEffect(() => {
-    setTokenInput(token);
-  }, [token]);
+  // tokenInput은 마운트 시 초기값만 설정 (useState 초기값으로 처리)
+  // 입력 중 token 스토어값이 덮어쓰는 버그 방지 - useEffect 동기화 제거
 
   // 부모 저장 콜백 등록
   const handleSaveCallback = useCallback(() => {
@@ -386,7 +384,7 @@ export function ApiTesterPanel({
                   value={tokenInput}
                   onChange={(e) => setTokenInput(e.target.value)}
                   placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  className={`${inputCls} w-full pr-8 font-mono text-xs bg-muted/50`}
+                  className="border border-input rounded px-2 py-1 text-xs bg-muted/50 text-foreground focus:outline-none focus:ring-1 focus:ring-ring w-full pr-8 font-mono"
                 />
                 <button
                   type="button"
@@ -400,6 +398,7 @@ export function ApiTesterPanel({
                 type="button"
                 onClick={() => apiTokenActions.setToken(tokenInput)}
                 className="shrink-0 px-3 py-1 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors"
+                tabIndex={0}
               >
                 적용
               </button>
