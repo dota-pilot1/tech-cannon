@@ -42,7 +42,7 @@ public class HackathonTeamController {
 
     /**
      * POST /api/hackathon/teams/{teamId}/members
-     * 팀 멤버 추가 (ADMIN 전용)
+     * 팀 멤버 추가 - 본인 참가는 누구나 가능, 타인 추가는 ADMIN만 가능
      */
     @PostMapping("/teams/{teamId}/members")
     public ResponseEntity<?> addMember(
@@ -53,11 +53,13 @@ public class HackathonTeamController {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
         }
+        Long currentUserId = extractUserId(authentication);
         boolean isAdmin = authentication
             .getAuthorities()
             .stream()
             .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        if (!isAdmin) {
+        // 본인이 아닌 다른 사람을 추가하려면 ADMIN 권한 필요
+        if (!isAdmin && !req.getUserId().equals(currentUserId)) {
             return ResponseEntity.status(403).build();
         }
         hackathonTeamService.addMember(teamId, req.getUserId());
@@ -66,7 +68,7 @@ public class HackathonTeamController {
 
     /**
      * DELETE /api/hackathon/teams/{teamId}/members/{userId}
-     * 팀 멤버 제거 (ADMIN 전용)
+     * 팀 멤버 제거 - 본인 탈퇴는 누구나 가능, 타인 제거는 ADMIN만 가능
      */
     @DeleteMapping("/teams/{teamId}/members/{userId}")
     public ResponseEntity<?> removeMember(
@@ -77,11 +79,13 @@ public class HackathonTeamController {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
         }
+        Long currentUserId = extractUserId(authentication);
         boolean isAdmin = authentication
             .getAuthorities()
             .stream()
             .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        if (!isAdmin) {
+        // 본인이 아닌 다른 사람을 제거하려면 ADMIN 권한 필요
+        if (!isAdmin && !userId.equals(currentUserId)) {
             return ResponseEntity.status(403).build();
         }
         hackathonTeamService.removeMember(teamId, userId);
