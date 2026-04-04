@@ -277,7 +277,7 @@ export function useAllChannelParticipantCounts({
         }));
       };
       handlers.push({ topic, handler });
-      // JOIN 없이 구독만 (현재 채널 useMeetingChat이 JOIN을 담당)
+      // JOIN 없이 구독만 - useMeetingChat이 현재 채널 JOIN 시 브로드캐스트 수신
       subscribe(topic, handler);
     });
 
