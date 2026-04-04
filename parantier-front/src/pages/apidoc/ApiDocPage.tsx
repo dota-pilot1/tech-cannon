@@ -959,7 +959,7 @@ export default function ApiDocPage() {
 
             {/* 모달 본체 */}
             <div
-              className="relative z-10 w-[520px] max-h-[80vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+              className="relative z-10 w-[820px] max-h-[80vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* 모달 헤더 */}
