@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Trophy,
   Users,
@@ -13,7 +14,11 @@ import {
   Link,
   Plus,
   ChevronRight,
+  Plug,
+  X,
+  Maximize2,
 } from "lucide-react";
+import ApiDocPage from "@/pages/apidoc/ApiDocPage";
 
 // ── 더미 채팅 ─────────────────────────────────────────────────────────────────
 const INIT_MESSAGES = [
@@ -138,9 +143,52 @@ function TabContent({ tab, teamName }: { tab: TabId; teamName: string }) {
   );
 }
 
+// ── API 문서 다이얼로그 ────────────────────────────────────────────────────────
+function ApiDocDialog({
+  teamName,
+  onClose,
+}: {
+  teamName: string;
+  onClose: () => void;
+}) {
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      {/* 다이얼로그 헤더 */}
+      <div
+        className="shrink-0 flex items-center justify-between px-5 border-b border-border bg-card"
+        style={{ height: "49px" }}
+      >
+        <div className="flex items-center gap-2">
+          <Plug className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">
+            {teamName} · API 문서
+          </span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+            팀 전용
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-muted"
+        >
+          <X className="w-4 h-4" />
+          닫기
+        </button>
+      </div>
+
+      {/* ApiDocPage 풀스크린 임베드 */}
+      <div className="flex-1 overflow-hidden">
+        <ApiDocPage />
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 // ── 팀 카드 ───────────────────────────────────────────────────────────────────
 function TeamCard({ team }: { team: (typeof TEAMS)[0] }) {
   const [activeTab, setActiveTab] = useState<TabId>("figma");
+  const [apiDocOpen, setApiDocOpen] = useState(false);
 
   return (
     <div
@@ -192,22 +240,42 @@ function TeamCard({ team }: { team: (typeof TEAMS)[0] }) {
       </div>
 
       {/* 탭 헤더 */}
-      <div className="shrink-0 flex items-center gap-0.5 px-3 pt-2 border-b border-border/60 bg-muted/10">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
-              activeTab === tab.id
-                ? `${team.accent} border-b-2 border-current bg-background/60`
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      <div className="shrink-0 flex items-center px-3 pt-2 border-b border-border/60 bg-muted/10">
+        <div className="flex items-center gap-0.5 flex-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
+                activeTab === tab.id
+                  ? `${team.accent} border-b-2 border-current bg-background/60`
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {/* API 버튼 */}
+        <button
+          onClick={() => setApiDocOpen(true)}
+          className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0 mb-1"
+          title={`${team.name} API 문서`}
+        >
+          <Plug className="w-3 h-3" />
+          API
+          <Maximize2 className="w-2.5 h-2.5 opacity-60" />
+        </button>
       </div>
+
+      {/* API 문서 풀스크린 다이얼로그 */}
+      {apiDocOpen && (
+        <ApiDocDialog
+          teamName={team.name}
+          onClose={() => setApiDocOpen(false)}
+        />
+      )}
 
       {/* 탭 콘텐츠 */}
       <div className="flex-1 overflow-y-auto p-4">
