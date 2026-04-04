@@ -547,7 +547,7 @@ export default function ApiDocPage() {
                     <div className="relative group">
                       <button
                         onClick={() => handleCategoryClick(cat.id)}
-                        className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] pr-8 ${
+                        className={`w-full text-left px-4 h-10 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] pr-8 ${
                           selectedCategoryId === cat.id
                             ? "border-l-primary bg-background text-primary font-bold shadow-sm"
                             : "border-l-transparent text-foreground/60 hover:bg-background/60 hover:text-foreground"
@@ -745,7 +745,7 @@ export default function ApiDocPage() {
                           ) : (
                             <button
                               onClick={() => handleSectionClick(sec.id)}
-                              className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-1.5 transition-colors border-l-[3px] pr-16 ${
+                              className={`w-full text-left px-3 h-10 text-sm flex items-center gap-1.5 transition-colors border-l-[3px] pr-16 ${
                                 selectedSectionId === sec.id
                                   ? "border-l-primary bg-primary/10 text-primary font-bold"
                                   : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
