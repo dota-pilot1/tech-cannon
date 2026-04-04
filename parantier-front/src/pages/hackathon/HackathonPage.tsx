@@ -1397,7 +1397,7 @@ export function HackathonPage() {
 
   const eventId = event?.id ?? null;
   const endAt = event?.endAt ?? null;
-  const remaining = useCountdown(endAt);
+  useCountdown(endAt);
 
   const { messages, isConnected, sendMessage } = useHackathonChat({
     userId: auth.user?.id,
@@ -1427,7 +1427,6 @@ export function HackathonPage() {
   };
 
   const teams = event?.teams ?? [];
-  const totalMembers = teams.reduce((acc, t) => acc + t.members.length, 0);
 
   // 이벤트 없을 때 폴백 팀 (더미 UI 유지)
   const displayTeams: HackathonTeamResponse[] =
