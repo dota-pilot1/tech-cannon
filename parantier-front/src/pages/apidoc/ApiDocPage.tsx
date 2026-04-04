@@ -454,16 +454,9 @@ export default function ApiDocPage() {
         {/* 헤더 */}
         <div
           className="px-4 border-b border-border flex items-center justify-between"
-          style={{ minHeight: "49px" }}
+          style={{ height: "49px" }}
         >
-          <div>
-            <p className="text-sm font-semibold text-foreground leading-tight">
-              🔌 API 문서
-            </p>
-            <p className="text-[10px] text-muted-foreground leading-tight">
-              API 테스트 &amp; 문서화
-            </p>
-          </div>
+          <p className="text-sm font-semibold text-foreground">🔌 API 문서</p>
           {isAdmin && (
             <button
               onClick={() => setIsAddingCategory(true)}
@@ -615,7 +608,7 @@ export default function ApiDocPage() {
         {/* 헤더 */}
         <div
           className="px-3 border-b border-border flex items-center justify-between gap-2"
-          style={{ minHeight: "49px" }}
+          style={{ height: "49px" }}
         >
           <p className="text-sm font-semibold text-foreground truncate">
             {selectedCategory
@@ -848,7 +841,7 @@ export default function ApiDocPage() {
             {/* 통합 헤더: 환경변수 탭 + breadcrumb + 저장 버튼 - 높이 49px 고정 */}
             <div
               className="shrink-0 flex items-center gap-3 px-4 border-b border-border bg-card"
-              style={{ minHeight: "49px" }}
+              style={{ height: "49px" }}
             >
               <span className="text-xs text-muted-foreground font-medium shrink-0">
                 환경
