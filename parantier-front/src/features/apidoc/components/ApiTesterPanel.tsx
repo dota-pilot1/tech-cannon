@@ -489,11 +489,7 @@ export function ApiTesterPanel({
           {/* ──────────────────────────────────────────
               3. 요청 탭 카드
           ────────────────────────────────────────── */}
-          <div
-            className={`rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden ${
-              response ? "min-h-[220px]" : "flex-1 min-h-[200px]"
-            }`}
-          >
+          <div className="rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden min-h-[200px]">
             {/* 탭 헤더 */}
             <div className="shrink-0 flex items-center gap-0.5 px-3 pt-1 border-b border-border bg-muted/20">
               {(
@@ -629,113 +625,145 @@ export function ApiTesterPanel({
           </div>
 
           {/* ──────────────────────────────────────────
-              4. 응답 카드 (응답 있을 때만)
+              4. 응답 카드 (항상 표시)
           ────────────────────────────────────────── */}
-          {response && (
-            <div className="shrink-0 rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden min-h-[220px]">
-              {/* 응답 상단 바 */}
-              <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-border bg-muted/20">
-                {/* Status 배지 */}
-                <span
-                  className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${
-                    response.status === 0
-                      ? "text-red-600 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20"
-                      : response.status < 300
-                        ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20"
-                        : response.status < 400
-                          ? "text-blue-600 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
-                          : response.status < 500
-                            ? "text-amber-600 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20"
-                            : "text-red-600 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20"
-                  }`}
-                >
+          <div className="shrink-0 rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden min-h-[220px]">
+            {/* 응답 상단 바 */}
+            <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-border bg-muted/20">
+              <span className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+                Response
+              </span>
+
+              {/* 응답 있을 때만: Status + Duration + Timestamp + 탭 */}
+              {response && (
+                <>
+                  {/* Status 배지 */}
                   <span
-                    className={`w-1.5 h-1.5 rounded-full ${
+                    className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${
                       response.status === 0
-                        ? "bg-red-500"
+                        ? "text-red-600 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20"
                         : response.status < 300
-                          ? "bg-emerald-500"
+                          ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20"
                           : response.status < 400
-                            ? "bg-blue-500"
+                            ? "text-blue-600 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
                             : response.status < 500
-                              ? "bg-amber-500"
-                              : "bg-red-500"
-                    }`}
-                  />
-                  {response.status === 0
-                    ? "Network Error"
-                    : `${response.status} ${response.statusText}`}
-                </span>
-
-                {/* Duration 배지 */}
-                {response.durationMs > 0 && (
-                  <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5 font-mono">
-                    {response.durationMs}ms
-                  </span>
-                )}
-
-                {/* Timestamp */}
-                <span className="text-xs text-muted-foreground ml-auto">
-                  {new Date(response.timestamp).toLocaleTimeString()}
-                </span>
-
-                {/* 응답 탭 */}
-                <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5">
-                  {(["body", "headers"] as ResponseTab[]).map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setActiveResTab(tab)}
-                      className={`px-3 py-1 text-xs rounded-md transition-colors font-medium ${
-                        activeResTab === tab
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {tab === "body" ? "Body" : "Headers"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 응답 내용 */}
-              <div className="flex-1 overflow-auto p-4">
-                {activeResTab === "body" && (
-                  <pre
-                    className={`text-xs font-mono whitespace-pre-wrap break-all leading-relaxed ${
-                      response.status === 0 ? "text-red-600" : "text-foreground"
+                              ? "text-amber-600 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20"
+                              : "text-red-600 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20"
                     }`}
                   >
-                    {isJsonString(response.body)
-                      ? prettyJson(response.body)
-                      : response.body}
-                  </pre>
-                )}
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        response.status === 0
+                          ? "bg-red-500"
+                          : response.status < 300
+                            ? "bg-emerald-500"
+                            : response.status < 400
+                              ? "bg-blue-500"
+                              : response.status < 500
+                                ? "bg-amber-500"
+                                : "bg-red-500"
+                      }`}
+                    />
+                    {response.status === 0
+                      ? "Network Error"
+                      : `${response.status} ${response.statusText}`}
+                  </span>
 
-                {activeResTab === "headers" && (
-                  <div className="flex flex-col gap-1.5">
-                    {Object.entries(response.headers).length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        응답 헤더가 없습니다.
-                      </p>
-                    ) : (
-                      Object.entries(response.headers).map(([k, v]) => (
-                        <div
-                          key={k}
-                          className="flex gap-2 text-xs font-mono bg-muted/30 rounded px-3 py-1.5"
-                        >
-                          <span className="text-muted-foreground shrink-0 min-w-[160px]">
-                            {k}:
-                          </span>
-                          <span className="text-foreground break-all">{v}</span>
-                        </div>
-                      ))
-                    )}
+                  {/* Duration 배지 */}
+                  {response.durationMs > 0 && (
+                    <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5 font-mono">
+                      {response.durationMs}ms
+                    </span>
+                  )}
+
+                  {/* Timestamp */}
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {new Date(response.timestamp).toLocaleTimeString()}
+                  </span>
+
+                  {/* 응답 탭 */}
+                  <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5">
+                    {(["body", "headers"] as ResponseTab[]).map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setActiveResTab(tab)}
+                        className={`px-3 py-1 text-xs rounded-md transition-colors font-medium ${
+                          activeResTab === tab
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {tab === "body" ? "Body" : "Headers"}
+                      </button>
+                    ))}
                   </div>
-                )}
-              </div>
+                </>
+              )}
+
+              {/* 응답 없을 때 우측 안내 */}
+              {!response && (
+                <span className="ml-auto text-xs text-muted-foreground/60">
+                  Send 버튼을 눌러 요청하세요
+                </span>
+              )}
             </div>
-          )}
+
+            {/* 응답 내용 */}
+            <div className="flex-1 overflow-auto p-4">
+              {/* 빈 상태 */}
+              {!response && !isLoading && (
+                <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground/50 select-none">
+                  <Send size={28} className="opacity-30" />
+                  <p className="text-xs">아직 요청이 없습니다.</p>
+                </div>
+              )}
+
+              {/* 로딩 상태 */}
+              {isLoading && (
+                <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                  <Loader2 size={24} className="animate-spin opacity-50" />
+                  <p className="text-xs">요청 중...</p>
+                </div>
+              )}
+
+              {/* 응답 body */}
+              {response && activeResTab === "body" && (
+                <pre
+                  className={`text-xs font-mono whitespace-pre-wrap break-all leading-relaxed ${
+                    response.status === 0 ? "text-red-600" : "text-foreground"
+                  }`}
+                >
+                  {isJsonString(response.body)
+                    ? prettyJson(response.body)
+                    : response.body}
+                </pre>
+              )}
+
+              {/* 응답 headers */}
+              {response && activeResTab === "headers" && (
+                <div className="flex flex-col gap-1.5">
+                  {Object.entries(response.headers).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      응답 헤더가 없습니다.
+                    </p>
+                  ) : (
+                    Object.entries(response.headers).map(([k, v]) => (
+                      <div
+                        key={k}
+                        className="flex gap-2 text-xs font-mono bg-muted/30 rounded px-3 py-1.5"
+                      >
+                        <span className="text-muted-foreground shrink-0 min-w-[160px]">
+                          {k}:
+                        </span>
+                        <span className="text-foreground break-all">{v}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
