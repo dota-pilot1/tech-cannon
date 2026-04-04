@@ -25,8 +25,9 @@ import {
   GripVertical,
   Pencil,
   Check,
+  Settings2,
 } from "lucide-react";
-import { Button } from "@/shared/ui/button";
+
 import {
   DndContext,
   closestCenter,
@@ -98,6 +99,62 @@ export default function ApiDocPage() {
 
   // 환경변수 스토어
   const { environments, activeEnvId } = useStore(apiEnvStore, (s) => s);
+
+  // ── 환경변수 편집 패널 상태
+  const [envPanelOpen, setEnvPanelOpen] = useState(false);
+  const [editingEnvId, setEditingEnvId] = useState<string | null>(null);
+  const [editingVars, setEditingVars] = useState<
+    { key: string; value: string; description?: string }[]
+  >([]);
+
+  const handleOpenEnvPanel = (envId: string) => {
+    // 같은 탭 다시 누르면 닫기 토글
+    if (envPanelOpen && editingEnvId === envId) {
+      setEnvPanelOpen(false);
+      setEditingEnvId(null);
+      return;
+    }
+    apiEnvActions.setActiveEnv(envId);
+    // 환경 변경 시 해당 환경의 vars를 즉시 로드
+    const env = environments.find((e) => e.id === envId);
+    if (env) {
+      setEditingVars(env.variables.map((v) => ({ ...v })));
+    }
+    setEditingEnvId(envId);
+    setEnvPanelOpen(true);
+  };
+
+  const handleEnvVarChange = (
+    idx: number,
+    field: "key" | "value" | "description",
+    val: string,
+  ) => {
+    setEditingVars((prev) =>
+      prev.map((v, i) => (i === idx ? { ...v, [field]: val } : v)),
+    );
+  };
+
+  const handleAddEnvVar = () => {
+    setEditingVars((prev) => [
+      ...prev,
+      { key: "", value: "", description: "" },
+    ]);
+  };
+
+  const handleRemoveEnvVar = (idx: number) => {
+    setEditingVars((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveEnvVars = () => {
+    if (!editingEnvId) return;
+    const updated = environments.map((e) =>
+      e.id === editingEnvId
+        ? { ...e, variables: editingVars.filter((v) => v.key.trim()) }
+        : e,
+    );
+    apiEnvActions.updateEnvironments(updated);
+    toast.success("환경변수가 저장되었습니다");
+  };
 
   // ── 사이드바 넓이 (localStorage 복원)
   const [cat1Width, setCat1Width] = useState(() => {
@@ -850,14 +907,15 @@ export default function ApiDocPage() {
                 {environments.map((env) => (
                   <button
                     key={env.id}
-                    onClick={() => apiEnvActions.setActiveEnv(env.id)}
-                    className={`text-xs px-2.5 py-0.5 rounded-full font-medium transition-colors ${
+                    onClick={() => handleOpenEnvPanel(env.id)}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium transition-colors ${
                       activeEnvId === env.id
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground border border-border"
-                    }`}
+                    } ${envPanelOpen && editingEnvId === env.id ? "ring-2 ring-primary/40" : ""}`}
                   >
                     {env.name}
+                    <Settings2 className="w-2.5 h-2.5 opacity-60" />
                   </button>
                 ))}
               </div>
@@ -867,36 +925,136 @@ export default function ApiDocPage() {
                 {" / "}
                 {selectedSection?.title}
               </span>
-              {isAdmin && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    // ApiTesterPanel의 현재 상태를 저장 - ref로 접근
-                    savePanelRef.current?.();
-                  }}
-                  disabled={saveMutation.isPending}
-                  className="shrink-0 h-7 text-xs"
-                >
-                  <Save className="w-3.5 h-3.5 mr-1" />
-                  저장
-                </Button>
-              )}
             </div>
 
-            {/* API 테스터 패널 - 툴바 없이 바로 본문 */}
-            <ApiTesterPanel
-              key={selectedSectionId}
-              sectionId={selectedSectionId}
-              blocks={blocks}
-              isAdmin={isAdmin}
-              onSave={(content: ApiBlockContent) => {
-                saveMutation.mutate(content);
-              }}
-              onRegisterSave={(fn) => {
-                savePanelRef.current = fn;
-              }}
-            />
+            {/* 본문 영역: 테스터 패널 + 환경변수 편집 패널 나란히 */}
+            <div className="flex-1 overflow-hidden flex">
+              {/* API 테스터 패널 */}
+              <div className="flex-1 overflow-hidden">
+                <ApiTesterPanel
+                  key={selectedSectionId}
+                  sectionId={selectedSectionId}
+                  blocks={blocks}
+                  isAdmin={isAdmin}
+                  onSave={(content: ApiBlockContent) => {
+                    saveMutation.mutate(content);
+                  }}
+                  onRegisterSave={(fn) => {
+                    savePanelRef.current = fn;
+                  }}
+                />
+              </div>
+
+              {/* 환경변수 편집 패널 (슬라이드 인) */}
+              {envPanelOpen && editingEnvId && (
+                <div className="shrink-0 w-80 border-l border-border bg-card flex flex-col overflow-hidden">
+                  {/* 패널 헤더 */}
+                  <div
+                    className="shrink-0 flex items-center justify-between px-4 border-b border-border"
+                    style={{ height: "49px" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Settings2 className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-sm font-semibold text-foreground">
+                        {environments.find((e) => e.id === editingEnvId)?.name}{" "}
+                        환경변수
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEnvPanelOpen(false);
+                        setEditingEnvId(null);
+                      }}
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* 변수 목록 */}
+                  <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+                    {/* 컬럼 헤더 */}
+                    <div className="grid grid-cols-2 gap-2 px-1 mb-1">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                        Key
+                      </span>
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                        Value
+                      </span>
+                    </div>
+
+                    {editingVars.map((v, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-1.5 group"
+                      >
+                        <input
+                          type="text"
+                          value={v.key}
+                          onChange={(e) =>
+                            handleEnvVarChange(idx, "key", e.target.value)
+                          }
+                          placeholder="KEY"
+                          className="flex-1 min-w-0 text-xs font-mono border border-input rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                        <input
+                          type="text"
+                          value={v.value}
+                          onChange={(e) =>
+                            handleEnvVarChange(idx, "value", e.target.value)
+                          }
+                          placeholder="value"
+                          className="flex-1 min-w-0 text-xs font-mono border border-input rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                        <button
+                          onClick={() => handleRemoveEnvVar(idx)}
+                          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1 rounded"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* 변수 추가 버튼 */}
+                    <button
+                      onClick={handleAddEnvVar}
+                      className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 mt-1 px-1 py-1 rounded transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      변수 추가
+                    </button>
+
+                    {/* 사용 안내 */}
+                    <div className="mt-3 rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-[11px] text-muted-foreground leading-relaxed">
+                      <p className="font-semibold text-foreground mb-1">
+                        사용 방법
+                      </p>
+                      <p>
+                        URL에{" "}
+                        <code className="font-mono bg-muted px-1 rounded">
+                          {"{{KEY}}"}
+                        </code>{" "}
+                        형태로 입력하면 자동 치환됩니다.
+                      </p>
+                      <p className="mt-1 font-mono text-[10px] text-primary/80">
+                        {"{{BASE_URL}}/api/products"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 저장 버튼 */}
+                  <div className="shrink-0 px-4 py-3 border-t border-border bg-muted/20">
+                    <button
+                      onClick={handleSaveEnvVars}
+                      className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      저장
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       </main>
