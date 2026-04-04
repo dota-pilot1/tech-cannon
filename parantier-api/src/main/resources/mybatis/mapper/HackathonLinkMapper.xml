@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.hackathon.infrastructure.HackathonLinkMapper">
+
+    <resultMap id="HackathonTeamLinkResultMap" type="com.mapo.palantier.hackathon.domain.HackathonTeamLink">
+        <id property="id" column="id"/>
+        <result property="teamId" column="team_id"/>
+        <result property="linkType" column="link_type"/>
+        <result property="title" column="title"/>
+        <result property="url" column="url"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findByTeamId" resultMap="HackathonTeamLinkResultMap">
+        SELECT id, team_id, link_type, title, url, created_by, created_at
+        FROM hackathon_team_links
+        WHERE team_id = #{teamId}
+        ORDER BY created_at ASC
+    </select>
+
+    <insert id="insert" parameterType="com.mapo.palantier.hackathon.domain.HackathonTeamLink"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO hackathon_team_links (
+            team_id,
+            link_type,
+            title,
+            url,
+            created_by,
+            created_at
+        ) VALUES (
+            #{teamId},
+            #{linkType},
+            #{title},
+            #{url},
+            #{createdBy},
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <delete id="deleteById">
+        DELETE FROM hackathon_team_links
+        WHERE id = #{id}
+    </delete>
+
+</mapper>

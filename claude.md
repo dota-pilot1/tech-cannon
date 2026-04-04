@@ -1,5 +1,83 @@
 # Palantier 프로젝트 개발 가이드
 
+## 해커톤 기능 구현 현황
+
+### 구현 완료 (Phase 1~3)
+- **라우트**: `/hackathon` (메뉴 id: 55, HEADER 타입)
+- **페이지**: `parantier-front/src/pages/hackathon/HackathonPage.tsx`
+- **프론트 features**: `parantier-front/src/features/hackathon/`
+  - `types/hackathon.types.ts` — 15개 타입 인터페이스
+  - `api/hackathonApi.ts` — REST API 모듈
+  - `hooks/useHackathon.ts` — TanStack Query 훅 (링크/Task/Issue/FAQ CRUD)
+  - `hooks/useHackathonChat.ts` — WebSocket 채팅 훅
+- **백엔드**: `parantier-api/src/main/java/com/mapo/palantier/hackathon/`
+  - domain, dto, infrastructure, application, presentation 패키지 구성
+  - WebSocket: `PureWebSocketHandler`에 `hackathon-chat/{eventId}` 토픽 추가
+
+### DB 테이블 (로컬 + EC2 모두 생성 완료)
+```
+hackathon_events        — 해커톤 이벤트 (is_active로 현재 이벤트 구분)
+hackathon_teams         — 팀 정보 (color_theme: blue|emerald|violet)
+hackathon_team_members  — 팀 멤버 (users 테이블 참조)
+hackathon_chat_messages — 오픈 채팅 메시지
+hackathon_team_links    — 링크 (link_type: figma|github|custom)
+hackathon_team_tasks    — Task (status: TODO|DOING|DONE)
+hackathon_team_issues   — 이슈 (priority: HIGH|MEDIUM|LOW, status: OPEN|IN_PROGRESS|CLOSED)
+hackathon_team_faq      — Q&A
+```
+
+### 백엔드 API 엔드포인트
+```
+GET  /api/hackathon/events/active          — 현재 진행중 이벤트 + 팀 + 멤버 조회
+GET  /api/hackathon/events                 — 전체 이벤트 목록
+POST /api/hackathon/events                 — 이벤트 생성 (ADMIN)
+PUT  /api/hackathon/events/{id}            — 이벤트 수정 (ADMIN)
+
+GET  /api/hackathon/events/{eventId}/chat  — 채팅 히스토리 (?limit=50)
+WS   hackathon-chat/{eventId}              — 실시간 채팅 토픽
+
+GET/POST        /api/hackathon/teams/{teamId}/links
+DELETE          /api/hackathon/teams/{teamId}/links/{linkId}
+GET/POST        /api/hackathon/teams/{teamId}/tasks
+PUT/DELETE      /api/hackathon/teams/{teamId}/tasks/{taskId}
+GET/POST        /api/hackathon/teams/{teamId}/issues
+PUT             /api/hackathon/teams/{teamId}/issues/{issueId}
+GET/POST        /api/hackathon/teams/{teamId}/faq
+PUT/DELETE      /api/hackathon/teams/{teamId}/faq/{faqId}
+POST            /api/hackathon/teams/{teamId}/members
+DELETE          /api/hackathon/teams/{teamId}/members/{userId}
+```
+
+### 이벤트 초기 데이터 등록 방법 (DB 직접 삽입)
+```bash
+# 로컬: 이벤트 생성 예시
+docker exec -i palantier-postgres psql -U palantier_user -d palantier -c \
+  "INSERT INTO hackathon_events (title, description, start_at, end_at, max_teams, is_active) \
+   VALUES ('2024 사내 해커톤', '48시간 해커톤', NOW(), NOW() + INTERVAL '48 hours', 2, true);"
+
+# 팀 생성 예시 (event_id는 위에서 생성된 id)
+docker exec -i palantier-postgres psql -U palantier_user -d palantier -c \
+  "INSERT INTO hackathon_teams (event_id, name, project, color_theme, order_num) \
+   VALUES (1, 'Team A', 'AI 코드 리뷰 어시스턴트', 'blue', 0), \
+          (1, 'Team B', '실시간 협업 화이트보드', 'emerald', 1);"
+```
+
+### 팀 색상 테마
+| colorTheme | 색상 |
+|------------|------|
+| `blue` | 파랑 (Team A 기본) |
+| `emerald` | 초록 (Team B 기본) |
+| `violet` | 보라 |
+
+### WebSocket 채팅 토픽 구조
+```json
+// 구독/전송
+{ "type": "SUBSCRIBE", "topic": "hackathon-chat/1", "data": {} }
+{ "type": "CHAT", "topic": "hackathon-chat/1", "data": { "senderId": 1, "senderName": "홍길동", "message": "안녕!", "eventId": 1 } }
+```
+
+---
+
 ## 배포
 
 > 📁 **배포에 관한 모든 기본 방침은 `/Users/terecal/mapo-palantier-project/배포 가이드` 를 따릅니다.**

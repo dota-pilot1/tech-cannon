@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.hackathon.infrastructure.HackathonTaskMapper">
+
+    <resultMap id="HackathonTeamTaskResultMap" type="com.mapo.palantier.hackathon.domain.HackathonTeamTask">
+        <id property="id" column="id"/>
+        <result property="teamId" column="team_id"/>
+        <result property="title" column="title"/>
+        <result property="status" column="status"/>
+        <result property="assigneeId" column="assignee_id"/>
+        <result property="assigneeName" column="assignee_name"/>
+        <result property="dueAt" column="due_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByTeamId" resultMap="HackathonTeamTaskResultMap">
+        SELECT
+            t.id,
+            t.team_id,
+            t.title,
+            t.status,
+            t.assignee_id,
+            u.username AS assignee_name,
+            t.due_at,
+            t.created_by,
+            t.created_at,
+            t.updated_at
+        FROM hackathon_team_tasks t
+        LEFT JOIN users u ON t.assignee_id = u.id
+        WHERE t.team_id = #{teamId}
+        ORDER BY t.created_at ASC
+    </select>
+
+    <insert id="insert" parameterType="com.mapo.palantier.hackathon.domain.HackathonTeamTask"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO hackathon_team_tasks (
+            team_id,
+            title,
+            status,
+            assignee_id,
+            due_at,
+            created_by,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{teamId},
+            #{title},
+            #{status},
+            #{assigneeId},
+            #{dueAt},
+            #{createdBy},
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="update" parameterType="com.mapo.palantier.hackathon.domain.HackathonTeamTask">
+        UPDATE hackathon_team_tasks
+        SET
+            title = #{title},
+            status = #{status},
+            assignee_id = #{assigneeId},
+            due_at = #{dueAt},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM hackathon_team_tasks
+        WHERE id = #{id}
+    </delete>
+
+</mapper>

@@ -1,6 +1,8 @@
 package com.mapo.palantier.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mapo.palantier.hackathon.application.HackathonChatService;
+import com.mapo.palantier.hackathon.domain.HackathonChatMessage;
 import com.mapo.palantier.issue.application.IssueMessageService;
 import com.mapo.palantier.issue.domain.IssueMessage;
 import com.mapo.palantier.meeting.application.MeetingChatService;
@@ -38,6 +40,9 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
 
     @Autowired
     private WorkStatusChatService workStatusChatService;
+
+    @Autowired
+    private HackathonChatService hackathonChatService;
 
     // topic → 세션 목록
     private final ConcurrentHashMap<
@@ -348,6 +353,36 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
             response.put("senderName", senderName);
             response.put("username", senderName);
             response.put("message", saved.getMessage());
+            response.put(
+                "createdAt",
+                saved.getCreatedAt() != null
+                    ? saved.getCreatedAt().toString()
+                    : LocalDateTime.now(ZoneOffset.UTC).toString()
+            );
+
+            broadcast(topic, new WsMessage("CHAT", topic, response));
+        } else if (topic.startsWith("hackathon-chat/")) {
+            long eventId = Long.parseLong(topic.split("/")[1]);
+            Long senderId = toLong(data.get("senderId"));
+            String senderName = (String) data.get("senderName");
+            String messageText = (String) data.get("message");
+
+            HackathonChatMessage saved = hackathonChatService.createMessage(
+                eventId,
+                senderId,
+                senderName,
+                messageText
+            );
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("id", saved.getId());
+            response.put("eventId", saved.getEventId());
+            response.put("userId", saved.getUserId());
+            response.put("senderId", senderId);
+            response.put("senderName", senderName);
+            response.put("username", senderName);
+            response.put("message", saved.getContent());
+            response.put("content", saved.getContent());
             response.put(
                 "createdAt",
                 saved.getCreatedAt() != null

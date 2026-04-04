@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.hackathon.infrastructure.HackathonChatMapper">
+
+    <resultMap id="HackathonChatMessageResultMap" type="com.mapo.palantier.hackathon.domain.HackathonChatMessage">
+        <id property="id" column="id"/>
+        <result property="eventId" column="event_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="content" column="content"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 이벤트별 최근 N개 메시지 조회 (시간 오름차순) -->
+    <select id="findRecentByEventId" resultMap="HackathonChatMessageResultMap">
+        SELECT *
+        FROM (
+            SELECT
+                hcm.id,
+                hcm.event_id,
+                hcm.user_id,
+                u.username,
+                hcm.content,
+                hcm.created_at
+            FROM hackathon_chat_messages hcm
+            LEFT JOIN users u ON hcm.user_id = u.id
+            WHERE hcm.event_id = #{eventId}
+            ORDER BY hcm.created_at DESC
+            LIMIT #{limit}
+        ) sub
+        ORDER BY sub.created_at ASC
+    </select>
+
+    <!-- 메시지 생성 -->
+    <insert id="insert" parameterType="com.mapo.palantier.hackathon.domain.HackathonChatMessage"
+            useGeneratedKeys="true" keyProperty="id,createdAt" keyColumn="id,created_at">
+        INSERT INTO hackathon_chat_messages (
+            event_id,
+            user_id,
+            username,
+            content,
+            created_at
+        ) VALUES (
+            #{eventId},
+            #{userId},
+            #{username},
+            #{content},
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+</mapper>

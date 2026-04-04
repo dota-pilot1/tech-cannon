@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.hackathon.infrastructure.HackathonTeamMemberMapper">
+
+    <resultMap id="HackathonTeamMemberResultMap" type="com.mapo.palantier.hackathon.domain.HackathonTeamMember">
+        <id property="id" column="id"/>
+        <result property="teamId" column="team_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="joinedAt" column="joined_at"/>
+    </resultMap>
+
+    <!-- 팀별 멤버 목록 조회 (users 테이블 JOIN) -->
+    <select id="findByTeamId" resultMap="HackathonTeamMemberResultMap">
+        SELECT
+            htm.id,
+            htm.team_id,
+            htm.user_id,
+            u.username,
+            htm.joined_at
+        FROM hackathon_team_members htm
+        LEFT JOIN users u ON htm.user_id = u.id
+        WHERE htm.team_id = #{teamId}
+        ORDER BY htm.joined_at ASC
+    </select>
+
+    <!-- 멤버 추가 -->
+    <insert id="insert" parameterType="com.mapo.palantier.hackathon.domain.HackathonTeamMember"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO hackathon_team_members (
+            team_id,
+            user_id,
+            joined_at
+        ) VALUES (
+            #{teamId},
+            #{userId},
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 멤버 제거 -->
+    <delete id="deleteByTeamIdAndUserId">
+        DELETE FROM hackathon_team_members
+        WHERE team_id = #{teamId}
+          AND user_id = #{userId}
+    </delete>
+
+</mapper>

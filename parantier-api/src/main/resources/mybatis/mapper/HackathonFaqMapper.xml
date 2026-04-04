@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.hackathon.infrastructure.HackathonFaqMapper">
+
+    <resultMap id="HackathonTeamFaqResultMap" type="com.mapo.palantier.hackathon.domain.HackathonTeamFaq">
+        <id property="id" column="id"/>
+        <result property="teamId" column="team_id"/>
+        <result property="question" column="question"/>
+        <result property="answer" column="answer"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findByTeamId" resultMap="HackathonTeamFaqResultMap">
+        SELECT id, team_id, question, answer, order_num, created_by, created_at
+        FROM hackathon_team_faqs
+        WHERE team_id = #{teamId}
+        ORDER BY order_num ASC, created_at ASC
+    </select>
+
+    <insert id="insert" parameterType="com.mapo.palantier.hackathon.domain.HackathonTeamFaq"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO hackathon_team_faqs (
+            team_id,
+            question,
+            answer,
+            order_num,
+            created_by,
+            created_at
+        ) VALUES (
+            #{teamId},
+            #{question},
+            #{answer},
+            #{orderNum},
+            #{createdBy},
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="update" parameterType="com.mapo.palantier.hackathon.domain.HackathonTeamFaq">
+        UPDATE hackathon_team_faqs
+        SET
+            question  = #{question},
+            answer    = #{answer},
+            order_num = #{orderNum}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM hackathon_team_faqs
+        WHERE id = #{id}
+    </delete>
+
+</mapper>
