@@ -6,9 +6,9 @@ import com.mapo.palantier.hackathon.domain.HackathonTeamLink;
 import com.mapo.palantier.hackathon.domain.HackathonTeamMember;
 import com.mapo.palantier.hackathon.domain.HackathonTeamTask;
 import com.mapo.palantier.hackathon.dto.CreateFaqRequest;
-import com.mapo.palantier.hackathon.dto.CreateIssueRequest;
 import com.mapo.palantier.hackathon.dto.CreateLinkRequest;
 import com.mapo.palantier.hackathon.dto.CreateTaskRequest;
+import com.mapo.palantier.hackathon.dto.HackathonCreateIssueRequest;
 import com.mapo.palantier.hackathon.dto.UpdateFaqRequest;
 import com.mapo.palantier.hackathon.dto.UpdateIssueRequest;
 import com.mapo.palantier.hackathon.dto.UpdateTaskRequest;
@@ -133,7 +133,11 @@ public class HackathonTeamService {
     }
 
     @Transactional
-    public Long createIssue(Long teamId, Long userId, CreateIssueRequest req) {
+    public Long createIssue(
+        Long teamId,
+        Long userId,
+        HackathonCreateIssueRequest req
+    ) {
         HackathonTeamIssue issue = new HackathonTeamIssue();
         issue.setTeamId(teamId);
         issue.setTitle(req.getTitle());

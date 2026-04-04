@@ -7,9 +7,9 @@ import com.mapo.palantier.hackathon.domain.HackathonTeamLink;
 import com.mapo.palantier.hackathon.domain.HackathonTeamTask;
 import com.mapo.palantier.hackathon.dto.AddMemberRequest;
 import com.mapo.palantier.hackathon.dto.CreateFaqRequest;
-import com.mapo.palantier.hackathon.dto.CreateIssueRequest;
 import com.mapo.palantier.hackathon.dto.CreateLinkRequest;
 import com.mapo.palantier.hackathon.dto.CreateTaskRequest;
+import com.mapo.palantier.hackathon.dto.HackathonCreateIssueRequest;
 import com.mapo.palantier.hackathon.dto.UpdateFaqRequest;
 import com.mapo.palantier.hackathon.dto.UpdateIssueRequest;
 import com.mapo.palantier.hackathon.dto.UpdateTaskRequest;
@@ -53,7 +53,9 @@ public class HackathonTeamController {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
         }
-        boolean isAdmin = authentication.getAuthorities().stream()
+        boolean isAdmin = authentication
+            .getAuthorities()
+            .stream()
             .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         if (!isAdmin) {
             return ResponseEntity.status(403).build();
@@ -75,7 +77,9 @@ public class HackathonTeamController {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
         }
-        boolean isAdmin = authentication.getAuthorities().stream()
+        boolean isAdmin = authentication
+            .getAuthorities()
+            .stream()
             .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         if (!isAdmin) {
             return ResponseEntity.status(403).build();
@@ -227,7 +231,7 @@ public class HackathonTeamController {
     @PostMapping("/teams/{teamId}/issues")
     public ResponseEntity<?> createIssue(
         @PathVariable Long teamId,
-        @RequestBody CreateIssueRequest req,
+        @RequestBody HackathonCreateIssueRequest req,
         Authentication authentication
     ) {
         if (authentication == null || !authentication.isAuthenticated()) {

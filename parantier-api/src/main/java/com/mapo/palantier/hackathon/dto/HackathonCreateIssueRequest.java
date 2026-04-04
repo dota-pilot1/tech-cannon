@@ -1,6 +1,6 @@
 package com.mapo.palantier.hackathon.dto;
 
-public class CreateIssueRequest {
+public class HackathonCreateIssueRequest {
 
     private String title;
     private String content;
