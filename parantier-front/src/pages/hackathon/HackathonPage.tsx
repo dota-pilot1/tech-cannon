@@ -1750,8 +1750,30 @@ export function HackathonPage() {
 
       {/* ── 본문 ──────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex gap-4 overflow-hidden">
-        {/* 왼쪽: 오픈 채팅 */}
-        <div className="w-96 shrink-0 flex flex-col rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        {/* 왼쪽: 팀 카드들 (1열 세로 스크롤) */}
+        <div className="flex-1 overflow-y-auto">
+          {eventLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {displayTeams.map((team, idx) => (
+                <TeamCard
+                  key={team.id || idx}
+                  team={team}
+                  currentUserId={auth.user?.id}
+                  isAdmin={isAdmin}
+                  eventId={eventId ?? 0}
+                />
+              ))}
+              {isAdmin && eventId && <AddTeamCard eventId={eventId} />}
+            </div>
+          )}
+        </div>
+
+        {/* 오른쪽: 오픈 채팅 */}
+        <div className="w-[520px] shrink-0 flex flex-col rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="shrink-0 flex items-center gap-2.5 px-4 py-3.5 border-b border-border bg-muted/20">
             <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
               <MessageSquare className="w-3.5 h-3.5 text-primary" />
@@ -1830,28 +1852,6 @@ export function HackathonPage() {
               </button>
             </div>
           </div>
-        </div>
-
-        {/* 오른쪽: 팀 카드들 (1열 세로 스크롤) */}
-        <div className="flex-1 overflow-y-auto">
-          {eventLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {displayTeams.map((team, idx) => (
-                <TeamCard
-                  key={team.id || idx}
-                  team={team}
-                  currentUserId={auth.user?.id}
-                  isAdmin={isAdmin}
-                  eventId={eventId ?? 0}
-                />
-              ))}
-              {isAdmin && eventId && <AddTeamCard eventId={eventId} />}
-            </div>
-          )}
         </div>
       </div>
     </div>
