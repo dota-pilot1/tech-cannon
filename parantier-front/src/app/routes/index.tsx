@@ -35,6 +35,7 @@ import { SqlPage } from "@/pages/sql/SqlPage";
 import ArchitecturePage from "@/pages/architecture/ArchitecturePage";
 import FrontendPage from "@/pages/frontend/FrontendPage";
 import TextbookPage from "@/pages/textbook/TextbookPage";
+import ApiDocPage from "@/pages/apidoc/ApiDocPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -312,6 +313,14 @@ const textbookRoute = createRoute({
   component: TextbookPage,
 });
 
+// API 문서 테스터 페이지 (로그인 필요)
+const apiDocRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/api-doc",
+  beforeLoad: () => requireAuth(),
+  component: ApiDocPage,
+});
+
 // Prototype (로그인 필요)
 const prototypeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -366,6 +375,7 @@ const routeTree = rootRoute.addChildren([
   architectureRoute,
   frontendRoute,
   textbookRoute,
+  apiDocRoute,
   notFoundRoute,
 ]);
 
