@@ -42,6 +42,7 @@ import {
   useCreateChannel,
   useDeleteChannel,
   useReorderChannels,
+  useAllChannelParticipantCounts,
   type Participant,
 } from "@/features/meeting/hooks/useMeetingChat";
 import {
@@ -270,6 +271,13 @@ export function MeetingRoomTab() {
   const { data: channels = [], isLoading: isChannelsLoading } =
     useMeetingChannels();
 
+  const channelIds = channels.map((c) => c.id);
+  const { participantCounts } = useAllChannelParticipantCounts({
+    userId: user?.id,
+    username: user?.username,
+    channelIds,
+  });
+
   // 채널 활동량 조회 (30분간 메시지 수, 1분마다 자동 갱신)
   const { data: activityMap = {} } = useQuery({
     queryKey: ["meetingChannelActivity"],
@@ -403,11 +411,21 @@ export function MeetingRoomTab() {
                   >
                     <Hash className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate flex-1">{channel.name}</span>
-                    {(activityMap[channel.id] ?? 0) > 0 && (
-                      <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
-                        {activityMap[channel.id]}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/* 참가자수 */}
+                      {(participantCounts[channel.id] ?? 0) > 0 && (
+                        <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                          {participantCounts[channel.id]}
+                        </span>
+                      )}
+                      {/* 미읽은 메시지 뱃지 */}
+                      {(activityMap[channel.id] ?? 0) > 0 && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                          {activityMap[channel.id]}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}

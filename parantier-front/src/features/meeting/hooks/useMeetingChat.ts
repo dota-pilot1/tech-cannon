@@ -136,10 +136,12 @@ export function useMeetingChat({
     };
   }, [channelId, subscribe, unsubscribe]);
 
-  // 참여자 구독 + JOIN (onOpen으로 재연결 시에도 자동 재참여)
+  // 참여자 구독 + JOIN (채널별 토픽)
   const participantHandlerRef = useRef<((data: unknown) => void) | null>(null);
   useEffect(() => {
-    if (!userId || !username) return;
+    if (!userId || !username || !channelId) return;
+
+    const topic = `meeting-participants/${channelId}`;
 
     const handler = (data: unknown) => {
       const payload = data as { participants: Participant[] };
@@ -147,10 +149,10 @@ export function useMeetingChat({
     };
     participantHandlerRef.current = handler;
 
-    subscribe("meeting-participants", handler, () => {
+    subscribe(topic, handler, () => {
       send({
         type: "JOIN",
-        topic: "meeting-participants",
+        topic,
         data: { userId, username },
       });
     });
@@ -158,13 +160,13 @@ export function useMeetingChat({
     return () => {
       send({
         type: "LEAVE",
-        topic: "meeting-participants",
+        topic,
         data: { userId, username },
       });
-      unsubscribe("meeting-participants", handler);
+      unsubscribe(topic, handler);
       participantHandlerRef.current = null;
     };
-  }, [userId, username, send, subscribe, unsubscribe]);
+  }, [userId, username, channelId, send, subscribe, unsubscribe]);
 
   // 채널 변경 시 메시지 초기화
   const prevChannelRef = useRef<number | null>(null);
@@ -199,26 +201,30 @@ export function useMeetingChat({
 export function useMeetingParticipants({
   userId,
   username,
+  channelId,
 }: {
   userId?: number;
   username?: string;
+  channelId?: number;
 }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
 
   const { send, subscribe, unsubscribe } = usePureWebSocket();
 
   useEffect(() => {
-    if (!userId || !username) return;
+    if (!userId || !username || !channelId) return;
+
+    const topic = `meeting-participants/${channelId}`;
 
     const handler = (data: unknown) => {
       const payload = data as { participants: Participant[] };
       setParticipants(payload.participants ?? []);
     };
 
-    subscribe("meeting-participants", handler, () => {
+    subscribe(topic, handler, () => {
       send({
         type: "JOIN",
-        topic: "meeting-participants",
+        topic,
         data: { userId, username },
       });
     });
@@ -226,13 +232,62 @@ export function useMeetingParticipants({
     return () => {
       send({
         type: "LEAVE",
-        topic: "meeting-participants",
+        topic,
         data: { userId, username },
       });
-      unsubscribe("meeting-participants", handler);
+      unsubscribe(topic, handler);
       setParticipants([]);
     };
-  }, [userId, username, send, subscribe, unsubscribe]);
+  }, [userId, username, channelId, send, subscribe, unsubscribe]);
 
   return { participants };
+}
+
+// ── 사이드바용: 모든 채널의 참가자수를 추적 ───────────────────────────────────
+export function useAllChannelParticipantCounts({
+  userId,
+  username,
+  channelIds,
+}: {
+  userId?: number;
+  username?: string;
+  channelIds: number[];
+}) {
+  const [participantCounts, setParticipantCounts] = useState<
+    Record<number, number>
+  >({});
+  const { subscribe, unsubscribe } = usePureWebSocket();
+
+  // channelIds.join(",") 을 의존성으로 써서 배열 참조 변경에 안정적으로 반응
+  const channelIdsKey = channelIds.join(",");
+
+  useEffect(() => {
+    if (!userId || !username || channelIds.length === 0) return;
+
+    const handlers: Array<{ topic: string; handler: (data: unknown) => void }> =
+      [];
+
+    channelIds.forEach((channelId) => {
+      const topic = `meeting-participants/${channelId}`;
+      const handler = (data: unknown) => {
+        const payload = data as { participants: Participant[] };
+        setParticipantCounts((prev) => ({
+          ...prev,
+          [channelId]: payload.participants?.length ?? 0,
+        }));
+      };
+      handlers.push({ topic, handler });
+      // JOIN 없이 구독만 (현재 채널 useMeetingChat이 JOIN을 담당)
+      subscribe(topic, handler);
+    });
+
+    return () => {
+      handlers.forEach(({ topic, handler }) => {
+        unsubscribe(topic, handler);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, username, channelIdsKey, subscribe, unsubscribe]);
+
+  return { participantCounts };
 }

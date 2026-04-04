@@ -49,9 +49,11 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
         String,
         Map<String, Object>
     > sessionParticipants = new ConcurrentHashMap<>();
-    // 회의실 참여자: userId → username
-    private final ConcurrentHashMap<Long, String> meetingParticipants =
-        new ConcurrentHashMap<>();
+    // 회의실 참여자: channelId → (userId → username)
+    private final ConcurrentHashMap<
+        Long,
+        ConcurrentHashMap<Long, String>
+    > meetingChannelParticipants = new ConcurrentHashMap<>();
     // 업무현황 참여자: userId → username
     private final ConcurrentHashMap<Long, String> workStatusParticipants =
         new ConcurrentHashMap<>();
@@ -80,8 +82,13 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
             String type = (String) participant.get("type");
             if (userId != null) {
                 if ("meeting".equals(type)) {
-                    meetingParticipants.remove(userId);
-                    broadcastMeetingParticipants();
+                    Long channelId = (Long) participant.get("channelId");
+                    if (channelId != null) {
+                        ConcurrentHashMap<Long, String> channelMap =
+                            meetingChannelParticipants.get(channelId);
+                        if (channelMap != null) channelMap.remove(userId);
+                        broadcastMeetingChannelParticipants(channelId);
+                    }
                 } else if ("work-status".equals(type)) {
                     workStatusParticipants.remove(userId);
                     broadcastWorkStatusParticipants();
@@ -171,15 +178,22 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
         participantInfo.put("userId", userId);
         participantInfo.put("username", username);
 
-        if ("meeting-participants".equals(topic)) {
+        if (topic.startsWith("meeting-participants/")) {
+            Long channelId = Long.parseLong(
+                topic.substring("meeting-participants/".length())
+            );
             participantInfo.put("type", "meeting");
+            participantInfo.put("channelId", channelId);
             sessionParticipants.put(session.getId(), participantInfo);
-            meetingParticipants.put(userId, username);
-            broadcastMeetingParticipants();
+            meetingChannelParticipants
+                .computeIfAbsent(channelId, k -> new ConcurrentHashMap<>())
+                .put(userId, username);
+            broadcastMeetingChannelParticipants(channelId);
             log.info(
-                "User {}({}) joined meeting-participants",
+                "User {}({}) joined meeting-participants/{}",
                 userId,
-                username
+                username,
+                channelId
             );
         } else if ("work-status-participants".equals(topic)) {
             participantInfo.put("type", "work-status");
@@ -205,11 +219,16 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        if ("meeting-participants".equals(topic)) {
-            meetingParticipants.remove(userId);
+        if (topic.startsWith("meeting-participants/")) {
+            Long channelId = Long.parseLong(
+                topic.substring("meeting-participants/".length())
+            );
+            ConcurrentHashMap<Long, String> channelMap =
+                meetingChannelParticipants.get(channelId);
+            if (channelMap != null) channelMap.remove(userId);
             sessionParticipants.remove(session.getId());
-            broadcastMeetingParticipants();
-            log.info("User {} left meeting-participants", userId);
+            broadcastMeetingChannelParticipants(channelId);
+            log.info("User {} left meeting-participants/{}", userId, channelId);
         } else if ("work-status-participants".equals(topic)) {
             workStatusParticipants.remove(userId);
             sessionParticipants.remove(session.getId());
@@ -345,20 +364,22 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
     // PARTICIPANTS 브로드캐스트
     // -----------------------------------------------------------------------
 
-    private void broadcastMeetingParticipants() {
+    private void broadcastMeetingChannelParticipants(Long channelId) {
+        ConcurrentHashMap<Long, String> channelMap =
+            meetingChannelParticipants.get(channelId);
         List<Map<String, Object>> list = new ArrayList<>();
-        meetingParticipants.forEach((userId, username) -> {
-            Map<String, Object> p = new HashMap<>();
-            p.put("userId", userId);
-            p.put("username", username);
-            list.add(p);
-        });
+        if (channelMap != null) {
+            channelMap.forEach((uid, uname) -> {
+                Map<String, Object> p = new HashMap<>();
+                p.put("userId", uid);
+                p.put("username", uname);
+                list.add(p);
+            });
+        }
         Map<String, Object> payload = new HashMap<>();
         payload.put("participants", list);
-        broadcast(
-            "meeting-participants",
-            new WsMessage("PARTICIPANTS", "meeting-participants", payload)
-        );
+        String topic = "meeting-participants/" + channelId;
+        broadcast(topic, new WsMessage("PARTICIPANTS", topic, payload));
     }
 
     private void broadcastWorkStatusParticipants() {
