@@ -17,7 +17,16 @@ import type { ApiBlockContent } from "@/features/apidoc/types/apiDoc.types";
 import { METHOD_COLORS } from "@/features/apidoc/types/apiDoc.types";
 import type { HttpMethod } from "@/features/apidoc/types/apiDoc.types";
 import { toast } from "sonner";
-import { Plus, Save, X, Trash2, GripVertical } from "lucide-react";
+import {
+  Plus,
+  Save,
+  X,
+  Trash2,
+  GripVertical,
+  Pencil,
+  Check,
+} from "lucide-react";
+import { Button } from "@/shared/ui/button";
 import {
   DndContext,
   closestCenter,
@@ -85,6 +94,7 @@ export default function ApiDocPage() {
   const queryClient = useQueryClient();
   const { user } = useStore(authStore, (s) => s);
   const isAdmin = user?.role === "ROLE_ADMIN";
+  const savePanelRef = useRef<(() => void) | null>(null);
 
   // 환경변수 스토어
   const { environments, activeEnvId } = useStore(apiEnvStore, (s) => s);
@@ -158,6 +168,10 @@ export default function ApiDocPage() {
   // ── 섹션 추가 상태
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [newSectionTitle, setNewSectionTitle] = useState("");
+
+  // ── 섹션 타이틀 수정 상태
+  const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+  const [editingSectionTitle, setEditingSectionTitle] = useState("");
 
   // ── 카테고리 추가 상태
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -280,6 +294,23 @@ export default function ApiDocPage() {
     onError: () => toast.error("섹션 삭제 실패"),
   });
 
+  const updateSectionMutation = useMutation({
+    mutationFn: ({ id, title }: { id: number; title: string }) =>
+      apiDocApi.updateSection(id, {
+        title,
+        orderNum: sections.find((s) => s.id === id)?.orderNum ?? 0,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["apidoc", "sections", selectedCategoryId],
+      });
+      setEditingSectionId(null);
+      setEditingSectionTitle("");
+      toast.success("수정되었습니다");
+    },
+    onError: () => toast.error("수정 실패"),
+  });
+
   // ─────────────────────────────────────────────
   // DnD state & sensors
   // ─────────────────────────────────────────────
@@ -331,7 +362,34 @@ export default function ApiDocPage() {
   };
 
   const handleSectionClick = (id: number) => {
+    if (editingSectionId !== null) return;
     setSelectedSectionId(id);
+  };
+
+  const handleSectionEditStart = (e: React.MouseEvent, sec: ApiDocSection) => {
+    e.stopPropagation();
+    setEditingSectionId(sec.id);
+    setEditingSectionTitle(sec.title);
+  };
+
+  const handleSectionEditConfirm = (id: number) => {
+    const title = editingSectionTitle.trim();
+    if (!title) return;
+    updateSectionMutation.mutate({ id, title });
+  };
+
+  const handleSectionEditKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    id: number,
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!e.nativeEvent.isComposing) handleSectionEditConfirm(id);
+    }
+    if (e.key === "Escape") {
+      setEditingSectionId(null);
+      setEditingSectionTitle("");
+    }
   };
 
   const handleAddSectionConfirm = () => {
@@ -602,59 +660,102 @@ export default function ApiDocPage() {
                     >
                       {(dragHandleProps) => (
                         <div className="relative group">
-                          <button
-                            onClick={() => handleSectionClick(sec.id)}
-                            className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-1.5 transition-colors border-l-[3px] pr-8 ${
-                              selectedSectionId === sec.id
-                                ? "border-l-primary bg-primary/10 text-primary font-bold"
-                                : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {isAdmin && (
-                              <span
-                                {...dragHandleProps}
-                                onClick={(e) => e.stopPropagation()}
-                                className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
-                              >
-                                <GripVertical className="w-3 h-3" />
-                              </span>
-                            )}
-                            {/* 메서드 배지 + 경로 */}
-                            {(() => {
-                              const { method, path } = parseSectionTitle(
-                                sec.title,
-                              );
-                              return (
-                                <>
-                                  {method && (
-                                    <span
-                                      className={`text-[9px] font-bold px-1 py-0.5 rounded shrink-0 ${METHOD_COLORS[method]}`}
-                                    >
-                                      {method}
-                                    </span>
-                                  )}
-                                  <span className="truncate text-xs">
-                                    {path}
-                                  </span>
-                                </>
-                              );
-                            })()}
-                          </button>
-                          {isAdmin && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (
-                                  confirm(`"${sec.title}" 섹션을 삭제할까요?`)
-                                ) {
-                                  deleteSectionMutation.mutate(sec.id);
+                          {/* 수정 모드 */}
+                          {isAdmin && editingSectionId === sec.id ? (
+                            <div className="flex items-center gap-1 px-3 py-1.5 border-l-[3px] border-l-primary bg-primary/5">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editingSectionTitle}
+                                onChange={(e) =>
+                                  setEditingSectionTitle(e.target.value)
                                 }
-                              }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1 rounded"
-                              title="삭제"
+                                onKeyDown={(e) =>
+                                  handleSectionEditKeyDown(e, sec.id)
+                                }
+                                className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                              <button
+                                onClick={() => handleSectionEditConfirm(sec.id)}
+                                disabled={updateSectionMutation.isPending}
+                                className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingSectionId(null);
+                                  setEditingSectionTitle("");
+                                }}
+                                className="text-muted-foreground hover:text-foreground shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleSectionClick(sec.id)}
+                              className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-1.5 transition-colors border-l-[3px] pr-16 ${
+                                selectedSectionId === sec.id
+                                  ? "border-l-primary bg-primary/10 text-primary font-bold"
+                                  : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
+                              }`}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              {isAdmin && (
+                                <span
+                                  {...dragHandleProps}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                                >
+                                  <GripVertical className="w-3 h-3" />
+                                </span>
+                              )}
+                              {/* 메서드 배지 + 경로 */}
+                              {(() => {
+                                const { method, path } = parseSectionTitle(
+                                  sec.title,
+                                );
+                                return (
+                                  <>
+                                    {method && (
+                                      <span
+                                        className={`text-[9px] font-bold px-1 py-0.5 rounded shrink-0 ${METHOD_COLORS[method]}`}
+                                      >
+                                        {method}
+                                      </span>
+                                    )}
+                                    <span className="truncate text-xs">
+                                      {path}
+                                    </span>
+                                  </>
+                                );
+                              })()}
                             </button>
+                          )}
+                          {isAdmin && editingSectionId !== sec.id && (
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                              <button
+                                onClick={(e) => handleSectionEditStart(e, sec)}
+                                className="text-muted-foreground hover:text-primary p-1 rounded"
+                                title="수정"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (
+                                    confirm(`"${sec.title}" 섹션을 삭제할까요?`)
+                                  ) {
+                                    deleteSectionMutation.mutate(sec.id);
+                                  }
+                                }}
+                                className="text-muted-foreground hover:text-destructive p-1 rounded"
+                                title="삭제"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
@@ -741,11 +842,14 @@ export default function ApiDocPage() {
           </div>
         )}
 
-        {/* 섹션 선택됨 - 상단 환경변수 바 + ApiTesterPanel */}
+        {/* 섹션 선택됨 - 통합 헤더(49px) + ApiTesterPanel */}
         {selectedSectionId && (
           <>
-            {/* 환경변수 선택 바 */}
-            <div className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/40">
+            {/* 통합 헤더: 환경변수 탭 + breadcrumb + 저장 버튼 - 높이 49px 고정 */}
+            <div
+              className="shrink-0 flex items-center gap-3 px-4 border-b border-border bg-card"
+              style={{ minHeight: "49px" }}
+            >
               <span className="text-xs text-muted-foreground font-medium shrink-0">
                 환경
               </span>
@@ -754,7 +858,7 @@ export default function ApiDocPage() {
                   <button
                     key={env.id}
                     onClick={() => apiEnvActions.setActiveEnv(env.id)}
-                    className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                    className={`text-xs px-2.5 py-0.5 rounded-full font-medium transition-colors ${
                       activeEnvId === env.id
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground border border-border"
@@ -770,17 +874,34 @@ export default function ApiDocPage() {
                 {" / "}
                 {selectedSection?.title}
               </span>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    // ApiTesterPanel의 현재 상태를 저장 - ref로 접근
+                    savePanelRef.current?.();
+                  }}
+                  disabled={saveMutation.isPending}
+                  className="shrink-0 h-7 text-xs"
+                >
+                  <Save className="w-3.5 h-3.5 mr-1" />
+                  저장
+                </Button>
+              )}
             </div>
 
-            {/* API 테스터 패널 */}
+            {/* API 테스터 패널 - 툴바 없이 바로 본문 */}
             <ApiTesterPanel
               key={selectedSectionId}
               sectionId={selectedSectionId}
-              sectionTitle={selectedSection?.title ?? ""}
               blocks={blocks}
               isAdmin={isAdmin}
               onSave={(content: ApiBlockContent) => {
                 saveMutation.mutate(content);
+              }}
+              onRegisterSave={(fn) => {
+                savePanelRef.current = fn;
               }}
             />
           </>
