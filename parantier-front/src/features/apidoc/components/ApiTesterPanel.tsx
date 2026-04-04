@@ -17,7 +17,6 @@ import {
   defaultApiBlockContent,
   resolveEnvVars,
   METHOD_COLORS,
-  getStatusColor,
 } from "@/features/apidoc/types/apiDoc.types";
 import { Eye, EyeOff, Trash2, Send, Loader2, Key } from "lucide-react";
 
@@ -366,335 +365,379 @@ export function ApiTesterPanel({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-background text-foreground text-sm">
-      {/* ──────────────────────────────────────────
-          1. JWT 토큰 바
-      ────────────────────────────────────────── */}
-      <div className="shrink-0 px-4 py-2 border-b border-border bg-muted/30">
-        <div className="flex items-center gap-2">
-          <Key size={13} className="text-muted-foreground shrink-0" />
-          <span className="text-xs font-medium text-muted-foreground shrink-0">
-            공통 토큰
-          </span>
-          <div className="relative flex-1">
-            <input
-              type={showToken ? "text" : "password"}
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-              className={`${inputCls} w-full pr-8 font-mono text-xs`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowToken((v) => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showToken ? <EyeOff size={13} /> : <Eye size={13} />}
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => apiTokenActions.setToken(tokenInput)}
-            className="shrink-0 px-3 py-1 text-xs font-medium rounded border border-border bg-background hover:bg-muted text-foreground transition-colors"
-          >
-            적용
-          </button>
-          {token && (
-            <span className="text-xs text-emerald-600 shrink-0">✓ 저장됨</span>
-          )}
-        </div>
-      </div>
-
-      {/* ──────────────────────────────────────────
-          2. URL 바
-      ────────────────────────────────────────── */}
-      <div className="shrink-0 px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2">
-          {/* Method 드롭다운 */}
-          <select
-            value={apiContent.method}
-            disabled={!isAdmin}
-            onChange={(e) => patch({ method: e.target.value as HttpMethod })}
-            className={`
-              shrink-0 border border-input rounded px-2 py-1.5 text-xs font-bold
-              bg-background focus:outline-none focus:ring-1 focus:ring-ring
-              disabled:cursor-default cursor-pointer
-              ${methodTextColor(apiContent.method)}
-            `}
-          >
-            {(["GET", "POST", "PUT", "PATCH", "DELETE"] as HttpMethod[]).map(
-              (m) => (
-                <option key={m} value={m} className={methodTextColor(m)}>
-                  {m}
-                </option>
-              ),
-            )}
-          </select>
-
-          {/* URL 입력 */}
-          <input
-            type="text"
-            value={apiContent.url}
-            disabled={!isAdmin}
-            placeholder="{{BASE_URL}}/api/endpoint"
-            onChange={(e) => patch({ url: e.target.value })}
-            className={`${inputCls} flex-1 font-mono text-xs`}
-          />
-
-          {/* Send 버튼 */}
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={isLoading || !apiContent.url.trim()}
-            className="
-              shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-semibold
-              bg-blue-600 hover:bg-blue-700 text-white transition-colors
-              disabled:opacity-50 disabled:cursor-not-allowed
-            "
-          >
-            {isLoading ? (
-              <>
-                <Loader2 size={13} className="animate-spin" />
-                <span>전송 중</span>
-              </>
-            ) : (
-              <>
-                <Send size={13} />
-                <span>Send</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Resolved URL 미리보기 */}
-        {hasEnvVar && (
-          <p className="mt-1 text-xs text-muted-foreground font-mono truncate pl-1">
-            → {resolvedUrl}
-          </p>
-        )}
-      </div>
-
-      {/* ──────────────────────────────────────────
-          3. 요청 탭 영역 (응답 유무에 따라 높이 조정)
-      ────────────────────────────────────────── */}
-      <div
-        className={`flex flex-col overflow-hidden border-b border-border ${
-          response ? "h-[60%]" : "flex-1"
-        }`}
-      >
-        {/* 탭 헤더 */}
-        <div className="shrink-0 flex items-center gap-1 px-4 border-b border-border bg-muted/20">
-          {(
-            [
-              {
-                id: "params" as RequestTab,
-                label: "Params",
-                count: paramsCount,
-              },
-              {
-                id: "headers" as RequestTab,
-                label: "Headers",
-                count: headersCount,
-              },
-              { id: "body" as RequestTab, label: "Body", count: 0 },
-            ] as { id: RequestTab; label: string; count: number }[]
-          ).map(({ id, label, count }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveTab(id)}
-              className={tabBtnCls(activeTab === id)}
-            >
-              {label}
-              {count > 0 && (
-                <span className="ml-1 px-1 py-0 text-[10px] rounded-full bg-primary/10 text-primary font-semibold">
-                  {count}
+    <div className="flex flex-col h-full overflow-hidden bg-muted/30 text-foreground text-sm">
+      <div className="flex-1 overflow-y-auto">
+        <div className={`flex flex-col gap-3 p-4 ${response ? "" : "h-full"}`}>
+          {/* ──────────────────────────────────────────
+              1. JWT 토큰 카드
+          ────────────────────────────────────────── */}
+          <div className="shrink-0 rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center gap-2.5 px-4 py-2.5">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Key size={13} className="text-amber-500" />
+                <span className="text-xs font-semibold text-foreground">
+                  공통 토큰
+                </span>
+              </div>
+              <div className="w-px h-4 bg-border shrink-0" />
+              <div className="relative flex-1">
+                <input
+                  type={showToken ? "text" : "password"}
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  className={`${inputCls} w-full pr-8 font-mono text-xs bg-muted/50`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showToken ? <EyeOff size={13} /> : <Eye size={13} />}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => apiTokenActions.setToken(tokenInput)}
+                className="shrink-0 px-3 py-1 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors"
+              >
+                적용
+              </button>
+              {token && (
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium shrink-0 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  저장됨
                 </span>
               )}
-            </button>
-          ))}
-        </div>
-
-        {/* 탭 내용 */}
-        <div className="flex-1 overflow-auto p-4">
-          {/* ── Params 탭 ── */}
-          {activeTab === "params" && (
-            <KeyValueTable
-              items={apiContent.params}
-              onChange={(params) => patch({ params })}
-              disabled={!isAdmin}
-              keyPlaceholder="Parameter"
-              valuePlaceholder="Value"
-            />
-          )}
-
-          {/* ── Headers 탭 ── */}
-          {activeTab === "headers" && (
-            <KeyValueTable
-              items={apiContent.headers}
-              onChange={(headers) => patch({ headers })}
-              disabled={!isAdmin}
-              keyPlaceholder="Header"
-              valuePlaceholder="Value"
-            />
-          )}
-
-          {/* ── Body 탭 ── */}
-          {activeTab === "body" && (
-            <div className="flex flex-col gap-3">
-              {/* Body 타입 라디오 */}
-              <div className="flex items-center gap-4">
-                {(["none", "json", "raw"] as BodyType[]).map((type) => (
-                  <label
-                    key={type}
-                    className={`flex items-center gap-1.5 text-xs cursor-pointer ${
-                      !isAdmin ? "opacity-50 cursor-default" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="bodyType"
-                      value={type}
-                      checked={apiContent.body.type === type}
-                      disabled={!isAdmin}
-                      onChange={() =>
-                        patch({ body: { ...apiContent.body, type } })
-                      }
-                      className="accent-primary"
-                    />
-                    <span className="font-medium">{type}</span>
-                  </label>
-                ))}
-              </div>
-
-              {/* Body textarea */}
-              {apiContent.body.type !== "none" && (
-                <div className="flex flex-col gap-1">
-                  {apiContent.body.type === "json" && (
-                    <p className="text-xs text-muted-foreground">
-                      Content-Type:{" "}
-                      <span className="font-mono text-blue-600 dark:text-blue-400">
-                        application/json
-                      </span>{" "}
-                      이 자동으로 적용됩니다.
-                    </p>
-                  )}
-                  <textarea
-                    value={apiContent.body.content}
-                    disabled={!isAdmin}
-                    onChange={(e) =>
-                      patch({
-                        body: { ...apiContent.body, content: e.target.value },
-                      })
-                    }
-                    placeholder={
-                      apiContent.body.type === "json"
-                        ? '{\n  "key": "value"\n}'
-                        : "Raw body content..."
-                    }
-                    rows={8}
-                    spellCheck={false}
-                    className={`${inputCls} w-full font-mono text-xs resize-y min-h-[6rem]`}
-                  />
-                </div>
-              )}
-
-              {apiContent.body.type === "none" && (
-                <p className="text-xs text-muted-foreground">
-                  이 요청은 Body를 포함하지 않습니다.
-                </p>
-              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* ──────────────────────────────────────────
-          4. 응답 패널 (응답 있을 때만)
-      ────────────────────────────────────────── */}
-      {response && (
-        <div className="h-[40%] flex flex-col overflow-hidden">
-          {/* 응답 상단 바 */}
-          <div className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/20">
-            {/* Status */}
-            <span
-              className={`text-xs font-bold ${
-                response.status === 0
-                  ? "text-red-600"
-                  : getStatusColor(response.status)
-              }`}
-            >
-              {response.status === 0
-                ? "Network Error"
-                : `${response.status} ${response.statusText}`}
-            </span>
+          {/* ──────────────────────────────────────────
+              2. URL 카드
+          ────────────────────────────────────────── */}
+          <div className="shrink-0 rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center gap-2 px-3 py-2.5">
+              {/* Method 드롭다운 */}
+              <select
+                value={apiContent.method}
+                disabled={!isAdmin}
+                onChange={(e) =>
+                  patch({ method: e.target.value as HttpMethod })
+                }
+                className={`
+                  shrink-0 border border-input rounded-lg px-2.5 py-1.5 text-xs font-bold
+                  bg-muted/60 focus:outline-none focus:ring-1 focus:ring-ring
+                  disabled:cursor-default cursor-pointer
+                  ${methodTextColor(apiContent.method)}
+                `}
+              >
+                {(
+                  ["GET", "POST", "PUT", "PATCH", "DELETE"] as HttpMethod[]
+                ).map((m) => (
+                  <option key={m} value={m} className={methodTextColor(m)}>
+                    {m}
+                  </option>
+                ))}
+              </select>
 
-            {/* Duration */}
-            {response.durationMs > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {response.durationMs}ms
-              </span>
+              {/* URL 입력 */}
+              <input
+                type="text"
+                value={apiContent.url}
+                disabled={!isAdmin}
+                placeholder="{{BASE_URL}}/api/endpoint"
+                onChange={(e) => patch({ url: e.target.value })}
+                className={`${inputCls} flex-1 font-mono text-xs bg-muted/40`}
+              />
+
+              {/* Send 버튼 */}
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={isLoading || !apiContent.url.trim()}
+                className="
+                  shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold
+                  bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                "
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>전송 중</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={13} />
+                    <span>Send</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Resolved URL 미리보기 */}
+            {hasEnvVar && (
+              <div className="px-4 pb-2.5">
+                <p className="text-[11px] text-muted-foreground font-mono truncate bg-muted/50 rounded px-2 py-1">
+                  <span className="text-primary/60 mr-1">→</span>
+                  {resolvedUrl}
+                </p>
+              </div>
             )}
+          </div>
 
-            {/* Timestamp */}
-            <span className="text-xs text-muted-foreground ml-auto">
-              {new Date(response.timestamp).toLocaleTimeString()}
-            </span>
-
-            {/* 응답 탭 */}
-            <div className="flex items-center gap-1">
-              {(["body", "headers"] as ResponseTab[]).map((tab) => (
+          {/* ──────────────────────────────────────────
+              3. 요청 탭 카드
+          ────────────────────────────────────────── */}
+          <div
+            className={`rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden ${
+              response ? "min-h-[220px]" : "flex-1 min-h-[200px]"
+            }`}
+          >
+            {/* 탭 헤더 */}
+            <div className="shrink-0 flex items-center gap-0.5 px-3 pt-1 border-b border-border bg-muted/20">
+              {(
+                [
+                  {
+                    id: "params" as RequestTab,
+                    label: "Params",
+                    count: paramsCount,
+                  },
+                  {
+                    id: "headers" as RequestTab,
+                    label: "Headers",
+                    count: headersCount,
+                  },
+                  { id: "body" as RequestTab, label: "Body", count: 0 },
+                ] as { id: RequestTab; label: string; count: number }[]
+              ).map(({ id, label, count }) => (
                 <button
-                  key={tab}
+                  key={id}
                   type="button"
-                  onClick={() => setActiveResTab(tab)}
-                  className={`px-2.5 py-1 text-xs rounded transition-colors ${
-                    activeResTab === tab
-                      ? "bg-primary text-primary-foreground font-medium"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
+                  onClick={() => setActiveTab(id)}
+                  className={tabBtnCls(activeTab === id)}
                 >
-                  {tab === "body" ? "Body" : "Headers"}
+                  {label}
+                  {count > 0 && (
+                    <span className="ml-1 px-1.5 py-0 text-[10px] rounded-full bg-primary/15 text-primary font-bold">
+                      {count}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
+
+            {/* 탭 내용 */}
+            <div className="flex-1 overflow-auto p-4">
+              {/* ── Params 탭 ── */}
+              {activeTab === "params" && (
+                <KeyValueTable
+                  items={apiContent.params}
+                  onChange={(params) => patch({ params })}
+                  disabled={!isAdmin}
+                  keyPlaceholder="Parameter"
+                  valuePlaceholder="Value"
+                />
+              )}
+
+              {/* ── Headers 탭 ── */}
+              {activeTab === "headers" && (
+                <KeyValueTable
+                  items={apiContent.headers}
+                  onChange={(headers) => patch({ headers })}
+                  disabled={!isAdmin}
+                  keyPlaceholder="Header"
+                  valuePlaceholder="Value"
+                />
+              )}
+
+              {/* ── Body 탭 ── */}
+              {activeTab === "body" && (
+                <div className="flex flex-col gap-3">
+                  {/* Body 타입 라디오 */}
+                  <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1 w-fit">
+                    {(["none", "json", "raw"] as BodyType[]).map((type) => (
+                      <label
+                        key={type}
+                        className={`flex items-center gap-1.5 text-xs px-3 py-1 rounded-md cursor-pointer transition-colors ${
+                          apiContent.body.type === type
+                            ? "bg-background text-foreground shadow-sm font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                        } ${!isAdmin ? "opacity-50 cursor-default" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="bodyType"
+                          value={type}
+                          checked={apiContent.body.type === type}
+                          disabled={!isAdmin}
+                          onChange={() =>
+                            patch({ body: { ...apiContent.body, type } })
+                          }
+                          className="hidden"
+                        />
+                        <span>{type}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Body textarea */}
+                  {apiContent.body.type !== "none" && (
+                    <div className="flex flex-col gap-2">
+                      {apiContent.body.type === "json" && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg px-3 py-1.5">
+                          <span>Content-Type:</span>
+                          <span className="font-mono text-blue-600 dark:text-blue-400 font-medium">
+                            application/json
+                          </span>
+                          <span className="text-muted-foreground">
+                            이 자동으로 적용됩니다.
+                          </span>
+                        </div>
+                      )}
+                      <textarea
+                        value={apiContent.body.content}
+                        disabled={!isAdmin}
+                        onChange={(e) =>
+                          patch({
+                            body: {
+                              ...apiContent.body,
+                              content: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder={
+                          apiContent.body.type === "json"
+                            ? '{\n  "key": "value"\n}'
+                            : "Raw body content..."
+                        }
+                        rows={8}
+                        spellCheck={false}
+                        className={`${inputCls} w-full font-mono text-xs resize-y min-h-[6rem] bg-muted/30`}
+                      />
+                    </div>
+                  )}
+
+                  {apiContent.body.type === "none" && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-4 py-3">
+                      <span>이 요청은 Body를 포함하지 않습니다.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* 응답 내용 */}
-          <div className="flex-1 overflow-auto p-4">
-            {activeResTab === "body" && (
-              <pre
-                className={`text-xs font-mono whitespace-pre-wrap break-all leading-relaxed ${
-                  response.status === 0 ? "text-red-600" : "text-foreground"
-                }`}
-              >
-                {isJsonString(response.body)
-                  ? prettyJson(response.body)
-                  : response.body}
-              </pre>
-            )}
+          {/* ──────────────────────────────────────────
+              4. 응답 카드 (응답 있을 때만)
+          ────────────────────────────────────────── */}
+          {response && (
+            <div className="shrink-0 rounded-xl border border-border bg-card shadow-sm flex flex-col overflow-hidden min-h-[220px]">
+              {/* 응답 상단 바 */}
+              <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-border bg-muted/20">
+                {/* Status 배지 */}
+                <span
+                  className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${
+                    response.status === 0
+                      ? "text-red-600 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20"
+                      : response.status < 300
+                        ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20"
+                        : response.status < 400
+                          ? "text-blue-600 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
+                          : response.status < 500
+                            ? "text-amber-600 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20"
+                            : "text-red-600 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      response.status === 0
+                        ? "bg-red-500"
+                        : response.status < 300
+                          ? "bg-emerald-500"
+                          : response.status < 400
+                            ? "bg-blue-500"
+                            : response.status < 500
+                              ? "bg-amber-500"
+                              : "bg-red-500"
+                    }`}
+                  />
+                  {response.status === 0
+                    ? "Network Error"
+                    : `${response.status} ${response.statusText}`}
+                </span>
 
-            {activeResTab === "headers" && (
-              <div className="flex flex-col gap-1">
-                {Object.entries(response.headers).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    응답 헤더가 없습니다.
-                  </p>
-                ) : (
-                  Object.entries(response.headers).map(([k, v]) => (
-                    <div key={k} className="flex gap-2 text-xs font-mono">
-                      <span className="text-muted-foreground shrink-0 min-w-[160px]">
-                        {k}:
-                      </span>
-                      <span className="text-foreground break-all">{v}</span>
-                    </div>
-                  ))
+                {/* Duration 배지 */}
+                {response.durationMs > 0 && (
+                  <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5 font-mono">
+                    {response.durationMs}ms
+                  </span>
+                )}
+
+                {/* Timestamp */}
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {new Date(response.timestamp).toLocaleTimeString()}
+                </span>
+
+                {/* 응답 탭 */}
+                <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5">
+                  {(["body", "headers"] as ResponseTab[]).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveResTab(tab)}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors font-medium ${
+                        activeResTab === tab
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {tab === "body" ? "Body" : "Headers"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 응답 내용 */}
+              <div className="flex-1 overflow-auto p-4">
+                {activeResTab === "body" && (
+                  <pre
+                    className={`text-xs font-mono whitespace-pre-wrap break-all leading-relaxed ${
+                      response.status === 0 ? "text-red-600" : "text-foreground"
+                    }`}
+                  >
+                    {isJsonString(response.body)
+                      ? prettyJson(response.body)
+                      : response.body}
+                  </pre>
+                )}
+
+                {activeResTab === "headers" && (
+                  <div className="flex flex-col gap-1.5">
+                    {Object.entries(response.headers).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        응답 헤더가 없습니다.
+                      </p>
+                    ) : (
+                      Object.entries(response.headers).map(([k, v]) => (
+                        <div
+                          key={k}
+                          className="flex gap-2 text-xs font-mono bg-muted/30 rounded px-3 py-1.5"
+                        >
+                          <span className="text-muted-foreground shrink-0 min-w-[160px]">
+                            {k}:
+                          </span>
+                          <span className="text-foreground break-all">{v}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
