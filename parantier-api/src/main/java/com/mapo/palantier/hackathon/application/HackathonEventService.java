@@ -3,6 +3,7 @@ package com.mapo.palantier.hackathon.application;
 import com.mapo.palantier.hackathon.domain.HackathonEvent;
 import com.mapo.palantier.hackathon.domain.HackathonTeam;
 import com.mapo.palantier.hackathon.dto.CreateEventRequest;
+import com.mapo.palantier.hackathon.dto.CreateTeamRequest;
 import com.mapo.palantier.hackathon.dto.HackathonEventResponse;
 import com.mapo.palantier.hackathon.dto.HackathonTeamResponse;
 import com.mapo.palantier.hackathon.infrastructure.HackathonEventMapper;
@@ -39,7 +40,9 @@ public class HackathonEventService {
         if (event == null) {
             return null;
         }
-        List<HackathonTeam> teams = hackathonTeamMapper.findByEventId(event.getId());
+        List<HackathonTeam> teams = hackathonTeamMapper.findByEventId(
+            event.getId()
+        );
         List<HackathonTeamResponse> teamResponses = new ArrayList<>();
         for (HackathonTeam team : teams) {
             teamResponses.add(buildTeamResponse(team));
@@ -54,7 +57,9 @@ public class HackathonEventService {
         List<HackathonEvent> events = hackathonEventMapper.findAll();
         List<HackathonEventResponse> result = new ArrayList<>();
         for (HackathonEvent event : events) {
-            List<HackathonTeam> teams = hackathonTeamMapper.findByEventId(event.getId());
+            List<HackathonTeam> teams = hackathonTeamMapper.findByEventId(
+                event.getId()
+            );
             List<HackathonTeamResponse> teamResponses = new ArrayList<>();
             for (HackathonTeam team : teams) {
                 teamResponses.add(buildTeamResponse(team));
@@ -93,6 +98,49 @@ public class HackathonEventService {
         event.setEndAt(req.getEndAt());
         event.setMaxTeams(req.getMaxTeams());
         hackathonEventMapper.update(event);
+    }
+
+    /**
+     * 팀 생성
+     */
+    @Transactional
+    public Long createTeam(Long eventId, CreateTeamRequest req) {
+        HackathonTeam team = new HackathonTeam();
+        team.setEventId(eventId);
+        team.setName(req.getName());
+        team.setProject(req.getProject());
+        team.setColorTheme(
+            req.getColorTheme() != null ? req.getColorTheme() : "blue"
+        );
+        team.setOrderNum(req.getOrderNum() != null ? req.getOrderNum() : 0);
+        hackathonTeamMapper.insert(team);
+        return team.getId();
+    }
+
+    /**
+     * 팀 수정
+     */
+    @Transactional
+    public void updateTeam(Long teamId, CreateTeamRequest req) {
+        HackathonTeam team = hackathonTeamMapper.findById(teamId);
+        if (team == null) throw new IllegalArgumentException(
+            "팀을 찾을 수 없습니다: " + teamId
+        );
+        team.setName(req.getName());
+        team.setProject(req.getProject());
+        if (req.getColorTheme() != null) team.setColorTheme(
+            req.getColorTheme()
+        );
+        if (req.getOrderNum() != null) team.setOrderNum(req.getOrderNum());
+        hackathonTeamMapper.update(team);
+    }
+
+    /**
+     * 팀 삭제
+     */
+    @Transactional
+    public void deleteTeam(Long teamId) {
+        hackathonTeamMapper.deleteById(teamId);
     }
 
     /**

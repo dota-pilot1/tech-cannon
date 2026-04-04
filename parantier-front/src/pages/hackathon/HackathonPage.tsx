@@ -20,6 +20,7 @@ import {
   Trash2,
   ExternalLink,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { authStore } from "@/entities/user/model/authStore";
 import { useActiveEvent } from "@/features/hackathon/hooks/useHackathon";
@@ -41,6 +42,9 @@ import {
   useDeleteFaq,
   useJoinTeam,
   useLeaveTeam,
+  useCreateTeam,
+  useUpdateTeam,
+  useDeleteTeam,
 } from "@/features/hackathon/hooks/useHackathon";
 import type {
   HackathonTeamResponse,
@@ -73,7 +77,57 @@ const TEAM_THEMES: Record<
     border: "border-violet-200 dark:border-violet-500/30",
     dot: "bg-violet-500",
   },
+  rose: {
+    color: "from-rose-500/20 to-rose-600/5",
+    accent: "text-rose-600 dark:text-rose-400",
+    border: "border-rose-200 dark:border-rose-500/30",
+    dot: "bg-rose-500",
+  },
+  amber: {
+    color: "from-amber-500/20 to-amber-600/5",
+    accent: "text-amber-600 dark:text-amber-400",
+    border: "border-amber-200 dark:border-amber-500/30",
+    dot: "bg-amber-500",
+  },
 };
+
+const COLOR_OPTIONS = [
+  {
+    value: "blue",
+    label: "블루",
+    dot: "bg-blue-500",
+    preview:
+      "from-blue-500/20 to-blue-600/5 border-blue-200 dark:border-blue-500/30",
+  },
+  {
+    value: "emerald",
+    label: "그린",
+    dot: "bg-emerald-500",
+    preview:
+      "from-emerald-500/20 to-emerald-600/5 border-emerald-200 dark:border-emerald-500/30",
+  },
+  {
+    value: "violet",
+    label: "바이올렛",
+    dot: "bg-violet-500",
+    preview:
+      "from-violet-500/20 to-violet-600/5 border-violet-200 dark:border-violet-500/30",
+  },
+  {
+    value: "rose",
+    label: "로즈",
+    dot: "bg-rose-500",
+    preview:
+      "from-rose-500/20 to-rose-600/5 border-rose-200 dark:border-rose-500/30",
+  },
+  {
+    value: "amber",
+    label: "앰버",
+    dot: "bg-amber-500",
+    preview:
+      "from-amber-500/20 to-amber-600/5 border-amber-200 dark:border-amber-500/30",
+  },
+];
 
 const DEFAULT_THEME = TEAM_THEMES.blue;
 
@@ -135,6 +189,175 @@ const ISSUE_STATUS_LABEL: Record<string, string> = {
 };
 
 // ── 공통 다이얼로그 래퍼 ─────────────────────────────────────────────────────
+// ── TeamFormDialog ────────────────────────────────────────────────────────────
+function TeamFormDialog({
+  eventId,
+  team,
+  onClose,
+}: {
+  eventId: number;
+  team?: HackathonTeamResponse;
+  onClose: () => void;
+}) {
+  const isEdit = !!team;
+  const createTeam = useCreateTeam(eventId);
+  const updateTeam = useUpdateTeam();
+  const deleteTeam = useDeleteTeam();
+  const [form, setForm] = useState({
+    name: team?.name ?? "",
+    project: team?.project ?? "",
+    colorTheme: team?.colorTheme ?? "blue",
+  });
+
+  const handleSubmit = () => {
+    if (!form.name.trim()) return;
+    if (isEdit) {
+      updateTeam.mutate(
+        { teamId: team!.id, req: form },
+        { onSuccess: onClose },
+      );
+    } else {
+      createTeam.mutate(form, { onSuccess: onClose });
+    }
+  };
+
+  const handleDelete = () => {
+    if (
+      !confirm(
+        `"${team!.name}" 팀을 삭제할까요?\n하위 데이터(링크/Task/Issue/FAQ)가 모두 삭제됩니다.`,
+      )
+    )
+      return;
+    deleteTeam.mutate(team!.id, { onSuccess: onClose });
+  };
+
+  const isPending =
+    createTeam.isPending || updateTeam.isPending || deleteTeam.isPending;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative z-10 w-[440px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 h-12 border-b border-border shrink-0">
+          <span className="text-sm font-semibold">
+            {isEdit ? "팀 수정" : "팀 추가"}
+          </span>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 flex flex-col gap-4">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              팀 이름 *
+            </label>
+            <input
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              placeholder="Team A"
+              className="w-full text-sm bg-muted/30 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              프로젝트명
+            </label>
+            <input
+              value={form.project}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, project: e.target.value }))
+              }
+              placeholder="AI 코드 리뷰 어시스턴트"
+              className="w-full text-sm bg-muted/30 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">
+              색상 테마
+            </label>
+            <div className="flex items-center gap-2">
+              {COLOR_OPTIONS.map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() =>
+                    setForm((p) => ({ ...p, colorTheme: c.value }))
+                  }
+                  className={`flex flex-col items-center gap-1.5 px-3 py-2 rounded-xl border-2 transition-all ${
+                    form.colorTheme === c.value
+                      ? "border-primary bg-primary/5 scale-105"
+                      : "border-border hover:border-muted-foreground/40"
+                  }`}
+                >
+                  <span className={`w-4 h-4 rounded-full ${c.dot}`} />
+                  <span className="text-[10px] text-muted-foreground">
+                    {c.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div
+          className={`px-5 pb-5 flex items-center ${isEdit ? "justify-between" : "justify-end"} gap-2`}
+        >
+          {isEdit && (
+            <button
+              onClick={handleDelete}
+              disabled={isPending}
+              className="text-xs px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+            >
+              팀 삭제
+            </button>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isPending || !form.name.trim()}
+              className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {isPending ? "처리 중..." : isEdit ? "저장" : "추가"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// ── AddTeamCard ───────────────────────────────────────────────────────────────
+function AddTeamCard({ eventId }: { eventId: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full h-full min-h-[200px] flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all gap-3 text-muted-foreground hover:text-primary"
+      >
+        <div className="w-10 h-10 rounded-full border-2 border-dashed border-current flex items-center justify-center">
+          <Plus className="w-5 h-5" />
+        </div>
+        <span className="text-xs font-medium">팀 추가</span>
+      </button>
+      {open && (
+        <TeamFormDialog eventId={eventId} onClose={() => setOpen(false)} />
+      )}
+    </>
+  );
+}
+
 function Dialog({
   title,
   onClose,
@@ -1236,12 +1459,17 @@ function ApiDocDialog({
 function TeamCard({
   team,
   currentUserId,
+  isAdmin,
+  eventId,
 }: {
   team: HackathonTeamResponse;
   currentUserId?: number;
+  isAdmin?: boolean;
+  eventId: number;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("figma");
   const [apiDocOpen, setApiDocOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const theme = getTheme(team.colorTheme);
   const joinTeam = useJoinTeam();
   const leaveTeam = useLeaveTeam();
@@ -1265,6 +1493,15 @@ function TeamCard({
                 <span className={`text-sm font-bold ${theme.accent}`}>
                   {team.name}
                 </span>
+                {isAdmin && (
+                  <button
+                    onClick={() => setEditOpen(true)}
+                    className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    title="팀 수정"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
                   {team.members.length}명
                 </span>
@@ -1343,6 +1580,13 @@ function TeamCard({
         </button>
       </div>
 
+      {editOpen && (
+        <TeamFormDialog
+          eventId={eventId}
+          team={team}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
       {apiDocOpen && (
         <ApiDocDialog
           teamId={team.id}
@@ -1393,6 +1637,7 @@ function useCountdown(endAt: string | null) {
 // ── 메인 페이지 ───────────────────────────────────────────────────────────────
 export function HackathonPage() {
   const auth = useStore(authStore, (s) => s);
+  const isAdmin = auth.user?.role === "ROLE_ADMIN";
   const { data: event, isLoading: eventLoading } = useActiveEvent();
 
   const eventId = event?.id ?? null;
@@ -1586,20 +1831,28 @@ export function HackathonPage() {
           </div>
         </div>
 
-        {/* 오른쪽: 팀 카드들 */}
-        <div className="flex-1 flex gap-4 overflow-hidden">
+        {/* 오른쪽: 팀 카드들 (2열 그리드) */}
+        <div className="flex-1 overflow-y-auto">
           {eventLoading ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center h-full">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            displayTeams.map((team, idx) => (
-              <TeamCard
-                key={team.id || idx}
-                team={team}
-                currentUserId={auth.user?.id}
-              />
-            ))
+            <div
+              className="grid grid-cols-2 gap-4 h-full"
+              style={{ gridAutoRows: "calc(50% - 8px)" }}
+            >
+              {displayTeams.map((team, idx) => (
+                <TeamCard
+                  key={team.id || idx}
+                  team={team}
+                  currentUserId={auth.user?.id}
+                  isAdmin={isAdmin}
+                  eventId={eventId ?? 0}
+                />
+              ))}
+              {isAdmin && eventId && <AddTeamCard eventId={eventId} />}
+            </div>
           )}
         </div>
       </div>

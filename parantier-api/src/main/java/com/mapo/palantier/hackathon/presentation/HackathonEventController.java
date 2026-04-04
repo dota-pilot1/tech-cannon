@@ -2,11 +2,13 @@ package com.mapo.palantier.hackathon.presentation;
 
 import com.mapo.palantier.hackathon.application.HackathonEventService;
 import com.mapo.palantier.hackathon.dto.CreateEventRequest;
+import com.mapo.palantier.hackathon.dto.CreateTeamRequest;
 import com.mapo.palantier.hackathon.dto.HackathonEventResponse;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,7 +23,9 @@ public class HackathonEventController {
 
     private final HackathonEventService hackathonEventService;
 
-    public HackathonEventController(HackathonEventService hackathonEventService) {
+    public HackathonEventController(
+        HackathonEventService hackathonEventService
+    ) {
         this.hackathonEventService = hackathonEventService;
     }
 
@@ -34,7 +38,8 @@ public class HackathonEventController {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
         }
-        HackathonEventResponse response = hackathonEventService.getActiveEvent();
+        HackathonEventResponse response =
+            hackathonEventService.getActiveEvent();
         if (response == null) {
             return ResponseEntity.noContent().build();
         }
@@ -46,7 +51,9 @@ public class HackathonEventController {
      * 전체 이벤트 목록 조회
      */
     @GetMapping("/events")
-    public ResponseEntity<List<HackathonEventResponse>> getAllEvents(Authentication authentication) {
+    public ResponseEntity<List<HackathonEventResponse>> getAllEvents(
+        Authentication authentication
+    ) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
         }
@@ -65,7 +72,9 @@ public class HackathonEventController {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
         }
-        boolean isAdmin = authentication.getAuthorities().stream()
+        boolean isAdmin = authentication
+            .getAuthorities()
+            .stream()
             .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         if (!isAdmin) {
             return ResponseEntity.status(403).build();
@@ -87,12 +96,79 @@ public class HackathonEventController {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
         }
-        boolean isAdmin = authentication.getAuthorities().stream()
+        boolean isAdmin = authentication
+            .getAuthorities()
+            .stream()
             .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         if (!isAdmin) {
             return ResponseEntity.status(403).build();
         }
         hackathonEventService.updateEvent(id, req);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    /**
+     * POST /api/hackathon/events/{eventId}/teams
+     * 팀 생성 (ADMIN 전용)
+     */
+    @PostMapping("/events/{eventId}/teams")
+    public ResponseEntity<?> createTeam(
+        @PathVariable Long eventId,
+        @RequestBody CreateTeamRequest req,
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        boolean isAdmin = authentication
+            .getAuthorities()
+            .stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!isAdmin) return ResponseEntity.status(403).build();
+        Long id = hackathonEventService.createTeam(eventId, req);
+        return ResponseEntity.ok(Map.of("id", id));
+    }
+
+    /**
+     * PUT /api/hackathon/teams/{teamId}
+     * 팀 수정 (ADMIN 전용)
+     */
+    @PutMapping("/teams/{teamId}")
+    public ResponseEntity<?> updateTeam(
+        @PathVariable Long teamId,
+        @RequestBody CreateTeamRequest req,
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        boolean isAdmin = authentication
+            .getAuthorities()
+            .stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!isAdmin) return ResponseEntity.status(403).build();
+        hackathonEventService.updateTeam(teamId, req);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    /**
+     * DELETE /api/hackathon/teams/{teamId}
+     * 팀 삭제 (ADMIN 전용, cascade)
+     */
+    @DeleteMapping("/teams/{teamId}")
+    public ResponseEntity<?> deleteTeam(
+        @PathVariable Long teamId,
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        boolean isAdmin = authentication
+            .getAuthorities()
+            .stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!isAdmin) return ResponseEntity.status(403).build();
+        hackathonEventService.deleteTeam(teamId);
         return ResponseEntity.ok(Map.of("success", true));
     }
 }

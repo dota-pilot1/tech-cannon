@@ -5,6 +5,7 @@ public class CreateTeamRequest {
     private String name;
     private String project;
     private String colorTheme;
+    private Integer orderNum;
 
     public CreateTeamRequest() {}
 
@@ -30,5 +31,13 @@ public class CreateTeamRequest {
 
     public void setColorTheme(String colorTheme) {
         this.colorTheme = colorTheme;
+    }
+
+    public Integer getOrderNum() {
+        return orderNum;
+    }
+
+    public void setOrderNum(Integer orderNum) {
+        this.orderNum = orderNum;
     }
 }

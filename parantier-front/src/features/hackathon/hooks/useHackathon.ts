@@ -200,3 +200,50 @@ export function useDeleteFaq(teamId: number) {
     onError: () => toast.error("Q&A 삭제에 실패했습니다."),
   });
 }
+
+// ── Team CRUD ──
+export function useCreateTeam(eventId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (req: {
+      name: string;
+      project?: string;
+      colorTheme?: string;
+    }) => hackathonApi.createTeam(eventId, req),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hackathon-event-active"] });
+      toast.success("팀이 추가됐습니다.");
+    },
+    onError: () => toast.error("팀 추가에 실패했습니다."),
+  });
+}
+
+export function useUpdateTeam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      teamId,
+      req,
+    }: {
+      teamId: number;
+      req: { name: string; project?: string; colorTheme?: string };
+    }) => hackathonApi.updateTeam(teamId, req),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hackathon-event-active"] });
+      toast.success("팀 정보가 수정됐습니다.");
+    },
+    onError: () => toast.error("팀 수정에 실패했습니다."),
+  });
+}
+
+export function useDeleteTeam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (teamId: number) => hackathonApi.deleteTeam(teamId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hackathon-event-active"] });
+      toast.success("팀이 삭제됐습니다.");
+    },
+    onError: () => toast.error("팀 삭제에 실패했습니다."),
+  });
+}

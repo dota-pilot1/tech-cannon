@@ -64,4 +64,9 @@
         WHERE id = #{id}
     </update>
 
+    <!-- 팀 삭제 -->
+    <delete id="deleteById">
+        DELETE FROM hackathon_teams WHERE id = #{id}
+    </delete>
+
 </mapper>

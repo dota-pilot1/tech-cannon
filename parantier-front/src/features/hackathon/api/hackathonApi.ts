@@ -128,4 +128,35 @@ export const hackathonApi = {
   removeMember: async (teamId: number, userId: number): Promise<void> => {
     await apiClient.delete(`/hackathon/teams/${teamId}/members/${userId}`);
   },
+
+  // 팀 CRUD
+  createTeam: async (
+    eventId: number,
+    req: {
+      name: string;
+      project?: string;
+      colorTheme?: string;
+      orderNum?: number;
+    },
+  ): Promise<number> => {
+    const { data } = await apiClient.post(
+      `/hackathon/events/${eventId}/teams`,
+      req,
+    );
+    return data.id;
+  },
+  updateTeam: async (
+    teamId: number,
+    req: {
+      name: string;
+      project?: string;
+      colorTheme?: string;
+      orderNum?: number;
+    },
+  ): Promise<void> => {
+    await apiClient.put(`/hackathon/teams/${teamId}`, req);
+  },
+  deleteTeam: async (teamId: number): Promise<void> => {
+    await apiClient.delete(`/hackathon/teams/${teamId}`);
+  },
 };
