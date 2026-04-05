@@ -14,7 +14,15 @@ import { TYPE_META } from "@/features/task/types/task.types";
 import { LexicalViewer } from "@/shared/ui/lexical/LexicalViewer";
 import { Mermaid } from "@/shared/ui/mermaid";
 import { toast } from "sonner";
-import { Plus, Pencil, Save, X, Trash2, GripVertical } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Save,
+  X,
+  Trash2,
+  GripVertical,
+  Check,
+} from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import {
   DndContext,
@@ -174,7 +182,12 @@ export default function FrontendPage() {
   // ── 카테고리 추가 상태
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [newCategoryEmoji, setNewCategoryEmoji] = useState("📁");
+
+  // ── 카테고리 수정 상태
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(
+    null,
+  );
+  const [editingCategoryName, setEditingCategoryName] = useState("");
 
   // ─────────────────────────────────────────────
   // Queries
@@ -212,21 +225,39 @@ export default function FrontendPage() {
   });
 
   const addCategoryMutation = useMutation({
-    mutationFn: (data: { name: string; emoji: string }) =>
+    mutationFn: (name: string) =>
       frontendApi.createCategory({
-        name: data.name,
+        name,
         icon: "Folder",
-        emoji: data.emoji,
+        emoji: "",
         orderNum: categories.length,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["front", "categories"] });
       setIsAddingCategory(false);
       setNewCategoryName("");
-      setNewCategoryEmoji("📁");
       toast.success("카테고리가 추가되었습니다");
     },
     onError: () => toast.error("카테고리 추가 실패"),
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) => {
+      const cat = categories.find((c) => c.id === id);
+      return frontendApi.updateCategory(id, {
+        name,
+        icon: cat?.icon ?? "Folder",
+        emoji: cat?.emoji ?? "",
+        orderNum: cat?.orderNum ?? 0,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["front", "categories"] });
+      setEditingCategoryId(null);
+      setEditingCategoryName("");
+      toast.success("카테고리 이름이 변경됐습니다.");
+    },
+    onError: () => toast.error("카테고리 수정 실패"),
   });
 
   const addSectionMutation = useMutation({
@@ -398,7 +429,7 @@ export default function FrontendPage() {
   const handleAddCategoryConfirm = () => {
     const name = newCategoryName.trim();
     if (!name) return;
-    addCategoryMutation.mutate({ name, emoji: newCategoryEmoji });
+    addCategoryMutation.mutate(name);
   };
 
   const handleAddCategoryKeyDown = (
@@ -412,7 +443,6 @@ export default function FrontendPage() {
     if (e.key === "Escape") {
       setIsAddingCategory(false);
       setNewCategoryName("");
-      setNewCategoryEmoji("📁");
     }
   };
 
@@ -478,42 +508,111 @@ export default function FrontendPage() {
                 >
                   {(dragHandleProps) => (
                     <div className="relative group">
-                      <button
-                        onClick={() => handleCategoryClick(cat.id)}
-                        className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] pr-8 ${
-                          selectedCategoryId === cat.id
-                            ? "border-l-primary bg-background text-primary font-bold shadow-sm"
-                            : "border-l-transparent text-foreground/60 hover:bg-background/60 hover:text-foreground"
-                        }`}
-                      >
-                        {isAdmin && (
-                          <span
-                            {...dragHandleProps}
-                            onClick={(e) => e.stopPropagation()}
-                            className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
-                          >
-                            <GripVertical className="w-3 h-3" />
-                          </span>
-                        )}
-                        <span className="truncate">{cat.name}</span>
-                      </button>
-                      {isAdmin && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (
-                              confirm(
-                                `"${cat.name}" 카테고리를 삭제할까요? 하위 섹션과 내용이 모두 삭제됩니다.`,
-                              )
-                            ) {
-                              deleteCategoryMutation.mutate(cat.id);
+                      {editingCategoryId === cat.id ? (
+                        <div className="px-3 py-1.5 flex items-center gap-1 border-l-[3px] border-l-primary bg-primary/5">
+                          <input
+                            autoFocus
+                            type="text"
+                            value={editingCategoryName}
+                            onChange={(e) =>
+                              setEditingCategoryName(e.target.value)
                             }
-                          }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1 rounded"
-                          title="삭제"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === "Enter" &&
+                                !e.nativeEvent.isComposing
+                              ) {
+                                const n = editingCategoryName.trim();
+                                if (n)
+                                  updateCategoryMutation.mutate({
+                                    id: cat.id,
+                                    name: n,
+                                  });
+                              }
+                              if (e.key === "Escape") {
+                                setEditingCategoryId(null);
+                                setEditingCategoryName("");
+                              }
+                            }}
+                            className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
+                          <button
+                            onClick={() => {
+                              const n = editingCategoryName.trim();
+                              if (n)
+                                updateCategoryMutation.mutate({
+                                  id: cat.id,
+                                  name: n,
+                                });
+                            }}
+                            disabled={updateCategoryMutation.isPending}
+                            className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingCategoryId(null);
+                              setEditingCategoryName("");
+                            }}
+                            className="text-muted-foreground hover:text-foreground shrink-0"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleCategoryClick(cat.id)}
+                            className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] pr-16 ${
+                              selectedCategoryId === cat.id
+                                ? "border-l-primary bg-background text-primary font-bold shadow-sm"
+                                : "border-l-transparent text-foreground/60 hover:bg-background/60 hover:text-foreground"
+                            }`}
+                          >
+                            {isAdmin && (
+                              <span
+                                {...dragHandleProps}
+                                onClick={(e) => e.stopPropagation()}
+                                className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                              >
+                                <GripVertical className="w-3 h-3" />
+                              </span>
+                            )}
+                            <span className="truncate">{cat.name}</span>
+                          </button>
+                          {isAdmin && (
+                            <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingCategoryId(cat.id);
+                                  setEditingCategoryName(cat.name);
+                                }}
+                                className="text-muted-foreground hover:text-foreground p-1 rounded"
+                                title="이름 수정"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (
+                                    confirm(
+                                      `"${cat.name}" 카테고리를 삭제할까요? 하위 섹션과 내용이 모두 삭제됩니다.`,
+                                    )
+                                  ) {
+                                    deleteCategoryMutation.mutate(cat.id);
+                                  }
+                                }}
+                                className="text-muted-foreground hover:text-destructive p-1 rounded"
+                                title="삭제"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
@@ -531,45 +630,32 @@ export default function FrontendPage() {
 
           {/* 카테고리 추가 인라인 입력 */}
           {isAddingCategory && (
-            <div className="px-2 py-2 space-y-1">
-              <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  value={newCategoryEmoji}
-                  onChange={(e) => setNewCategoryEmoji(e.target.value)}
-                  className="w-10 text-center text-sm border border-input rounded px-1 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="🖥️"
-                  maxLength={2}
-                />
-                <input
-                  autoFocus
-                  type="text"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  onKeyDown={handleAddCategoryKeyDown}
-                  placeholder="카테고리명..."
-                  className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-              <div className="flex items-center gap-1 justify-end">
-                <button
-                  onClick={handleAddCategoryConfirm}
-                  disabled={addCategoryMutation.isPending}
-                  className="text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
-                >
-                  추가
-                </button>
-                <button
-                  onClick={() => {
-                    setIsAddingCategory(false);
-                    setNewCategoryName("");
-                    setNewCategoryEmoji("📁");
-                  }}
-                  className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
-                >
-                  취소
-                </button>
-              </div>
+            <div className="px-3 py-2 flex items-center gap-1">
+              <input
+                autoFocus
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={handleAddCategoryKeyDown}
+                placeholder="카테고리명..."
+                className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <button
+                onClick={handleAddCategoryConfirm}
+                disabled={addCategoryMutation.isPending}
+                className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => {
+                  setIsAddingCategory(false);
+                  setNewCategoryName("");
+                }}
+                className="text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
 
