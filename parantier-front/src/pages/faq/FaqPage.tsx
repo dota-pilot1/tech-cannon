@@ -200,6 +200,8 @@ export default function FaqPage() {
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
     null,
   );
+  const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+  const [editingSectionTitle, setEditingSectionTitle] = useState("");
 
   // ── 편집 상태
   const [isEditing, setIsEditing] = useState(false);
@@ -265,6 +267,22 @@ export default function FaqPage() {
       toast.success("카테고리가 추가되었습니다");
     },
     onError: () => toast.error("카테고리 추가 실패"),
+  });
+
+  const renameSectionMutation = useMutation({
+    mutationFn: ({ id, title }: { id: number; title: string }) => {
+      const sec = sections.find((s) => s.id === id);
+      return faqApi.updateSection(id, { title, orderNum: sec?.orderNum ?? 0 });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["faq-sections", selectedCategoryId],
+      });
+      setEditingSectionId(null);
+      setEditingSectionTitle("");
+      toast.success("섹션 이름이 변경됐습니다.");
+    },
+    onError: () => toast.error("섹션 이름 변경에 실패했습니다."),
   });
 
   const addSectionMutation = useMutation({
@@ -514,7 +532,6 @@ export default function FaqPage() {
                             <GripVertical className="w-3 h-3" />
                           </span>
                         )}
-                        <span>{cat.emoji || cat.icon}</span>
                         <span className="truncate">{cat.name}</span>
                       </button>
                       {isAdmin && (
@@ -620,9 +637,7 @@ export default function FaqPage() {
           style={{ minHeight: "49px" }}
         >
           <p className="text-sm font-semibold text-foreground truncate">
-            {selectedCategory
-              ? `${selectedCategory.emoji} ${selectedCategory.name}`
-              : "FAQ 항목"}
+            {selectedCategory ? selectedCategory.name : "FAQ 항목"}
           </p>
           {isAdmin && selectedCategoryId && (
             <button
@@ -662,49 +677,111 @@ export default function FaqPage() {
                     >
                       {(dragHandleProps) => (
                         <div className="relative group">
-                          <button
-                            onClick={() => handleSectionClick(sec.id)}
-                            className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-l-[3px] pr-8 ${
-                              selectedSectionId === sec.id
-                                ? "border-l-primary bg-primary/10 text-primary font-bold"
-                                : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {isAdmin && (
-                              <span
-                                {...dragHandleProps}
-                                onClick={(e) => e.stopPropagation()}
-                                className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
-                              >
-                                <GripVertical className="w-3 h-3" />
-                              </span>
-                            )}
-                            <span
-                              className={
-                                selectedSectionId === sec.id
-                                  ? "text-primary"
-                                  : "text-muted-foreground"
-                              }
-                            >
-                              ·
-                            </span>
-                            <span className="truncate">{sec.title}</span>
-                          </button>
-                          {isAdmin && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (
-                                  confirm(`"${sec.title}" FAQ를 삭제할까요?`)
-                                ) {
-                                  deleteSectionMutation.mutate(sec.id);
+                          {editingSectionId === sec.id ? (
+                            <div className="px-3 py-1.5 flex items-center gap-1">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editingSectionTitle}
+                                onChange={(e) =>
+                                  setEditingSectionTitle(e.target.value)
                                 }
-                              }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1 rounded"
-                              title="삭제"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                                onKeyDown={(e) => {
+                                  if (
+                                    e.key === "Enter" &&
+                                    !e.nativeEvent.isComposing
+                                  ) {
+                                    const t = editingSectionTitle.trim();
+                                    if (t)
+                                      renameSectionMutation.mutate({
+                                        id: sec.id,
+                                        title: t,
+                                      });
+                                  }
+                                  if (e.key === "Escape") {
+                                    setEditingSectionId(null);
+                                    setEditingSectionTitle("");
+                                  }
+                                }}
+                                className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                              <button
+                                onClick={() => {
+                                  const t = editingSectionTitle.trim();
+                                  if (t)
+                                    renameSectionMutation.mutate({
+                                      id: sec.id,
+                                      title: t,
+                                    });
+                                }}
+                                disabled={renameSectionMutation.isPending}
+                                className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                              >
+                                <Save className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingSectionId(null);
+                                  setEditingSectionTitle("");
+                                }}
+                                className="text-muted-foreground hover:text-foreground shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleSectionClick(sec.id)}
+                                className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-l-[3px] pr-16 ${
+                                  selectedSectionId === sec.id
+                                    ? "border-l-primary bg-primary/10 text-primary font-bold"
+                                    : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
+                                }`}
+                              >
+                                {isAdmin && (
+                                  <span
+                                    {...dragHandleProps}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                                  >
+                                    <GripVertical className="w-3 h-3" />
+                                  </span>
+                                )}
+                                <span className="truncate">{sec.title}</span>
+                              </button>
+                              {isAdmin && (
+                                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingSectionId(sec.id);
+                                      setEditingSectionTitle(sec.title);
+                                    }}
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded"
+                                    title="이름 수정"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (
+                                        confirm(
+                                          `"${sec.title}" FAQ를 삭제할까요?`,
+                                        )
+                                      ) {
+                                        deleteSectionMutation.mutate(sec.id);
+                                      }
+                                    }}
+                                    className="text-muted-foreground hover:text-destructive p-1 rounded"
+                                    title="삭제"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
