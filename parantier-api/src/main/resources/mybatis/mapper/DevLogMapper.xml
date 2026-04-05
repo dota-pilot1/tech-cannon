@@ -10,13 +10,15 @@
         <result property="title" column="title"/>
         <result property="content" column="content"/>
         <result property="sortOrder" column="sort_order"/>
+        <result property="logDate" column="log_date"/>
+        <result property="summary" column="summary"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
         <result property="deletedAt" column="deleted_at"/>
     </resultMap>
 
     <select id="findByUserId" resultMap="DevLogResultMap">
-        SELECT id, user_id, title, content, sort_order, created_at, updated_at, deleted_at
+        SELECT id, user_id, title, content, sort_order, log_date, summary, created_at, updated_at, deleted_at
         FROM devlogs
         WHERE user_id = #{userId}
           AND deleted_at IS NULL
@@ -24,15 +26,15 @@
     </select>
 
     <select id="findById" resultMap="DevLogResultMap">
-        SELECT id, user_id, title, content, sort_order, created_at, updated_at, deleted_at
+        SELECT id, user_id, title, content, sort_order, log_date, summary, created_at, updated_at, deleted_at
         FROM devlogs
         WHERE id = #{id}
           AND deleted_at IS NULL
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO devlogs (user_id, title, content, sort_order)
-        VALUES (#{userId}, #{title}, #{content}, #{sortOrder})
+        INSERT INTO devlogs (user_id, title, content, sort_order, log_date, summary)
+        VALUES (#{userId}, #{title}, #{content}, #{sortOrder}, #{logDate}, #{summary})
     </insert>
 
     <update id="update">
@@ -40,6 +42,8 @@
         SET title      = #{title},
             content    = #{content},
             sort_order = #{sortOrder},
+            log_date   = #{logDate},
+            summary    = #{summary},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
@@ -50,5 +54,43 @@
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
+
+    <!-- 이슈 연결 -->
+    <insert id="linkIssue">
+        INSERT INTO devlog_issues (devlog_id, issue_id)
+        VALUES (#{devlogId}, #{issueId})
+        ON CONFLICT (devlog_id, issue_id) DO NOTHING
+    </insert>
+
+    <delete id="unlinkIssue">
+        DELETE FROM devlog_issues
+        WHERE devlog_id = #{devlogId}
+          AND issue_id = #{issueId}
+    </delete>
+
+    <select id="findLinkedIssueIds" resultType="long">
+        SELECT issue_id
+        FROM devlog_issues
+        WHERE devlog_id = #{devlogId}
+    </select>
+
+    <!-- 업무 연결 -->
+    <insert id="linkWork">
+        INSERT INTO devlog_works (devlog_id, work_id)
+        VALUES (#{devlogId}, #{workId})
+        ON CONFLICT (devlog_id, work_id) DO NOTHING
+    </insert>
+
+    <delete id="unlinkWork">
+        DELETE FROM devlog_works
+        WHERE devlog_id = #{devlogId}
+          AND work_id = #{workId}
+    </delete>
+
+    <select id="findLinkedWorkIds" resultType="long">
+        SELECT work_id
+        FROM devlog_works
+        WHERE devlog_id = #{devlogId}
+    </select>
 
 </mapper>

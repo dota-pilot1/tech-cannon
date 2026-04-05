@@ -58,6 +58,74 @@ public class DevLogController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "개발 일지에 연결된 이슈 ID 목록 조회")
+    @GetMapping("/{id}/linked-issues")
+    public ResponseEntity<List<Long>> getLinkedIssues(
+        @PathVariable Long id,
+        Authentication auth
+    ) {
+        getUserIdFromAuth(auth);
+        return ResponseEntity.ok(devLogService.getLinkedIssueIds(id));
+    }
+
+    @Operation(summary = "개발 일지에 이슈 연결")
+    @PostMapping("/{id}/link-issue/{issueId}")
+    public ResponseEntity<Void> linkIssue(
+        @PathVariable Long id,
+        @PathVariable Long issueId,
+        Authentication auth
+    ) {
+        getUserIdFromAuth(auth);
+        devLogService.linkIssue(id, issueId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "개발 일지에서 이슈 연결 해제")
+    @DeleteMapping("/{id}/link-issue/{issueId}")
+    public ResponseEntity<Void> unlinkIssue(
+        @PathVariable Long id,
+        @PathVariable Long issueId,
+        Authentication auth
+    ) {
+        getUserIdFromAuth(auth);
+        devLogService.unlinkIssue(id, issueId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "개발 일지에 연결된 업무 ID 목록 조회")
+    @GetMapping("/{id}/linked-works")
+    public ResponseEntity<List<Long>> getLinkedWorks(
+        @PathVariable Long id,
+        Authentication auth
+    ) {
+        getUserIdFromAuth(auth);
+        return ResponseEntity.ok(devLogService.getLinkedWorkIds(id));
+    }
+
+    @Operation(summary = "개발 일지에 업무 연결")
+    @PostMapping("/{id}/link-work/{workId}")
+    public ResponseEntity<Void> linkWork(
+        @PathVariable Long id,
+        @PathVariable Long workId,
+        Authentication auth
+    ) {
+        getUserIdFromAuth(auth);
+        devLogService.linkWork(id, workId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "개발 일지에서 업무 연결 해제")
+    @DeleteMapping("/{id}/link-work/{workId}")
+    public ResponseEntity<Void> unlinkWork(
+        @PathVariable Long id,
+        @PathVariable Long workId,
+        Authentication auth
+    ) {
+        getUserIdFromAuth(auth);
+        devLogService.unlinkWork(id, workId);
+        return ResponseEntity.ok().build();
+    }
+
     private Long getUserIdFromAuth(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) {
             throw new ResponseStatusException(
@@ -65,8 +133,12 @@ public class DevLogController {
                 "로그인이 필요합니다"
             );
         }
+        Object principal = auth.getPrincipal();
+        if (principal instanceof com.mapo.palantier.user.domain.User) {
+            return ((com.mapo.palantier.user.domain.User) principal).getId();
+        }
         try {
-            return (Long) auth.getPrincipal();
+            return Long.parseLong(auth.getName());
         } catch (Exception e) {
             throw new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,

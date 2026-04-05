@@ -39,6 +39,7 @@ import TextbookPage from "@/pages/textbook/TextbookPage";
 import ApiDocPage from "@/pages/apidoc/ApiDocPage";
 import { HackathonPage } from "@/pages/hackathon/HackathonPage";
 import FigmaPage from "@/pages/figma/FigmaPage";
+import DevLogPage from "@/pages/devlog/DevLogPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -348,6 +349,14 @@ const figmaRoute = createRoute({
   component: FigmaPage,
 });
 
+// 개발일지 페이지 (로그인 필요)
+const devLogRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/devlog",
+  beforeLoad: () => requireAuth(),
+  component: DevLogPage,
+});
+
 // Prototype (로그인 필요)
 const prototypeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -406,6 +415,7 @@ const routeTree = rootRoute.addChildren([
   textbookRoute,
   apiDocRoute,
   figmaRoute,
+  devLogRoute,
   notFoundRoute,
 ]);
 
