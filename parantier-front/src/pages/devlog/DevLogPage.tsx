@@ -203,21 +203,39 @@ interface DetailPanelProps {
 
 function DetailPanel({ log, onDelete }: DetailPanelProps) {
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [editTitle, setEditTitle] = useState(log.title);
   const [editDate, setEditDate] = useState(toDateInput(log));
-  const [editContent, setEditContent] = useState(log.content ?? "");
-  const [editSummary, setEditSummary] = useState(log.summary ?? "");
+  // 인라인 직접 편집 (뷰 모드에서 바로 수정)
+  const [content, setContent] = useState(log.content ?? "");
+  const [summary, setSummary] = useState(log.summary ?? "");
   const [linkIssueOpen, setLinkIssueOpen] = useState(false);
   const [linkWorkOpen, setLinkWorkOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // 편집 모드 진입 시 최신 데이터 동기화
-  const startEditing = () => {
+  const startEditingMeta = () => {
     setEditTitle(log.title);
     setEditDate(toDateInput(log));
-    setEditContent(log.content ?? "");
-    setEditSummary(log.summary ?? "");
-    setIsEditing(true);
+    setIsEditingMeta(true);
+  };
+
+  // content/summary 자동저장
+  const saveInline = async (newContent: string, newSummary: string) => {
+    setIsSaving(true);
+    try {
+      await devlogApi.updateDevLog(log.id, {
+        title: log.title,
+        content: newContent,
+        summary: newSummary,
+        logDate: toDateInput(log) || undefined,
+        sortOrder: log.sortOrder,
+      });
+      queryClient.invalidateQueries({ queryKey: ["devlogs"] });
+    } catch {
+      toast.error("저장 실패");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // 연결된 이슈/업무 ID 목록
@@ -246,20 +264,20 @@ function DetailPanel({ log, onDelete }: DetailPanelProps) {
   const linkedIssues = allIssues.filter((i) => linkedIssueIds.includes(i.id));
   const linkedWorks = allWorks.filter((w) => linkedWorkIds.includes(w.id));
 
-  // 수정 mutation
+  // 메타(제목/날짜) 수정 mutation
   const updateMutation = useMutation({
     mutationFn: () =>
       devlogApi.updateDevLog(log.id, {
         title: editTitle.trim() || log.title,
-        content: editContent,
-        summary: editSummary,
+        content: content,
+        summary: summary,
         logDate: editDate || undefined,
         sortOrder: log.sortOrder,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["devlogs"] });
       toast.success("저장됐습니다.");
-      setIsEditing(false);
+      setIsEditingMeta(false);
     },
     onError: () => toast.error("저장 실패"),
   });
@@ -309,17 +327,25 @@ function DetailPanel({ log, onDelete }: DetailPanelProps) {
     <div className="h-full flex flex-col bg-background">
       {/* ─── 헤더 ─────────────────────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center justify-between px-5 border-b border-border bg-card h-[49px]">
-        {isEditing ? (
-          /* 편집 모드 헤더 */
+        {isEditingMeta ? (
+          /* 메타 편집 모드 헤더 */
           <div className="flex items-center gap-2 w-full">
-            <span className="text-sm font-semibold text-foreground shrink-0">
-              편집 중
-            </span>
-            <div className="flex-1" />
+            <input
+              type="date"
+              value={editDate}
+              onChange={(e) => setEditDate(e.target.value)}
+              className="border border-input rounded px-2 py-1 text-xs bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring w-36"
+            />
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="flex-1 border border-input rounded px-2 py-1 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setIsEditing(false)}
+              onClick={() => setIsEditingMeta(false)}
             >
               취소
             </Button>
@@ -341,9 +367,14 @@ function DetailPanel({ log, onDelete }: DetailPanelProps) {
               <span className="text-sm font-semibold text-foreground truncate">
                 {log.title}
               </span>
+              {isSaving && (
+                <span className="text-[10px] text-muted-foreground">
+                  저장 중...
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0 ml-3">
-              <Button size="sm" variant="outline" onClick={startEditing}>
+              <Button size="sm" variant="outline" onClick={startEditingMeta}>
                 편집
               </Button>
               <Button
@@ -361,172 +392,180 @@ function DetailPanel({ log, onDelete }: DetailPanelProps) {
         )}
       </div>
 
-      {/* ─── 본문 ─────────────────────────────────────────────────────────── */}
-      {isEditing ? (
-        /* 편집 폼 */
-        <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
-          {/* 날짜 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              날짜
-            </label>
-            <input
-              type="date"
-              value={editDate}
-              onChange={(e) => setEditDate(e.target.value)}
-              className="border border-input rounded-md px-3 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring w-48"
-            />
-          </div>
-
-          {/* 제목 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              제목
-            </label>
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className="border border-input rounded-md px-3 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-
-          {/* 오늘 한 일 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              오늘 한 일
-            </label>
-            <textarea
-              rows={10}
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              placeholder="오늘 한 일을 입력하세요..."
-              className="border border-input rounded-md px-3 py-2 text-sm bg-background text-foreground resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-
-          {/* 총평 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              총평
-            </label>
-            <textarea
-              rows={4}
-              value={editSummary}
-              onChange={(e) => setEditSummary(e.target.value)}
-              placeholder="오늘의 총평을 입력하세요..."
-              className="border border-input rounded-md px-3 py-2 text-sm bg-background text-foreground resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
+      {/* ─── 본문 (항상 동일한 레이아웃, 인라인 편집) ───────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+        {/* 섹션: 오늘 한 일 */}
+        <div className="flex items-center gap-3 px-5 pt-4 pb-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
+            오늘 한 일
+          </span>
+          <div className="flex-1 h-px bg-border" />
         </div>
-      ) : (
-        /* 뷰 모드 */
-        <div className="flex-1 overflow-y-auto">
-          {/* 섹션: 오늘 한 일 */}
-          <div className="flex items-center gap-3 px-5 py-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
-              오늘 한 일
-            </span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-          <div className="px-5 pb-4">
-            {log.content ? (
-              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                {log.content}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">내용 없음</p>
-            )}
-          </div>
-
-          {/* 섹션: 연결된 이슈 */}
-          <div className="flex items-center gap-3 px-5 py-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
-              연결된 이슈
-            </span>
-            <div className="flex-1 h-px bg-border" />
-            <button
-              onClick={() => setLinkIssueOpen(true)}
-              className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <LinkIcon className="w-3 h-3" />
-              연결
-            </button>
-          </div>
-          <div className="px-5 pb-4 flex flex-wrap gap-1.5">
-            {linkedIssues.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">
-                연결된 이슈 없음
-              </p>
-            ) : (
-              linkedIssues.map((issue) => (
-                <span
-                  key={issue.id}
-                  className={cn(
-                    "text-xs px-2 py-0.5 rounded-full font-medium",
-                    statusColor(issue.status),
-                  )}
-                >
-                  #{issue.id} {issue.title} ·{" "}
-                  {ISSUE_STATUS_LABEL[issue.status] ?? issue.status}
-                </span>
-              ))
-            )}
-          </div>
-
-          {/* 섹션: 연결된 업무 */}
-          <div className="flex items-center gap-3 px-5 py-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
-              연결된 업무
-            </span>
-            <div className="flex-1 h-px bg-border" />
-            <button
-              onClick={() => setLinkWorkOpen(true)}
-              className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <LinkIcon className="w-3 h-3" />
-              연결
-            </button>
-          </div>
-          <div className="px-5 pb-4 flex flex-wrap gap-1.5">
-            {linkedWorks.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">
-                연결된 업무 없음
-              </p>
-            ) : (
-              linkedWorks.map((work) => (
-                <span
-                  key={work.id}
-                  className={cn(
-                    "text-xs px-2 py-0.5 rounded-full font-medium",
-                    statusColor(work.status),
-                  )}
-                >
-                  #{work.id} {work.title} ·{" "}
-                  {WORK_STATUS_LABEL[work.status] ?? work.status}
-                </span>
-              ))
-            )}
-          </div>
-
-          {/* 섹션: 총평 */}
-          <div className="flex items-center gap-3 px-5 py-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
-              총평
-            </span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-          <div className="px-5 pb-6">
-            {log.summary ? (
-              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                {log.summary}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">총평 없음</p>
-            )}
-          </div>
+        <div className="px-5 pb-4">
+          <textarea
+            rows={8}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onBlur={() => saveInline(content, summary)}
+            placeholder="오늘 한 일을 자유롭게 기록하세요..."
+            className="w-full text-sm text-foreground bg-muted/30 border border-transparent hover:border-border focus:border-input rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring transition-colors leading-relaxed placeholder:text-muted-foreground"
+          />
         </div>
-      )}
+
+        {/* 섹션: 오늘의 업무 */}
+        <div className="flex items-center gap-3 px-5 py-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
+            오늘의 업무
+          </span>
+          <div className="flex-1 h-px bg-border" />
+          <button
+            onClick={() => setLinkWorkOpen(true)}
+            className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+          >
+            <LinkIcon className="w-3 h-3" />
+            연결
+          </button>
+        </div>
+        <div className="px-5 pb-4">
+          {linkedWorks.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic px-1">
+              연결된 업무가 없습니다.
+            </p>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/60 border-b border-border">
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium w-12">
+                      #
+                    </th>
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium">
+                      제목
+                    </th>
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium w-24">
+                      상태
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linkedWorks.map((work, idx) => (
+                    <tr
+                      key={work.id}
+                      className={cn(
+                        "border-b border-border last:border-0",
+                        idx % 2 === 0 ? "bg-background" : "bg-muted/20",
+                      )}
+                    >
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {work.id}
+                      </td>
+                      <td className="px-3 py-2 text-foreground font-medium truncate max-w-[200px]">
+                        {work.title}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded-full font-medium",
+                            statusColor(work.status),
+                          )}
+                        >
+                          {WORK_STATUS_LABEL[work.status] ?? work.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* 섹션: 오늘의 이슈 */}
+        <div className="flex items-center gap-3 px-5 py-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
+            오늘의 이슈
+          </span>
+          <div className="flex-1 h-px bg-border" />
+          <button
+            onClick={() => setLinkIssueOpen(true)}
+            className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+          >
+            <LinkIcon className="w-3 h-3" />
+            연결
+          </button>
+        </div>
+        <div className="px-5 pb-4">
+          {linkedIssues.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic px-1">
+              연결된 이슈가 없습니다.
+            </p>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/60 border-b border-border">
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium w-12">
+                      #
+                    </th>
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium">
+                      제목
+                    </th>
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium w-24">
+                      상태
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linkedIssues.map((issue, idx) => (
+                    <tr
+                      key={issue.id}
+                      className={cn(
+                        "border-b border-border last:border-0",
+                        idx % 2 === 0 ? "bg-background" : "bg-muted/20",
+                      )}
+                    >
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {issue.id}
+                      </td>
+                      <td className="px-3 py-2 text-foreground font-medium truncate max-w-[200px]">
+                        {issue.title}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded-full font-medium",
+                            statusColor(issue.status),
+                          )}
+                        >
+                          {ISSUE_STATUS_LABEL[issue.status] ?? issue.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* 섹션: 총평 */}
+        <div className="flex items-center gap-3 px-5 py-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
+            총평
+          </span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+        <div className="px-5 pb-6">
+          <textarea
+            rows={4}
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            onBlur={() => saveInline(content, summary)}
+            placeholder="오늘 하루를 정리하는 한마디..."
+            className="w-full text-sm text-foreground bg-muted/30 border border-transparent hover:border-border focus:border-input rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring transition-colors leading-relaxed placeholder:text-muted-foreground"
+          />
+        </div>
+      </div>
 
       {/* ─── 연결 다이얼로그 ──────────────────────────────────────────────── */}
       {linkIssueOpen && (
