@@ -1,13 +1,22 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { devlogApi } from "@/features/devlog/api/devlogApi";
 import type { DevLog } from "@/features/devlog/api/devlogApi";
+import { AgGridReact } from "ag-grid-react";
+import type { ColDef, RowClickedEvent } from "ag-grid-community";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+} from "ag-grid-community";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Pencil, Check, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Search, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 
@@ -414,11 +423,10 @@ function DetailPanel({ log, onDelete }: { log: DevLog; onDelete: () => void }) {
 // ── DevLogPage ────────────────────────────────────────────────────────────────
 
 export default function DevLogPage() {
+  const gridRef = useRef<AgGridReact<DevLog>>(null);
   const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
   const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
-  const [checqueryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
   const { data: logs = [] } = useQuery<DevLog[]>({
     queryKey: ["devlogs"],
@@ -450,11 +458,13 @@ export default function DevLogPage() {
       return;
     }
     if (!confirm(`선택한 ${selected.length}개를 삭제할까요?`)) return;
-    Promise.all(selected.map((l) => devlogApi.deleteDevLog(l.id))).then(() => {
-      queryClient.invalidateQueries({ queryKey: ["devlogs"] });
-      setSelectedLogId(null);
-      toast.success("삭제됐습니다.");
-    });
+    Promise.all(selected.map((l: DevLog) => devlogApi.deleteDevLog(l.id))).then(
+      () => {
+        queryClient.invalidateQueries({ queryKey: ["devlogs"] });
+        setSelectedLogId(null);
+        toast.success("삭제됐습니다.");
+      },
+    );
   };
 
   const columnDefs: ColDef<DevLog>[] = [
