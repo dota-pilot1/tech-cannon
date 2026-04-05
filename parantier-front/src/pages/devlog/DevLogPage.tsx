@@ -1,22 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { devlogApi } from "@/features/devlog/api/devlogApi";
 import type { DevLog } from "@/features/devlog/api/devlogApi";
-import { AgGridReact } from "ag-grid-react";
-import type { ColDef, RowClickedEvent } from "ag-grid-community";
-import {
-  ModuleRegistry,
-  AllCommunityModule,
-  themeQuartz,
-} from "ag-grid-community";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Pencil, Check, X } from "lucide-react";
+import { Plus, Trash2, Search, Pencil, Check, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
-
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 
@@ -423,10 +414,11 @@ function DetailPanel({ log, onDelete }: { log: DevLog; onDelete: () => void }) {
 // ── DevLogPage ────────────────────────────────────────────────────────────────
 
 export default function DevLogPage() {
-  const gridRef = useRef<AgGridReact<DevLog>>(null);
   const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
   const [keyword, setKeyword] = useState("");
-  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [checqueryClient = useQueryClient();
 
   const { data: logs = [] } = useQuery<DevLog[]>({
     queryKey: ["devlogs"],
@@ -592,8 +584,8 @@ export default function DevLogPage() {
       {/* 메인: 좌50 그리드 + 우50 상세 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측 ag-grid */}
-        <div className="w-1/2 overflow-hidden flex flex-col border-r border-border">
-          <div className="flex-1 p-4 pb-0">
+        <div className="w-1/2 overflow-hidden flex flex-col border-r border-border bg-muted/20">
+          <div className="flex-1 p-6">
             <AgGridReact<DevLog>
               ref={gridRef}
               rowData={filteredLogs}
