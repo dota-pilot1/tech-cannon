@@ -81,4 +81,38 @@
         SELECT COUNT(*) FROM issues WHERE status = 'BLOCKED' AND is_archived = false
     </select>
 
+    <!-- 유저별 완료 건수 -->
+    <select id="getUserCompletionStats" resultType="com.mapo.palantier.dashboard.DashboardUserStatsResponse">
+        SELECT
+            u.id        AS userId,
+            u.username  AS username,
+            u.email     AS email,
+            COALESCE(w.done_count, 0) AS doneWorks,
+            COALESCE(i.done_count, 0) AS doneIssues
+        FROM users u
+        LEFT JOIN (
+            SELECT assignee_id, COUNT(*) AS done_count
+            FROM works
+            WHERE status = 'DONE' AND is_archived = false
+            <choose>
+                <when test="period == 'TODAY'">AND updated_at >= CURRENT_DATE</when>
+                <when test="period == 'WEEK'">AND updated_at >= DATE_TRUNC('week', CURRENT_DATE)</when>
+                <when test="period == 'MONTH'">AND updated_at >= DATE_TRUNC('month', CURRENT_DATE)</when>
+            </choose>
+            GROUP BY assignee_id
+        ) w ON u.id = w.assignee_id
+        LEFT JOIN (
+            SELECT assignee_id, COUNT(*) AS done_count
+            FROM issues
+            WHERE status = 'DONE' AND is_archived = false
+            <choose>
+                <when test="period == 'TODAY'">AND updated_at >= CURRENT_DATE</when>
+                <when test="period == 'WEEK'">AND updated_at >= DATE_TRUNC('week', CURRENT_DATE)</when>
+                <when test="period == 'MONTH'">AND updated_at >= DATE_TRUNC('month', CURRENT_DATE)</when>
+            </choose>
+            GROUP BY assignee_id
+        ) i ON u.id = i.assignee_id
+        ORDER BY (COALESCE(w.done_count, 0) + COALESCE(i.done_count, 0)) DESC
+    </select>
+
 </mapper>

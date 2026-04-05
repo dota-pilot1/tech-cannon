@@ -5,6 +5,7 @@ import type {
   HackathonTeamTask,
   HackathonTeamIssue,
   HackathonTeamFaq,
+  HackathonTeamDoc,
   HackathonChatMessage,
   CreateLinkRequest,
   CreateTaskRequest,
@@ -13,6 +14,8 @@ import type {
   UpdateIssueRequest,
   CreateFaqRequest,
   UpdateFaqRequest,
+  CreateDocRequest,
+  UpdateDocRequest,
 } from "../types/hackathon.types";
 
 export const hackathonApi = {
@@ -119,6 +122,35 @@ export const hackathonApi = {
   },
   deleteFaq: async (teamId: number, faqId: number): Promise<void> => {
     await apiClient.delete(`/hackathon/teams/${teamId}/faq/${faqId}`);
+  },
+
+  // Docs
+  getDocs: async (teamId: number): Promise<HackathonTeamDoc[]> => {
+    const { data } = await apiClient.get(`/hackathon/teams/${teamId}/docs`);
+    return data;
+  },
+  getDoc: async (teamId: number, docId: number): Promise<HackathonTeamDoc> => {
+    const { data } = await apiClient.get(
+      `/hackathon/teams/${teamId}/docs/${docId}`,
+    );
+    return data;
+  },
+  createDoc: async (teamId: number, req: CreateDocRequest): Promise<number> => {
+    const { data } = await apiClient.post(
+      `/hackathon/teams/${teamId}/docs`,
+      req,
+    );
+    return data.id;
+  },
+  updateDoc: async (
+    teamId: number,
+    docId: number,
+    req: UpdateDocRequest,
+  ): Promise<void> => {
+    await apiClient.put(`/hackathon/teams/${teamId}/docs/${docId}`, req);
+  },
+  deleteDoc: async (teamId: number, docId: number): Promise<void> => {
+    await apiClient.delete(`/hackathon/teams/${teamId}/docs/${docId}`);
   },
 
   // 멤버

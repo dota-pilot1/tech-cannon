@@ -9,6 +9,8 @@ import type {
   UpdateIssueRequest,
   CreateFaqRequest,
   UpdateFaqRequest,
+  CreateDocRequest,
+  UpdateDocRequest,
 } from "../types/hackathon.types";
 
 // ── 멤버 참가/탈퇴 ──
@@ -198,6 +200,49 @@ export function useDeleteFaq(teamId: number) {
       toast.success("Q&A가 삭제됐습니다.");
     },
     onError: () => toast.error("Q&A 삭제에 실패했습니다."),
+  });
+}
+
+// ── Docs ──
+export function useTeamDocs(teamId: number | null) {
+  return useQuery({
+    queryKey: ["hackathon-docs", teamId],
+    queryFn: () => hackathonApi.getDocs(teamId!),
+    enabled: !!teamId,
+  });
+}
+export function useCreateDoc(teamId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (req: CreateDocRequest) => hackathonApi.createDoc(teamId, req),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hackathon-docs", teamId] });
+      toast.success("문서가 추가됐습니다.");
+    },
+    onError: () => toast.error("문서 추가에 실패했습니다."),
+  });
+}
+export function useUpdateDoc(teamId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ docId, req }: { docId: number; req: UpdateDocRequest }) =>
+      hackathonApi.updateDoc(teamId, docId, req),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hackathon-docs", teamId] });
+      toast.success("문서가 수정됐습니다.");
+    },
+    onError: () => toast.error("문서 수정에 실패했습니다."),
+  });
+}
+export function useDeleteDoc(teamId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (docId: number) => hackathonApi.deleteDoc(teamId, docId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hackathon-docs", teamId] });
+      toast.success("문서가 삭제됐습니다.");
+    },
+    onError: () => toast.error("문서 삭제에 실패했습니다."),
   });
 }
 

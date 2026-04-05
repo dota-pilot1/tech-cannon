@@ -1,13 +1,12 @@
 import { useStore } from "@tanstack/react-store";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { authStore } from "@/entities/user/model/authStore";
 import { dashboardApi } from "@/api/dashboardApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { ExternalLink } from "lucide-react";
-
-// ─── status 매핑 ─────────────────────────────────────────────────────────────
 
 const STATUS_MAP: Record<string, string> = {
   완료: "DONE",
@@ -18,16 +17,20 @@ const STATUS_MAP: Record<string, string> = {
   막힘: "BLOCKED",
 };
 
-// ─── 타입 ─────────────────────────────────────────────────────────────────────
-
 interface BarItem {
   name: string;
   value: number;
   color: string;
-  status?: string; // 없으면 전체
+  status?: string;
 }
 
-// ─── 커스텀 바 차트 컴포넌트 ─────────────────────────────────────────────────
+type PeriodTab = "today" | "week" | "month";
+
+const PERIOD_TABS: { key: PeriodTab; label: string }[] = [
+  { key: "today", label: "오늘" },
+  { key: "week", label: "이번 주" },
+  { key: "month", label: "이번 달" },
+];
 
 function CustomBarChart({
   data,
@@ -42,12 +45,9 @@ function CustomBarChart({
     <div className="space-y-2">
       {data.map((item) => (
         <div key={item.name} className="flex items-center gap-2 group">
-          {/* 레이블 */}
           <div className="w-14 text-sm text-muted-foreground text-right shrink-0">
             {item.name}
           </div>
-
-          {/* 막대 + 숫자 */}
           <div className="flex-1 flex items-center gap-2 min-w-0">
             <div className="flex-1 bg-muted/40 rounded-full h-6 overflow-hidden">
               <div
@@ -63,8 +63,6 @@ function CustomBarChart({
               {item.value}
             </span>
           </div>
-
-          {/* 보기 버튼 */}
           <Button
             size="sm"
             variant="ghost"
@@ -80,15 +78,23 @@ function CustomBarChart({
   );
 }
 
-// ─── MainPage ────────────────────────────────────────────────────────────────
-
 export function MainPage() {
   const auth = useStore(authStore, (state) => state);
   const navigate = useNavigate();
+  const [periodTab, setPeriodTab] = useState<PeriodTab>("today");
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard", "stats"],
     queryFn: dashboardApi.getStats,
+    enabled: auth.isAuthenticated,
+    staleTime: 0,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: userStats, isLoading: isUserStatsLoading } = useQuery({
+    queryKey: ["dashboard", "userCompletion", periodTab],
+    queryFn: () => dashboardApi.getUserCompletionStats(periodTab),
     enabled: auth.isAuthenticated,
     staleTime: 0,
     refetchInterval: 60_000,
@@ -198,17 +204,13 @@ export function MainPage() {
     },
   ];
 
+  const userCompletionMax = Math.max(
+    ...(userStats ?? []).flatMap((u) => [u.doneWorks, u.doneIssues]),
+    1,
+  );
+
   return (
     <div className="container mx-auto px-6 py-8">
-      {/* 헤더 */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">대시보드</h1>
-        <p className="text-muted-foreground">
-          안녕하세요, {auth.user?.username}님
-        </p>
-      </div>
-
-      {/* 차트 2개 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 업무 현황 카드 */}
         <Card className="hover:shadow-lg transition-shadow">
@@ -291,6 +293,121 @@ export function MainPage() {
                 data={issueData}
                 onNavigate={handleIssueNavigate}
               />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 멤버별 완료 현황 카드 */}
+        <Card className="md:col-span-2 hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-foreground flex items-center justify-between">
+              <span>👥 멤버별 완료 현황</span>
+              {/* 탭 */}
+              <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+                {PERIOD_TABS.map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setPeriodTab(tab.key)}
+                    className={[
+                      "px-3 py-1 text-xs font-medium rounded-md transition-all duration-150",
+                      periodTab === tab.key
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isUserStatsLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-20 bg-muted rounded shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <div
+                          className="h-5 bg-muted rounded"
+                          style={{ width: "60%" }}
+                        />
+                        <div
+                          className="h-5 bg-muted rounded"
+                          style={{ width: "40%" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {(userStats ?? []).map((user) => (
+                  <div key={user.userId} className="space-y-1">
+                    <div className="text-sm font-medium text-foreground mb-1">
+                      {user.username}
+                      <span className="text-xs text-muted-foreground font-normal ml-1">
+                        ({user.email})
+                      </span>
+                    </div>
+                    {/* 업무 완료 행 */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 text-xs text-muted-foreground text-right shrink-0">
+                        업무 완료
+                      </div>
+                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <div className="flex-1 bg-muted/40 rounded-full h-5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width:
+                                user.doneWorks > 0
+                                  ? `${(user.doneWorks / userCompletionMax) * 100}%`
+                                  : "0%",
+                              backgroundColor: "#22c55e",
+                              minWidth: user.doneWorks > 0 ? "1.25rem" : "0",
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold text-foreground w-6 text-right shrink-0">
+                          {user.doneWorks}
+                        </span>
+                      </div>
+                    </div>
+                    {/* 이슈 완료 행 */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 text-xs text-muted-foreground text-right shrink-0">
+                        이슈 완료
+                      </div>
+                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <div className="flex-1 bg-muted/40 rounded-full h-5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width:
+                                user.doneIssues > 0
+                                  ? `${(user.doneIssues / userCompletionMax) * 100}%`
+                                  : "0%",
+                              backgroundColor: "#3b82f6",
+                              minWidth: user.doneIssues > 0 ? "1.25rem" : "0",
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold text-foreground w-6 text-right shrink-0">
+                          {user.doneIssues}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {(userStats ?? []).length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    완료된 항목이 없습니다.
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

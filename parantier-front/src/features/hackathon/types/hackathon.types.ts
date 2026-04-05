@@ -132,3 +132,24 @@ export interface UpdateFaqRequest {
   answer?: string;
   orderNum: number;
 }
+
+export interface HackathonTeamDoc {
+  id: number;
+  teamId: number;
+  title: string;
+  content?: string;
+  createdBy?: number;
+  createdByName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDocRequest {
+  title: string;
+  content?: string;
+}
+
+export interface UpdateDocRequest {
+  title: string;
+  content?: string;
+}

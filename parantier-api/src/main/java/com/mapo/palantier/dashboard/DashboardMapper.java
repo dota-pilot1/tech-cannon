@@ -1,5 +1,6 @@
 package com.mapo.palantier.dashboard;
 
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -22,4 +23,9 @@ public interface DashboardMapper {
     int countTodoIssues(); // TODO
     int countHoldIssues(); // HOLD
     int countBlockedIssues(); // BLOCKED
+
+    // 유저별 완료 건수
+    List<DashboardUserStatsResponse> getUserCompletionStats(
+        @Param("period") String period
+    );
 }

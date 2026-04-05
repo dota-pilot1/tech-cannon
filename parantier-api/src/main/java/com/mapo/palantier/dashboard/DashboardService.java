@@ -1,5 +1,6 @@
 package com.mapo.palantier.dashboard;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class DashboardService {
 
     private final DashboardMapper dashboardMapper;
+
+    public List<DashboardUserStatsResponse> getUserCompletionStats(
+        String period
+    ) {
+        return dashboardMapper.getUserCompletionStats(period);
+    }
 
     public DashboardStatsResponse getStats(Long userId) {
         return DashboardStatsResponse.builder()

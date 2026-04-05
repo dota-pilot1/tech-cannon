@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.hackathon.infrastructure.HackathonDocMapper">
+
+    <resultMap id="HackathonTeamDocResultMap" type="com.mapo.palantier.hackathon.domain.HackathonTeamDoc">
+        <id property="id" column="id"/>
+        <result property="teamId" column="team_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdByName" column="created_by_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByTeamId" resultMap="HackathonTeamDocResultMap">
+        SELECT d.id, d.team_id, d.title, d.content, d.created_by, u.username AS created_by_name, d.created_at, d.updated_at
+        FROM hackathon_team_docs d
+        LEFT JOIN users u ON d.created_by = u.id
+        WHERE d.team_id = #{teamId}
+        ORDER BY d.created_at DESC
+    </select>
+
+    <select id="findById" resultMap="HackathonTeamDocResultMap">
+        SELECT d.id, d.team_id, d.title, d.content, d.created_by, u.username AS created_by_name, d.created_at, d.updated_at
+        FROM hackathon_team_docs d
+        LEFT JOIN users u ON d.created_by = u.id
+        WHERE d.id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.mapo.palantier.hackathon.domain.HackathonTeamDoc"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO hackathon_team_docs (team_id, title, content, created_by, created_at, updated_at)
+        VALUES (#{teamId}, #{title}, #{content}, #{createdBy}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <update id="update" parameterType="com.mapo.palantier.hackathon.domain.HackathonTeamDoc">
+        UPDATE hackathon_team_docs
+        SET title = #{title}, content = #{content}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM hackathon_team_docs WHERE id = #{id}
+    </delete>
+
+</mapper>

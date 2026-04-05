@@ -1,15 +1,18 @@
 package com.mapo.palantier.hackathon.presentation;
 
 import com.mapo.palantier.hackathon.application.HackathonTeamService;
+import com.mapo.palantier.hackathon.domain.HackathonTeamDoc;
 import com.mapo.palantier.hackathon.domain.HackathonTeamFaq;
 import com.mapo.palantier.hackathon.domain.HackathonTeamIssue;
 import com.mapo.palantier.hackathon.domain.HackathonTeamLink;
 import com.mapo.palantier.hackathon.domain.HackathonTeamTask;
 import com.mapo.palantier.hackathon.dto.AddMemberRequest;
+import com.mapo.palantier.hackathon.dto.CreateDocRequest;
 import com.mapo.palantier.hackathon.dto.CreateFaqRequest;
 import com.mapo.palantier.hackathon.dto.CreateLinkRequest;
 import com.mapo.palantier.hackathon.dto.CreateTaskRequest;
 import com.mapo.palantier.hackathon.dto.HackathonCreateIssueRequest;
+import com.mapo.palantier.hackathon.dto.UpdateDocRequest;
 import com.mapo.palantier.hackathon.dto.UpdateFaqRequest;
 import com.mapo.palantier.hackathon.dto.UpdateIssueRequest;
 import com.mapo.palantier.hackathon.dto.UpdateTaskRequest;
@@ -329,6 +332,89 @@ public class HackathonTeamController {
         }
         hackathonTeamService.deleteFaq(faqId);
         return ResponseEntity.ok(Map.of("message", "FAQ가 삭제되었습니다."));
+    }
+
+    // -----------------------------------------------------------------------
+    // Docs
+    // -----------------------------------------------------------------------
+
+    /**
+     * GET /api/hackathon/teams/{teamId}/docs
+     */
+    @GetMapping("/teams/{teamId}/docs")
+    public ResponseEntity<List<HackathonTeamDoc>> getDocs(
+        @PathVariable Long teamId,
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(hackathonTeamService.getDocs(teamId));
+    }
+
+    /**
+     * POST /api/hackathon/teams/{teamId}/docs
+     */
+    @PostMapping("/teams/{teamId}/docs")
+    public ResponseEntity<?> createDoc(
+        @PathVariable Long teamId,
+        @RequestBody CreateDocRequest req,
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        Long userId = extractUserId(authentication);
+        Long id = hackathonTeamService.createDoc(teamId, userId, req);
+        return ResponseEntity.ok(Map.of("id", id));
+    }
+
+    /**
+     * GET /api/hackathon/teams/{teamId}/docs/{docId}
+     */
+    @GetMapping("/teams/{teamId}/docs/{docId}")
+    public ResponseEntity<HackathonTeamDoc> getDoc(
+        @PathVariable Long teamId,
+        @PathVariable Long docId,
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(hackathonTeamService.getDoc(docId));
+    }
+
+    /**
+     * PUT /api/hackathon/teams/{teamId}/docs/{docId}
+     */
+    @PutMapping("/teams/{teamId}/docs/{docId}")
+    public ResponseEntity<?> updateDoc(
+        @PathVariable Long teamId,
+        @PathVariable Long docId,
+        @RequestBody UpdateDocRequest req,
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        hackathonTeamService.updateDoc(docId, req);
+        return ResponseEntity.ok(Map.of("message", "문서가 수정되었습니다."));
+    }
+
+    /**
+     * DELETE /api/hackathon/teams/{teamId}/docs/{docId}
+     */
+    @DeleteMapping("/teams/{teamId}/docs/{docId}")
+    public ResponseEntity<?> deleteDoc(
+        @PathVariable Long teamId,
+        @PathVariable Long docId,
+        Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        hackathonTeamService.deleteDoc(docId);
+        return ResponseEntity.ok(Map.of("message", "문서가 삭제되었습니다."));
     }
 
     // -----------------------------------------------------------------------

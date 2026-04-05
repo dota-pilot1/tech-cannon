@@ -1,5 +1,6 @@
 package com.mapo.palantier.dashboard;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -38,5 +39,16 @@ public class DashboardController {
         }
         Long userId = Long.parseLong(authentication.getName());
         return ResponseEntity.ok(dashboardService.getStats(userId));
+    }
+
+    @GetMapping("/user-completion-stats")
+    public ResponseEntity<
+        List<DashboardUserStatsResponse>
+    > getUserCompletionStats(
+        @RequestParam(defaultValue = "MONTH") String period
+    ) {
+        return ResponseEntity.ok(
+            dashboardService.getUserCompletionStats(period)
+        );
     }
 }

@@ -1,17 +1,21 @@
 package com.mapo.palantier.hackathon.application;
 
+import com.mapo.palantier.hackathon.domain.HackathonTeamDoc;
 import com.mapo.palantier.hackathon.domain.HackathonTeamFaq;
 import com.mapo.palantier.hackathon.domain.HackathonTeamIssue;
 import com.mapo.palantier.hackathon.domain.HackathonTeamLink;
 import com.mapo.palantier.hackathon.domain.HackathonTeamMember;
 import com.mapo.palantier.hackathon.domain.HackathonTeamTask;
+import com.mapo.palantier.hackathon.dto.CreateDocRequest;
 import com.mapo.palantier.hackathon.dto.CreateFaqRequest;
 import com.mapo.palantier.hackathon.dto.CreateLinkRequest;
 import com.mapo.palantier.hackathon.dto.CreateTaskRequest;
 import com.mapo.palantier.hackathon.dto.HackathonCreateIssueRequest;
+import com.mapo.palantier.hackathon.dto.UpdateDocRequest;
 import com.mapo.palantier.hackathon.dto.UpdateFaqRequest;
 import com.mapo.palantier.hackathon.dto.UpdateIssueRequest;
 import com.mapo.palantier.hackathon.dto.UpdateTaskRequest;
+import com.mapo.palantier.hackathon.infrastructure.HackathonDocMapper;
 import com.mapo.palantier.hackathon.infrastructure.HackathonFaqMapper;
 import com.mapo.palantier.hackathon.infrastructure.HackathonIssueMapper;
 import com.mapo.palantier.hackathon.infrastructure.HackathonLinkMapper;
@@ -30,19 +34,22 @@ public class HackathonTeamService {
     private final HackathonTaskMapper taskMapper;
     private final HackathonIssueMapper issueMapper;
     private final HackathonFaqMapper faqMapper;
+    private final HackathonDocMapper docMapper;
 
     public HackathonTeamService(
         HackathonTeamMemberMapper memberMapper,
         HackathonLinkMapper linkMapper,
         HackathonTaskMapper taskMapper,
         HackathonIssueMapper issueMapper,
-        HackathonFaqMapper faqMapper
+        HackathonFaqMapper faqMapper,
+        HackathonDocMapper docMapper
     ) {
         this.memberMapper = memberMapper;
         this.linkMapper = linkMapper;
         this.taskMapper = taskMapper;
         this.issueMapper = issueMapper;
         this.faqMapper = faqMapper;
+        this.docMapper = docMapper;
     }
 
     // -----------------------------------------------------------------------
@@ -195,5 +202,42 @@ public class HackathonTeamService {
     @Transactional
     public void deleteFaq(Long faqId) {
         faqMapper.deleteById(faqId);
+    }
+
+    // -----------------------------------------------------------------------
+    // Docs
+    // -----------------------------------------------------------------------
+
+    public List<HackathonTeamDoc> getDocs(Long teamId) {
+        return docMapper.findByTeamId(teamId);
+    }
+
+    public HackathonTeamDoc getDoc(Long docId) {
+        return docMapper.findById(docId);
+    }
+
+    @Transactional
+    public Long createDoc(Long teamId, Long userId, CreateDocRequest req) {
+        HackathonTeamDoc doc = new HackathonTeamDoc();
+        doc.setTeamId(teamId);
+        doc.setTitle(req.getTitle());
+        doc.setContent(req.getContent());
+        doc.setCreatedBy(userId);
+        docMapper.insert(doc);
+        return doc.getId();
+    }
+
+    @Transactional
+    public void updateDoc(Long docId, UpdateDocRequest req) {
+        HackathonTeamDoc doc = new HackathonTeamDoc();
+        doc.setId(docId);
+        doc.setTitle(req.getTitle());
+        doc.setContent(req.getContent());
+        docMapper.update(doc);
+    }
+
+    @Transactional
+    public void deleteDoc(Long docId) {
+        docMapper.deleteById(docId);
     }
 }
