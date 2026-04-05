@@ -82,16 +82,17 @@
         SELECT organization_id FROM users WHERE id = #{id}
     </select>
 
-    <delete id="deleteById">
-        DELETE FROM users WHERE id = #{id}
-    </delete>
+    <update id="deleteById">
+        UPDATE users SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
 
-    <delete id="deleteByIds">
-        DELETE FROM users WHERE id IN
+    <update id="deleteByIds">
+        UPDATE users SET is_active = false, updated_at = CURRENT_TIMESTAMP
+        WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-    </delete>
+    </update>
 
     <select id="findByOrganizationId" resultMap="UserResultMap">
         SELECT id, email, password, username, role, organization_id, is_active, profile_image_url, created_at, updated_at
