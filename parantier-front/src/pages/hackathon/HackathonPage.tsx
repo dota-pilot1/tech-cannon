@@ -2,9 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useStore } from "@tanstack/react-store";
 import {
-  Trophy,
-  Users,
-  Clock,
   MessageSquare,
   Send,
   Figma,
@@ -2014,51 +2011,6 @@ export function HackathonPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-muted/30 p-4 gap-4 overflow-hidden">
-      {/* ── 상단 요약 카드 ─────────────────────────────────────────────────── */}
-      <div className="shrink-0 grid grid-cols-4 gap-3">
-        {[
-          {
-            icon: <Trophy className="w-4 h-4 text-muted-foreground/40" />,
-            bg: "bg-muted/30",
-            label: "참가 팀",
-          },
-          {
-            icon: <Users className="w-4 h-4 text-muted-foreground/40" />,
-            bg: "bg-muted/30",
-            label: "참가 인원",
-          },
-          {
-            icon: <Clock className="w-4 h-4 text-muted-foreground/40" />,
-            bg: "bg-muted/30",
-            label: "남은 시간",
-          },
-          {
-            icon: (
-              <MessageSquare className="w-4 h-4 text-muted-foreground/40" />
-            ),
-            bg: "bg-muted/30",
-            label: "채팅",
-          },
-        ].map(({ icon, bg, label }) => (
-          <div
-            key={label}
-            className="rounded-xl border border-border bg-card shadow-sm px-4 py-3 flex items-center gap-3"
-          >
-            <div
-              className={`w-9 h-9 rounded-full ${bg} flex items-center justify-center shrink-0`}
-            >
-              {icon}
-            </div>
-            <div>
-              <p className="text-[11px] text-muted-foreground">{label}</p>
-              <p className="text-sm font-medium text-muted-foreground/50">
-                구현 예정
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* ── 본문 ──────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex gap-4 overflow-hidden">
         {/* 왼쪽: 팀 카드들 (2열 그리드 세로 스크롤) */}
