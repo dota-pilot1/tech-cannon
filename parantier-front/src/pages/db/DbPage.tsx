@@ -74,7 +74,7 @@ function FolderContextMenu({
           onClose();
         }}
       >
-        <span>📁</span> 하위 폴더 추가
+        하위 폴더 추가
       </button>
       <button
         className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
@@ -83,7 +83,7 @@ function FolderContextMenu({
           onClose();
         }}
       >
-        <span>📄</span> 새 문서 추가
+        새 문서 추가
       </button>
       <div className="border-t border-border my-1" />
       <button
@@ -93,7 +93,7 @@ function FolderContextMenu({
           onClose();
         }}
       >
-        <span>✏️</span> 이름 변경
+        이름 변경
       </button>
       <button
         className="w-full text-left px-3 py-2 hover:bg-destructive/10 text-destructive flex items-center gap-2"
@@ -102,7 +102,7 @@ function FolderContextMenu({
           onClose();
         }}
       >
-        <span>🗑️</span> 폴더 삭제
+        폴더 삭제
       </button>
     </div>
   );
@@ -142,7 +142,7 @@ function PostContextMenu({
           onClose();
         }}
       >
-        <span>🗑️</span> 문서 삭제
+        문서 삭제
       </button>
     </div>
   );

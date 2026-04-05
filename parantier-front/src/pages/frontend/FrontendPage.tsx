@@ -164,6 +164,8 @@ export default function FrontendPage() {
   // ── 편집 상태
   const [isEditing, setIsEditing] = useState(false);
   const [editBlocks, setEditBlocks] = useState<FrontBlock[]>([]);
+  const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+  const [editingSectionTitle, setEditingSectionTitle] = useState("");
 
   // ── 섹션 추가 상태
   const [isAddingSection, setIsAddingSection] = useState(false);
@@ -198,8 +200,7 @@ export default function FrontendPage() {
   // Mutations
   // ─────────────────────────────────────────────
   const saveMutation = useMutation({
-    mutationFn: () =>
-      frontendApi.saveBlocks(selectedSectionId!, editBlocks),
+    mutationFn: () => frontendApi.saveBlocks(selectedSectionId!, editBlocks),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["front", "blocks", selectedSectionId],
@@ -287,6 +288,25 @@ export default function FrontendPage() {
       toast.success("섹션이 삭제되었습니다");
     },
     onError: () => toast.error("섹션 삭제 실패"),
+  });
+
+  const renameSectionMutation = useMutation({
+    mutationFn: ({ id, title }: { id: number; title: string }) => {
+      const sec = sections.find((s) => s.id === id);
+      return frontendApi.updateSection(id, {
+        title,
+        orderNum: sec?.orderNum ?? 0,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["front", "sections", selectedCategoryId],
+      });
+      setEditingSectionId(null);
+      setEditingSectionTitle("");
+      toast.success("섹션 이름이 변경됐습니다.");
+    },
+    onError: () => toast.error("섹션 이름 변경에 실패했습니다."),
   });
 
   // ─────────────────────────────────────────────
@@ -421,7 +441,7 @@ export default function FrontendPage() {
         >
           <div>
             <p className="text-sm font-semibold text-foreground leading-tight">
-              🖥️ 프론트엔드
+              프론트엔드
             </p>
             <p className="text-[10px] text-muted-foreground leading-tight">
               컴포넌트 구조 문서
@@ -475,7 +495,6 @@ export default function FrontendPage() {
                             <GripVertical className="w-3 h-3" />
                           </span>
                         )}
-                        <span>{cat.emoji || cat.icon}</span>
                         <span className="truncate">{cat.name}</span>
                       </button>
                       {isAdmin && (
@@ -580,9 +599,7 @@ export default function FrontendPage() {
           style={{ minHeight: "49px" }}
         >
           <p className="text-sm font-semibold text-foreground truncate">
-            {selectedCategory
-              ? `${selectedCategory.emoji} ${selectedCategory.name}`
-              : "섹션"}
+            {selectedCategory ? selectedCategory.name : "섹션"}
           </p>
           {isAdmin && selectedCategoryId && (
             <button
@@ -622,49 +639,111 @@ export default function FrontendPage() {
                     >
                       {(dragHandleProps) => (
                         <div className="relative group">
-                          <button
-                            onClick={() => handleSectionClick(sec.id)}
-                            className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-l-[3px] pr-8 ${
-                              selectedSectionId === sec.id
-                                ? "border-l-primary bg-primary/10 text-primary font-bold"
-                                : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {isAdmin && (
-                              <span
-                                {...dragHandleProps}
-                                onClick={(e) => e.stopPropagation()}
-                                className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
-                              >
-                                <GripVertical className="w-3 h-3" />
-                              </span>
-                            )}
-                            <span
-                              className={
-                                selectedSectionId === sec.id
-                                  ? "text-primary"
-                                  : "text-muted-foreground"
-                              }
-                            >
-                              ·
-                            </span>
-                            <span className="truncate">{sec.title}</span>
-                          </button>
-                          {isAdmin && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (
-                                  confirm(`"${sec.title}" 섹션을 삭제할까요?`)
-                                ) {
-                                  deleteSectionMutation.mutate(sec.id);
+                          {editingSectionId === sec.id ? (
+                            <div className="px-3 py-1.5 flex items-center gap-1">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editingSectionTitle}
+                                onChange={(e) =>
+                                  setEditingSectionTitle(e.target.value)
                                 }
-                              }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1 rounded"
-                              title="삭제"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                                onKeyDown={(e) => {
+                                  if (
+                                    e.key === "Enter" &&
+                                    !e.nativeEvent.isComposing
+                                  ) {
+                                    const t = editingSectionTitle.trim();
+                                    if (t)
+                                      renameSectionMutation.mutate({
+                                        id: sec.id,
+                                        title: t,
+                                      });
+                                  }
+                                  if (e.key === "Escape") {
+                                    setEditingSectionId(null);
+                                    setEditingSectionTitle("");
+                                  }
+                                }}
+                                className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                              <button
+                                onClick={() => {
+                                  const t = editingSectionTitle.trim();
+                                  if (t)
+                                    renameSectionMutation.mutate({
+                                      id: sec.id,
+                                      title: t,
+                                    });
+                                }}
+                                disabled={renameSectionMutation.isPending}
+                                className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                              >
+                                <Save className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingSectionId(null);
+                                  setEditingSectionTitle("");
+                                }}
+                                className="text-muted-foreground hover:text-foreground shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleSectionClick(sec.id)}
+                                className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-l-[3px] pr-16 ${
+                                  selectedSectionId === sec.id
+                                    ? "border-l-primary bg-primary/10 text-primary font-bold"
+                                    : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
+                                }`}
+                              >
+                                {isAdmin && (
+                                  <span
+                                    {...dragHandleProps}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                                  >
+                                    <GripVertical className="w-3 h-3" />
+                                  </span>
+                                )}
+                                <span className="truncate">{sec.title}</span>
+                              </button>
+                              {isAdmin && (
+                                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingSectionId(sec.id);
+                                      setEditingSectionTitle(sec.title);
+                                    }}
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded"
+                                    title="이름 수정"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (
+                                        confirm(
+                                          `"${sec.title}" 섹션을 삭제할까요?`,
+                                        )
+                                      ) {
+                                        deleteSectionMutation.mutate(sec.id);
+                                      }
+                                    }}
+                                    className="text-muted-foreground hover:text-destructive p-1 rounded"
+                                    title="삭제"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
@@ -734,7 +813,6 @@ export default function FrontendPage() {
         {/* 카테고리 미선택 */}
         {!selectedCategoryId && (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
-            <span className="text-5xl">🖥️</span>
             <p className="text-base font-medium">카테고리를 선택하세요</p>
             <p className="text-sm">
               왼쪽 사이드바에서 카테고리를 선택하면 내용이 표시됩니다.
@@ -745,7 +823,6 @@ export default function FrontendPage() {
         {/* 섹션 미선택 */}
         {selectedCategoryId && !selectedSectionId && (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
-            <span className="text-5xl">📂</span>
             <p className="text-base font-medium">
               ← 왼쪽에서 항목을 선택하세요
             </p>
@@ -774,7 +851,7 @@ export default function FrontendPage() {
             {/* 섹션 헤더 */}
             <div className="mb-6">
               <p className="text-xs text-muted-foreground mb-0.5">
-                {selectedCategory?.emoji} {selectedCategory?.name}
+                {selectedCategory?.name}
               </p>
               <h2 className="text-xl font-bold text-foreground">
                 {selectedSection?.title ?? ""}

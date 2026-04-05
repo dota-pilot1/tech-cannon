@@ -515,7 +515,7 @@ export default function ApiDocPage() {
           className="px-4 border-b border-border flex items-center justify-between"
           style={{ height: "49px" }}
         >
-          <p className="text-sm font-semibold text-foreground">🔌 API 문서</p>
+          <p className="text-sm font-semibold text-foreground">API 문서</p>
           {isAdmin && (
             <button
               onClick={() => setIsAddingCategory(true)}
@@ -564,7 +564,6 @@ export default function ApiDocPage() {
                             <GripVertical className="w-3 h-3" />
                           </span>
                         )}
-                        <span>{cat.emoji || cat.icon}</span>
                         <span className="truncate">{cat.name}</span>
                       </button>
                       {isAdmin && (
@@ -670,9 +669,7 @@ export default function ApiDocPage() {
           style={{ height: "49px" }}
         >
           <p className="text-sm font-semibold text-foreground truncate">
-            {selectedCategory
-              ? `${selectedCategory.emoji} ${selectedCategory.name}`
-              : "엔드포인트"}
+            {selectedCategory ? selectedCategory.name : "엔드포인트"}
           </p>
           {isAdmin && selectedCategoryId && (
             <button
@@ -877,7 +874,6 @@ export default function ApiDocPage() {
         {/* 카테고리 미선택 */}
         {!selectedCategoryId && (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
-            <span className="text-5xl">🔌</span>
             <p className="text-base font-medium">카테고리를 선택하세요</p>
             <p className="text-sm">
               왼쪽 사이드바에서 카테고리를 선택하면 내용이 표시됩니다.
@@ -888,7 +884,6 @@ export default function ApiDocPage() {
         {/* 섹션 미선택 */}
         {selectedCategoryId && !selectedSectionId && (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
-            <span className="text-5xl">🔌</span>
             <p className="text-base font-medium">← 엔드포인트를 선택하세요</p>
             <p className="text-sm">섹션을 선택하면 API 테스터가 열립니다.</p>
           </div>
@@ -923,7 +918,7 @@ export default function ApiDocPage() {
               </div>
               <div className="flex-1" />
               <span className="text-[10px] text-muted-foreground truncate max-w-xs hidden sm:block">
-                {selectedCategory?.emoji} {selectedCategory?.name}
+                {selectedCategory?.name}
                 {" / "}
                 {selectedSection?.title}
               </span>
