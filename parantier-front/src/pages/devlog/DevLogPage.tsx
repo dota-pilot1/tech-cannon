@@ -593,7 +593,7 @@ export default function DevLogPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측 ag-grid */}
         <div className="w-1/2 overflow-hidden flex flex-col border-r border-border">
-          <div className="flex-1">
+          <div className="flex-1 p-4 pb-0">
             <AgGridReact<DevLog>
               ref={gridRef}
               rowData={filteredLogs}
