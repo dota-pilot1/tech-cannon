@@ -37,6 +37,7 @@ import FrontendPage from "@/pages/frontend/FrontendPage";
 import TextbookPage from "@/pages/textbook/TextbookPage";
 import ApiDocPage from "@/pages/apidoc/ApiDocPage";
 import { HackathonPage } from "@/pages/hackathon/HackathonPage";
+import FigmaPage from "@/pages/figma/FigmaPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -330,6 +331,14 @@ const hackathonRoute = createRoute({
   component: HackathonPage,
 });
 
+// Figma 페이지 (로그인 필요)
+const figmaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/figma",
+  beforeLoad: () => requireAuth(),
+  component: FigmaPage,
+});
+
 // Prototype (로그인 필요)
 const prototypeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -386,6 +395,7 @@ const routeTree = rootRoute.addChildren([
   frontendRoute,
   textbookRoute,
   apiDocRoute,
+  figmaRoute,
   notFoundRoute,
 ]);
 
