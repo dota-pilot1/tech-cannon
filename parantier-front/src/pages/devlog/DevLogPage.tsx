@@ -470,7 +470,12 @@ export default function DevLogPage() {
       headerName: "날짜",
       width: 120,
       valueGetter: (p) => (p.data ? formatLogDate(p.data) : ""),
-      cellStyle: { display: "flex", alignItems: "center", fontSize: "13px" },
+      cellStyle: {
+        display: "flex",
+        alignItems: "center",
+        fontSize: "13px",
+        paddingLeft: "12px",
+      },
     },
     {
       headerName: "제목",
@@ -482,23 +487,21 @@ export default function DevLogPage() {
         alignItems: "center",
         fontSize: "13px",
         fontWeight: 500,
+        paddingLeft: "12px",
       },
     },
     {
-      headerName: "내용",
-      field: "content",
-      flex: 2,
-      minWidth: 180,
-      valueFormatter: (p) => {
-        const v = p.value ?? "";
-        return v.length > 60 ? v.slice(0, 60) + "…" : v;
-      },
+      headerName: "이메일",
+      field: "authorEmail",
+      width: 200,
       cellStyle: {
         display: "flex",
         alignItems: "center",
         fontSize: "12px",
         color: "var(--muted-foreground)",
+        paddingLeft: "12px",
       },
+      valueFormatter: (p) => p.value ?? "-",
     },
     {
       headerName: "작성일",

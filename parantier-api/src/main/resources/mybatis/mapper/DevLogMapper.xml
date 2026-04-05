@@ -15,21 +15,28 @@
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
         <result property="deletedAt" column="deleted_at"/>
+        <result property="authorEmail" column="author_email"/>
     </resultMap>
 
     <select id="findByUserId" resultMap="DevLogResultMap">
-        SELECT id, user_id, title, content, sort_order, log_date, summary, created_at, updated_at, deleted_at
-        FROM devlogs
-        WHERE user_id = #{userId}
-          AND deleted_at IS NULL
-        ORDER BY sort_order ASC, created_at ASC
+        SELECT d.id, d.user_id, d.title, d.content, d.sort_order, d.log_date, d.summary,
+               d.created_at, d.updated_at, d.deleted_at,
+               u.email AS author_email
+        FROM devlogs d
+        LEFT JOIN users u ON d.user_id = u.id
+        WHERE d.user_id = #{userId}
+          AND d.deleted_at IS NULL
+        ORDER BY d.sort_order ASC, d.created_at ASC
     </select>
 
     <select id="findById" resultMap="DevLogResultMap">
-        SELECT id, user_id, title, content, sort_order, log_date, summary, created_at, updated_at, deleted_at
-        FROM devlogs
-        WHERE id = #{id}
-          AND deleted_at IS NULL
+        SELECT d.id, d.user_id, d.title, d.content, d.sort_order, d.log_date, d.summary,
+               d.created_at, d.updated_at, d.deleted_at,
+               u.email AS author_email
+        FROM devlogs d
+        LEFT JOIN users u ON d.user_id = u.id
+        WHERE d.id = #{id}
+          AND d.deleted_at IS NULL
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

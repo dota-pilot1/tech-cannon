@@ -9,6 +9,7 @@ const getAuthHeaders = () => ({
 export interface DevLog {
   id: number;
   userId: number;
+  authorEmail?: string;
   title: string;
   content?: string;
   summary?: string;
