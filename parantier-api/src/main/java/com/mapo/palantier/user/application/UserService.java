@@ -3,12 +3,11 @@ package com.mapo.palantier.user.application;
 import com.mapo.palantier.user.domain.User;
 import com.mapo.palantier.user.domain.UserRepository;
 import com.mapo.palantier.user.domain.UserRole;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -31,8 +30,11 @@ public class UserService {
     @Transactional
     public void updateUserRole(Long userId, UserRole role) {
         // 사용자 존재 여부 확인
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        User user = userRepository
+            .findById(userId)
+            .orElseThrow(() ->
+                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+            );
 
         // 권한 업데이트
         userRepository.updateRole(userId, role);
@@ -44,8 +46,11 @@ public class UserService {
     @Transactional
     public void updateUserOrganization(Long userId, Long organizationId) {
         // 사용자 존재 여부 확인
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        User user = userRepository
+            .findById(userId)
+            .orElseThrow(() ->
+                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+            );
 
         // 조직 업데이트
         userRepository.updateOrganization(userId, organizationId);
@@ -55,7 +60,10 @@ public class UserService {
      * 여러 사용자의 조직 일괄 변경 (관리자 전용)
      */
     @Transactional
-    public void updateUsersOrganization(List<Long> userIds, Long organizationId) {
+    public void updateUsersOrganization(
+        List<Long> userIds,
+        Long organizationId
+    ) {
         for (Long userId : userIds) {
             updateUserOrganization(userId, organizationId);
         }
@@ -67,8 +75,11 @@ public class UserService {
     @Transactional
     public void removeUserFromOrganization(Long userId) {
         // 사용자 존재 여부 확인
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        User user = userRepository
+            .findById(userId)
+            .orElseThrow(() ->
+                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+            );
 
         // 조직을 NULL로 업데이트
         userRepository.updateOrganization(userId, null);
@@ -78,16 +89,22 @@ public class UserService {
      * 이메일로 사용자 조회
      */
     public User findByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        return userRepository
+            .findByEmail(email)
+            .orElseThrow(() ->
+                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+            );
     }
 
     /**
      * ID로 사용자 조회
      */
     public User findById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        return userRepository
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+            );
     }
 
     /**
@@ -95,8 +112,11 @@ public class UserService {
      */
     @Transactional
     public void updateUser(Long userId, User user) {
-        User existingUser = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        User existingUser = userRepository
+            .findById(userId)
+            .orElseThrow(() ->
+                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+            );
 
         // 사용자명만 업데이트
         userRepository.updateUsername(userId, user.getUsername());
@@ -106,8 +126,11 @@ public class UserService {
      * 비밀번호 확인
      */
     public boolean verifyPassword(Long userId, String currentPassword) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        User user = userRepository
+            .findById(userId)
+            .orElseThrow(() ->
+                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+            );
 
         return passwordEncoder.matches(currentPassword, user.getPassword());
     }
@@ -127,5 +150,14 @@ public class UserService {
     @Transactional
     public void updateProfileImage(Long userId, String profileImageUrl) {
         userRepository.updateProfileImage(userId, profileImageUrl);
+    }
+
+    /**
+     * 사용자 일괄 삭제 (관리자 전용)
+     */
+    @Transactional
+    public void deleteUsers(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) return;
+        userRepository.deleteByIds(userIds);
     }
 }

@@ -14,6 +14,8 @@ public interface UserMapper {
     Optional<User> findById(@Param("id") Long id);
     boolean existsByEmail(@Param("email") String email);
     List<User> findAll();
+    void deleteById(@Param("id") Long id);
+    void deleteByIds(@Param("ids") List<Long> ids);
     void updateRole(@Param("id") Long id, @Param("role") UserRole role);
     void updateOrganization(
         @Param("id") Long id,

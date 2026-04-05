@@ -139,6 +139,13 @@ export const adminApi = {
   },
 
   /**
+   * 사용자 일괄 삭제 (관리자 전용)
+   */
+  deleteUsers: async (userIds: number[]): Promise<void> => {
+    await apiClient.delete("/admin/users/bulk", { data: userIds });
+  },
+
+  /**
    * 팀원 권한 동기화 - 조직 권한을 소속 팀원 전원의 user_authority에 즉시 추가
    */
   syncOrganizationAuthorities: async (

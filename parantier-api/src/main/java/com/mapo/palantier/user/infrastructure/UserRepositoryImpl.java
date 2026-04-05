@@ -3,11 +3,10 @@ package com.mapo.palantier.user.infrastructure;
 import com.mapo.palantier.user.domain.User;
 import com.mapo.palantier.user.domain.UserRepository;
 import com.mapo.palantier.user.domain.UserRole;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
@@ -38,6 +37,16 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public List<User> findAll() {
         return userMapper.findAll();
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        userMapper.deleteById(id);
+    }
+
+    @Override
+    public void deleteByIds(List<Long> ids) {
+        userMapper.deleteByIds(ids);
     }
 
     @Override

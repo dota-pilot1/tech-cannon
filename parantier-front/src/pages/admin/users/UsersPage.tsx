@@ -1,34 +1,45 @@
-import { useMemo, useRef, useState } from 'react'
-import { type UserResponse } from '@/entities/user/api/adminApi'
-import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, ICellRendererParams, SelectionChangedEvent } from 'ag-grid-community'
-import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community'
-import { Button } from '@/shared/ui/button'
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createPortal } from "react-dom";
+import { type UserResponse } from "@/entities/user/api/adminApi";
+import { AgGridReact } from "ag-grid-react";
+import type {
+  ColDef,
+  ICellRendererParams,
+  SelectionChangedEvent,
+} from "ag-grid-community";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+} from "ag-grid-community";
+import { Button } from "@/shared/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/shared/ui/select'
-import { useUsers } from '@/features/admin/hooks/useUsers'
-import { useUpdateUserRole } from '@/features/admin/hooks/useUpdateUserRole'
-import { toast } from 'sonner'
+} from "@/shared/ui/select";
+import { useUsers } from "@/features/admin/hooks/useUsers";
+import { useUpdateUserRole } from "@/features/admin/hooks/useUpdateUserRole";
+import { adminApi } from "@/entities/user/api/adminApi";
+import { toast } from "sonner";
 
 // AG-Grid 모듈 등록
-ModuleRegistry.registerModules([AllCommunityModule])
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 // 권한 셀 렌더러
 function RoleCellRenderer(props: ICellRendererParams<UserResponse>) {
-  const { mutate: updateRole, isPending } = useUpdateUserRole()
+  const { mutate: updateRole, isPending } = useUpdateUserRole();
 
   const handleRoleChange = (newRole: string) => {
-    if (!props.data) return
+    if (!props.data) return;
 
-    const previousRole = props.value
+    const previousRole = props.value;
 
     // 낙관적 업데이트 (즉시 UI 반영)
-    props.node.setDataValue('role', newRole)
+    props.node.setDataValue("role", newRole);
 
     updateRole(
       {
@@ -39,11 +50,11 @@ function RoleCellRenderer(props: ICellRendererParams<UserResponse>) {
       {
         onError: () => {
           // 에러 발생 시 롤백
-          props.node.setDataValue('role', previousRole)
+          props.node.setDataValue("role", previousRole);
         },
-      }
-    )
-  }
+      },
+    );
+  };
 
   return (
     <div className="flex items-center h-full py-1 px-1">
@@ -61,135 +72,230 @@ function RoleCellRenderer(props: ICellRendererParams<UserResponse>) {
         </SelectContent>
       </Select>
     </div>
-  )
+  );
 }
 
 // 상태 셀 렌더러
 function StatusCellRenderer(props: ICellRendererParams<UserResponse>) {
-  const isActive = props.value
+  const isActive = props.value;
 
   return (
     <span
       className={`inline-block px-2 py-1 rounded-full text-xs ${
-        isActive
-          ? 'bg-green-100 text-green-800'
-          : 'bg-gray-100 text-gray-800'
+        isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
       }`}
     >
-      {isActive ? '활성' : '비활성'}
+      {isActive ? "활성" : "비활성"}
     </span>
-  )
+  );
+}
+
+// ── 커스텀 확인 다이얼로그 ────────────────────────────────────────────────────
+
+function ConfirmDialog({
+  message,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-card border border-border rounded-2xl shadow-2xl w-[360px] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-5">
+          <p className="text-sm font-semibold text-foreground mb-1">
+            삭제 확인
+          </p>
+          <p className="text-sm text-muted-foreground">{message}</p>
+        </div>
+        <div className="flex border-t border-border">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 text-sm text-muted-foreground hover:bg-muted transition-colors"
+          >
+            취소
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 text-sm font-semibold text-destructive hover:bg-destructive/10 transition-colors border-l border-border"
+          >
+            삭제
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 export function UsersPage() {
-  const gridRef = useRef<AgGridReact>(null)
-  const { data: users = [], isLoading, isError, error, refetch } = useUsers()
-  const [selectedCount, setSelectedCount] = useState(0)
+  const gridRef = useRef<AgGridReact>(null);
+  const { data: users = [], isLoading, isError, error, refetch } = useUsers();
+  const [selectedCount, setSelectedCount] = useState(0);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteRows, setPendingDeleteRows] = useState<any[]>([]);
+
+  const queryClient = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: (ids: number[]) => adminApi.deleteUsers(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      toast.success("삭제했습니다.");
+      gridRef.current?.api.deselectAll();
+      setSelectedCount(0);
+    },
+    onError: () => toast.error("삭제에 실패했습니다."),
+  });
 
   // AG-Grid 한국어 로케일 설정
-  const localeText = useMemo(() => ({
-    // 페이지네이션
-    page: '페이지',
-    of: '/',
-    to: '-',
-    more: '더보기',
-    // 페이지 사이즈
-    pageSizeSelectorLabel: '페이지당',
-    // 간결하게: "1-2 / 전체 2"
-    pageSizeSelectorLabelText: '행',
-  }), [])
+  const localeText = useMemo(
+    () => ({
+      // 페이지네이션
+      page: "페이지",
+      of: "/",
+      to: "-",
+      more: "더보기",
+      // 페이지 사이즈
+      pageSizeSelectorLabel: "페이지당",
+      // 간결하게: "1-2 / 전체 2"
+      pageSizeSelectorLabelText: "행",
+    }),
+    [],
+  );
 
   // 선택 변경 이벤트 핸들러
   const handleSelectionChanged = (event: SelectionChangedEvent) => {
-    const selectedRows = event.api.getSelectedRows()
-    setSelectedCount(selectedRows.length)
-  }
+    const selectedRows = event.api.getSelectedRows();
+    setSelectedCount(selectedRows.length);
+  };
 
-  // 일괄 삭제 핸들러 (예시)
-  const handleBulkDelete = () => {
-    const selectedRows = gridRef.current?.api.getSelectedRows()
+  // 일괄 삭제 핸들러
+  const handleBulkDelete = useCallback(() => {
+    const selectedRows = gridRef.current?.api.getSelectedRows();
     if (!selectedRows || selectedRows.length === 0) {
-      toast.error('삭제할 사용자를 선택해주세요.')
-      return
+      toast.error("삭제할 사용자를 선택해주세요.");
+      return;
     }
+    setPendingDeleteRows(selectedRows);
+    setConfirmOpen(true);
+  }, []);
 
-    if (!confirm(`${selectedRows.length}명의 사용자를 삭제하시겠습니까?`)) {
-      return
-    }
+  const handleConfirmDelete = useCallback(() => {
+    const ids = pendingDeleteRows.map((r: UserResponse) => r.id);
+    deleteMutation.mutate(ids, {
+      onSettled: () => {
+        setConfirmOpen(false);
+        setPendingDeleteRows([]);
+      },
+    });
+  }, [pendingDeleteRows, deleteMutation]);
 
-    // TODO: 실제 삭제 API 호출
-    toast.success(`${selectedRows.length}명의 사용자를 삭제했습니다.`)
-    gridRef.current?.api.deselectAll()
-  }
+  const handleCancelDelete = useCallback(() => {
+    setConfirmOpen(false);
+    setPendingDeleteRows([]);
+  }, []);
 
   // AG-Grid 컬럼 정의
   const columnDefs = useMemo<ColDef<UserResponse>[]>(
     () => [
       {
-        headerName: 'ID',
-        field: 'id',
+        headerName: "ID",
+        field: "id",
         checkboxSelection: true,
         headerCheckboxSelection: true,
         width: 90,
-        filter: 'agNumberColumnFilter',
+        filter: "agNumberColumnFilter",
         sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        } as any,
+        headerClass: "ag-header-cell-center",
       },
       {
-        headerName: '이메일',
-        field: 'email',
+        headerName: "이메일",
+        field: "email",
         flex: 2,
         minWidth: 250,
-        filter: 'agTextColumnFilter',
+        filter: "agTextColumnFilter",
         sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        } as any,
+        headerClass: "ag-header-cell-center",
       },
       {
-        headerName: '이름',
-        field: 'username',
+        headerName: "이름",
+        field: "username",
         width: 180,
-        filter: 'agTextColumnFilter',
+        filter: "agTextColumnFilter",
         sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        } as any,
+        headerClass: "ag-header-cell-center",
       },
       {
-        headerName: '권한',
-        field: 'role',
+        headerName: "권한",
+        field: "role",
         width: 240,
         cellRenderer: RoleCellRenderer,
-        filter: 'agTextColumnFilter',
+        filter: "agTextColumnFilter",
         sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 12px' } as any,
-        headerClass: 'ag-header-cell-center',
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "8px 12px",
+        } as any,
+        headerClass: "ag-header-cell-center",
       },
       {
-        headerName: '상태',
-        field: 'isActive',
+        headerName: "상태",
+        field: "isActive",
         width: 120,
         cellRenderer: StatusCellRenderer,
-        filter: 'agTextColumnFilter',
+        filter: "agTextColumnFilter",
         sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        } as any,
+        headerClass: "ag-header-cell-center",
       },
       {
-        headerName: '가입일',
-        field: 'createdAt',
+        headerName: "가입일",
+        field: "createdAt",
         width: 180,
         valueFormatter: (params) => {
-          return new Date(params.value).toLocaleDateString('ko-KR')
+          return new Date(params.value).toLocaleDateString("ko-KR");
         },
-        filter: 'agDateColumnFilter',
+        filter: "agDateColumnFilter",
         sortable: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as any,
-        headerClass: 'ag-header-cell-center',
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        } as any,
+        headerClass: "ag-header-cell-center",
       },
     ],
-    []
-  )
+    [],
+  );
 
   // AG-Grid 기본 컬럼 설정
   const defaultColDef = useMemo<ColDef>(
@@ -200,26 +306,28 @@ export function UsersPage() {
       wrapHeaderText: true,
       autoHeaderHeight: true,
     }),
-    []
-  )
+    [],
+  );
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <p className="text-lg">로딩 중...</p>
       </div>
-    )
+    );
   }
 
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <p className="text-lg text-destructive">
-          {error instanceof Error ? error.message : '유저 목록을 불러오지 못했습니다.'}
+          {error instanceof Error
+            ? error.message
+            : "유저 목록을 불러오지 못했습니다."}
         </p>
         <Button onClick={() => refetch()}>다시 시도</Button>
       </div>
-    )
+    );
   }
 
   return (
@@ -232,7 +340,7 @@ export function UsersPage() {
       </div>
 
       {/* 일괄 작업 버튼 */}
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex justify-end gap-2">
         <Button
           variant="destructive"
           onClick={handleBulkDelete}
@@ -242,7 +350,7 @@ export function UsersPage() {
         </Button>
       </div>
 
-      <div style={{ height: '650px', width: '100%' }}>
+      <div style={{ height: "650px", width: "100%" }}>
         <AgGridReact<UserResponse>
           ref={gridRef}
           rowData={users}
@@ -263,10 +371,19 @@ export function UsersPage() {
             rowHeight: 48,
             fontSize: 13,
             headerFontSize: 13,
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
           })}
         />
       </div>
+
+      {confirmOpen && (
+        <ConfirmDialog
+          message={`${pendingDeleteRows.length}명의 사용자를 삭제하시겠습니까?`}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
+      )}
 
       {users.length === 0 && (
         <div className="text-center py-12">
@@ -274,5 +391,5 @@ export function UsersPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
