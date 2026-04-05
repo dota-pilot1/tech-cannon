@@ -387,7 +387,7 @@ function DetailPanel({ log, onDelete }: { log: DevLog; onDelete: () => void }) {
               onChange={(e) => setContent(e.target.value)}
               onBlur={handleContentBlur}
               placeholder="오늘 한 일을 기록하세요..."
-              className="w-full text-sm text-foreground bg-transparent border border-transparent hover:border-border focus:border-input rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring transition-colors leading-relaxed placeholder:text-muted-foreground"
+              className="w-full text-sm text-foreground bg-muted/30 border border-border rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring leading-relaxed placeholder:text-muted-foreground"
             />
           )}
         </div>
