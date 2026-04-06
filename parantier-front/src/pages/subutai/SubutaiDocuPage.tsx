@@ -1,386 +1,880 @@
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { FolderOpen, FileText, Search, X } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
+import { useConfirm } from "@/shared/hooks/useConfirm";
+import { toast } from "sonner";
+import { useQueries } from "@tanstack/react-query";
 import {
-  ChevronDown,
-  ChevronRight,
-  FolderOpen,
-  Folder,
-  FileText,
-  Plus,
-  Pencil,
-  Trash2,
-  FileSearch,
-} from "lucide-react";
+  useSubutaiDocuFolders,
+  useSubutaiDocuPostDetail,
+  useSaveSubutaiDocuMutation,
+  useDeleteSubutaiDocuMutation,
+  useCreateSubutaiDocuFolderMutation,
+  useRenameSubutaiDocuFolderMutation,
+  useDeleteSubutaiDocuFolderMutation,
+} from "@/features/subutai-docu/hooks/useSubutaiDocu";
+import { subutaiDocuApi } from "@/features/subutai-docu/api/subutaiDocuApi";
+import type {
+  SubutaiDocuFolder,
+  SubutaiDocuPost,
+  SubutaiDocuBlock,
+} from "@/features/subutai-docu/types/subutaiDocu.types";
+import { buildTree } from "@/features/subutai-docu/types/subutaiDocu.types";
+import SubutaiDocuBlockEditor from "@/features/subutai-docu/components/SubutaiDocuBlockEditor";
+import SubutaiDocuBlockViewer from "@/features/subutai-docu/components/SubutaiDocuBlockViewer";
 
-// ─── 더미 데이터 ─────────────────────────────────────────────
-const DUMMY_TREE = [
-  {
-    id: "cat-1",
-    label: "Spring Boot",
-    docs: [
-      {
-        id: "doc-1",
-        title: "Spring Security 설정 가이드",
-        content: `# Spring Security 설정 가이드
+// 폴더 컨텍스트 메뉴
+type FolderCtxMenu = {
+  x: number;
+  y: number;
+  folderId: number;
+  folderName: string;
+} | null;
 
-Spring Security는 Spring 기반 애플리케이션의 인증(Authentication)과 인가(Authorization)를 담당하는 강력한 보안 프레임워크입니다.
+// 문서 컨텍스트 메뉴
+type PostCtxMenu = {
+  x: number;
+  y: number;
+  postId: number;
+  postTitle: string;
+} | null;
 
-## 의존성 추가
+function FolderContextMenu({
+  menu,
+  onClose,
+  onAddSubFolder,
+  onAddDoc,
+  onRename,
+  onDelete,
+}: {
+  menu: FolderCtxMenu;
+  onClose: () => void;
+  onAddSubFolder: (parentId: number) => void;
+  onAddDoc: (folderId: number) => void;
+  onRename: (id: number, name: string) => void;
+  onDelete: (id: number, name: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
 
-build.gradle에 다음 의존성을 추가합니다.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
 
-  implementation 'org.springframework.boot:spring-boot-starter-security'
+  if (!menu) return null;
 
-## SecurityConfig 작성
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 bg-card border border-border rounded shadow-xl py-1 min-w-[180px] text-sm"
+      style={{ top: menu.y, left: menu.x }}
+    >
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-accent flex items-center gap-2"
+        onClick={() => {
+          onAddSubFolder(menu.folderId);
+          onClose();
+        }}
+      >
+        <span>📁</span> 하위 폴더 추가
+      </button>
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-accent flex items-center gap-2"
+        onClick={() => {
+          onAddDoc(menu.folderId);
+          onClose();
+        }}
+      >
+        <span>📄</span> 새 문서 추가
+      </button>
+      <div className="border-t border-border my-1" />
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-accent flex items-center gap-2"
+        onClick={() => {
+          onRename(menu.folderId, menu.folderName);
+          onClose();
+        }}
+      >
+        <span>✏️</span> 이름 변경
+      </button>
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-destructive/10 text-destructive flex items-center gap-2"
+        onClick={() => {
+          onDelete(menu.folderId, menu.folderName);
+          onClose();
+        }}
+      >
+        <span>🗑️</span> 폴더 삭제
+      </button>
+    </div>
+  );
+}
 
-SecurityFilterChain 빈을 등록하여 보안 정책을 정의합니다. 공개 경로와 인증 필요 경로를 명확히 구분하고, CSRF 설정, 세션 정책, JWT 필터 등록 등을 순서에 맞게 구성합니다.
+function PostContextMenu({
+  menu,
+  onClose,
+  onDelete,
+}: {
+  menu: PostCtxMenu;
+  onClose: () => void;
+  onDelete: (id: number, title: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
 
-## JWT 필터 등록
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
 
-OncePerRequestFilter를 상속받아 JwtAuthenticationFilter를 구현한 뒤, UsernamePasswordAuthenticationFilter 앞에 추가합니다.
+  if (!menu) return null;
 
-## 주의사항
-
-- passwordEncoder는 반드시 BCryptPasswordEncoder를 사용하세요.
-- @EnableMethodSecurity를 선언해야 @PreAuthorize가 동작합니다.
-- CORS 설정은 Spring Security 레벨에서 처리해야 합니다.`,
-      },
-      {
-        id: "doc-2",
-        title: "JPA 엔티티 설계 패턴",
-        content: `# JPA 엔티티 설계 패턴
-
-JPA 엔티티는 데이터베이스 테이블과 매핑되는 도메인 객체입니다. 올바른 설계는 유지보수성과 성능 모두에 영향을 미칩니다.
-
-## 기본 애노테이션 구조
-
-  @Entity
-  @Table(name = "users")
-  @Getter
-  @NoArgsConstructor(access = AccessLevel.PROTECTED)
-  @Builder
-  public class User { ... }
-
-## 생성자 전략
-
-- 기본 생성자는 protected로 막아 외부에서 new User()를 방지합니다.
-- @Builder 패턴으로 명시적인 객체 생성을 유도합니다.
-
-## BaseEntity 활용
-
-createdAt, updatedAt 등 공통 필드는 @MappedSuperclass로 분리하여 모든 엔티티에서 상속받습니다.
-
-## 연관관계 설정
-
-- 양방향 연관관계는 꼭 필요한 경우에만 설정합니다.
-- 연관관계 편의 메서드를 엔티티 내부에 작성합니다.
-- FetchType은 기본적으로 LAZY를 사용합니다.`,
-      },
-      {
-        id: "doc-3",
-        title: "REST API 응답 구조",
-        content: `# REST API 응답 구조
-
-일관된 API 응답 구조는 클라이언트 개발 생산성과 유지보수성을 크게 향상시킵니다.
-
-## 공통 응답 래퍼
-
-성공/실패 여부, 상태 코드, 메시지, 데이터를 포함하는 ApiResponse<T> 제네릭 클래스를 정의합니다.
-
-## HTTP 상태 코드 활용
-
-- 200 OK : 조회 성공
-- 201 Created : 생성 성공
-- 204 No Content : 삭제 성공
-- 400 Bad Request : 유효성 검증 실패
-- 401 Unauthorized : 인증 실패
-- 403 Forbidden : 권한 없음
-- 404 Not Found : 리소스 없음
-
-## 예외 처리
-
-@RestControllerAdvice와 @ExceptionHandler를 사용하여 전역 예외 처리기를 구성합니다. 커스텀 예외 클래스 계층을 만들어 비즈니스 예외와 시스템 예외를 분리하세요.`,
-      },
-    ],
-  },
-  {
-    id: "cat-2",
-    label: "React",
-    docs: [
-      {
-        id: "doc-4",
-        title: "컴포넌트 설계 원칙",
-        content: `# 컴포넌트 설계 원칙
-
-좋은 React 컴포넌트는 단일 책임 원칙을 따르고, 재사용 가능하며, 테스트하기 쉬워야 합니다.
-
-## 단일 책임 원칙
-
-하나의 컴포넌트는 하나의 역할만 담당합니다. UI 렌더링과 비즈니스 로직은 Custom Hook으로 분리합니다.
-
-## 합성 패턴 활용
-
-props drilling 없이 컴포넌트를 조합하려면 Context API 또는 children prop을 활용합니다.
-
-## Props 타입 정의
-
-TypeScript interface로 Props 타입을 명확히 정의합니다. 선택적 props에는 기본값을 제공하세요.
-
-## 메모이제이션
-
-- React.memo : 동일한 props 시 리렌더 방지
-- useMemo : 비용이 큰 연산 캐싱
-- useCallback : 이벤트 핸들러 안정화
-
-무분별한 메모이제이션은 오히려 성능을 저하시킬 수 있으므로, 실제 성능 문제가 발생할 때 적용하세요.`,
-      },
-      {
-        id: "doc-5",
-        title: "TanStack Query 사용법",
-        content: `# TanStack Query 사용법
-
-TanStack Query(구 React Query)는 서버 상태 관리를 위한 강력한 라이브러리입니다.
-
-## 기본 설정
-
-QueryClient와 QueryClientProvider를 앱 최상단에 설정합니다.
-
-## useQuery
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['posts', postId],
-    queryFn: () => fetchPost(postId),
-    staleTime: 1000 * 60 * 5, // 5분
-  });
-
-## useMutation
-
-데이터 생성·수정·삭제에 useMutation을 사용합니다. onSuccess 콜백에서 queryClient.invalidateQueries()를 호출하여 관련 캐시를 갱신합니다.
-
-## 캐시 전략
-
-- staleTime : 데이터가 신선하다고 간주되는 시간
-- gcTime : 캐시에서 제거되기까지의 시간
-- refetchOnWindowFocus : 탭 복귀 시 재요청 여부`,
-      },
-    ],
-  },
-];
-// ─────────────────────────────────────────────────────────────
-
-type Doc = {
-  id: string;
-  title: string;
-  content: string;
-};
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 bg-card border border-border rounded shadow-xl py-1 min-w-[160px] text-sm"
+      style={{ top: menu.y, left: menu.x }}
+    >
+      <button
+        className="w-full text-left px-3 py-2 hover:bg-destructive/10 text-destructive flex items-center gap-2"
+        onClick={() => {
+          onDelete(menu.postId, menu.postTitle);
+          onClose();
+        }}
+      >
+        <span>🗑️</span> 문서 삭제
+      </button>
+    </div>
+  );
+}
 
 export default function SubutaiDocuPage() {
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(
-    new Set(["cat-1", "cat-2"]),
-  );
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const { confirm, ConfirmDialog } = useConfirm();
 
-  const toggleCategory = (catId: string) => {
-    setExpandedCats((prev) => {
-      const next = new Set(prev);
-      if (next.has(catId)) {
-        next.delete(catId);
-      } else {
-        next.add(catId);
+  const { data: folders = [] } = useSubutaiDocuFolders();
+  const { roots, children: folderChildren } = useMemo(
+    () => buildTree(folders),
+    [folders],
+  );
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [inputValue, setInputValue] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(
+    new Set(),
+  );
+
+  const [sidebarWidth, setSidebarWidth] = useState(250);
+  const isResizing = useRef(false);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [formTitle, setFormTitle] = useState("");
+  const [blocks, setBlocks] = useState<SubutaiDocuBlock[]>([]);
+
+  const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
+  const [inlineFolderInput, setInlineFolderInput] = useState<{
+    parentId: number | null;
+  } | null>(null);
+  const [inlineFolderName, setInlineFolderName] = useState("");
+  const [inlineDocInput, setInlineDocInput] = useState<{
+    folderId: number;
+  } | null>(null);
+  const [inlineDocTitle, setInlineDocTitle] = useState("");
+  const [folderCtxMenu, setFolderCtxMenu] = useState<FolderCtxMenu>(null);
+  const [postCtxMenu, setPostCtxMenu] = useState<PostCtxMenu>(null);
+
+  // 확장된 폴더들의 posts 조회
+  const postsQueries = useQueries({
+    queries: Array.from(expandedFolders).map((folderId) => ({
+      queryKey: ["subutaiDocuPosts", folderId],
+      queryFn: () => subutaiDocuApi.getPostsByFolder(folderId),
+      staleTime: 30000, // 30초 동안 캐시 유지
+    })),
+  });
+
+  // 폴더별 posts를 Map으로 변환
+  const postsByFolder = useMemo(() => {
+    const map = new Map<number, SubutaiDocuPost[]>();
+    const expandedArray = Array.from(expandedFolders);
+    expandedArray.forEach((folderId, index) => {
+      const query = postsQueries[index];
+      if (query?.data) {
+        map.set(folderId, query.data);
       }
+    });
+    return map;
+  }, [postsQueries, expandedFolders]);
+
+  const { data: postDetail } = useSubutaiDocuPostDetail(
+    selectedPostId,
+    !isEditing,
+  );
+
+  const saveMutation = useSaveSubutaiDocuMutation(
+    selectedFolderId,
+    selectedPostId,
+    (newId) => {
+      setSelectedPostId(newId);
+      setIsEditing(false);
+    },
+  );
+
+  const deleteMutation = useDeleteSubutaiDocuMutation(selectedFolderId, () => {
+    setSelectedPostId(null);
+    setIsEditing(false);
+  });
+
+  const createFolderMutation = useCreateSubutaiDocuFolderMutation(
+    (parentId) => {
+      setInlineFolderInput(null);
+      setInlineFolderName("");
+      if (parentId !== null)
+        setExpandedFolders((p) => new Set(p).add(parentId));
+    },
+  );
+
+  const renameFolderMutation = useRenameSubutaiDocuFolderMutation(() => {
+    setEditingFolderId(null);
+  });
+
+  const deleteFolderMutation = useDeleteSubutaiDocuFolderMutation(() => {
+    setSelectedFolderId(null);
+    setSelectedPostId(null);
+  });
+
+  const createDocMutation = useSaveSubutaiDocuMutation(
+    inlineDocInput?.folderId ?? null,
+    null,
+    (newId) => {
+      setInlineDocInput(null);
+      setInlineDocTitle("");
+      setSelectedFolderId(null);
+      setSelectedPostId(newId);
+      setIsEditing(false);
+    },
+  );
+
+  // Sidebar resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      setSidebarWidth(Math.max(200, Math.min(800, e.clientX - 24)));
+    };
+    const handleMouseUp = () => {
+      if (isResizing.current) {
+        isResizing.current = false;
+        document.body.style.cursor = "default";
+      }
+    };
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  const handleFolderClick = (id: number) => {
+    setSelectedFolderId(id);
+    setSelectedPostId(null);
+    setIsEditing(false);
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
-  const selectedDoc: Doc | null =
-    DUMMY_TREE.flatMap((cat) => cat.docs).find(
-      (doc) => doc.id === selectedDocId,
-    ) ?? null;
+  const handlePostClick = (post: SubutaiDocuPost) => {
+    setSelectedPostId(post.id);
+    setSelectedFolderId(null);
+    setIsEditing(false);
+  };
+
+  const openNewDoc = (folderId: number) => {
+    setInlineDocInput({ folderId });
+    setInlineDocTitle("");
+    setExpandedFolders((p) => new Set(p).add(folderId));
+  };
+
+  const handleCreateDoc = () => {
+    const trimmedTitle = inlineDocTitle.trim();
+    if (!trimmedTitle) {
+      toast.error("문서 제목을 입력하세요");
+      return;
+    }
+    if (!inlineDocInput) return;
+
+    createDocMutation.mutate({
+      folderId: inlineDocInput.folderId,
+      title: trimmedTitle,
+      blocks: [{ blockType: "NOTE", content: "" }],
+    });
+  };
+
+  const handleEdit = () => {
+    if (!postDetail) return;
+    setFormTitle(postDetail.title);
+    setBlocks(
+      postDetail.blocks?.length
+        ? [...postDetail.blocks]
+        : [{ blockType: "NOTE", content: "" }],
+    );
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!formTitle.trim()) {
+      toast.error("제목을 입력하세요");
+      return;
+    }
+    const folderId = selectedFolderId ?? postDetail?.folderId ?? null;
+    if (!folderId) return;
+
+    const refinedBlocks = blocks.map((b) => ({
+      blockType: b.blockType,
+      content: b.content,
+    }));
+
+    saveMutation.mutate({
+      id: selectedPostId || undefined,
+      folderId: folderId,
+      title: formTitle,
+      blocks: refinedBlocks,
+    });
+  };
+
+  const handleDelete = async () => {
+    if (!selectedPostId) return;
+    const ok = await confirm({
+      title: "삭제 확인",
+      description: "이 문서를 삭제하시겠습니까?",
+      variant: "destructive",
+    });
+    if (ok) deleteMutation.mutate(selectedPostId);
+  };
+
+  const handleDeleteFolder = async (id: number, name: string) => {
+    const ok = await confirm({
+      title: "폴더 삭제",
+      description: `"${name}" 폴더와 하위 문서가 모두 삭제됩니다.`,
+      variant: "destructive",
+    });
+    if (ok) deleteFolderMutation.mutate(id);
+  };
+
+  const handleCreateFolder = () => {
+    const trimmedName = inlineFolderName.trim();
+    console.log("[SubutaiDocuPage] handleCreateFolder 호출:", {
+      trimmedName,
+      parentId: inlineFolderInput?.parentId,
+    });
+
+    if (!trimmedName) {
+      console.log("[SubutaiDocuPage] 폴더명이 비어있어서 취소");
+      toast.error("폴더명을 입력하세요");
+      return;
+    }
+
+    console.log("[SubutaiDocuPage] createFolderMutation.mutate 호출");
+    createFolderMutation.mutate({
+      name: trimmedName,
+      parentId: inlineFolderInput?.parentId ?? null,
+    });
+  };
+
+  const openInlineFolderInput = (parentId: number | null) => {
+    setInlineFolderInput({ parentId });
+    setInlineFolderName("");
+    if (parentId !== null) setExpandedFolders((p) => new Set(p).add(parentId));
+  };
+
+  // 인라인 폴더명 입력
+  const renderInlineFolderInput = (depth: number) => (
+    <div
+      className={cn(
+        "flex items-center gap-2 py-1 px-3",
+        depth > 0 ? "ml-4" : "",
+      )}
+    >
+      <FolderOpen className="w-4 h-4 shrink-0 text-muted-foreground" />
+      <input
+        autoFocus
+        value={inlineFolderName}
+        onChange={(e) => setInlineFolderName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return;
+          if (e.key === "Enter") handleCreateFolder();
+          if (e.key === "Escape") {
+            setInlineFolderInput(null);
+            setInlineFolderName("");
+          }
+        }}
+        placeholder="이름 입력 후 Enter"
+        className="flex-1 border border-ring rounded px-1.5 py-0.5 text-xs min-w-0 focus:outline-none focus:ring-1 focus:ring-ring bg-background text-foreground"
+      />
+    </div>
+  );
+
+  // 인라인 문서 제목 입력
+  const renderInlineDocInput = (depth: number) => (
+    <div
+      className={cn(
+        "flex items-center gap-2 py-1 px-3",
+        depth > 0 ? "ml-4" : "",
+      )}
+    >
+      <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
+      <input
+        autoFocus
+        value={inlineDocTitle}
+        onChange={(e) => setInlineDocTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return;
+          if (e.key === "Enter") handleCreateDoc();
+          if (e.key === "Escape") {
+            setInlineDocInput(null);
+            setInlineDocTitle("");
+          }
+        }}
+        placeholder="제목 입력 후 Enter"
+        className="flex-1 border border-ring rounded px-1.5 py-0.5 text-xs min-w-0 focus:outline-none focus:ring-1 focus:ring-ring bg-background text-foreground"
+      />
+    </div>
+  );
+
+  // 폴더 렌더링
+  const renderFolder = (folder: SubutaiDocuFolder, depth = 0) => {
+    const isSelected = selectedFolderId === folder.id;
+    const isExpanded = expandedFolders.has(folder.id);
+    const subFolders = folderChildren[folder.id] ?? [];
+    const isEditingThis = editingFolderId === folder.id;
+
+    return (
+      <div key={folder.id} className={depth > 0 ? "ml-4" : ""}>
+        <div
+          className={cn(
+            "group flex items-center gap-2 py-2 px-3 rounded cursor-pointer transition-colors",
+            isSelected
+              ? "bg-primary text-primary-foreground font-medium"
+              : "hover:bg-accent",
+          )}
+          onClick={() => handleFolderClick(folder.id)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setFolderCtxMenu({
+              x: e.clientX,
+              y: e.clientY,
+              folderId: folder.id,
+              folderName: folder.name,
+            });
+          }}
+        >
+          <span className="shrink-0 text-sm">{isExpanded ? "▼" : "▶"}</span>
+          <FolderOpen
+            className={cn(
+              "w-4 h-4 shrink-0",
+              isSelected ? "text-primary-foreground" : "text-muted-foreground",
+            )}
+          />
+          {isEditingThis ? (
+            <input
+              autoFocus
+              value={editingFolderName}
+              onChange={(e) => setEditingFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === "Enter")
+                  renameFolderMutation.mutate({
+                    id: folder.id,
+                    dto: { name: editingFolderName, parentId: folder.parentId },
+                  });
+                if (e.key === "Escape") setEditingFolderId(null);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 border rounded px-1 py-0 text-xs min-w-0 text-foreground bg-background"
+            />
+          ) : (
+            <span className="flex-1 truncate min-w-0 text-sm">
+              {folder.name}
+            </span>
+          )}
+          {!isEditingThis && (
+            <div className="hidden group-hover:flex gap-0.5 shrink-0">
+              <button
+                className={cn(
+                  "text-xs px-1 rounded",
+                  isSelected
+                    ? "text-primary-foreground/70 hover:text-primary-foreground"
+                    : "text-muted-foreground hover:text-primary",
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openNewDoc(folder.id);
+                }}
+                title="새 문서"
+              >
+                +
+              </button>
+              <button
+                className={cn(
+                  "text-xs px-1 rounded",
+                  isSelected
+                    ? "text-primary-foreground/70 hover:text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingFolderId(folder.id);
+                  setEditingFolderName(folder.name);
+                }}
+                title="이름 변경"
+              >
+                ✏️
+              </button>
+              <button
+                className={cn(
+                  "text-xs px-1 rounded",
+                  isSelected
+                    ? "text-primary-foreground/70 hover:text-destructive"
+                    : "text-muted-foreground hover:text-destructive",
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteFolder(folder.id, folder.name);
+                }}
+                title="삭제"
+              >
+                🗑️
+              </button>
+            </div>
+          )}
+        </div>
+
+        {isExpanded && (
+          <>
+            {subFolders.map((sub) => renderFolder(sub, depth + 1))}
+            {inlineFolderInput?.parentId === folder.id &&
+              renderInlineFolderInput(depth + 1)}
+            {inlineDocInput?.folderId === folder.id &&
+              renderInlineDocInput(depth + 1)}
+            {(postsByFolder.get(folder.id) || []).map((post) => {
+              return (
+                <div
+                  key={post.id}
+                  onClick={() => handlePostClick(post)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPostCtxMenu({
+                      x: Math.min(e.clientX, window.innerWidth - 180),
+                      y: Math.min(e.clientY, window.innerHeight - 80),
+                      postId: post.id,
+                      postTitle: post.title,
+                    });
+                  }}
+                  className={cn(
+                    "ml-4 flex items-center gap-2 py-2 px-3 rounded cursor-pointer text-sm transition-colors",
+                    selectedPostId === post.id
+                      ? "bg-primary text-primary-foreground font-medium"
+                      : "hover:bg-accent text-foreground",
+                  )}
+                >
+                  <FileText
+                    className={cn(
+                      "w-4 h-4 shrink-0",
+                      selectedPostId === post.id
+                        ? "text-primary-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  />
+                  <span className="truncate min-w-0">{post.title}</span>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div
-      className="flex bg-background text-foreground"
-      style={{ height: "calc(100vh - 64px)" }}
-    >
-      {/* ── 좌측: 문서 트리 ──────────────────────────────────── */}
-      <aside className="w-64 shrink-0 border-r border-border flex flex-col overflow-hidden">
-        {/* 트리 헤더 */}
-        <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
-          <span className="text-sm font-semibold">문서 관리</span>
-          <button
-            className="flex items-center gap-1 text-xs text-primary hover:bg-primary/10 px-2 py-1 rounded-md transition-colors"
-            onClick={() => alert("더미 기능: 새 문서 추가")}
+    <div className="min-h-screen bg-background p-6">
+      <ConfirmDialog />
+      <PostContextMenu
+        menu={postCtxMenu}
+        onClose={() => setPostCtxMenu(null)}
+        onDelete={async (id, title) => {
+          const ok = await confirm({
+            title: "문서 삭제",
+            description: `"${title}" 문서를 삭제하시겠습니까?`,
+            variant: "destructive",
+          });
+          if (ok) {
+            deleteMutation.mutate(id);
+            if (selectedPostId === id) {
+              setSelectedPostId(null);
+              setIsEditing(false);
+            }
+          }
+        }}
+      />
+      <FolderContextMenu
+        menu={folderCtxMenu}
+        onClose={() => setFolderCtxMenu(null)}
+        onAddSubFolder={(parentId) => openInlineFolderInput(parentId)}
+        onAddDoc={(folderId) => openNewDoc(folderId)}
+        onRename={(id, name) => {
+          setEditingFolderId(id);
+          setEditingFolderName(name);
+        }}
+        onDelete={(id, name) => handleDeleteFolder(id, name)}
+      />
+
+      <div className="bg-card rounded border mb-4">
+        <div className="p-3 border-b bg-muted/30">
+          <h1 className="text-lg font-bold text-foreground">Subutai Docu</h1>
+        </div>
+      </div>
+
+      <div
+        className="flex items-stretch"
+        style={{ minHeight: "calc(100vh - 120px)" }}
+      >
+        {/* 좌: 트리 */}
+        <div
+          className="shrink-0 bg-card rounded border flex flex-col h-full"
+          style={{
+            width: `${sidebarWidth}px`,
+            maxHeight: "calc(100vh - 120px)",
+          }}
+        >
+          <div className="flex items-center gap-1.5 px-2 py-1.5 border-b bg-muted/30">
+            <div className="flex items-center gap-1 flex-1 min-w-0 border rounded bg-background px-1.5 py-0.5">
+              <Search className="w-3 h-3 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setSearchQuery(inputValue);
+                    e.currentTarget.blur();
+                  }
+                  if (e.key === "Escape") {
+                    setInputValue("");
+                    setSearchQuery("");
+                  }
+                }}
+                placeholder="검색 후 Enter..."
+                className="flex-1 min-w-0 text-xs bg-transparent outline-none placeholder:text-muted-foreground/50"
+              />
+              {(inputValue || searchQuery) && (
+                <button
+                  onClick={() => {
+                    setInputValue("");
+                    setSearchQuery("");
+                  }}
+                  className="text-muted-foreground hover:text-foreground shrink-0 leading-none"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => openInlineFolderInput(null)}
+              className="px-2 py-0.5 text-xs bg-foreground text-background rounded hover:opacity-80 shrink-0 whitespace-nowrap"
+            >
+              + 폴더
+            </button>
+          </div>
+
+          <div
+            className="overflow-y-auto py-1"
+            style={{ maxHeight: "calc(100vh - 200px)" }}
           >
-            <Plus className="w-3.5 h-3.5" />
-            추가
-          </button>
-        </div>
-
-        {/* 카테고리 + 문서 트리 */}
-        <div className="flex-1 overflow-y-auto py-2">
-          {DUMMY_TREE.map((cat) => {
-            const isOpen = expandedCats.has(cat.id);
-            return (
-              <div key={cat.id} className="mb-1">
-                {/* 카테고리 헤더 */}
-                <button
-                  onClick={() => toggleCategory(cat.id)}
-                  className="w-full flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors text-left"
-                >
-                  {isOpen ? (
-                    <>
-                      <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <FolderOpen className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    </>
-                  ) : (
-                    <>
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <Folder className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    </>
-                  )}
-                  <span className="truncate">{cat.label}</span>
-                  <span className="ml-auto text-xs text-muted-foreground font-mono shrink-0">
-                    {cat.docs.length}
-                  </span>
-                </button>
-
-                {/* 문서 목록 */}
-                {isOpen && (
-                  <div className="ml-7 border-l border-border pl-2 space-y-0.5">
-                    {cat.docs.map((doc) => {
-                      const isSelected = doc.id === selectedDocId;
-                      return (
-                        <button
-                          key={doc.id}
-                          onClick={() => setSelectedDocId(doc.id)}
-                          className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors text-left ${
-                            isSelected
-                              ? "bg-primary/10 text-primary font-medium"
-                              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                          }`}
-                        >
-                          <FileText
-                            className={`w-3.5 h-3.5 shrink-0 ${
-                              isSelected
-                                ? "text-primary"
-                                : "text-muted-foreground"
-                            }`}
-                          />
-                          <span className="truncate">{doc.title}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </aside>
-
-      {/* ── 우측: 문서 뷰어 ──────────────────────────────────── */}
-      <section className="flex-1 flex flex-col overflow-hidden">
-        {selectedDoc ? (
-          <>
-            {/* 문서 뷰어 헤더 */}
-            <div className="px-6 py-3 border-b border-border flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText className="w-4 h-4 text-primary shrink-0" />
-                <h1 className="text-base font-semibold truncate">
-                  {selectedDoc.title}
-                </h1>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 ml-4">
-                <button
-                  onClick={() => alert("더미 기능: 문서 수정")}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
-                >
-                  <Pencil className="w-3 h-3" />
-                  수정
-                </button>
-                <button
-                  onClick={() => alert("더미 기능: 문서 삭제")}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  삭제
-                </button>
-              </div>
-            </div>
-
-            {/* 문서 내용 */}
-            <div className="flex-1 overflow-y-auto px-8 py-6">
-              <article className="max-w-3xl mx-auto">
-                {selectedDoc.content.split("\n").map((line, idx) => {
-                  if (line.startsWith("# ")) {
-                    return (
-                      <h1
-                        key={idx}
-                        className="text-2xl font-bold text-foreground mb-4 mt-0"
-                      >
-                        {line.replace("# ", "")}
-                      </h1>
-                    );
-                  }
-                  if (line.startsWith("## ")) {
-                    return (
-                      <h2
-                        key={idx}
-                        className="text-lg font-semibold text-foreground mt-8 mb-3 pb-1.5 border-b border-border"
-                      >
-                        {line.replace("## ", "")}
-                      </h2>
-                    );
-                  }
-                  if (line.startsWith("- ")) {
-                    return (
-                      <li
-                        key={idx}
-                        className="text-sm text-muted-foreground leading-relaxed ml-4 mb-1 list-disc"
-                      >
-                        {line.replace("- ", "")}
-                      </li>
-                    );
-                  }
-                  if (line.match(/^\s{2}/)) {
-                    return (
-                      <pre
-                        key={idx}
-                        className="block bg-muted/50 border border-border rounded-md px-4 py-2 text-xs font-mono text-foreground my-2"
-                      >
-                        {line.trim()}
-                      </pre>
-                    );
-                  }
-                  if (line === "") {
-                    return <div key={idx} className="h-2" />;
-                  }
-                  return (
-                    <p
-                      key={idx}
-                      className="text-sm text-muted-foreground leading-relaxed mb-1"
-                    >
-                      {line}
-                    </p>
-                  );
-                })}
-              </article>
-            </div>
-          </>
-        ) : (
-          /* 미선택 빈 상태 */
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-muted-foreground">
-            <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
-              <FileSearch className="w-8 h-8 opacity-40" />
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-medium mb-1">문서를 선택하세요</p>
-              <p className="text-xs opacity-70">
-                좌측 트리에서 열람할 문서를 클릭하세요
+            {roots.length === 0 && !inlineFolderInput ? (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                + 폴더 버튼으로 추가하세요.
               </p>
+            ) : searchQuery.trim() !== "" ? (
+              // 검색 모드: 폴더명 + 문서 제목 필터링
+              (() => {
+                const q = searchQuery.trim().toLowerCase();
+                const matchedFolders = folders.filter((f) =>
+                  f.name.toLowerCase().includes(q),
+                );
+                const allPosts = Array.from(postsByFolder.entries()).flatMap(
+                  ([folderId, posts]) =>
+                    posts
+                      .filter((p) => p.title.toLowerCase().includes(q))
+                      .map((p) => ({ ...p, folderId })),
+                );
+                return (
+                  <div>
+                    {matchedFolders.length > 0 && (
+                      <>
+                        <p className="text-[10px] text-muted-foreground px-3 pt-2 pb-0.5 font-medium">
+                          폴더
+                        </p>
+                        {matchedFolders.map((f) => (
+                          <div
+                            key={f.id}
+                            onClick={() => handleFolderClick(f.id)}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded transition-colors",
+                              selectedFolderId === f.id
+                                ? "bg-primary text-primary-foreground font-medium"
+                                : "hover:bg-accent",
+                            )}
+                          >
+                            <FolderOpen
+                              className={cn(
+                                "w-4 h-4 shrink-0",
+                                selectedFolderId === f.id
+                                  ? "text-primary-foreground"
+                                  : "text-muted-foreground",
+                              )}
+                            />
+                            <span className="truncate">{f.name}</span>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                    {allPosts.length > 0 && (
+                      <>
+                        <p className="text-[10px] text-muted-foreground px-3 pt-2 pb-0.5 font-medium">
+                          문서
+                        </p>
+                        {allPosts.map((p) => {
+                          return (
+                            <div
+                              key={p.id}
+                              onClick={() => handlePostClick(p)}
+                              className={cn(
+                                "flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded transition-colors",
+                                selectedPostId === p.id
+                                  ? "bg-primary text-primary-foreground font-medium"
+                                  : "hover:bg-accent text-foreground",
+                              )}
+                            >
+                              <FileText
+                                className={cn(
+                                  "w-4 h-4 shrink-0",
+                                  selectedPostId === p.id
+                                    ? "text-primary-foreground"
+                                    : "text-muted-foreground",
+                                )}
+                              />
+                              <span className="truncate">{p.title}</span>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                    {matchedFolders.length === 0 && allPosts.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">
+                        검색 결과가 없습니다.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()
+            ) : (
+              roots.map((f) => renderFolder(f))
+            )}
+            {!searchQuery.trim() &&
+              inlineFolderInput?.parentId === null &&
+              renderInlineFolderInput(0)}
+          </div>
+        </div>
+
+        {/* 크기 조절 핸들 */}
+        <div
+          className="w-4 cursor-col-resize flex flex-col justify-center items-center group z-10 mx-[-2px]"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            isResizing.current = true;
+            document.body.style.cursor = "col-resize";
+          }}
+        >
+          <div className="w-[1px] h-full bg-border group-hover:bg-primary/40 group-active:bg-primary/60 transition-colors"></div>
+        </div>
+
+        {/* 우: 상세 */}
+        <div className="flex-1 min-w-0 bg-card rounded border">
+          <div className="flex items-center justify-between p-3 border-b bg-muted/30">
+            <span className="font-medium text-sm">
+              {isEditing
+                ? selectedPostId
+                  ? "문서 편집"
+                  : "새 문서"
+                : "문서 상세"}
+            </span>
+            <div className="flex gap-1">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleSave}
+                    disabled={saveMutation.isPending}
+                    className="px-3 py-1 text-xs bg-foreground text-background rounded hover:opacity-80 disabled:opacity-50"
+                  >
+                    저장
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-3 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/70"
+                  >
+                    취소
+                  </button>
+                </>
+              ) : selectedPostId ? (
+                <>
+                  <button
+                    onClick={handleEdit}
+                    className="px-3 py-1 text-xs bg-foreground text-background rounded hover:opacity-80"
+                  >
+                    편집
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="px-3 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:bg-destructive/90"
+                  >
+                    삭제
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
-        )}
-      </section>
+
+          <div className="p-4">
+            {isEditing ? (
+              <SubutaiDocuBlockEditor
+                title={formTitle}
+                setTitle={setFormTitle}
+                blocks={blocks}
+                setBlocks={setBlocks}
+              />
+            ) : postDetail ? (
+              <SubutaiDocuBlockViewer post={postDetail} />
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                {selectedFolderId
+                  ? "폴더 hover 후 + 버튼으로 새 문서 추가"
+                  : "좌측에서 폴더를 선택하세요."}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
