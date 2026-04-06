@@ -322,6 +322,7 @@ export default function SubutaiAiPage() {
   const [editingTitle, setEditingTitle] = useState("");
   const [editingSections, setEditingSections] = useState<DocSection[]>([]);
   const [isSavingPost, setIsSavingPost] = useState(false);
+  const [selectedSectionIdx, setSelectedSectionIdx] = useState<number>(0);
 
   // ── 저장소 탭 상태 ──────────────────────────────────────────────────────────
   const [repoUrl, setRepoUrl] = useState("");
@@ -501,6 +502,7 @@ export default function SubutaiAiPage() {
       setViewPost(full);
       setEditingTitle(full.title);
       setEditingSections(full.sections ?? []);
+      setSelectedSectionIdx(0);
       setIsViewDialogOpen(true);
     } catch {
       // 무시
@@ -526,10 +528,18 @@ export default function SubutaiAiPage() {
   };
 
   const addSection = () => {
-    setEditingSections((prev) => [
-      ...prev,
-      { title: "", content: "", orderNum: prev.length },
-    ]);
+    setEditingSections((prev) => {
+      const next = [
+        ...prev,
+        {
+          title: `본문 ${prev.length + 1}`,
+          content: "",
+          orderNum: prev.length,
+        },
+      ];
+      setSelectedSectionIdx(next.length - 1);
+      return next;
+    });
   };
 
   const removeSection = (idx: number) => {
@@ -830,103 +840,146 @@ export default function SubutaiAiPage() {
     >
       <ConfirmDialog />
 
-      {/* 문서 보기/편집 다이얼로그 */}
+      {/* 문서 보기/편집 다이얼로그 - 풀스크린 좌우 분할 */}
       {isViewDialogOpen && viewPost && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setIsViewDialogOpen(false)}
-        >
-          <div
-            className="bg-card border border-border rounded-xl shadow-2xl w-[800px] max-w-[90vw] max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* 헤더 */}
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-border shrink-0">
-              <FileText className="w-5 h-5 text-primary shrink-0" />
-              <input
-                value={editingTitle}
-                onChange={(e) => setEditingTitle(e.target.value)}
-                className="flex-1 text-lg font-semibold bg-transparent outline-none border-b border-transparent focus:border-primary/50"
-                placeholder="문서 제목"
-              />
-              <button
-                onClick={handleSavePost}
-                disabled={isSavingPost}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                {isSavingPost ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          {/* 헤더 */}
+          <div className="flex items-center gap-3 px-5 py-3 border-b border-border shrink-0 bg-card">
+            <FileText className="w-4 h-4 text-primary shrink-0" />
+            <input
+              value={editingTitle}
+              onChange={(e) => setEditingTitle(e.target.value)}
+              className="flex-1 text-base font-semibold bg-transparent outline-none"
+              placeholder="문서 제목"
+            />
+            <button
+              onClick={handleSavePost}
+              disabled={isSavingPost}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {isSavingPost ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4" />
+              )}
+              저장
+            </button>
+            <button
+              onClick={() => setIsViewDialogOpen(false)}
+              className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* 본문: 좌측 목록 + 우측 편집 */}
+          <div className="flex flex-1 overflow-hidden">
+            {/* 좌측: 본문 목록 */}
+            <div className="w-64 shrink-0 border-r border-border flex flex-col bg-card/50">
+              <div className="px-3 py-2 border-b border-border shrink-0">
+                <span className="text-xs font-medium text-muted-foreground">
+                  본문 목록
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+                {editingSections.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p className="text-xs">본문을 추가해주세요</p>
+                  </div>
                 ) : (
-                  <Check className="w-4 h-4" />
+                  editingSections.map((section, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedSectionIdx(idx)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors text-sm ${
+                        selectedSectionIdx === idx
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-muted/60"
+                      }`}
+                    >
+                      <span className="text-xs text-muted-foreground shrink-0 w-5 text-center font-mono">
+                        {idx + 1}
+                      </span>
+                      <span className="truncate">
+                        {section.title || `본문 ${idx + 1}`}
+                      </span>
+                    </button>
+                  ))
                 )}
-                저장
-              </button>
-              <button
-                onClick={() => setIsViewDialogOpen(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              </div>
+              {/* 본문 추가 버튼 */}
+              <div className="px-3 py-2 border-t border-border shrink-0">
+                <button
+                  onClick={addSection}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-3 py-2 rounded-lg transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 본문 추가
+                </button>
+              </div>
             </div>
 
-            {/* 본문 목록 */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            {/* 우측: 선택된 본문 편집 */}
+            <div className="flex-1 flex flex-col overflow-hidden">
               {editingSections.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p className="text-sm">본문을 추가해주세요</p>
-                </div>
-              ) : (
-                editingSections.map((section, idx) => (
-                  <div
-                    key={idx}
-                    className="border border-border rounded-lg p-4 space-y-3 bg-muted/20"
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
+                  <FileText className="w-12 h-12 opacity-20" />
+                  <p className="text-sm">왼쪽에서 본문을 추가하세요</p>
+                  <button
+                    onClick={addSection}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border hover:bg-muted text-sm transition-colors"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground font-medium w-16 shrink-0">
-                        본문 제목
+                    <Plus className="w-4 h-4" /> 첫 본문 추가
+                  </button>
+                </div>
+              ) : editingSections[selectedSectionIdx] ? (
+                <div className="flex flex-col h-full p-5 gap-4">
+                  {/* 본문 제목 + 삭제 */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2 flex-1 bg-muted/40 border border-border rounded-lg px-3 py-2">
+                      <span className="text-xs text-muted-foreground font-mono shrink-0">
+                        {selectedSectionIdx + 1}
                       </span>
                       <input
-                        value={section.title}
+                        value={editingSections[selectedSectionIdx].title}
                         onChange={(e) =>
-                          updateSection(idx, "title", e.target.value)
+                          updateSection(
+                            selectedSectionIdx,
+                            "title",
+                            e.target.value,
+                          )
                         }
                         placeholder="본문 제목 (선택)"
-                        className="flex-1 bg-background border border-border rounded-md px-3 py-1.5 text-sm outline-none focus:border-primary/60"
-                      />
-                      <button
-                        onClick={() => removeSection(idx)}
-                        className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs text-muted-foreground font-medium w-16 shrink-0 pt-2">
-                        내용
-                      </span>
-                      <textarea
-                        value={section.content}
-                        onChange={(e) =>
-                          updateSection(idx, "content", e.target.value)
-                        }
-                        placeholder="내용을 입력하세요..."
-                        rows={5}
-                        className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-primary/60 resize-y min-h-[80px]"
+                        className="flex-1 bg-transparent outline-none text-sm font-medium"
                       />
                     </div>
+                    <button
+                      onClick={() => {
+                        removeSection(selectedSectionIdx);
+                        setSelectedSectionIdx(
+                          Math.max(0, selectedSectionIdx - 1),
+                        );
+                      }}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                ))
-              )}
-            </div>
 
-            {/* 푸터: 본문 추가 */}
-            <div className="px-6 py-3 border-t border-border shrink-0">
-              <button
-                onClick={addSection}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted px-3 py-1.5 rounded-lg transition-colors"
-              >
-                <Plus className="w-4 h-4" /> 본문 추가
-              </button>
+                  {/* 본문 내용 */}
+                  <textarea
+                    value={editingSections[selectedSectionIdx].content}
+                    onChange={(e) =>
+                      updateSection(
+                        selectedSectionIdx,
+                        "content",
+                        e.target.value,
+                      )
+                    }
+                    placeholder="내용을 입력하세요..."
+                    className="flex-1 bg-muted/20 border border-border rounded-lg px-4 py-3 text-sm outline-none focus:border-primary/60 resize-none leading-relaxed"
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
