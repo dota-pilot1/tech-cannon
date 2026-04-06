@@ -16,6 +16,8 @@ import {
   Loader2,
   Pencil,
   Check,
+  FileText,
+  FolderOpen,
 } from "lucide-react";
 
 // ─── API 설정 ──────────────────────────────────────────────────────────────────
@@ -41,6 +43,20 @@ interface GithubFolder {
   name: string;
   orderNum: number;
   items: GithubItem[];
+}
+
+interface DocuFolder {
+  id: number;
+  parentId: number | null;
+  name: string;
+  sortOrder: number;
+}
+
+interface DocuPost {
+  id: number;
+  folderId: number;
+  title: string;
+  authorName: string;
 }
 
 interface ChatHistory {
@@ -129,12 +145,25 @@ const subutaiAiApi = {
   chat: (data: {
     question: string;
     githubItemIds: number[];
+    postIds: number[];
   }): Promise<{ answer: string; referencedUrls: string[] }> =>
     fetch(`${BASE}/subutai/ai/chat`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     }).then((r) => r.json()),
+
+  getDocuFolders: (): Promise<DocuFolder[]> =>
+    fetch(`${BASE}/subutai/folders`, { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((d) => (Array.isArray(d) ? d : [])),
+
+  getDocuPosts: (folderId: number): Promise<DocuPost[]> =>
+    fetch(`${BASE}/subutai/posts?folderId=${folderId}`, {
+      headers: getAuthHeaders(),
+    })
+      .then((r) => r.json())
+      .then((d) => (Array.isArray(d) ? d : [])),
 
   getHistories: (): Promise<ChatHistory[]> =>
     fetch(`${BASE}/subutai/ai/histories`, { headers: getAuthHeaders() })
@@ -239,7 +268,7 @@ export default function SubutaiAiPage() {
   const { confirm, ConfirmDialog } = useConfirm();
 
   // 탭
-  const [leftTab, setLeftTab] = useState<"repos" | "history">("repos");
+  const [leftTab, setLeftTab] = useState<"repos" | "docu" | "history">("repos");
 
   // 저장소
   const [folders, setFolders] = useState<GithubFolder[]>([]);
@@ -274,6 +303,15 @@ export default function SubutaiAiPage() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // 문서 탭
+  const [docuFolders, setDocuFolders] = useState<DocuFolder[]>([]);
+  const [docuPosts, setDocuPosts] = useState<Record<number, DocuPost[]>>({});
+  const [expandedDocuFolders, setExpandedDocuFolders] = useState<Set<number>>(
+    new Set(),
+  );
+  const [selectedPosts, setSelectedPosts] = useState<Set<number>>(new Set());
+  const [docuLoading, setDocuLoading] = useState(false);
+
   // 히스토리
   const [histories, setHistories] = useState<ChatHistory[]>([]);
   const [historiesLoading, setHistoriesLoading] = useState(false);
@@ -288,6 +326,7 @@ export default function SubutaiAiPage() {
   // ── 초기 로드 ──────────────────────────────────────────────────────────────
   useEffect(() => {
     loadFolders();
+    loadDocuFolders();
   }, []);
 
   useEffect(() => {
@@ -311,7 +350,10 @@ export default function SubutaiAiPage() {
     if (leftTab === "history") {
       loadHistories();
     }
-  }, [leftTab]);
+    if (leftTab === "docu" && docuFolders.length === 0) {
+      loadDocuFolders();
+    }
+  }, [leftTab, docuFolders.length]);
 
   // ── 수정 모드 포커스 ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -350,6 +392,26 @@ export default function SubutaiAiPage() {
       // 무시
     } finally {
       setFoldersLoading(false);
+    }
+  };
+
+  const loadDocuFolders = async () => {
+    setDocuLoading(true);
+    try {
+      const folders = await subutaiAiApi.getDocuFolders();
+      setDocuFolders(folders);
+      const postsMap: Record<number, DocuPost[]> = {};
+      await Promise.all(
+        folders.map(async (folder) => {
+          const posts = await subutaiAiApi.getDocuPosts(folder.id);
+          postsMap[folder.id] = posts;
+        }),
+      );
+      setDocuPosts(postsMap);
+    } catch {
+      // 무시
+    } finally {
+      setDocuLoading(false);
     }
   };
 
@@ -486,6 +548,24 @@ export default function SubutaiAiPage() {
     });
   };
 
+  const toggleDocuFolder = (id: number) => {
+    setExpandedDocuFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const togglePost = (id: number) => {
+    setSelectedPosts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   // ── 히스토리 액션 ──────────────────────────────────────────────────────────
   const handleDeleteHistory = async (id: number) => {
     const ok = await confirm({
@@ -550,6 +630,7 @@ export default function SubutaiAiPage() {
       const res = await subutaiAiApi.chat({
         question: text,
         githubItemIds: Array.from(selectedItems),
+        postIds: Array.from(selectedPosts),
       });
       const aiMsg: Message = {
         id: `msg-${Date.now()}-a`,
@@ -627,7 +708,7 @@ export default function SubutaiAiPage() {
       {/* ══════════════════════════════════════════════════════════
           좌측 패널
       ══════════════════════════════════════════════════════════ */}
-      <aside className="w-72 shrink-0 border-r border-border flex flex-col overflow-hidden">
+      <aside className="w-[600px] shrink-0 border-r border-border flex flex-col overflow-hidden">
         {/* 탭 헤더 */}
         <div className="flex border-b border-border shrink-0">
           <button
@@ -640,6 +721,17 @@ export default function SubutaiAiPage() {
           >
             <Github className="w-3.5 h-3.5" />
             저장소
+          </button>
+          <button
+            onClick={() => setLeftTab("docu")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 ${
+              leftTab === "docu"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            문서
           </button>
           <button
             onClick={() => setLeftTab("history")}
@@ -1008,13 +1100,19 @@ export default function SubutaiAiPage() {
 
             {/* 하단 선택 상태 */}
             <div className="px-3 py-2.5 border-t border-border shrink-0">
-              {selectedItems.size > 0 ? (
+              {selectedItems.size > 0 || selectedPosts.size > 0 ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-primary font-medium">
-                    {selectedItems.size}개 참조 선택됨
+                  <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                    {selectedItems.size > 0 && `GitHub ${selectedItems.size}개`}
+                    {selectedItems.size > 0 && selectedPosts.size > 0 && " · "}
+                    {selectedPosts.size > 0 && `문서 ${selectedPosts.size}개`}
+                    {" 참조 중"}
                   </span>
                   <button
-                    onClick={() => setSelectedItems(new Set())}
+                    onClick={() => {
+                      setSelectedItems(new Set());
+                      setSelectedPosts(new Set());
+                    }}
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -1024,6 +1122,112 @@ export default function SubutaiAiPage() {
               ) : (
                 <p className="text-xs text-muted-foreground text-center">
                   참조할 항목을 선택하세요
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── 문서 탭 ────────────────────────────────────────── */}
+        {leftTab === "docu" && (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-2 py-2">
+              {docuLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : docuFolders.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-xs">
+                  <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p>Subutai Docu에 문서를 추가하세요</p>
+                </div>
+              ) : (
+                docuFolders.map((folder) => {
+                  const isOpen = expandedDocuFolders.has(folder.id);
+                  const posts = docuPosts[folder.id] ?? [];
+                  const selectedInFolder = posts.filter((p) =>
+                    selectedPosts.has(p.id),
+                  ).length;
+
+                  return (
+                    <div key={folder.id} className="mb-1">
+                      {/* 폴더 헤더 */}
+                      <button
+                        onClick={() => toggleDocuFolder(folder.id)}
+                        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium hover:bg-muted/60 rounded-md transition-colors text-left"
+                      >
+                        {isOpen ? (
+                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                        )}
+                        <FolderOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="flex-1 truncate">{folder.name}</span>
+                        {selectedInFolder > 0 && (
+                          <span className="text-xs text-primary font-semibold">
+                            {selectedInFolder}
+                          </span>
+                        )}
+                      </button>
+
+                      {/* 게시글 목록 */}
+                      {isOpen && (
+                        <div className="ml-4 border-l border-border pl-2 mt-0.5">
+                          {posts.length === 0 ? (
+                            <p className="text-xs text-muted-foreground px-2 py-1">
+                              문서 없음
+                            </p>
+                          ) : (
+                            posts.map((post) => {
+                              const isSelected = selectedPosts.has(post.id);
+                              return (
+                                <button
+                                  key={post.id}
+                                  onClick={() => togglePost(post.id)}
+                                  className={`w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs text-left mb-0.5 transition-colors ${
+                                    isSelected
+                                      ? "bg-primary/10 text-primary"
+                                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                  }`}
+                                >
+                                  <FileText className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">{post.title}</span>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* 하단 선택 상태 */}
+            <div className="px-3 py-2.5 border-t border-border shrink-0">
+              {selectedItems.size > 0 || selectedPosts.size > 0 ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                    {selectedItems.size > 0 && `GitHub ${selectedItems.size}개`}
+                    {selectedItems.size > 0 && selectedPosts.size > 0 && " · "}
+                    {selectedPosts.size > 0 && `문서 ${selectedPosts.size}개`}
+                    {" 참조 중"}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSelectedItems(new Set());
+                      setSelectedPosts(new Set());
+                    }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    초기화
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center">
+                  참조할 문서를 선택하세요
                 </p>
               )}
             </div>
@@ -1099,9 +1303,12 @@ export default function SubutaiAiPage() {
               Beta
             </span>
           </div>
-          {selectedItems.size > 0 && (
-            <span className="ml-auto text-xs text-primary bg-primary/10 px-2.5 py-1 rounded-full font-medium">
-              {selectedItems.size}개 참조 선택됨
+          {(selectedItems.size > 0 || selectedPosts.size > 0) && (
+            <span className="ml-auto text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+              {selectedItems.size > 0 && `GitHub ${selectedItems.size}개`}
+              {selectedItems.size > 0 && selectedPosts.size > 0 && " · "}
+              {selectedPosts.size > 0 && `문서 ${selectedPosts.size}개`}
+              {" 참조 중"}
             </span>
           )}
         </div>
@@ -1115,16 +1322,18 @@ export default function SubutaiAiPage() {
                 <Bot className="w-8 h-8 text-primary" />
               </div>
               <h2 className="text-xl font-semibold">Subutai AI</h2>
-              {selectedItems.size > 0 ? (
+              {selectedItems.size > 0 || selectedPosts.size > 0 ? (
                 <p className="text-sm text-muted-foreground">
                   <span className="text-primary font-medium">
-                    {selectedItems.size}개 참조
+                    {selectedItems.size > 0 && `GitHub ${selectedItems.size}개`}
+                    {selectedItems.size > 0 && selectedPosts.size > 0 && " · "}
+                    {selectedPosts.size > 0 && `문서 ${selectedPosts.size}개`}
                   </span>
-                  가 선택되었습니다. 질문을 입력하세요
+                  {" 참조 중. 질문을 입력하세요"}
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  왼쪽에서 GitHub 저장소를 선택하고 질문하세요
+                  왼쪽에서 GitHub 저장소 또는 문서를 선택하고 질문하세요
                 </p>
               )}
             </div>

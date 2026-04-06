@@ -13,6 +13,8 @@ import com.mapo.palantier.subutai.ai.infrastructure.SubutaiChatHistoryMapper;
 import com.mapo.palantier.subutai.ai.infrastructure.SubutaiGithubFolderMapper;
 import com.mapo.palantier.subutai.ai.infrastructure.SubutaiGithubItemMapper;
 import com.mapo.palantier.subutai.ai.util.GithubContentFetcher;
+import com.mapo.palantier.subutai.post.SubutaiPost;
+import com.mapo.palantier.subutai.post.SubutaiPostMapper;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -34,6 +36,7 @@ public class SubutaiChatService {
     private final SubutaiGithubItemMapper itemMapper;
     private final SubutaiChatHistoryMapper historyMapper;
     private final GithubContentFetcher githubFetcher;
+    private final SubutaiPostMapper subutaiPostMapper;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${openai.api-key:}")
@@ -241,14 +244,21 @@ public class SubutaiChatService {
 
         String answer;
 
+        // Subutai Docu 문서 컨텍스트 조합
+        String docuContext = "";
+        if (req.getPostIds() != null && !req.getPostIds().isEmpty()) {
+            docuContext = buildDocuContext(req.getPostIds());
+        }
+
         if (selectedItems.isEmpty()) {
             // 선택된 저장소 없음 → 일반 답변
-            answer = callOpenAiSimple(req.getQuestion());
+            answer = callOpenAiSimple(req.getQuestion(), docuContext);
         } else {
             // Function Calling으로 어떤 코드가 필요한지 GPT가 결정
             answer = callOpenAiWithFunctionCalling(
                 req.getQuestion(),
-                selectedItems
+                selectedItems,
+                docuContext
             );
         }
 
@@ -271,7 +281,8 @@ public class SubutaiChatService {
     @SuppressWarnings("unchecked")
     private String callOpenAiWithFunctionCalling(
         String question,
-        List<SubutaiGithubItem> items
+        List<SubutaiGithubItem> items,
+        String docuContext
     ) {
         // 등록된 GitHub URL 목록을 시스템 프롬프트에 포함
         StringBuilder urlList = new StringBuilder();
@@ -287,6 +298,11 @@ public class SubutaiChatService {
         // 메뉴얼 문서 로드
         String manualDocs = loadManualDocs();
 
+        String docuSection = docuContext.isBlank()
+            ? ""
+            : "\n\n[Subutai Docu 참고 문서 - 이 문서를 최우선으로 참고하세요]\n" +
+              docuContext;
+
         String systemPrompt = """
             당신은 TechCannon 팀의 내부 AI 어시스턴트 Subutai입니다.
             사용자의 질문을 분석하고, 답변에 필요한 GitHub 코드를 가져오기 위해
@@ -296,6 +312,7 @@ public class SubutaiChatService {
             어떤 코드를 가져올지 정확하게 판단하세요:
 
             %s
+            %s
 
             등록된 GitHub 저장소:
             %s
@@ -303,7 +320,7 @@ public class SubutaiChatService {
             - 백엔드(API, Spring, Java, DB, 서버, Controller, Service, Mapper) 관련 → backend 선택
             - 프론트엔드(UI, React, TypeScript, 컴포넌트, 페이지, 훅) 관련 → frontend 선택
             - 둘 다 관련 → both 선택
-            """.formatted(manualDocs, urlList.toString());
+            """.formatted(manualDocs, docuSection, urlList.toString());
 
         // Function 정의
         Map<String, Object> fetchCodeFunction = buildFetchCodeFunctionDef(
@@ -356,7 +373,13 @@ public class SubutaiChatService {
 
             if (toolCalls != null && !toolCalls.isEmpty()) {
                 // GPT가 함수 호출을 결정함 → 코드 fetch 후 2차 호출
-                return handleToolCalls(question, message, toolCalls, items);
+                return handleToolCalls(
+                    question,
+                    message,
+                    toolCalls,
+                    items,
+                    docuContext
+                );
             } else {
                 // 함수 호출 없이 바로 답변
                 return (String) message.get("content");
@@ -374,11 +397,17 @@ public class SubutaiChatService {
         String question,
         Map<String, Object> assistantMessage,
         List<Map<String, Object>> toolCalls,
-        List<SubutaiGithubItem> items
+        List<SubutaiGithubItem> items,
+        String docuContext
     ) {
         List<Map<String, Object>> messages = new ArrayList<>();
         // 2차 호출 시에도 메뉴얼 문서 포함
         String manualDocs = loadManualDocs();
+
+        String docuSection = docuContext.isBlank()
+            ? ""
+            : "\n\n[Subutai Docu 참고 문서 - 이 문서를 최우선으로 참고하세요]\n" +
+              docuContext;
 
         messages.add(
             Map.of(
@@ -394,7 +423,8 @@ public class SubutaiChatService {
 
                 [프로젝트 메뉴얼]
                 %s
-                """.formatted(manualDocs)
+                %s
+                """.formatted(manualDocs, docuSection)
             )
         );
         messages.add(Map.of("role", "user", "content", question));
@@ -604,12 +634,65 @@ public class SubutaiChatService {
         return functionDef;
     }
 
+    // ── Subutai Docu 문서 컨텍스트 빌드 ─────────────────────────────────────
+
+    /**
+     * Subutai Docu 문서 ID 목록으로 문서 내용을 텍스트로 조합
+     */
+    private String buildDocuContext(List<Long> postIds) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== Subutai Docu 참고 문서 ===\n\n");
+
+        for (Long postId : postIds) {
+            try {
+                SubutaiPost post = subutaiPostMapper
+                    .findByIdWithBlocks(postId)
+                    .orElse(null);
+                if (post == null) continue;
+
+                sb.append("## ").append(post.getTitle()).append("\n\n");
+
+                if (post.getBlocks() != null) {
+                    for (var block : post.getBlocks()) {
+                        String type =
+                            block.getBlockType() != null
+                                ? block.getBlockType().name()
+                                : "NOTE";
+                        String content = block.getContent();
+                        if (content == null || content.isBlank()) continue;
+
+                        switch (type) {
+                            case "NOTE" -> sb.append(content).append("\n\n");
+                            case "MMD" -> sb
+                                .append("```mermaid\n")
+                                .append(content)
+                                .append("\n```\n\n");
+                            default -> sb.append(content).append("\n\n");
+                        }
+                    }
+                }
+                sb.append("---\n\n");
+            } catch (Exception e) {
+                log.warn(
+                    "Subutai Docu 문서 로드 실패 (postId={}): {}",
+                    postId,
+                    e.getMessage()
+                );
+            }
+        }
+        return sb.toString();
+    }
+
     // ── 선택된 저장소 없을 때 일반 답변 ──────────────────────────────────────
 
     @SuppressWarnings("unchecked")
-    private String callOpenAiSimple(String question) {
+    private String callOpenAiSimple(String question, String docuContext) {
         // 저장소 미선택 시에도 메뉴얼 문서는 참고
         String manualDocs = loadManualDocs();
+
+        String docuSection = docuContext.isBlank()
+            ? ""
+            : "\n\n[Subutai Docu 참고 문서]\n" + docuContext;
 
         String systemPrompt = """
             당신은 TechCannon 팀의 내부 AI 어시스턴트 Subutai입니다.
@@ -618,7 +701,8 @@ public class SubutaiChatService {
 
             [프로젝트 메뉴얼]
             %s
-            """.formatted(manualDocs);
+            %s
+            """.formatted(manualDocs, docuSection);
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("model", openAiModel);
