@@ -45,20 +45,6 @@ interface GithubFolder {
   items: GithubItem[];
 }
 
-interface DocuFolder {
-  id: number;
-  parentId: number | null;
-  name: string;
-  sortOrder: number;
-}
-
-interface DocuPost {
-  id: number;
-  folderId: number;
-  title: string;
-  authorName: string;
-}
-
 interface ChatHistory {
   id: number;
   userId: number;
@@ -76,7 +62,106 @@ interface Message {
   referencedUrls?: string[];
 }
 
-// ─── API 함수 ──────────────────────────────────────────────────────────────────
+// ─── Subutai Doc API ──────────────────────────────────────────────────────────
+interface DocFolder {
+  id: number;
+  name: string;
+  orderNum: number;
+}
+
+interface DocPost {
+  id: number;
+  folderId: number;
+  title: string;
+  orderNum: number;
+  sections?: DocSection[];
+}
+
+interface DocSection {
+  id?: number;
+  postId?: number;
+  title: string;
+  content: string;
+  orderNum?: number;
+}
+
+const docApi = {
+  getFolders: (): Promise<DocFolder[]> =>
+    fetch(`${BASE}/subutai/doc/folders`, { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((d) => (Array.isArray(d) ? d : [])),
+
+  createFolder: (name: string): Promise<void> =>
+    fetch(`${BASE}/subutai/doc/folders`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name }),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
+    }),
+
+  updateFolder: (id: number, name: string): Promise<void> =>
+    fetch(`${BASE}/subutai/doc/folders/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name }),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
+    }),
+
+  deleteFolder: (id: number): Promise<void> =>
+    fetch(`${BASE}/subutai/doc/folders/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
+    }),
+
+  getPostsByFolder: (folderId: number): Promise<DocPost[]> =>
+    fetch(`${BASE}/subutai/doc/folders/${folderId}/posts`, {
+      headers: getAuthHeaders(),
+    })
+      .then((r) => r.json())
+      .then((d) => (Array.isArray(d) ? d : [])),
+
+  getPost: (id: number): Promise<DocPost> =>
+    fetch(`${BASE}/subutai/doc/posts/${id}`, {
+      headers: getAuthHeaders(),
+    }).then((r) => r.json()),
+
+  createPost: (data: {
+    folderId: number;
+    title: string;
+    sections: DocSection[];
+  }): Promise<number> =>
+    fetch(`${BASE}/subutai/doc/posts`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    }).then((r) => r.json()),
+
+  updatePost: (
+    id: number,
+    data: { folderId: number; title: string; sections: DocSection[] },
+  ): Promise<void> =>
+    fetch(`${BASE}/subutai/doc/posts/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
+    }),
+
+  deletePost: (id: number): Promise<void> =>
+    fetch(`${BASE}/subutai/doc/posts/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
+    }),
+};
+
+// ─── API 함수 (저장소 / AI) ────────────────────────────────────────────────────
 const subutaiAiApi = {
   getFolders: (): Promise<GithubFolder[]> =>
     fetch(`${BASE}/subutai/ai/folders`, { headers: getAuthHeaders() })
@@ -144,7 +229,6 @@ const subutaiAiApi = {
 
   chat: (data: {
     question: string;
-    githubItemIds: number[];
     postIds: number[];
   }): Promise<{ answer: string; referencedUrls: string[] }> =>
     fetch(`${BASE}/subutai/ai/chat`, {
@@ -152,18 +236,6 @@ const subutaiAiApi = {
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     }).then((r) => r.json()),
-
-  getDocuFolders: (): Promise<DocuFolder[]> =>
-    fetch(`${BASE}/subutai/folders`, { headers: getAuthHeaders() })
-      .then((r) => r.json())
-      .then((d) => (Array.isArray(d) ? d : [])),
-
-  getDocuPosts: (folderId: number): Promise<DocuPost[]> =>
-    fetch(`${BASE}/subutai/posts?folderId=${folderId}`, {
-      headers: getAuthHeaders(),
-    })
-      .then((r) => r.json())
-      .then((d) => (Array.isArray(d) ? d : [])),
 
   getHistories: (): Promise<ChatHistory[]> =>
     fetch(`${BASE}/subutai/ai/histories`, { headers: getAuthHeaders() })
@@ -183,13 +255,11 @@ const subutaiAiApi = {
 function renderMarkdown(text: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
 
-  // 코드블록 ```...``` 처리
   const codeBlockRegex = /```[\s\S]*?```/g;
   const parts = text.split(codeBlockRegex);
   const codeBlocks = text.match(codeBlockRegex) ?? [];
 
   parts.forEach((part, i) => {
-    // 인라인 파싱 (bold, inline code, 줄바꿈)
     nodes.push(...parseInline(part, `part-${i}`));
 
     if (codeBlocks[i]) {
@@ -223,7 +293,6 @@ function parseInline(text: string, keyPrefix: string): React.ReactNode[] {
     lines.forEach((line, lIdx) => {
       if (!line && lIdx === 0) return;
 
-      // **bold** 및 `inline code` 파싱
       const segments = line.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
       segments.forEach((seg, sIdx) => {
         if (seg.startsWith("**") && seg.endsWith("**")) {
@@ -267,10 +336,10 @@ function parseInline(text: string, keyPrefix: string): React.ReactNode[] {
 export default function SubutaiAiPage() {
   const { confirm, ConfirmDialog } = useConfirm();
 
-  // 탭
-  const [leftTab, setLeftTab] = useState<"repos" | "docu" | "history">("repos");
+  // 탭: 문서 / 저장소 / 히스토리
+  const [leftTab, setLeftTab] = useState<"doc" | "repos" | "history">("doc");
 
-  // 저장소
+  // ── 저장소 탭 상태 ──────────────────────────────────────────────────────────
   const [folders, setFolders] = useState<GithubFolder[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(
     new Set(),
@@ -298,21 +367,42 @@ export default function SubutaiAiPage() {
   const [editingItemLabel, setEditingItemLabel] = useState("");
   const [editingItemUrl, setEditingItemUrl] = useState("");
 
-  // 챗봇
+  // ── 문서 탭 상태 ────────────────────────────────────────────────────────────
+  const [docFolders, setDocFolders] = useState<DocFolder[]>([]);
+  const [docPosts, setDocPosts] = useState<Record<number, DocPost[]>>({});
+  const [expandedDocFolders, setExpandedDocFolders] = useState<Set<number>>(
+    new Set(),
+  );
+  const [selectedPostIds, setSelectedPostIds] = useState<Set<number>>(
+    new Set(),
+  );
+  const [docLoading, setDocLoading] = useState(false);
+
+  // 폴더 인라인 추가
+  const [addingDocFolder, setAddingDocFolder] = useState(false);
+  const [newDocFolderName, setNewDocFolderName] = useState("");
+  const [isSubmittingFolder, setIsSubmittingFolder] = useState(false);
+
+  // 문서 인라인 추가 (folderId별)
+  const [addingPostFolderId, setAddingPostFolderId] = useState<number | null>(
+    null,
+  );
+  const [newPostTitle, setNewPostTitle] = useState("");
+  const [isSubmittingPost, setIsSubmittingPost] = useState(false);
+
+  // 문서 편집 다이얼로그
+  const [viewPost, setViewPost] = useState<DocPost | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingSections, setEditingSections] = useState<DocSection[]>([]);
+  const [isSavingPost, setIsSavingPost] = useState(false);
+
+  // ── 챗봇 상태 ───────────────────────────────────────────────────────────────
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // 문서 탭
-  const [docuFolders, setDocuFolders] = useState<DocuFolder[]>([]);
-  const [docuPosts, setDocuPosts] = useState<Record<number, DocuPost[]>>({});
-  const [expandedDocuFolders, setExpandedDocuFolders] = useState<Set<number>>(
-    new Set(),
-  );
-  const [selectedPosts, setSelectedPosts] = useState<Set<number>>(new Set());
-  const [docuLoading, setDocuLoading] = useState(false);
-
-  // 히스토리
+  // ── 히스토리 상태 ───────────────────────────────────────────────────────────
   const [histories, setHistories] = useState<ChatHistory[]>([]);
   const [historiesLoading, setHistoriesLoading] = useState(false);
 
@@ -325,8 +415,8 @@ export default function SubutaiAiPage() {
 
   // ── 초기 로드 ──────────────────────────────────────────────────────────────
   useEffect(() => {
+    loadDocFolders();
     loadFolders();
-    loadDocuFolders();
   }, []);
 
   useEffect(() => {
@@ -350,10 +440,10 @@ export default function SubutaiAiPage() {
     if (leftTab === "history") {
       loadHistories();
     }
-    if (leftTab === "docu" && docuFolders.length === 0) {
-      loadDocuFolders();
+    if (leftTab === "doc" && docFolders.length === 0) {
+      loadDocFolders();
     }
-  }, [leftTab, docuFolders.length]);
+  }, [leftTab, docFolders.length]);
 
   // ── 수정 모드 포커스 ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -370,19 +460,191 @@ export default function SubutaiAiPage() {
     }
   }, [editingItemId]);
 
-  // ── API 로더 ───────────────────────────────────────────────────────────────
+  // ── 문서 탭 API ────────────────────────────────────────────────────────────
+  const loadDocFolders = async () => {
+    setDocLoading(true);
+    try {
+      const folders = await docApi.getFolders();
+      setDocFolders(folders);
+      setExpandedDocFolders(new Set(folders.map((f) => f.id)));
+      const postsMap: Record<number, DocPost[]> = {};
+      await Promise.all(
+        folders.map(async (f) => {
+          postsMap[f.id] = await docApi.getPostsByFolder(f.id);
+        }),
+      );
+      setDocPosts(postsMap);
+      const allPostIds = new Set(
+        Object.values(postsMap)
+          .flat()
+          .map((p) => p.id),
+      );
+      setSelectedPostIds(
+        (prev) => new Set([...prev].filter((id) => allPostIds.has(id))),
+      );
+    } catch {
+      // 무시
+    } finally {
+      setDocLoading(false);
+    }
+  };
+
+  const handleCreateDocFolder = async () => {
+    if (isSubmittingFolder) return;
+    const name = newDocFolderName.trim();
+    if (!name) return;
+    setIsSubmittingFolder(true);
+    try {
+      await docApi.createFolder(name);
+      setNewDocFolderName("");
+      setAddingDocFolder(false);
+      await loadDocFolders();
+    } catch {
+      // 무시
+    } finally {
+      setIsSubmittingFolder(false);
+    }
+  };
+
+  const handleDeleteDocFolder = async (id: number, name: string) => {
+    const ok = await confirm({
+      title: "폴더 삭제",
+      description: `"${name}" 폴더와 하위 문서가 모두 삭제됩니다.`,
+      confirmText: "삭제",
+      variant: "destructive",
+    });
+    if (!ok) return;
+    try {
+      await docApi.deleteFolder(id);
+      setSelectedPostIds((prev) => {
+        const next = new Set(prev);
+        (docPosts[id] || []).forEach((p) => next.delete(p.id));
+        return next;
+      });
+      await loadDocFolders();
+    } catch {
+      // 무시
+    }
+  };
+
+  const handleCreateDocPost = async (folderId: number) => {
+    if (isSubmittingPost) return;
+    const title = newPostTitle.trim();
+    if (!title) return;
+    setIsSubmittingPost(true);
+    try {
+      await docApi.createPost({ folderId, title, sections: [] });
+      setNewPostTitle("");
+      setAddingPostFolderId(null);
+      await loadDocFolders();
+    } catch {
+      // 무시
+    } finally {
+      setIsSubmittingPost(false);
+    }
+  };
+
+  const handleDeleteDocPost = async (id: number, title: string) => {
+    const ok = await confirm({
+      title: "문서 삭제",
+      description: `"${title}" 문서를 삭제하시겠습니까?`,
+      confirmText: "삭제",
+      variant: "destructive",
+    });
+    if (!ok) return;
+    try {
+      await docApi.deletePost(id);
+      setSelectedPostIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      await loadDocFolders();
+    } catch {
+      // 무시
+    }
+  };
+
+  const toggleDocFolder = (id: number) => {
+    setExpandedDocFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const togglePostSelection = (id: number) => {
+    setSelectedPostIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const openViewDialog = async (post: DocPost) => {
+    try {
+      const full = await docApi.getPost(post.id);
+      setViewPost(full);
+      setEditingTitle(full.title);
+      setEditingSections(full.sections ?? []);
+      setIsViewDialogOpen(true);
+    } catch {
+      // 무시
+    }
+  };
+
+  const handleSavePost = async () => {
+    if (!viewPost || isSavingPost) return;
+    setIsSavingPost(true);
+    try {
+      await docApi.updatePost(viewPost.id, {
+        folderId: viewPost.folderId,
+        title: editingTitle,
+        sections: editingSections,
+      });
+      setIsViewDialogOpen(false);
+      await loadDocFolders();
+    } catch {
+      // 무시
+    } finally {
+      setIsSavingPost(false);
+    }
+  };
+
+  const addSection = () => {
+    setEditingSections((prev) => [
+      ...prev,
+      { title: "", content: "", orderNum: prev.length },
+    ]);
+  };
+
+  const removeSection = (idx: number) => {
+    setEditingSections((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateSection = (
+    idx: number,
+    field: "title" | "content",
+    value: string,
+  ) => {
+    setEditingSections((prev) =>
+      prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s)),
+    );
+  };
+
+  // ── 저장소 탭 API ──────────────────────────────────────────────────────────
   const loadFolders = async () => {
     setFoldersLoading(true);
     try {
       const data = await subutaiAiApi.getFolders();
       setFolders(data);
-      // 모든 폴더 자동 펼침
       setExpandedFolders((prev) => {
         const next = new Set(prev);
         data.forEach((f) => next.add(f.id));
         return next;
       });
-      // 모든 아이템 자동 선택 (기존에 선택된 것은 유지, 새 것만 추가)
       setSelectedItems((prev) => {
         const next = new Set(prev);
         data.forEach((f) => f.items.forEach((item) => next.add(item.id)));
@@ -395,39 +657,6 @@ export default function SubutaiAiPage() {
     }
   };
 
-  const loadDocuFolders = async () => {
-    setDocuLoading(true);
-    try {
-      const folders = await subutaiAiApi.getDocuFolders();
-      setDocuFolders(folders);
-      const postsMap: Record<number, DocuPost[]> = {};
-      await Promise.all(
-        folders.map(async (folder) => {
-          const posts = await subutaiAiApi.getDocuPosts(folder.id);
-          postsMap[folder.id] = posts;
-        }),
-      );
-      setDocuPosts(postsMap);
-    } catch {
-      // 무시
-    } finally {
-      setDocuLoading(false);
-    }
-  };
-
-  const loadHistories = async () => {
-    setHistoriesLoading(true);
-    try {
-      const data = await subutaiAiApi.getHistories();
-      setHistories(data);
-    } catch {
-      // 무시
-    } finally {
-      setHistoriesLoading(false);
-    }
-  };
-
-  // ── 폴더 액션 ──────────────────────────────────────────────────────────────
   const handleCreateFolder = async () => {
     const name = newFolderName.trim();
     if (!name) return;
@@ -487,7 +716,6 @@ export default function SubutaiAiPage() {
     });
   };
 
-  // ── 아이템 액션 ────────────────────────────────────────────────────────────
   const handleCreateItem = async (folderId: number) => {
     const label = newItemLabel.trim();
     const githubUrl = newItemUrl.trim();
@@ -497,7 +725,7 @@ export default function SubutaiAiPage() {
       setNewItemLabel("");
       setNewItemUrl("");
       setAddingItemFolderId(null);
-      await loadFolders(); // loadFolders 내에서 자동 선택 처리
+      await loadFolders();
     } catch {
       // 무시
     }
@@ -548,25 +776,19 @@ export default function SubutaiAiPage() {
     });
   };
 
-  const toggleDocuFolder = (id: number) => {
-    setExpandedDocuFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const togglePost = (id: number) => {
-    setSelectedPosts((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   // ── 히스토리 액션 ──────────────────────────────────────────────────────────
+  const loadHistories = async () => {
+    setHistoriesLoading(true);
+    try {
+      const data = await subutaiAiApi.getHistories();
+      setHistories(data);
+    } catch {
+      // 무시
+    } finally {
+      setHistoriesLoading(false);
+    }
+  };
+
   const handleDeleteHistory = async (id: number) => {
     const ok = await confirm({
       title: "히스토리 삭제",
@@ -598,7 +820,7 @@ export default function SubutaiAiPage() {
       referencedUrls: history.githubUrls,
     };
     setMessages([userMsg, aiMsg]);
-    setLeftTab("repos");
+    setLeftTab("doc");
   };
 
   // ── 챗봇 전송 ──────────────────────────────────────────────────────────────
@@ -621,7 +843,6 @@ export default function SubutaiAiPage() {
     setInputValue("");
     setIsLoading(true);
 
-    // textarea 높이 초기화
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -629,8 +850,7 @@ export default function SubutaiAiPage() {
     try {
       const res = await subutaiAiApi.chat({
         question: text,
-        githubItemIds: Array.from(selectedItems),
-        postIds: Array.from(selectedPosts),
+        postIds: Array.from(selectedPostIds),
       });
       const aiMsg: Message = {
         id: `msg-${Date.now()}-a`,
@@ -705,12 +925,128 @@ export default function SubutaiAiPage() {
       style={{ height: "calc(100vh - 64px)" }}
     >
       <ConfirmDialog />
+
+      {/* 문서 보기/편집 다이얼로그 */}
+      {isViewDialogOpen && viewPost && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setIsViewDialogOpen(false)}
+        >
+          <div
+            className="bg-card border border-border rounded-xl shadow-2xl w-[800px] max-w-[90vw] max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-border shrink-0">
+              <FileText className="w-5 h-5 text-primary shrink-0" />
+              <input
+                value={editingTitle}
+                onChange={(e) => setEditingTitle(e.target.value)}
+                className="flex-1 text-lg font-semibold bg-transparent outline-none border-b border-transparent focus:border-primary/50"
+                placeholder="문서 제목"
+              />
+              <button
+                onClick={handleSavePost}
+                disabled={isSavingPost}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {isSavingPost ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                저장
+              </button>
+              <button
+                onClick={() => setIsViewDialogOpen(false)}
+                className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* 본문 목록 */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {editingSections.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">본문을 추가해주세요</p>
+                </div>
+              ) : (
+                editingSections.map((section, idx) => (
+                  <div
+                    key={idx}
+                    className="border border-border rounded-lg p-4 space-y-3 bg-muted/20"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground font-medium w-16 shrink-0">
+                        본문 제목
+                      </span>
+                      <input
+                        value={section.title}
+                        onChange={(e) =>
+                          updateSection(idx, "title", e.target.value)
+                        }
+                        placeholder="본문 제목 (선택)"
+                        className="flex-1 bg-background border border-border rounded-md px-3 py-1.5 text-sm outline-none focus:border-primary/60"
+                      />
+                      <button
+                        onClick={() => removeSection(idx)}
+                        className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-muted-foreground font-medium w-16 shrink-0 pt-2">
+                        내용
+                      </span>
+                      <textarea
+                        value={section.content}
+                        onChange={(e) =>
+                          updateSection(idx, "content", e.target.value)
+                        }
+                        placeholder="내용을 입력하세요..."
+                        rows={5}
+                        className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-primary/60 resize-y min-h-[80px]"
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* 푸터: 본문 추가 */}
+            <div className="px-6 py-3 border-t border-border shrink-0">
+              <button
+                onClick={addSection}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <Plus className="w-4 h-4" /> 본문 추가
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ══════════════════════════════════════════════════════════
           좌측 패널
       ══════════════════════════════════════════════════════════ */}
       <aside className="w-[600px] shrink-0 border-r border-border flex flex-col overflow-hidden">
         {/* 탭 헤더 */}
         <div className="flex border-b border-border shrink-0">
+          {/* 문서 탭 */}
+          <button
+            onClick={() => setLeftTab("doc")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 ${
+              leftTab === "doc"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            문서
+          </button>
+          {/* 저장소 탭 */}
           <button
             onClick={() => setLeftTab("repos")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 ${
@@ -722,17 +1058,7 @@ export default function SubutaiAiPage() {
             <Github className="w-3.5 h-3.5" />
             저장소
           </button>
-          <button
-            onClick={() => setLeftTab("docu")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 ${
-              leftTab === "docu"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            문서
-          </button>
+          {/* 히스토리 탭 */}
           <button
             onClick={() => setLeftTab("history")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 ${
@@ -745,6 +1071,236 @@ export default function SubutaiAiPage() {
             히스토리
           </button>
         </div>
+
+        {/* ── 문서 탭 ─────────────────────────────────────────── */}
+        {leftTab === "doc" && (
+          <div className="flex flex-col h-full overflow-hidden">
+            {/* 폴더 추가 버튼 */}
+            <div className="px-3 pt-3 pb-1 shrink-0">
+              {addingDocFolder ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    value={newDocFolderName}
+                    onChange={(e) => setNewDocFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCreateDocFolder();
+                      }
+                      if (e.key === "Escape") {
+                        setAddingDocFolder(false);
+                        setNewDocFolderName("");
+                      }
+                    }}
+                    placeholder="폴더명 입력..."
+                    className="flex-1 bg-muted border border-border rounded-md px-2.5 py-1.5 text-xs outline-none focus:border-primary/60 text-foreground placeholder:text-muted-foreground"
+                  />
+                  <button
+                    onClick={handleCreateDocFolder}
+                    disabled={isSubmittingFolder}
+                    className="p-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAddingDocFolder(false);
+                      setNewDocFolderName("");
+                    }}
+                    className="p-1.5 rounded-md text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingDocFolder(true)}
+                  className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 폴더 추가
+                </button>
+              )}
+            </div>
+
+            {/* 폴더 목록 */}
+            <div className="flex-1 overflow-y-auto px-2 pb-2">
+              {docLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : docFolders.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                  <p className="text-sm">폴더를 추가해주세요</p>
+                </div>
+              ) : (
+                docFolders.map((folder) => {
+                  const isOpen = expandedDocFolders.has(folder.id);
+                  const posts = docPosts[folder.id] ?? [];
+                  const selectedCount = posts.filter((p) =>
+                    selectedPostIds.has(p.id),
+                  ).length;
+
+                  return (
+                    <div key={folder.id} className="mb-1">
+                      {/* 폴더 헤더 */}
+                      <div className="group flex items-center rounded-md hover:bg-muted/60 transition-colors">
+                        <button
+                          onClick={() => toggleDocFolder(folder.id)}
+                          className="flex-1 flex items-center gap-1.5 px-2 py-2 text-left min-w-0"
+                        >
+                          {isOpen ? (
+                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          ) : (
+                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          )}
+                          <FolderOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="flex-1 truncate text-sm font-medium">
+                            {folder.name}
+                          </span>
+                          {selectedCount > 0 && (
+                            <span className="text-xs text-primary font-semibold mr-1">
+                              {selectedCount}
+                            </span>
+                          )}
+                        </button>
+                        <div className="flex items-center gap-0.5 pr-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() =>
+                              handleDeleteDocFolder(folder.id, folder.name)
+                            }
+                            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 문서 목록 */}
+                      {isOpen && (
+                        <div className="ml-4 border-l border-border pl-2 mt-0.5 space-y-0.5">
+                          {posts.map((post) => {
+                            const isSelected = selectedPostIds.has(post.id);
+                            return (
+                              <div
+                                key={post.id}
+                                onClick={() => togglePostSelection(post.id)}
+                                className={`group/post flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer transition-colors ${
+                                  isSelected
+                                    ? "bg-primary/10 text-primary"
+                                    : "hover:bg-muted/50 text-foreground"
+                                }`}
+                              >
+                                <FileText
+                                  className={`w-3.5 h-3.5 shrink-0 ${
+                                    isSelected
+                                      ? "text-primary"
+                                      : "text-muted-foreground"
+                                  }`}
+                                />
+                                <span className="flex-1 text-sm truncate">
+                                  {post.title}
+                                </span>
+                                <div
+                                  className="flex items-center gap-1 opacity-0 group-hover/post:opacity-100 transition-opacity shrink-0"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    onClick={() => openViewDialog(post)}
+                                    className="px-2 py-0.5 rounded text-xs border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                  >
+                                    보기
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleDeleteDocPost(post.id, post.title)
+                                    }
+                                    className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {/* 문서 추가 */}
+                          {addingPostFolderId === folder.id ? (
+                            <div className="flex items-center gap-1 px-1 py-1">
+                              <input
+                                autoFocus
+                                value={newPostTitle}
+                                onChange={(e) =>
+                                  setNewPostTitle(e.target.value)
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleCreateDocPost(folder.id);
+                                  }
+                                  if (e.key === "Escape") {
+                                    setAddingPostFolderId(null);
+                                    setNewPostTitle("");
+                                  }
+                                }}
+                                placeholder="문서 제목..."
+                                className="flex-1 bg-muted border border-border rounded px-2 py-1 text-xs outline-none focus:border-primary/60 text-foreground placeholder:text-muted-foreground"
+                              />
+                              <button
+                                onClick={() => handleCreateDocPost(folder.id)}
+                                disabled={isSubmittingPost}
+                                className="p-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setAddingPostFolderId(null);
+                                  setNewPostTitle("");
+                                }}
+                                className="p-1 rounded text-muted-foreground hover:bg-muted transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setAddingPostFolderId(folder.id);
+                                setNewPostTitle("");
+                              }}
+                              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                            >
+                              <Plus className="w-3 h-3" /> 문서 추가
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* 하단: 선택 상태 */}
+            {selectedPostIds.size > 0 && (
+              <div className="px-3 py-2 border-t border-border shrink-0 flex items-center justify-between">
+                <span className="text-xs text-primary font-medium">
+                  {selectedPostIds.size}개 문서 선택됨
+                </span>
+                <button
+                  onClick={() => setSelectedPostIds(new Set())}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" /> 초기화
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── 저장소 탭 ──────────────────────────────────────── */}
         {leftTab === "repos" && (
@@ -819,7 +1375,6 @@ export default function SubutaiAiPage() {
                     <div key={folder.id} className="mb-1">
                       {/* 폴더 헤더 */}
                       {editingFolderId === folder.id ? (
-                        // 수정 모드
                         <div className="flex items-center gap-1 px-2 py-1.5">
                           <input
                             ref={editFolderInputRef}
@@ -857,7 +1412,6 @@ export default function SubutaiAiPage() {
                           </button>
                         </div>
                       ) : (
-                        // 일반 모드
                         <div className="group flex items-center rounded-md hover:bg-muted/60 transition-colors">
                           <button
                             onClick={() => toggleFolder(folder.id)}
@@ -873,7 +1427,6 @@ export default function SubutaiAiPage() {
                               {folder.name}
                             </span>
                           </button>
-                          {/* 호버 시 나타나는 수정/삭제 버튼 */}
                           <div className="flex items-center gap-0.5 pr-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                             <button
                               onClick={() => {
@@ -904,7 +1457,6 @@ export default function SubutaiAiPage() {
                             return (
                               <div key={item.id}>
                                 {editingItemId === item.id ? (
-                                  // 아이템 수정 모드
                                   <div className="mr-1 my-0.5 flex flex-col gap-1">
                                     <input
                                       ref={editItemLabelRef}
@@ -964,7 +1516,6 @@ export default function SubutaiAiPage() {
                                     </div>
                                   </div>
                                 ) : (
-                                  // 아이템 일반 모드
                                   <div
                                     className={`group/item flex items-center gap-1 py-0.5 pr-1 rounded-md mb-0.5 transition-colors ${
                                       isSelected
@@ -986,7 +1537,6 @@ export default function SubutaiAiPage() {
                                         {isSelected ? "☑" : "☐"} {item.label}
                                       </span>
                                     </button>
-                                    {/* 호버 시 아이콘들 */}
                                     <div className="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0">
                                       <button
                                         onClick={() => {
@@ -1100,19 +1650,13 @@ export default function SubutaiAiPage() {
 
             {/* 하단 선택 상태 */}
             <div className="px-3 py-2.5 border-t border-border shrink-0">
-              {selectedItems.size > 0 || selectedPosts.size > 0 ? (
+              {selectedItems.size > 0 ? (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-                    {selectedItems.size > 0 && `GitHub ${selectedItems.size}개`}
-                    {selectedItems.size > 0 && selectedPosts.size > 0 && " · "}
-                    {selectedPosts.size > 0 && `문서 ${selectedPosts.size}개`}
-                    {" 참조 중"}
+                    GitHub {selectedItems.size}개 참조 중
                   </span>
                   <button
-                    onClick={() => {
-                      setSelectedItems(new Set());
-                      setSelectedPosts(new Set());
-                    }}
+                    onClick={() => setSelectedItems(new Set())}
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -1122,112 +1666,6 @@ export default function SubutaiAiPage() {
               ) : (
                 <p className="text-xs text-muted-foreground text-center">
                   참조할 항목을 선택하세요
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── 문서 탭 ────────────────────────────────────────── */}
-        {leftTab === "docu" && (
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <div className="flex-1 overflow-y-auto px-2 py-2">
-              {docuLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : docuFolders.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-xs">
-                  <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p>Subutai Docu에 문서를 추가하세요</p>
-                </div>
-              ) : (
-                docuFolders.map((folder) => {
-                  const isOpen = expandedDocuFolders.has(folder.id);
-                  const posts = docuPosts[folder.id] ?? [];
-                  const selectedInFolder = posts.filter((p) =>
-                    selectedPosts.has(p.id),
-                  ).length;
-
-                  return (
-                    <div key={folder.id} className="mb-1">
-                      {/* 폴더 헤더 */}
-                      <button
-                        onClick={() => toggleDocuFolder(folder.id)}
-                        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium hover:bg-muted/60 rounded-md transition-colors text-left"
-                      >
-                        {isOpen ? (
-                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-                        )}
-                        <FolderOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="flex-1 truncate">{folder.name}</span>
-                        {selectedInFolder > 0 && (
-                          <span className="text-xs text-primary font-semibold">
-                            {selectedInFolder}
-                          </span>
-                        )}
-                      </button>
-
-                      {/* 게시글 목록 */}
-                      {isOpen && (
-                        <div className="ml-4 border-l border-border pl-2 mt-0.5">
-                          {posts.length === 0 ? (
-                            <p className="text-xs text-muted-foreground px-2 py-1">
-                              문서 없음
-                            </p>
-                          ) : (
-                            posts.map((post) => {
-                              const isSelected = selectedPosts.has(post.id);
-                              return (
-                                <button
-                                  key={post.id}
-                                  onClick={() => togglePost(post.id)}
-                                  className={`w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs text-left mb-0.5 transition-colors ${
-                                    isSelected
-                                      ? "bg-primary/10 text-primary"
-                                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                  }`}
-                                >
-                                  <FileText className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">{post.title}</span>
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* 하단 선택 상태 */}
-            <div className="px-3 py-2.5 border-t border-border shrink-0">
-              {selectedItems.size > 0 || selectedPosts.size > 0 ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-                    {selectedItems.size > 0 && `GitHub ${selectedItems.size}개`}
-                    {selectedItems.size > 0 && selectedPosts.size > 0 && " · "}
-                    {selectedPosts.size > 0 && `문서 ${selectedPosts.size}개`}
-                    {" 참조 중"}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSelectedItems(new Set());
-                      setSelectedPosts(new Set());
-                    }}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    초기화
-                  </button>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center">
-                  참조할 문서를 선택하세요
                 </p>
               )}
             </div>
@@ -1303,12 +1741,9 @@ export default function SubutaiAiPage() {
               Beta
             </span>
           </div>
-          {(selectedItems.size > 0 || selectedPosts.size > 0) && (
+          {selectedPostIds.size > 0 && (
             <span className="ml-auto text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-              {selectedItems.size > 0 && `GitHub ${selectedItems.size}개`}
-              {selectedItems.size > 0 && selectedPosts.size > 0 && " · "}
-              {selectedPosts.size > 0 && `문서 ${selectedPosts.size}개`}
-              {" 참조 중"}
+              문서 {selectedPostIds.size}개 참조 중
             </span>
           )}
         </div>
@@ -1316,32 +1751,21 @@ export default function SubutaiAiPage() {
         {/* 메시지 영역 */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {messages.length === 0 ? (
-            /* 초기 상태 */
             <div className="h-full flex flex-col items-center justify-center text-center gap-3">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-1">
                 <Bot className="w-8 h-8 text-primary" />
               </div>
               <h2 className="text-xl font-semibold">Subutai AI</h2>
-              {selectedItems.size > 0 || selectedPosts.size > 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  <span className="text-primary font-medium">
-                    {selectedItems.size > 0 && `GitHub ${selectedItems.size}개`}
-                    {selectedItems.size > 0 && selectedPosts.size > 0 && " · "}
-                    {selectedPosts.size > 0 && `문서 ${selectedPosts.size}개`}
-                  </span>
-                  {" 참조 중. 질문을 입력하세요"}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  왼쪽에서 GitHub 저장소 또는 문서를 선택하고 질문하세요
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                {selectedPostIds.size > 0
+                  ? `${selectedPostIds.size}개 문서를 참고하여 답변합니다`
+                  : "왼쪽 문서 탭에서 참고할 문서를 선택하고 질문하세요"}
+              </p>
             </div>
           ) : (
             <div className="space-y-5 max-w-3xl mx-auto">
               {messages.map((msg) =>
                 msg.role === "ai" ? (
-                  /* AI 말풍선 (좌측) */
                   <div key={msg.id} className="flex items-start gap-3">
                     <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                       <Bot className="w-3.5 h-3.5 text-primary" />
@@ -1350,7 +1774,6 @@ export default function SubutaiAiPage() {
                       <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed">
                         {renderMarkdown(msg.content)}
                       </div>
-                      {/* 참조 URL */}
                       {msg.referencedUrls && msg.referencedUrls.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5 mt-1.5 ml-1">
                           <span className="text-xs text-muted-foreground">
@@ -1376,7 +1799,6 @@ export default function SubutaiAiPage() {
                     </div>
                   </div>
                 ) : (
-                  /* 사용자 말풍선 (우측) */
                   <div
                     key={msg.id}
                     className="flex items-start gap-3 flex-row-reverse"
@@ -1427,8 +1849,8 @@ export default function SubutaiAiPage() {
                 onChange={handleTextareaChange}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  selectedItems.size > 0
-                    ? `${selectedItems.size}개 참조를 기반으로 질문하세요...`
+                  selectedPostIds.size > 0
+                    ? `${selectedPostIds.size}개 문서를 참고하여 질문하세요...`
                     : "질문을 입력하세요..."
                 }
                 rows={1}

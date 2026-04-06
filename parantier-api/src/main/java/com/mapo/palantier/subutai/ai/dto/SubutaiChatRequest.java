@@ -7,6 +7,5 @@ import lombok.Data;
 public class SubutaiChatRequest {
 
     private String question;
-    private List<Long> githubItemIds;
-    private List<Long> postIds; // Subutai Docu 문서 ID 목록
+    private List<Long> postIds; // 선택된 문서 ID 목록
 }

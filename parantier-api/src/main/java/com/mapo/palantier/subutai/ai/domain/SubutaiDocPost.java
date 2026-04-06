@@ -1,15 +1,15 @@
 package com.mapo.palantier.subutai.ai.domain;
-
 import lombok.Data;
-
 import java.time.LocalDateTime;
-
+import java.util.List;
 @Data
-public class SubutaiGithubItem {
+public class SubutaiDocPost {
     private Long id;
     private Long folderId;
-    private String label;
-    private String githubUrl;
+    private String title;
     private Integer orderNum;
+    private Long createdBy;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private List<SubutaiDocSection> sections;
 }

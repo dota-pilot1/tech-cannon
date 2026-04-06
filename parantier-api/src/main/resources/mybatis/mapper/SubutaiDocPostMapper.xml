@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapo.palantier.subutai.ai.infrastructure.SubutaiDocPostMapper">
+    <resultMap id="PostRM" type="com.mapo.palantier.subutai.ai.domain.SubutaiDocPost">
+        <id property="id" column="id"/>
+        <result property="folderId" column="folder_id"/>
+        <result property="title" column="title"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <select id="findByFolderId" resultMap="PostRM">SELECT id,folder_id,title,order_num,created_by,created_at,updated_at FROM subutai_doc_posts WHERE folder_id=#{folderId} ORDER BY order_num,id</select>
+    <select id="findById" resultMap="PostRM">SELECT id,folder_id,title,order_num,created_by,created_at,updated_at FROM subutai_doc_posts WHERE id=#{id}</select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">INSERT INTO subutai_doc_posts(folder_id,title,order_num,created_by) VALUES(#{folderId},#{title},#{orderNum},#{createdBy})</insert>
+    <update id="update">UPDATE subutai_doc_posts SET title=#{title},updated_at=CURRENT_TIMESTAMP WHERE id=#{id}</update>
+    <delete id="delete">DELETE FROM subutai_doc_posts WHERE id=#{id}</delete>
+</mapper>
