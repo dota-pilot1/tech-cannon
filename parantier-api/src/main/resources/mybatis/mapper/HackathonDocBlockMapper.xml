@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.hackathon.infrastructure.HackathonDocBlockMapper">
+
+    <resultMap id="HackathonDocBlockResultMap" type="com.mapo.palantier.hackathon.domain.HackathonDocBlock">
+        <id property="id" column="id"/>
+        <result property="sectionId" column="section_id"/>
+        <result property="blockType" column="block_type"/>
+        <result property="content" column="content"/>
+        <result property="title" column="title"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findBySectionId" resultMap="HackathonDocBlockResultMap">
+        SELECT id, section_id, block_type, title, content, sort_order, created_at
+        FROM hackathon_doc_blocks
+        WHERE section_id = #{sectionId}
+        ORDER BY sort_order ASC
+    </select>
+
+    <delete id="deleteAllBySectionId">
+        DELETE FROM hackathon_doc_blocks
+        WHERE section_id = #{sectionId}
+    </delete>
+
+    <insert id="insertBatch">
+        INSERT INTO hackathon_doc_blocks (section_id, block_type, title, content, sort_order)
+        VALUES
+        <foreach collection="blocks" item="b" separator=",">
+            (#{b.sectionId}, #{b.blockType}, #{b.title}, #{b.content}, #{b.sortOrder})
+        </foreach>
+    </insert>
+
+</mapper>

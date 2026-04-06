@@ -153,3 +153,31 @@ export interface UpdateDocRequest {
   title: string;
   content?: string;
 }
+
+// ── 해커톤 문서 (카테고리/섹션/블록) ──────────────────────────────────────────
+
+export interface HackathonDocCategory {
+  id: number;
+  teamId: number;
+  name: string;
+  orderNum: number;
+  createdAt: string;
+}
+
+export interface HackathonDocSection {
+  id: number;
+  categoryId: number;
+  teamId: number;
+  title: string;
+  orderNum: number;
+  createdAt: string;
+}
+
+export interface HackathonDocBlock {
+  id?: number;
+  sectionId?: number;
+  title: string;
+  blockType: string;
+  content: string;
+  sortOrder?: number;
+}

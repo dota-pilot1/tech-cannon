@@ -19,7 +19,6 @@ import {
   Loader2,
   Pencil,
   BookOpen,
-  FileText,
 } from "lucide-react";
 import { authStore } from "@/entities/user/model/authStore";
 import { useActiveEvent } from "@/features/hackathon/hooks/useHackathon";
@@ -39,10 +38,6 @@ import {
   useCreateFaq,
   useUpdateFaq,
   useDeleteFaq,
-  useTeamDocs,
-  useCreateDoc,
-  useUpdateDoc,
-  useDeleteDoc,
   useJoinTeam,
   useLeaveTeam,
   useCreateTeam,
@@ -54,9 +49,9 @@ import type {
   HackathonTeamTask,
   HackathonTeamIssue,
   HackathonTeamFaq,
-  HackathonTeamDoc,
 } from "@/features/hackathon/types/hackathon.types";
 import { HackathonApiDocPage } from "@/features/hackathon/components/HackathonApiDocPage";
+import { HackathonDocDialog } from "@/features/hackathon/components/HackathonDocDialog";
 
 // ── 팀 색상 테마 매핑 ─────────────────────────────────────────────────────────
 const TEAM_THEMES: Record<
@@ -1425,308 +1420,6 @@ function FaqTab({ teamId }: { teamId: number }) {
   );
 }
 
-// ── Docu 탭 ──────────────────────────────────────────────────────────────────
-function DocuTab({ teamId }: { teamId: number }) {
-  const { data: docs = [], isLoading } = useTeamDocs(teamId);
-  const createDoc = useCreateDoc(teamId);
-  const updateDoc = useUpdateDoc(teamId);
-  const deleteDoc = useDeleteDoc(teamId);
-
-  const [addOpen, setAddOpen] = useState(false);
-  const [editItem, setEditItem] = useState<HackathonTeamDoc | null>(null);
-  const [selectedDoc, setSelectedDoc] = useState<HackathonTeamDoc | null>(null);
-  const [form, setForm] = useState({ title: "", content: "" });
-  const [editForm, setEditForm] = useState({ title: "", content: "" });
-
-  const handleAdd = () => {
-    if (!form.title.trim()) return;
-    createDoc.mutate(
-      {
-        title: form.title.trim(),
-        content: form.content.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          setAddOpen(false);
-          setForm({ title: "", content: "" });
-        },
-      },
-    );
-  };
-
-  const handleEdit = () => {
-    if (!editItem || !editForm.title.trim()) return;
-    updateDoc.mutate(
-      {
-        docId: editItem.id,
-        req: {
-          title: editForm.title.trim(),
-          content: editForm.content.trim() || undefined,
-        },
-      },
-      {
-        onSuccess: () => {
-          setEditItem(null);
-          if (selectedDoc?.id === editItem.id) {
-            setSelectedDoc((p) =>
-              p
-                ? {
-                    ...p,
-                    title: editForm.title.trim(),
-                    content: editForm.content.trim() || undefined,
-                  }
-                : null,
-            );
-          }
-        },
-      },
-    );
-  };
-
-  const handleDelete = (docId: number) => {
-    deleteDoc.mutate(docId, {
-      onSuccess: () => {
-        if (selectedDoc?.id === docId) setSelectedDoc(null);
-      },
-    });
-  };
-
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-      </div>
-    );
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] text-muted-foreground">
-          {docs.length}개
-        </span>
-        <button
-          onClick={() => setAddOpen(true)}
-          className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80"
-        >
-          <Plus className="w-3 h-3" /> 추가
-        </button>
-      </div>
-
-      {docs.length === 0 ? (
-        <EmptyState
-          icon={<FileText className="w-8 h-8 opacity-20" />}
-          label="문서 없음"
-          desc="팀 문서를 작성해 보세요"
-        />
-      ) : (
-        docs.map((doc) => (
-          <div
-            key={doc.id}
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border bg-background hover:bg-muted/50 transition-colors group cursor-pointer"
-            onClick={() => setSelectedDoc(doc)}
-          >
-            <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">
-                {doc.title}
-              </p>
-              <p className="text-[10px] text-muted-foreground truncate">
-                {doc.createdByName ?? "알 수 없음"} ·{" "}
-                {new Date(doc.createdAt).toLocaleDateString("ko-KR")}
-              </p>
-            </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditItem(doc);
-                setEditForm({
-                  title: doc.title,
-                  content: doc.content ?? "",
-                });
-              }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-colors"
-            >
-              <Pencil className="w-3 h-3 text-muted-foreground" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(doc.id);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 className="w-3 h-3 text-destructive" />
-            </button>
-          </div>
-        ))
-      )}
-
-      {/* 추가 다이얼로그 */}
-      {addOpen && (
-        <Dialog title="문서 추가" onClose={() => setAddOpen(false)}>
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
-                제목
-              </label>
-              <input
-                value={form.title}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, title: e.target.value }))
-                }
-                placeholder="문서 제목"
-                className="w-full text-sm bg-muted/30 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
-                본문 (선택)
-              </label>
-              <textarea
-                value={form.content}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, content: e.target.value }))
-                }
-                placeholder="내용을 입력하세요..."
-                rows={8}
-                className="w-full text-sm bg-muted/30 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-              />
-            </div>
-            <div className="flex justify-end gap-2 mt-2">
-              <button
-                onClick={() => setAddOpen(false)}
-                className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAdd}
-                disabled={createDoc.isPending}
-                className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                추가
-              </button>
-            </div>
-          </div>
-        </Dialog>
-      )}
-
-      {/* 수정 다이얼로그 */}
-      {editItem && (
-        <Dialog title="문서 수정" onClose={() => setEditItem(null)}>
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
-                제목
-              </label>
-              <input
-                value={editForm.title}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, title: e.target.value }))
-                }
-                className="w-full text-sm bg-muted/30 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
-                본문
-              </label>
-              <textarea
-                value={editForm.content}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, content: e.target.value }))
-                }
-                rows={8}
-                className="w-full text-sm bg-muted/30 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-              />
-            </div>
-            <div className="flex justify-end gap-2 mt-2">
-              <button
-                onClick={() => setEditItem(null)}
-                className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleEdit}
-                disabled={updateDoc.isPending}
-                className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        </Dialog>
-      )}
-
-      {/* 상세 다이얼로그 */}
-      {selectedDoc && (
-        <Dialog
-          title={selectedDoc.title}
-          onClose={() => setSelectedDoc(null)}
-          width="w-[640px]"
-        >
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <span>작성자: {selectedDoc.createdByName ?? "알 수 없음"}</span>
-              <span>·</span>
-              <span>
-                {new Date(selectedDoc.createdAt).toLocaleDateString("ko-KR")}
-              </span>
-              {selectedDoc.updatedAt !== selectedDoc.createdAt && (
-                <>
-                  <span>·</span>
-                  <span>
-                    수정:{" "}
-                    {new Date(selectedDoc.updatedAt).toLocaleDateString(
-                      "ko-KR",
-                    )}
-                  </span>
-                </>
-              )}
-            </div>
-            {selectedDoc.content ? (
-              <div className="rounded-xl border border-border bg-muted/20 p-4">
-                <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">
-                  {selectedDoc.content}
-                </p>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">
-                본문이 없습니다.
-              </p>
-            )}
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <button
-                onClick={() => {
-                  setEditItem(selectedDoc);
-                  setEditForm({
-                    title: selectedDoc.title,
-                    content: selectedDoc.content ?? "",
-                  });
-                  setSelectedDoc(null);
-                }}
-                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
-              >
-                <Pencil className="w-3 h-3" />
-                수정
-              </button>
-              <button
-                onClick={() => handleDelete(selectedDoc.id)}
-                disabled={deleteDoc.isPending}
-                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
-              >
-                <Trash2 className="w-3 h-3" />
-                삭제
-              </button>
-            </div>
-          </div>
-        </Dialog>
-      )}
-    </div>
-  );
-}
-
 // ── API 문서 다이얼로그 ────────────────────────────────────────────────────────
 function ApiDocDialog({
   teamId,
@@ -1776,6 +1469,7 @@ function TeamCard({
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("figma");
   const [apiDocOpen, setApiDocOpen] = useState(false);
+  const [docuOpen, setDocuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const theme = getTheme(team.colorTheme);
   const joinTeam = useJoinTeam();
@@ -1910,8 +1604,32 @@ function TeamCard({
         {activeTab === "issue" && <IssueTab teamId={team.id} />}
         {activeTab === "github" && <GithubTab teamId={team.id} />}
         {activeTab === "faq" && <FaqTab teamId={team.id} />}
-        {activeTab === "docu" && <DocuTab teamId={team.id} />}
+        {activeTab === "docu" && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground py-8">
+            <BookOpen className="w-8 h-8 opacity-30" />
+            <p className="text-sm font-medium">팀 문서 관리</p>
+            <button
+              onClick={() => setDocuOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              문서 열기
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* 해커톤 문서 풀스크린 다이얼로그 */}
+      <HackathonDocDialog
+        open={docuOpen}
+        onClose={() => {
+          setDocuOpen(false);
+          setActiveTab("figma");
+        }}
+        teamId={team.id}
+        teamName={team.name}
+        teamColor={team.colorTheme}
+      />
     </div>
   );
 }
@@ -2036,7 +1754,7 @@ export function HackathonPage() {
         </div>
 
         {/* 오른쪽: 오픈 채팅 */}
-        <div className="w-[520px] shrink-0 flex flex-col rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="w-[380px] shrink-0 flex flex-col rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="shrink-0 flex items-center gap-2.5 px-4 py-3.5 border-b border-border bg-muted/20">
             <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
               <MessageSquare className="w-3.5 h-3.5 text-primary" />

@@ -52,3 +52,4 @@ aws-credentials.txt
 # 데이터베이스 백업
 *.sql
 backup_*.sql
+docs-hyun/배포 가이드/secrets.env

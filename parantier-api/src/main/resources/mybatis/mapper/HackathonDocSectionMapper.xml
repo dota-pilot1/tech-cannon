@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.hackathon.infrastructure.HackathonDocSectionMapper">
+
+    <resultMap id="HackathonDocSectionResultMap" type="com.mapo.palantier.hackathon.domain.HackathonDocSection">
+        <id property="id" column="id"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="teamId" column="team_id"/>
+        <result property="title" column="title"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findByCategoryId" resultMap="HackathonDocSectionResultMap">
+        SELECT id, category_id, team_id, title, order_num, created_at
+        FROM hackathon_doc_sections
+        WHERE category_id = #{categoryId}
+        ORDER BY order_num ASC, id ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO hackathon_doc_sections (category_id, team_id, title, order_num)
+        VALUES (#{categoryId}, #{teamId}, #{title}, #{orderNum})
+    </insert>
+
+    <update id="update">
+        UPDATE hackathon_doc_sections
+        SET title = #{title}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM hackathon_doc_sections
+        WHERE id = #{id}
+    </delete>
+
+    <update id="updateOrderNum">
+        UPDATE hackathon_doc_sections
+        SET order_num = #{orderNum}
+        WHERE id = #{id}
+    </update>
+
+    <select id="countByCategoryId" resultType="int">
+        SELECT COUNT(*)
+        FROM hackathon_doc_sections
+        WHERE category_id = #{categoryId}
+    </select>
+
+</mapper>
