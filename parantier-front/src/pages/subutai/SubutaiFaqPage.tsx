@@ -1,235 +1,1164 @@
-import { useState } from "react";
-import { Search, ChevronDown, ChevronUp, Tag, Inbox } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useStore } from "@tanstack/react-store";
+import { authStore } from "@/entities/user/model/authStore";
+import { subutaiFaqApi } from "@/features/subutai-faq/api/subutaiFaqApi";
+import type {
+  SubutaiFaqCategory,
+  SubutaiFaqSection,
+  SubutaiFaqBlock,
+} from "@/features/subutai-faq/api/subutaiFaqApi";
+import type { BlockType } from "@/features/task/types/task.types";
+import { TYPE_META } from "@/features/task/types/task.types";
+import { LexicalViewer } from "@/shared/ui/lexical/LexicalViewer";
+import { LexicalEditor } from "@/shared/ui/lexical/LexicalEditor";
+import { Mermaid } from "@/shared/ui/mermaid";
+import { toast } from "sonner";
+import {
+  Plus,
+  Pencil,
+  Save,
+  X,
+  Trash2,
+  GripVertical,
+  Check,
+} from "lucide-react";
+import { Button } from "@/shared/ui/button";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
-// ─── 더미 데이터 ─────────────────────────────────────────────
-const CATEGORIES = [
-  { id: "all", label: "전체" },
-  { id: "spring", label: "Spring Boot" },
-  { id: "react", label: "React" },
-  { id: "infra", label: "인프라" },
-  { id: "db", label: "데이터베이스" },
-];
-
-const FAQ_ITEMS = [
-  {
-    id: "faq-1",
-    categoryId: "spring",
-    categoryLabel: "Spring Boot",
-    question:
-      "Spring Boot에서 application.yml과 application.properties 중 어느 것을 사용해야 하나요?",
-    answer:
-      "두 형식 모두 사용 가능하지만, 계층적 구조를 표현할 때 application.yml이 더 가독성이 좋습니다. 특히 여러 환경(dev, prod)을 --- 구분자로 하나의 파일에 관리할 수 있어 yml을 권장합니다. 단, 팀 컨벤션이 있다면 그에 따르세요.",
-  },
-  {
-    id: "faq-2",
-    categoryId: "spring",
-    categoryLabel: "Spring Boot",
-    question: "@Transactional(readOnly = true)는 언제 사용하나요?",
-    answer:
-      "조회(SELECT) 전용 메서드에 사용합니다. readOnly = true를 설정하면 JPA의 변경 감지(Dirty Checking) 스냅샷을 생성하지 않아 메모리와 성능이 개선됩니다. 또한 일부 DB 드라이버는 읽기 전용 트랜잭션을 읽기 복제본으로 라우팅하는 최적화도 적용합니다. 서비스 클래스 레벨에 @Transactional(readOnly = true)를 선언하고, 쓰기 메서드에만 @Transactional을 별도로 붙이는 패턴이 일반적입니다.",
-  },
-  {
-    id: "faq-3",
-    categoryId: "react",
-    categoryLabel: "React",
-    question: "useEffect의 의존성 배열을 빈 배열로 두면 어떻게 동작하나요?",
-    answer:
-      "의존성 배열이 빈 배열([])이면 컴포넌트가 마운트될 때 한 번만 실행됩니다. 클래스 컴포넌트의 componentDidMount와 동일한 동작입니다. 반환하는 클린업 함수는 컴포넌트가 언마운트될 때 실행됩니다. 의존성을 생략하면 매 렌더마다 실행되므로 주의하세요.",
-  },
-  {
-    id: "faq-4",
-    categoryId: "infra",
-    categoryLabel: "인프라",
-    question:
-      "Docker 컨테이너가 재시작 후 데이터가 사라지는 이유는 무엇인가요?",
-    answer:
-      "컨테이너는 기본적으로 stateless(무상태)입니다. 컨테이너 내부에 저장된 데이터는 컨테이너 레이어에만 존재하므로 컨테이너가 삭제·재생성되면 함께 사라집니다. 데이터를 영속화하려면 Docker Volume 또는 Bind Mount를 사용해야 합니다. docker-compose.yml에서 volumes 키로 호스트 경로를 컨테이너에 마운트하면 컨테이너가 교체되어도 데이터가 유지됩니다.",
-  },
-  {
-    id: "faq-5",
-    categoryId: "db",
-    categoryLabel: "데이터베이스",
-    question: "인덱스를 너무 많이 만들면 어떤 문제가 생기나요?",
-    answer:
-      "인덱스는 읽기 성능을 향상시키지만 쓰기(INSERT, UPDATE, DELETE) 성능을 저하시킵니다. 데이터 변경 시 해당 컬럼의 인덱스도 함께 갱신해야 하기 때문입니다. 또한 인덱스 자체가 디스크 공간을 차지합니다. 자주 조회되는 컬럼, WHERE·JOIN·ORDER BY에 사용되는 컬럼 위주로 선별적으로 생성하고, 불필요한 인덱스는 정기적으로 정리하는 것이 좋습니다.",
-  },
-];
-// ─────────────────────────────────────────────────────────────
-
-const CATEGORY_BADGE_COLOR: Record<string, string> = {
-  spring:
-    "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
-  react: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  infra:
-    "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
-  db: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
-};
-
-export default function SubutaiFaqPage() {
-  const [selectedCategoryId, setSelectedCategoryId] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [openFaqIds, setOpenFaqIds] = useState<Set<string>>(new Set());
-
-  const toggleFaq = (id: string) => {
-    setOpenFaqIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+// ─────────────────────────────────────────────
+// SortableItem 컴포넌트
+// ─────────────────────────────────────────────
+function SortableItem({
+  id,
+  children,
+  isDragging,
+}: {
+  id: number;
+  children: (dragHandleProps: Record<string, unknown>) => React.ReactNode;
+  isDragging: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
   };
-
-  const filteredFaqs = FAQ_ITEMS.filter((item) => {
-    const matchCategory =
-      selectedCategoryId === "all" || item.categoryId === selectedCategoryId;
-    const query = searchQuery.trim().toLowerCase();
-    const matchSearch =
-      !query ||
-      item.question.toLowerCase().includes(query) ||
-      item.answer.toLowerCase().includes(query);
-    return matchCategory && matchSearch;
-  });
-
   return (
-    <div
-      className="flex bg-background text-foreground"
-      style={{ height: "calc(100vh - 64px)" }}
-    >
-      {/* ── 좌측: 카테고리 사이드바 ──────────────────────────── */}
-      <aside className="w-52 shrink-0 border-r border-border flex flex-col overflow-hidden">
-        <div className="px-4 py-3 border-b border-border shrink-0">
-          <span className="text-sm font-semibold">카테고리</span>
-        </div>
-        <nav className="flex-1 overflow-y-auto py-2 px-2">
-          {CATEGORIES.map((cat) => {
-            const isActive = cat.id === selectedCategoryId;
-            const count =
-              cat.id === "all"
-                ? FAQ_ITEMS.length
-                : FAQ_ITEMS.filter((f) => f.categoryId === cat.id).length;
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
+    </div>
+  );
+}
 
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategoryId(cat.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm mb-0.5 transition-colors text-left ${
-                  isActive
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                }`}
-              >
-                <span>{cat.label}</span>
-                <span
-                  className={`text-xs font-mono px-1.5 py-0.5 rounded-md ${
-                    isActive
-                      ? "bg-primary/20 text-primary"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </nav>
-      </aside>
+// ─────────────────────────────────────────────
+// SubutaiFaqBlockViewer - Q/A 말풍선 스타일
+// ─────────────────────────────────────────────
+function SubutaiFaqBlockViewer({ block }: { block: SubutaiFaqBlock }) {
+  const isQuestion = block.blockType === "QUESTION";
+  const isAnswer = block.blockType === "ANSWER";
 
-      {/* ── 우측: FAQ 목록 ───────────────────────────────────── */}
-      <section className="flex-1 flex flex-col overflow-hidden">
-        {/* 검색창 헤더 */}
-        <div className="px-5 py-3 border-b border-border shrink-0">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="질문 또는 답변 검색..."
-              className="w-full pl-9 pr-4 py-2 text-sm bg-muted/40 border border-border rounded-lg outline-none focus:border-primary/50 focus:bg-background transition-colors placeholder:text-muted-foreground"
-            />
+  if (isQuestion) {
+    return (
+      <div className="flex mb-3">
+        {/* Q 왼쪽 고정 */}
+        <div className="flex items-start gap-3 w-[48%]">
+          <div className="w-8 h-8 rounded-full bg-muted border-2 border-border flex items-center justify-center shrink-0 text-sm font-bold text-foreground mt-1">
+            Q
+          </div>
+          <div className="flex-1 bg-muted border border-border rounded-2xl rounded-tl-none px-4 py-3 min-w-0">
+            <LexicalViewer content={block.content} />
           </div>
         </div>
+        {/* 오른쪽 빈 공간 */}
+        <div className="w-[52%]" />
+      </div>
+    );
+  }
 
-        {/* FAQ 아코디언 목록 */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {filteredFaqs.length === 0 ? (
-            /* 빈 상태 */
-            <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
-              <Inbox className="w-10 h-10 opacity-40" />
-              <p className="text-sm font-medium">해당하는 FAQ가 없습니다</p>
-              <p className="text-xs opacity-70">
-                검색어 또는 카테고리를 변경해 보세요
-              </p>
-            </div>
-          ) : (
-            filteredFaqs.map((faq) => {
-              const isOpen = openFaqIds.has(faq.id);
-              const badgeClass =
-                CATEGORY_BADGE_COLOR[faq.categoryId] ??
-                "bg-muted text-muted-foreground border-border";
+  if (isAnswer) {
+    return (
+      <div className="flex mb-3">
+        {/* 왼쪽 빈 공간 */}
+        <div className="w-[52%]" />
+        {/* A 오른쪽 고정 */}
+        <div className="flex items-start gap-3 w-[48%] flex-row-reverse">
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 text-sm font-bold text-primary-foreground mt-1">
+            A
+          </div>
+          <div className="flex-1 bg-primary/15 border border-primary/30 rounded-2xl rounded-tr-none px-4 py-3 min-w-0">
+            <LexicalViewer content={block.content} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-              return (
-                <div
-                  key={faq.id}
-                  className="border border-border rounded-xl overflow-hidden bg-card transition-shadow hover:shadow-sm"
-                >
-                  {/* 질문 (클릭 시 펼침) */}
-                  <button
-                    onClick={() => toggleFaq(faq.id)}
-                    className="w-full flex items-start gap-3 px-5 py-4 text-left hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      {/* 카테고리 뱃지 */}
-                      <span
-                        className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium mb-2 ${badgeClass}`}
-                      >
-                        <Tag className="w-2.5 h-2.5" />
-                        {faq.categoryLabel}
-                      </span>
-                      <p className="text-sm font-medium leading-snug text-foreground">
-                        {faq.question}
-                      </p>
-                    </div>
-                    <div className="shrink-0 mt-0.5 text-muted-foreground">
-                      {isOpen ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
-                    </div>
-                  </button>
+  // 그 외 블록 타입 (NOTE, MMD 등) - 기존 방식 유지
+  const meta = TYPE_META[block.blockType as BlockType] ?? {
+    icon: "📄",
+    label: block.blockType,
+    color: "bg-muted text-muted-foreground",
+  };
 
-                  {/* 답변 (펼쳐지는 영역) */}
-                  {isOpen && (
-                    <div className="px-5 pb-5 pt-0">
-                      <div className="border-t border-border pt-4">
-                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                          {faq.answer}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })
+  return (
+    <div className="mb-6">
+      <span
+        className={`text-xs px-2 py-0.5 rounded-full font-medium mb-2 inline-block ${meta.color}`}
+      >
+        {meta.icon} {meta.label}
+      </span>
+      {block.blockType === "NOTE" && <LexicalViewer content={block.content} />}
+      {block.blockType === "MMD" && <Mermaid chart={block.content} />}
+      {block.blockType !== "NOTE" && block.blockType !== "MMD" && (
+        <pre className="text-xs font-mono bg-muted p-3 rounded-lg border border-border overflow-x-auto whitespace-pre-wrap">
+          {block.content}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// 메인 페이지
+// ─────────────────────────────────────────────
+export default function SubutaiFaqPage() {
+  const queryClient = useQueryClient();
+  const { user } = useStore(authStore, (s) => s);
+  const isAdmin = user?.role === "ROLE_ADMIN";
+
+  // ── 사이드바 넓이 (localStorage 복원)
+  const [cat1Width, setCat1Width] = useState(() => {
+    const saved = localStorage.getItem("subutai-faq-cat1-width");
+    return saved ? Number(saved) : 192;
+  });
+  const [cat2Width, setCat2Width] = useState(() => {
+    const saved = localStorage.getItem("subutai-faq-cat2-width");
+    return saved ? Number(saved) : 240;
+  });
+  const isResizing1 = useRef(false);
+  const isResizing2 = useRef(false);
+
+  const startResize1 = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing1.current = true;
+      const startX = e.clientX;
+      const startW = cat1Width;
+      const onMove = (ev: MouseEvent) => {
+        if (!isResizing1.current) return;
+        const next = Math.min(320, Math.max(120, startW + ev.clientX - startX));
+        setCat1Width(next);
+        localStorage.setItem("subutai-faq-cat1-width", String(next));
+      };
+      const onUp = () => {
+        isResizing1.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [cat1Width],
+  );
+
+  const startResize2 = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing2.current = true;
+      const startX = e.clientX;
+      const startW = cat2Width;
+      const onMove = (ev: MouseEvent) => {
+        if (!isResizing2.current) return;
+        const next = Math.min(400, Math.max(140, startW + ev.clientX - startX));
+        setCat2Width(next);
+        localStorage.setItem("subutai-faq-cat2-width", String(next));
+      };
+      const onUp = () => {
+        isResizing2.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [cat2Width],
+  );
+
+  // ── 선택 상태
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
+    null,
+  );
+  const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+  const [editingSectionTitle, setEditingSectionTitle] = useState("");
+
+  // ── 편집 상태
+  const [isEditing, setIsEditing] = useState(false);
+  const [editBlocks, setEditBlocks] = useState<SubutaiFaqBlock[]>([]);
+
+  // ── 섹션 추가 상태
+  const [isAddingSection, setIsAddingSection] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+
+  // ── 카테고리 추가 상태
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+
+  // ── 카테고리 수정 상태
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(
+    null,
+  );
+  const [editingCategoryName, setEditingCategoryName] = useState("");
+
+  // ─────────────────────────────────────────────
+  // Queries
+  // ─────────────────────────────────────────────
+  const { data: categories = [] } = useQuery<SubutaiFaqCategory[]>({
+    queryKey: ["subutaiFaq", "subutaiFaqCategories"],
+    queryFn: subutaiFaqApi.getCategories,
+  });
+
+  const { data: sections = [] } = useQuery<SubutaiFaqSection[]>({
+    queryKey: ["subutaiFaq", "subutaiFaqSections", selectedCategoryId],
+    queryFn: () => subutaiFaqApi.getSections(selectedCategoryId!),
+    enabled: !!selectedCategoryId,
+  });
+
+  const { data: blocks = [] } = useQuery<SubutaiFaqBlock[]>({
+    queryKey: ["subutaiFaq", "subutaiFaqBlocks", selectedSectionId],
+    queryFn: () => subutaiFaqApi.getBlocks(selectedSectionId!),
+    enabled: !!selectedSectionId,
+  });
+
+  // ─────────────────────────────────────────────
+  // Mutations
+  // ─────────────────────────────────────────────
+  const saveMutation = useMutation({
+    mutationFn: () => subutaiFaqApi.saveBlocks(selectedSectionId!, editBlocks),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["subutaiFaq", "subutaiFaqBlocks", selectedSectionId],
+      });
+      setIsEditing(false);
+      toast.success("저장되었습니다");
+    },
+    onError: () => toast.error("저장 실패"),
+  });
+
+  const addCategoryMutation = useMutation({
+    mutationFn: (name: string) =>
+      subutaiFaqApi.createCategory({
+        name,
+        icon: "Folder",
+        emoji: "",
+        orderNum: categories.length,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["subutaiFaq", "subutaiFaqCategories"],
+      });
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+      toast.success("카테고리가 추가되었습니다");
+    },
+    onError: () => toast.error("카테고리 추가 실패"),
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) => {
+      const cat = categories.find((c) => c.id === id);
+      return subutaiFaqApi.updateCategory(id, {
+        name,
+        icon: cat?.icon ?? "Folder",
+        emoji: cat?.emoji ?? "",
+        orderNum: cat?.orderNum ?? 0,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["subutaiFaq", "subutaiFaqCategories"],
+      });
+      setEditingCategoryId(null);
+      setEditingCategoryName("");
+      toast.success("카테고리 이름이 변경됐습니다.");
+    },
+    onError: () => toast.error("카테고리 수정 실패"),
+  });
+
+  const renameSectionMutation = useMutation({
+    mutationFn: ({ id, title }: { id: number; title: string }) => {
+      const sec = sections.find((s) => s.id === id);
+      return subutaiFaqApi.updateSection(id, {
+        title,
+        orderNum: sec?.orderNum ?? 0,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["subutaiFaq", "subutaiFaqSections", selectedCategoryId],
+      });
+      setEditingSectionId(null);
+      setEditingSectionTitle("");
+      toast.success("섹션 이름이 변경됐습니다.");
+    },
+    onError: () => toast.error("섹션 이름 변경에 실패했습니다."),
+  });
+
+  const addSectionMutation = useMutation({
+    mutationFn: (title: string) =>
+      subutaiFaqApi.createSection({
+        categoryId: selectedCategoryId!,
+        title,
+        orderNum: sections.length,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["subutaiFaq", "subutaiFaqSections", selectedCategoryId],
+      });
+      setIsAddingSection(false);
+      setNewSectionTitle("");
+      toast.success("FAQ가 추가되었습니다");
+    },
+    onError: () => toast.error("FAQ 추가 실패"),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: number) => subutaiFaqApi.deleteCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["subutaiFaq", "subutaiFaqCategories"],
+      });
+      setSelectedCategoryId(null);
+      setSelectedSectionId(null);
+      toast.success("카테고리가 삭제되었습니다");
+    },
+    onError: () => toast.error("카테고리 삭제 실패"),
+  });
+
+  const deleteSectionMutation = useMutation({
+    mutationFn: (id: number) => subutaiFaqApi.deleteSection(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["subutaiFaq", "subutaiFaqSections", selectedCategoryId],
+      });
+      setSelectedSectionId(null);
+      toast.success("FAQ가 삭제되었습니다");
+    },
+    onError: () => toast.error("FAQ 삭제 실패"),
+  });
+
+  const reorderCategoryMutation = useMutation({
+    mutationFn: (items: { id: number; orderNum: number }[]) =>
+      subutaiFaqApi.reorderCategories(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["subutaiFaq", "subutaiFaqCategories"],
+      });
+    },
+    onError: () => toast.error("순서 변경 실패"),
+  });
+
+  const reorderSectionMutation = useMutation({
+    mutationFn: (items: { id: number; orderNum: number }[]) =>
+      subutaiFaqApi.reorderSections(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["subutaiFaq", "subutaiFaqSections", selectedCategoryId],
+      });
+    },
+    onError: () => toast.error("순서 변경 실패"),
+  });
+
+  // ─────────────────────────────────────────────
+  // DnD state & sensors
+  // ─────────────────────────────────────────────
+  const [activeCatId, setActiveCatId] = useState<number | null>(null);
+  const [activeSecId, setActiveSecId] = useState<number | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleCatDragStart = (e: DragStartEvent) =>
+    setActiveCatId(e.active.id as number);
+  const handleCatDragEnd = (e: DragEndEvent) => {
+    setActiveCatId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = categories.findIndex((c) => c.id === active.id);
+    const newIdx = categories.findIndex((c) => c.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(categories, oldIdx, newIdx);
+    reorderCategoryMutation.mutate(
+      reordered.map((c, i) => ({ id: c.id, orderNum: i })),
+    );
+  };
+
+  const handleSecDragStart = (e: DragStartEvent) =>
+    setActiveSecId(e.active.id as number);
+  const handleSecDragEnd = (e: DragEndEvent) => {
+    setActiveSecId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = sections.findIndex((s) => s.id === active.id);
+    const newIdx = sections.findIndex((s) => s.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(sections, oldIdx, newIdx);
+    reorderSectionMutation.mutate(
+      reordered.map((s, i) => ({ id: s.id, orderNum: i })),
+    );
+  };
+
+  // ─────────────────────────────────────────────
+  // Handlers
+  // ─────────────────────────────────────────────
+  const handleCategoryClick = (id: number) => {
+    setSelectedCategoryId(id);
+    setSelectedSectionId(null);
+    setIsEditing(false);
+    setIsAddingSection(false);
+    setNewSectionTitle("");
+  };
+
+  const handleSectionClick = (id: number) => {
+    setSelectedSectionId(id);
+    setIsEditing(false);
+  };
+
+  const handleEdit = () => {
+    setEditBlocks([...blocks]);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditBlocks([]);
+  };
+
+  const handleAddSectionConfirm = () => {
+    const title = newSectionTitle.trim();
+    if (!title) return;
+    addSectionMutation.mutate(title);
+  };
+
+  const handleAddSectionKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!e.nativeEvent.isComposing && !addSectionMutation.isPending)
+        handleAddSectionConfirm();
+    }
+    if (e.key === "Escape") {
+      setIsAddingSection(false);
+      setNewSectionTitle("");
+    }
+  };
+
+  const handleAddCategoryConfirm = () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    addCategoryMutation.mutate(name);
+  };
+
+  const handleAddCategoryKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!e.nativeEvent.isComposing && !addCategoryMutation.isPending)
+        handleAddCategoryConfirm();
+    }
+    if (e.key === "Escape") {
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // 선택된 카테고리 / 섹션 정보
+  // ─────────────────────────────────────────────
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const selectedSection = sections.find((s) => s.id === selectedSectionId);
+
+  // ─────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────
+  return (
+    <div className="flex h-[calc(100vh-64px)] bg-background">
+      {/* ───────────────────────────────────────────
+          1차 사이드바: 카테고리 목록
+      ─────────────────────────────────────────── */}
+      <aside
+        className="shrink-0 border-r border-border bg-muted flex flex-col relative"
+        style={{ width: cat1Width }}
+      >
+        {/* 헤더 */}
+        <div
+          className="px-4 border-b border-border flex items-center justify-between"
+          style={{ minHeight: "49px" }}
+        >
+          <div>
+            <p className="text-sm font-semibold text-foreground leading-tight">
+              ❓ FAQ
+            </p>
+            <p className="text-[10px] text-muted-foreground leading-tight">
+              자주 묻는 질문
+            </p>
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => setIsAddingCategory(true)}
+              className="shrink-0 flex items-center gap-0.5 text-xs text-primary hover:text-primary/80 transition-colors"
+              title="카테고리 추가"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
 
-        {/* 하단 결과 수 표시 */}
-        <div className="px-5 py-2 border-t border-border shrink-0 bg-background">
-          <p className="text-xs text-muted-foreground">
-            총{" "}
-            <span className="font-semibold text-foreground">
-              {filteredFaqs.length}
-            </span>
-            개의 FAQ
-            {searchQuery && <span> — &quot;{searchQuery}&quot; 검색 결과</span>}
+        {/* 카테고리 목록 */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleCatDragStart}
+            onDragEnd={handleCatDragEnd}
+          >
+            <SortableContext
+              items={categories.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {categories.map((cat) => (
+                <SortableItem
+                  key={cat.id}
+                  id={cat.id}
+                  isDragging={activeCatId === cat.id}
+                >
+                  {(dragHandleProps) => (
+                    <div className="relative group">
+                      {editingCategoryId === cat.id ? (
+                        <div className="px-3 py-1.5 flex items-center gap-1 border-l-[3px] border-l-primary bg-primary/5">
+                          <input
+                            autoFocus
+                            type="text"
+                            value={editingCategoryName}
+                            onChange={(e) =>
+                              setEditingCategoryName(e.target.value)
+                            }
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === "Enter" &&
+                                !e.nativeEvent.isComposing
+                              ) {
+                                const n = editingCategoryName.trim();
+                                if (n)
+                                  updateCategoryMutation.mutate({
+                                    id: cat.id,
+                                    name: n,
+                                  });
+                              }
+                              if (e.key === "Escape") {
+                                setEditingCategoryId(null);
+                                setEditingCategoryName("");
+                              }
+                            }}
+                            className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
+                          <button
+                            onClick={() => {
+                              const n = editingCategoryName.trim();
+                              if (n)
+                                updateCategoryMutation.mutate({
+                                  id: cat.id,
+                                  name: n,
+                                });
+                            }}
+                            disabled={updateCategoryMutation.isPending}
+                            className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingCategoryId(null);
+                              setEditingCategoryName("");
+                            }}
+                            className="text-muted-foreground hover:text-foreground shrink-0"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleCategoryClick(cat.id)}
+                            className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] pr-16 ${
+                              selectedCategoryId === cat.id
+                                ? "border-l-primary bg-background text-primary font-bold shadow-sm"
+                                : "border-l-transparent text-foreground/60 hover:bg-background/60 hover:text-foreground"
+                            }`}
+                          >
+                            {isAdmin && (
+                              <span
+                                {...dragHandleProps}
+                                onClick={(e) => e.stopPropagation()}
+                                className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                              >
+                                <GripVertical className="w-3 h-3" />
+                              </span>
+                            )}
+                            <span className="truncate">{cat.name}</span>
+                          </button>
+                          {isAdmin && (
+                            <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingCategoryId(cat.id);
+                                  setEditingCategoryName(cat.name);
+                                }}
+                                className="text-muted-foreground hover:text-foreground p-1 rounded"
+                                title="이름 수정"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (
+                                    confirm(
+                                      `"${cat.name}" 카테고리를 삭제할까요? 하위 섹션과 내용이 모두 삭제됩니다.`,
+                                    )
+                                  ) {
+                                    deleteCategoryMutation.mutate(cat.id);
+                                  }
+                                }}
+                                className="text-muted-foreground hover:text-destructive p-1 rounded"
+                                title="삭제"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </SortableItem>
+              ))}
+            </SortableContext>
+            <DragOverlay>
+              {activeCatId && (
+                <div className="bg-card border border-border rounded px-3 py-2 text-sm shadow-lg opacity-90">
+                  {categories.find((c) => c.id === activeCatId)?.name}
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+
+          {/* 카테고리 추가 인라인 입력 */}
+          {isAddingCategory && (
+            <div className="px-3 py-2 flex items-center gap-1">
+              <input
+                autoFocus
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={handleAddCategoryKeyDown}
+                placeholder="카테고리명..."
+                className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <button
+                onClick={handleAddCategoryConfirm}
+                disabled={addCategoryMutation.isPending}
+                className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => {
+                  setIsAddingCategory(false);
+                  setNewCategoryName("");
+                }}
+                className="text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {categories.length === 0 && !isAddingCategory && (
+            <p className="text-xs text-muted-foreground px-4 py-3">
+              카테고리 없음
+            </p>
+          )}
+        </nav>
+
+        {/* 1차 리사이즈 핸들 */}
+        <div
+          onMouseDown={startResize1}
+          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-10"
+        />
+      </aside>
+
+      {/* ───────────────────────────────────────────
+          2차 사이드바: 섹션(FAQ 항목) 목록
+      ─────────────────────────────────────────── */}
+      <aside
+        className="shrink-0 border-r border-border bg-card flex flex-col relative"
+        style={{ width: cat2Width }}
+      >
+        {/* 헤더 */}
+        <div
+          className="px-3 border-b border-border flex items-center justify-between gap-2"
+          style={{ minHeight: "49px" }}
+        >
+          <p className="text-sm font-semibold text-foreground truncate">
+            {selectedCategory ? selectedCategory.name : "FAQ 항목"}
           </p>
+          {isAdmin && selectedCategoryId && (
+            <button
+              onClick={() => setIsAddingSection(true)}
+              className="shrink-0 flex items-center gap-0.5 text-xs text-primary hover:text-primary/80 transition-colors"
+              title="FAQ 항목 추가"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>추가</span>
+            </button>
+          )}
         </div>
-      </section>
+
+        {/* 섹션 목록 / 안내 */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          {!selectedCategoryId ? (
+            <p className="text-xs text-muted-foreground px-4 py-3">
+              ← 카테고리를 먼저 선택하세요
+            </p>
+          ) : (
+            <>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleSecDragStart}
+                onDragEnd={handleSecDragEnd}
+              >
+                <SortableContext
+                  items={sections.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {sections.map((sec) => (
+                    <SortableItem
+                      key={sec.id}
+                      id={sec.id}
+                      isDragging={activeSecId === sec.id}
+                    >
+                      {(dragHandleProps) => (
+                        <div className="relative group">
+                          {editingSectionId === sec.id ? (
+                            <div className="px-3 py-1.5 flex items-center gap-1">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editingSectionTitle}
+                                onChange={(e) =>
+                                  setEditingSectionTitle(e.target.value)
+                                }
+                                onKeyDown={(e) => {
+                                  if (
+                                    e.key === "Enter" &&
+                                    !e.nativeEvent.isComposing
+                                  ) {
+                                    const t = editingSectionTitle.trim();
+                                    if (t)
+                                      renameSectionMutation.mutate({
+                                        id: sec.id,
+                                        title: t,
+                                      });
+                                  }
+                                  if (e.key === "Escape") {
+                                    setEditingSectionId(null);
+                                    setEditingSectionTitle("");
+                                  }
+                                }}
+                                className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                              <button
+                                onClick={() => {
+                                  const t = editingSectionTitle.trim();
+                                  if (t)
+                                    renameSectionMutation.mutate({
+                                      id: sec.id,
+                                      title: t,
+                                    });
+                                }}
+                                disabled={renameSectionMutation.isPending}
+                                className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                              >
+                                <Save className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingSectionId(null);
+                                  setEditingSectionTitle("");
+                                }}
+                                className="text-muted-foreground hover:text-foreground shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleSectionClick(sec.id)}
+                                className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-l-[3px] pr-16 ${
+                                  selectedSectionId === sec.id
+                                    ? "border-l-primary bg-primary/10 text-primary font-bold"
+                                    : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
+                                }`}
+                              >
+                                {isAdmin && (
+                                  <span
+                                    {...dragHandleProps}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                                  >
+                                    <GripVertical className="w-3 h-3" />
+                                  </span>
+                                )}
+                                <span className="truncate">{sec.title}</span>
+                              </button>
+                              {isAdmin && (
+                                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingSectionId(sec.id);
+                                      setEditingSectionTitle(sec.title);
+                                    }}
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded"
+                                    title="이름 수정"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (
+                                        confirm(
+                                          `"${sec.title}" FAQ를 삭제할까요?`,
+                                        )
+                                      ) {
+                                        deleteSectionMutation.mutate(sec.id);
+                                      }
+                                    }}
+                                    className="text-muted-foreground hover:text-destructive p-1 rounded"
+                                    title="삭제"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </SortableItem>
+                  ))}
+                </SortableContext>
+                <DragOverlay>
+                  {activeSecId && (
+                    <div className="bg-card border border-border rounded px-3 py-2 text-sm shadow-lg opacity-90">
+                      {sections.find((s) => s.id === activeSecId)?.title}
+                    </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
+
+              {/* 섹션 추가 인라인 입력 */}
+              {isAddingSection && (
+                <div className="px-3 py-2 flex items-center gap-1">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newSectionTitle}
+                    onChange={(e) => setNewSectionTitle(e.target.value)}
+                    onKeyDown={handleAddSectionKeyDown}
+                    placeholder="FAQ 항목 이름..."
+                    className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <button
+                    onClick={handleAddSectionConfirm}
+                    disabled={addSectionMutation.isPending}
+                    className="text-primary hover:text-primary/80 disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsAddingSection(false);
+                      setNewSectionTitle("");
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {sections.length === 0 && !isAddingSection && (
+                <p className="text-xs text-muted-foreground px-4 py-3">
+                  FAQ 항목이 없습니다
+                </p>
+              )}
+            </>
+          )}
+        </nav>
+
+        {/* 2차 리사이즈 핸들 */}
+        <div
+          onMouseDown={startResize2}
+          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-10"
+        />
+      </aside>
+
+      {/* ───────────────────────────────────────────
+          본문 패널
+      ─────────────────────────────────────────── */}
+      <main className="flex-1 overflow-y-auto bg-background">
+        {/* 카테고리 미선택 */}
+        {!selectedCategoryId && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+            <span className="text-5xl">❓</span>
+            <p className="text-base font-medium">카테고리를 선택하세요</p>
+            <p className="text-sm">
+              왼쪽 사이드바에서 카테고리를 선택하면 내용이 표시됩니다.
+            </p>
+          </div>
+        )}
+
+        {/* 섹션 미선택 */}
+        {selectedCategoryId && !selectedSectionId && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+            <span className="text-5xl">❓</span>
+            <p className="text-base font-medium">← FAQ를 선택하세요</p>
+            <p className="text-sm">FAQ 항목을 선택하면 내용이 표시됩니다.</p>
+          </div>
+        )}
+
+        {/* 섹션 선택됨 */}
+        {selectedSectionId && (
+          <div className="relative px-6 py-6">
+            {/* 편집 버튼 - 우상단 고정 (ADMIN, 뷰어 모드에서만) */}
+            {isAdmin && !isEditing && (
+              <div className="absolute top-4 right-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEdit}
+                  className="flex items-center gap-1.5"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  편집
+                </Button>
+              </div>
+            )}
+
+            {/* 섹션 헤더 */}
+            <div className="mb-6">
+              <p className="text-xs text-muted-foreground mb-0.5">
+                {selectedCategory?.emoji} {selectedCategory?.name}
+              </p>
+              <h2 className="text-xl font-bold text-foreground">
+                {selectedSection?.title ?? ""}
+              </h2>
+            </div>
+
+            {/* ── 편집 모드 */}
+            {isEditing ? (
+              <div>
+                {/* Q/A 빠른 추가 버튼 */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() =>
+                      setEditBlocks([
+                        ...editBlocks,
+                        { blockType: "QUESTION", content: "" },
+                      ])
+                    }
+                    className="text-xs px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground border border-border flex items-center gap-1.5"
+                  >
+                    💬 Q 추가
+                  </button>
+                  <button
+                    onClick={() =>
+                      setEditBlocks([
+                        ...editBlocks,
+                        { blockType: "ANSWER", content: "" },
+                      ])
+                    }
+                    className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 flex items-center gap-1.5"
+                  >
+                    💡 A 추가
+                  </button>
+                </div>
+
+                {/* 블록 목록 */}
+                <div className="space-y-3 mb-6">
+                  {editBlocks.map((block, idx) => (
+                    <div key={idx} className="relative group">
+                      {block.blockType === "QUESTION" ||
+                      block.blockType === "ANSWER" ? (
+                        <div
+                          className={`flex items-start gap-2 p-3 rounded-xl border ${
+                            block.blockType === "QUESTION"
+                              ? "border-border bg-muted/30"
+                              : "border-primary/20 bg-primary/5"
+                          }`}
+                        >
+                          <span
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-1 ${
+                              block.blockType === "QUESTION"
+                                ? "bg-muted text-muted-foreground"
+                                : "bg-primary text-primary-foreground"
+                            }`}
+                          >
+                            {block.blockType === "QUESTION" ? "Q" : "A"}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <LexicalEditor
+                              key={`${idx}-${block.blockType}`}
+                              initialState={block.content || undefined}
+                              onChange={(val) => {
+                                const updated = [...editBlocks];
+                                updated[idx] = {
+                                  ...updated[idx],
+                                  content: val,
+                                };
+                                setEditBlocks(updated);
+                              }}
+                              placeholder={
+                                block.blockType === "QUESTION"
+                                  ? "질문을 입력하세요..."
+                                  : "답변을 입력하세요..."
+                              }
+                              minHeight="80px"
+                            />
+                          </div>
+                          <button
+                            onClick={() =>
+                              setEditBlocks(
+                                editBlocks.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        /* NOTE/MMD 등 기타 블록 */
+                        <div className="flex items-start gap-2 p-3 rounded-xl border border-border bg-card">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0 mt-1">
+                            {block.blockType}
+                          </span>
+                          <textarea
+                            value={block.content}
+                            onChange={(e) => {
+                              const updated = [...editBlocks];
+                              updated[idx] = {
+                                ...updated[idx],
+                                content: e.target.value,
+                              };
+                              setEditBlocks(updated);
+                            }}
+                            className="flex-1 bg-transparent text-xs font-mono text-foreground resize-none focus:outline-none min-h-[60px] placeholder:text-muted-foreground"
+                            rows={3}
+                          />
+                          <button
+                            onClick={() =>
+                              setEditBlocks(
+                                editBlocks.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 저장 / 취소 버튼 */}
+                <div className="flex gap-3 pt-4 border-t border-border">
+                  <Button
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Save className="w-4 h-4 mr-1.5" />
+                    {saveMutation.isPending ? "저장 중..." : "저장"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    disabled={saveMutation.isPending}
+                    className="flex items-center gap-1.5"
+                  >
+                    <X className="w-4 h-4 mr-1.5" />
+                    취소
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* ── 뷰어 모드 */
+              <div>
+                {blocks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-2 text-muted-foreground">
+                    <span className="text-4xl">❓</span>
+                    <p className="text-sm">아직 내용이 없습니다.</p>
+                    {isAdmin && (
+                      <p className="text-xs text-muted-foreground">
+                        우상단 편집 버튼으로 Q&A를 추가하세요.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-2">
+                    {blocks.map((block, idx) => (
+                      <SubutaiFaqBlockViewer
+                        key={block.id ?? idx}
+                        block={block}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
