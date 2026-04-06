@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import { useConfirm } from "@/shared/hooks/useConfirm";
 import {
   Bot,
   User,
@@ -235,6 +236,8 @@ function parseInline(text: string, keyPrefix: string): React.ReactNode[] {
 
 // ─── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 export default function SubutaiAiPage() {
+  const { confirm, ConfirmDialog } = useConfirm();
+
   // 탭
   const [leftTab, setLeftTab] = useState<"repos" | "history">("repos");
 
@@ -383,10 +386,16 @@ export default function SubutaiAiPage() {
     }
   };
 
-  const handleDeleteFolder = async (id: number) => {
+  const handleDeleteFolder = async (id: number, name: string) => {
+    const ok = await confirm({
+      title: "폴더 삭제",
+      description: `"${name}" 폴더와 하위 URL 항목이 모두 삭제됩니다. 계속하시겠습니까?`,
+      confirmText: "삭제",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       await subutaiAiApi.deleteFolder(id);
-      // 삭제된 폴더의 아이템 선택 해제
       const folder = folders.find((f) => f.id === id);
       if (folder) {
         setSelectedItems((prev) => {
@@ -441,7 +450,14 @@ export default function SubutaiAiPage() {
     }
   };
 
-  const handleDeleteItem = async (id: number) => {
+  const handleDeleteItem = async (id: number, label: string) => {
+    const ok = await confirm({
+      title: "항목 삭제",
+      description: `"${label}" 항목을 삭제하시겠습니까?`,
+      confirmText: "삭제",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       await subutaiAiApi.deleteItem(id);
       setSelectedItems((prev) => {
@@ -466,6 +482,13 @@ export default function SubutaiAiPage() {
 
   // ── 히스토리 액션 ──────────────────────────────────────────────────────────
   const handleDeleteHistory = async (id: number) => {
+    const ok = await confirm({
+      title: "히스토리 삭제",
+      description: "이 대화 기록을 삭제하시겠습니까?",
+      confirmText: "삭제",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       await subutaiAiApi.deleteHistory(id);
       setHistories((prev) => prev.filter((h) => h.id !== id));
@@ -594,6 +617,7 @@ export default function SubutaiAiPage() {
       className="flex bg-background text-foreground overflow-hidden"
       style={{ height: "calc(100vh - 64px)" }}
     >
+      <ConfirmDialog />
       {/* ══════════════════════════════════════════════════════════
           좌측 패널
       ══════════════════════════════════════════════════════════ */}
@@ -763,7 +787,9 @@ export default function SubutaiAiPage() {
                               <Pencil className="w-3 h-3" />
                             </button>
                             <button
-                              onClick={() => handleDeleteFolder(folder.id)}
+                              onClick={() =>
+                                handleDeleteFolder(folder.id, folder.name)
+                              }
                               className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -884,7 +910,7 @@ export default function SubutaiAiPage() {
                                       </a>
                                       <button
                                         onClick={() =>
-                                          handleDeleteItem(item.id)
+                                          handleDeleteItem(item.id, item.label)
                                         }
                                         className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                       >
