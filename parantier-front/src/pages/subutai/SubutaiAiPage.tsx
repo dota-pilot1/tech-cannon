@@ -1,4 +1,19 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import {
   Bot,
@@ -17,6 +32,7 @@ import {
   Check,
   FileText,
   FolderOpen,
+  GripVertical,
 } from "lucide-react";
 
 // ─── API 설정 ──────────────────────────────────────────────────────────────────
@@ -289,6 +305,68 @@ function parseInline(text: string, keyPrefix: string): React.ReactNode[] {
   return nodes;
 }
 
+// ─── SortableSectionItem ───────────────────────────────────────────────────────
+function SortableSectionItem({
+  id,
+  idx,
+  title,
+  isSelected,
+  onClick,
+}: {
+  id: string;
+  idx: number;
+  title: string;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-1 rounded-lg transition-colors text-sm ${
+        isSelected
+          ? "bg-primary/10 text-primary"
+          : "text-foreground hover:bg-muted/60"
+      }`}
+    >
+      {/* 드래그 핸들 */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="p-1.5 pl-2 text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+      {/* 클릭 영역 */}
+      <button
+        onClick={onClick}
+        className="flex-1 flex items-center gap-2 py-2 pr-3 text-left min-w-0"
+      >
+        <span className="text-xs text-muted-foreground shrink-0 w-4 text-center font-mono">
+          {idx + 1}
+        </span>
+        <span className="truncate">{title || `본문 ${idx + 1}`}</span>
+      </button>
+    </div>
+  );
+}
+
 // ─── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 export default function SubutaiAiPage() {
   const { confirm, ConfirmDialog } = useConfirm();
@@ -323,6 +401,9 @@ export default function SubutaiAiPage() {
   const [editingSections, setEditingSections] = useState<DocSection[]>([]);
   const [isSavingPost, setIsSavingPost] = useState(false);
   const [selectedSectionIdx, setSelectedSectionIdx] = useState<number>(0);
+  const sectionDndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
 
   // ── 저장소 탭 상태 ──────────────────────────────────────────────────────────
   const [repoUrl, setRepoUrl] = useState("");
@@ -525,6 +606,26 @@ export default function SubutaiAiPage() {
     } finally {
       setIsSavingPost(false);
     }
+  };
+
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setEditingSections((prev) => {
+      const oldIdx = prev.findIndex((_, i) => String(i) === active.id);
+      const newIdx = prev.findIndex((_, i) => String(i) === over.id);
+      if (oldIdx < 0 || newIdx < 0) return prev;
+      const reordered = arrayMove(prev, oldIdx, newIdx);
+      // selectedSectionIdx 업데이트
+      if (selectedSectionIdx === oldIdx) {
+        setSelectedSectionIdx(newIdx);
+      } else if (selectedSectionIdx > oldIdx && selectedSectionIdx <= newIdx) {
+        setSelectedSectionIdx(selectedSectionIdx - 1);
+      } else if (selectedSectionIdx < oldIdx && selectedSectionIdx >= newIdx) {
+        setSelectedSectionIdx(selectedSectionIdx + 1);
+      }
+      return reordered;
+    });
   };
 
   const addSection = () => {
@@ -887,24 +988,27 @@ export default function SubutaiAiPage() {
                     <p className="text-xs">본문을 추가해주세요</p>
                   </div>
                 ) : (
-                  editingSections.map((section, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedSectionIdx(idx)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors text-sm ${
-                        selectedSectionIdx === idx
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-muted/60"
-                      }`}
+                  <DndContext
+                    sensors={sectionDndSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleSectionDragEnd}
+                  >
+                    <SortableContext
+                      items={editingSections.map((_, i) => String(i))}
+                      strategy={verticalListSortingStrategy}
                     >
-                      <span className="text-xs text-muted-foreground shrink-0 w-5 text-center font-mono">
-                        {idx + 1}
-                      </span>
-                      <span className="truncate">
-                        {section.title || `본문 ${idx + 1}`}
-                      </span>
-                    </button>
-                  ))
+                      {editingSections.map((section, idx) => (
+                        <SortableSectionItem
+                          key={idx}
+                          id={String(idx)}
+                          idx={idx}
+                          title={section.title}
+                          isSelected={selectedSectionIdx === idx}
+                          onClick={() => setSelectedSectionIdx(idx)}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 )}
               </div>
               {/* 본문 추가 버튼 */}
