@@ -14,7 +14,6 @@ import {
   X,
   RotateCcw,
   Loader2,
-  Pencil,
   Check,
   FileText,
   FolderOpen,
@@ -30,19 +29,12 @@ const getAuthHeaders = () => ({
 });
 
 // ─── 타입 정의 ─────────────────────────────────────────────────────────────────
-interface GithubItem {
-  id: number;
-  folderId: number;
-  label: string;
-  githubUrl: string;
-  orderNum: number;
-}
-
-interface GithubFolder {
-  id: number;
+interface TreeNode {
+  path: string;
   name: string;
-  orderNum: number;
-  items: GithubItem[];
+  type: "blob" | "tree";
+  url: string;
+  children?: TreeNode[];
 }
 
 interface ChatHistory {
@@ -161,72 +153,30 @@ const docApi = {
     }),
 };
 
-// ─── API 함수 (저장소 / AI) ────────────────────────────────────────────────────
+// ─── GitHub API ────────────────────────────────────────────────────────────────
+const githubApi = {
+  getTree: (repoUrl: string): Promise<TreeNode[]> =>
+    fetch(`${BASE}/subutai/github/tree?url=${encodeURIComponent(repoUrl)}`, {
+      headers: getAuthHeaders(),
+    }).then((r) => {
+      if (!r.ok) throw new Error("트리 조회 실패");
+      return r.json();
+    }),
+
+  getContent: (
+    owner: string,
+    repo: string,
+    path: string,
+    branch = "main",
+  ): Promise<string> =>
+    fetch(
+      `${BASE}/subutai/github/content?owner=${owner}&repo=${repo}&path=${encodeURIComponent(path)}&branch=${branch}`,
+      { headers: getAuthHeaders() },
+    ).then((r) => r.text()),
+};
+
+// ─── AI API ────────────────────────────────────────────────────────────────────
 const subutaiAiApi = {
-  getFolders: (): Promise<GithubFolder[]> =>
-    fetch(`${BASE}/subutai/ai/folders`, { headers: getAuthHeaders() })
-      .then((r) => r.json())
-      .then((d) => (Array.isArray(d) ? d : [])),
-
-  createFolder: (name: string): Promise<void> =>
-    fetch(`${BASE}/subutai/ai/folders`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ name }),
-    }).then((r) => {
-      if (!r.ok) throw new Error("폴더 생성 실패");
-    }),
-
-  updateFolder: (id: number, name: string): Promise<void> =>
-    fetch(`${BASE}/subutai/ai/folders/${id}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ name }),
-    }).then((r) => {
-      if (!r.ok) throw new Error();
-    }),
-
-  deleteFolder: (id: number): Promise<void> =>
-    fetch(`${BASE}/subutai/ai/folders/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    }).then((r) => {
-      if (!r.ok) throw new Error("폴더 삭제 실패");
-    }),
-
-  createItem: (data: {
-    folderId: number;
-    label: string;
-    githubUrl: string;
-  }): Promise<void> =>
-    fetch(`${BASE}/subutai/ai/items`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    }).then((r) => {
-      if (!r.ok) throw new Error("아이템 생성 실패");
-    }),
-
-  updateItem: (
-    id: number,
-    data: { label: string; githubUrl: string },
-  ): Promise<void> =>
-    fetch(`${BASE}/subutai/ai/items/${id}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    }).then((r) => {
-      if (!r.ok) throw new Error();
-    }),
-
-  deleteItem: (id: number): Promise<void> =>
-    fetch(`${BASE}/subutai/ai/items/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    }).then((r) => {
-      if (!r.ok) throw new Error("아이템 삭제 실패");
-    }),
-
   chat: (data: {
     question: string;
     postIds: number[];
@@ -249,6 +199,13 @@ const subutaiAiApi = {
     }).then((r) => {
       if (!r.ok) throw new Error("히스토리 삭제 실패");
     }),
+};
+
+// ─── URL 파싱 유틸 ─────────────────────────────────────────────────────────────
+const parseRepoUrl = (url: string): { owner: string; repo: string } | null => {
+  const m = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/.*)?$/);
+  if (!m) return null;
+  return { owner: m[1], repo: m[2] };
 };
 
 // ─── 마크다운 렌더러 ───────────────────────────────────────────────────────────
@@ -339,34 +296,6 @@ export default function SubutaiAiPage() {
   // 탭: 문서 / 저장소 / 히스토리
   const [leftTab, setLeftTab] = useState<"doc" | "repos" | "history">("doc");
 
-  // ── 저장소 탭 상태 ──────────────────────────────────────────────────────────
-  const [folders, setFolders] = useState<GithubFolder[]>([]);
-  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(
-    new Set(),
-  );
-  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
-  const [foldersLoading, setFoldersLoading] = useState(false);
-
-  // 폴더 추가
-  const [addingFolder, setAddingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-
-  // 폴더 수정
-  const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
-  const [editingFolderName, setEditingFolderName] = useState("");
-
-  // 아이템 추가
-  const [addingItemFolderId, setAddingItemFolderId] = useState<number | null>(
-    null,
-  );
-  const [newItemLabel, setNewItemLabel] = useState("");
-  const [newItemUrl, setNewItemUrl] = useState("");
-
-  // 아이템 수정
-  const [editingItemId, setEditingItemId] = useState<number | null>(null);
-  const [editingItemLabel, setEditingItemLabel] = useState("");
-  const [editingItemUrl, setEditingItemUrl] = useState("");
-
   // ── 문서 탭 상태 ────────────────────────────────────────────────────────────
   const [docFolders, setDocFolders] = useState<DocFolder[]>([]);
   const [docPosts, setDocPosts] = useState<Record<number, DocPost[]>>({});
@@ -378,24 +307,39 @@ export default function SubutaiAiPage() {
   );
   const [docLoading, setDocLoading] = useState(false);
 
-  // 폴더 인라인 추가
   const [addingDocFolder, setAddingDocFolder] = useState(false);
   const [newDocFolderName, setNewDocFolderName] = useState("");
   const [isSubmittingFolder, setIsSubmittingFolder] = useState(false);
 
-  // 문서 인라인 추가 (folderId별)
   const [addingPostFolderId, setAddingPostFolderId] = useState<number | null>(
     null,
   );
   const [newPostTitle, setNewPostTitle] = useState("");
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
 
-  // 문서 편집 다이얼로그
   const [viewPost, setViewPost] = useState<DocPost | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingSections, setEditingSections] = useState<DocSection[]>([]);
   const [isSavingPost, setIsSavingPost] = useState(false);
+
+  // ── 저장소 탭 상태 ──────────────────────────────────────────────────────────
+  const [repoUrl, setRepoUrl] = useState("");
+  const [repoTree, setRepoTree] = useState<TreeNode[]>([]);
+  const [treeLoading, setTreeLoading] = useState(false);
+  const [treeError, setTreeError] = useState("");
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [currentRepoUrl, setCurrentRepoUrl] = useState("");
+
+  // 풀 다이얼로그
+  const [isRepoDialogOpen, setIsRepoDialogOpen] = useState(false);
+  const [dialogTree, setDialogTree] = useState<TreeNode[]>([]);
+  const [dialogExpandedNodes, setDialogExpandedNodes] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedFilePath, setSelectedFilePath] = useState("");
+  const [fileContent, setFileContent] = useState("");
+  const [fileLoading, setFileLoading] = useState(false);
 
   // ── 챗봇 상태 ───────────────────────────────────────────────────────────────
   const [messages, setMessages] = useState<Message[]>([]);
@@ -408,32 +352,15 @@ export default function SubutaiAiPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const newFolderInputRef = useRef<HTMLInputElement>(null);
-  const newItemLabelRef = useRef<HTMLInputElement>(null);
-  const editFolderInputRef = useRef<HTMLInputElement>(null);
-  const editItemLabelRef = useRef<HTMLInputElement>(null);
 
   // ── 초기 로드 ──────────────────────────────────────────────────────────────
   useEffect(() => {
     loadDocFolders();
-    loadFolders();
   }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  useEffect(() => {
-    if (addingFolder && newFolderInputRef.current) {
-      newFolderInputRef.current.focus();
-    }
-  }, [addingFolder]);
-
-  useEffect(() => {
-    if (addingItemFolderId !== null && newItemLabelRef.current) {
-      newItemLabelRef.current.focus();
-    }
-  }, [addingItemFolderId]);
 
   // ── 탭 전환 ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -444,21 +371,6 @@ export default function SubutaiAiPage() {
       loadDocFolders();
     }
   }, [leftTab, docFolders.length]);
-
-  // ── 수정 모드 포커스 ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (editingFolderId !== null && editFolderInputRef.current) {
-      editFolderInputRef.current.focus();
-      editFolderInputRef.current.select();
-    }
-  }, [editingFolderId]);
-
-  useEffect(() => {
-    if (editingItemId !== null && editItemLabelRef.current) {
-      editItemLabelRef.current.focus();
-      editItemLabelRef.current.select();
-    }
-  }, [editingItemId]);
 
   // ── 문서 탭 API ────────────────────────────────────────────────────────────
   const loadDocFolders = async () => {
@@ -634,146 +546,147 @@ export default function SubutaiAiPage() {
     );
   };
 
-  // ── 저장소 탭 API ──────────────────────────────────────────────────────────
-  const loadFolders = async () => {
-    setFoldersLoading(true);
+  // ── 저장소 탭 핸들러 ────────────────────────────────────────────────────────
+  const handleLoadTree = async () => {
+    const url = repoUrl.trim();
+    if (!url) return;
+    setTreeLoading(true);
+    setTreeError("");
     try {
-      const data = await subutaiAiApi.getFolders();
-      setFolders(data);
-      setExpandedFolders((prev) => {
-        const next = new Set(prev);
-        data.forEach((f) => next.add(f.id));
-        return next;
-      });
-      setSelectedItems((prev) => {
-        const next = new Set(prev);
-        data.forEach((f) => f.items.forEach((item) => next.add(item.id)));
-        return next;
-      });
+      const tree = await githubApi.getTree(url);
+      setRepoTree(tree);
+      setCurrentRepoUrl(url);
+      setExpandedNodes(new Set());
     } catch {
-      // 무시
+      setTreeError("저장소를 불러오지 못했습니다. URL을 확인해주세요.");
     } finally {
-      setFoldersLoading(false);
+      setTreeLoading(false);
     }
   };
 
-  const handleCreateFolder = async () => {
-    const name = newFolderName.trim();
-    if (!name) return;
-    try {
-      await subutaiAiApi.createFolder(name);
-      setNewFolderName("");
-      setAddingFolder(false);
-      await loadFolders();
-    } catch {
-      // 무시
-    }
-  };
-
-  const handleUpdateFolder = async (id: number) => {
-    const name = editingFolderName.trim();
-    if (!name) return;
-    try {
-      await subutaiAiApi.updateFolder(id, name);
-      setEditingFolderId(null);
-      setEditingFolderName("");
-      await loadFolders();
-    } catch {
-      // 무시
-    }
-  };
-
-  const handleDeleteFolder = async (id: number, name: string) => {
-    const ok = await confirm({
-      title: "폴더 삭제",
-      description: `"${name}" 폴더와 하위 URL 항목이 모두 삭제됩니다. 계속하시겠습니까?`,
-      confirmText: "삭제",
-      variant: "destructive",
-    });
-    if (!ok) return;
-    try {
-      await subutaiAiApi.deleteFolder(id);
-      const folder = folders.find((f) => f.id === id);
-      if (folder) {
-        setSelectedItems((prev) => {
-          const next = new Set(prev);
-          folder.items.forEach((item) => next.delete(item.id));
-          return next;
-        });
-      }
-      await loadFolders();
-    } catch {
-      // 무시
-    }
-  };
-
-  const toggleFolder = (id: number) => {
-    setExpandedFolders((prev) => {
+  const toggleNode = (path: string) => {
+    setExpandedNodes((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
       return next;
     });
   };
 
-  const handleCreateItem = async (folderId: number) => {
-    const label = newItemLabel.trim();
-    const githubUrl = newItemUrl.trim();
-    if (!label || !githubUrl) return;
-    try {
-      await subutaiAiApi.createItem({ folderId, label, githubUrl });
-      setNewItemLabel("");
-      setNewItemUrl("");
-      setAddingItemFolderId(null);
-      await loadFolders();
-    } catch {
-      // 무시
-    }
-  };
-
-  const handleUpdateItem = async (id: number) => {
-    const label = editingItemLabel.trim();
-    const githubUrl = editingItemUrl.trim();
-    if (!label || !githubUrl) return;
-    try {
-      await subutaiAiApi.updateItem(id, { label, githubUrl });
-      setEditingItemId(null);
-      setEditingItemLabel("");
-      setEditingItemUrl("");
-      await loadFolders();
-    } catch {
-      // 무시
-    }
-  };
-
-  const handleDeleteItem = async (id: number, label: string) => {
-    const ok = await confirm({
-      title: "항목 삭제",
-      description: `"${label}" 항목을 삭제하시겠습니까?`,
-      confirmText: "삭제",
-      variant: "destructive",
-    });
-    if (!ok) return;
-    try {
-      await subutaiAiApi.deleteItem(id);
-      setSelectedItems((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      await loadFolders();
-    } catch {
-      // 무시
-    }
-  };
-
-  const toggleItem = (id: number) => {
-    setSelectedItems((prev) => {
+  const toggleDialogNode = (path: string) => {
+    setDialogExpandedNodes((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
       return next;
     });
+  };
+
+  const handleFileClick = async (node: TreeNode) => {
+    if (node.type !== "blob") return;
+    const parsed = parseRepoUrl(currentRepoUrl);
+    if (!parsed) return;
+
+    setIsRepoDialogOpen(true);
+    setDialogTree(repoTree);
+    setDialogExpandedNodes(new Set(expandedNodes));
+    setSelectedFilePath(node.path);
+    setFileContent("");
+    setFileLoading(true);
+
+    try {
+      const content = await githubApi.getContent(
+        parsed.owner,
+        parsed.repo,
+        node.path,
+      );
+      setFileContent(content);
+    } catch {
+      setFileContent("// 파일을 불러올 수 없습니다.");
+    } finally {
+      setFileLoading(false);
+    }
+  };
+
+  const handleDialogFileClick = async (node: TreeNode) => {
+    if (node.type !== "blob") return;
+    const parsed = parseRepoUrl(currentRepoUrl);
+    if (!parsed) return;
+
+    setSelectedFilePath(node.path);
+    setFileContent("");
+    setFileLoading(true);
+    try {
+      const content = await githubApi.getContent(
+        parsed.owner,
+        parsed.repo,
+        node.path,
+      );
+      setFileContent(content);
+    } catch {
+      setFileContent("// 파일을 불러올 수 없습니다.");
+    } finally {
+      setFileLoading(false);
+    }
+  };
+
+  // ── 트리 렌더 함수 (재귀) ────────────────────────────────────────────────────
+  const renderTreeNode = (
+    node: TreeNode,
+    expandedSet: Set<string>,
+    onToggle: (path: string) => void,
+    onFileClick: (node: TreeNode) => void,
+    selectedPath?: string,
+    depth = 0,
+  ): React.ReactNode => {
+    const isExpanded = expandedSet.has(node.path);
+    const isSelected = node.path === selectedPath;
+    const isFolder = node.type === "tree";
+
+    return (
+      <div key={node.path}>
+        <div
+          onClick={() => (isFolder ? onToggle(node.path) : onFileClick(node))}
+          style={{ paddingLeft: `${depth * 12 + 8}px` }}
+          className={`flex items-center gap-1.5 py-1 pr-2 cursor-pointer rounded-md text-sm transition-colors ${
+            isSelected
+              ? "bg-primary/10 text-primary"
+              : "text-foreground hover:bg-muted/60"
+          }`}
+        >
+          {isFolder ? (
+            <>
+              {isExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              )}
+              <FolderOpen className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            </>
+          ) : (
+            <>
+              <span className="w-3.5 shrink-0" />
+              <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            </>
+          )}
+          <span className="truncate">{node.name}</span>
+        </div>
+        {isFolder && isExpanded && node.children && (
+          <div>
+            {node.children.map((child) =>
+              renderTreeNode(
+                child,
+                expandedSet,
+                onToggle,
+                onFileClick,
+                selectedPath,
+                depth + 1,
+              ),
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   // ── 히스토리 액션 ──────────────────────────────────────────────────────────
@@ -909,15 +822,6 @@ export default function SubutaiAiPage() {
     }
   };
 
-  const getLabelByUrl = (url: string): string => {
-    for (const folder of folders) {
-      for (const item of folder.items) {
-        if (item.githubUrl === url) return item.label;
-      }
-    }
-    return url;
-  };
-
   // ── 렌더 ───────────────────────────────────────────────────────────────────
   return (
     <div
@@ -1028,13 +932,85 @@ export default function SubutaiAiPage() {
         </div>
       )}
 
+      {/* 저장소 풀 다이얼로그 */}
+      {isRepoDialogOpen && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          {/* 헤더 */}
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0 bg-card">
+            <Github className="w-5 h-5 text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium text-muted-foreground truncate">
+              {currentRepoUrl.replace("https://github.com/", "")}
+            </span>
+            {selectedFilePath && (
+              <>
+                <span className="text-muted-foreground/40 shrink-0">/</span>
+                <span className="text-sm font-medium text-foreground truncate">
+                  {selectedFilePath}
+                </span>
+                <a
+                  href={`${currentRepoUrl}/blob/main/${selectedFilePath}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </>
+            )}
+            <button
+              onClick={() => setIsRepoDialogOpen(false)}
+              className="ml-auto p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* 본문: 좌측 트리 + 우측 코드 */}
+          <div className="flex flex-1 overflow-hidden">
+            {/* 좌측 트리 사이드바 */}
+            <div className="w-72 shrink-0 border-r border-border overflow-y-auto bg-card/50">
+              <div className="py-2 px-1">
+                {dialogTree.map((node) =>
+                  renderTreeNode(
+                    node,
+                    dialogExpandedNodes,
+                    toggleDialogNode,
+                    handleDialogFileClick,
+                    selectedFilePath,
+                  ),
+                )}
+              </div>
+            </div>
+
+            {/* 우측 코드 뷰어 */}
+            <div className="flex-1 overflow-auto bg-background">
+              {fileLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : fileContent ? (
+                <pre className="p-4 text-xs font-mono text-foreground whitespace-pre leading-relaxed">
+                  <code>{fileContent}</code>
+                </pre>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p className="text-sm">왼쪽에서 파일을 선택하세요</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ══════════════════════════════════════════════════════════
           좌측 패널
       ══════════════════════════════════════════════════════════ */}
       <aside className="w-[600px] shrink-0 border-r border-border flex flex-col overflow-hidden">
         {/* 탭 헤더 */}
         <div className="flex border-b border-border shrink-0">
-          {/* 문서 탭 */}
           <button
             onClick={() => setLeftTab("doc")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 ${
@@ -1046,7 +1022,6 @@ export default function SubutaiAiPage() {
             <FileText className="w-3.5 h-3.5" />
             문서
           </button>
-          {/* 저장소 탭 */}
           <button
             onClick={() => setLeftTab("repos")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 ${
@@ -1058,7 +1033,6 @@ export default function SubutaiAiPage() {
             <Github className="w-3.5 h-3.5" />
             저장소
           </button>
-          {/* 히스토리 탭 */}
           <button
             onClick={() => setLeftTab("history")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 ${
@@ -1304,369 +1278,69 @@ export default function SubutaiAiPage() {
 
         {/* ── 저장소 탭 ──────────────────────────────────────── */}
         {leftTab === "repos" && (
-          <div className="flex flex-col flex-1 overflow-hidden">
-            {/* 폴더 추가 버튼 */}
-            <div className="px-3 pt-3 pb-1 shrink-0">
-              {addingFolder ? (
-                <div className="flex items-center gap-1.5">
-                  <input
-                    ref={newFolderInputRef}
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleCreateFolder();
-                      }
-                      if (e.key === "Escape") {
-                        setAddingFolder(false);
-                        setNewFolderName("");
-                      }
-                    }}
-                    placeholder="폴더명 입력..."
-                    className="flex-1 bg-muted border border-border rounded-md px-2.5 py-1.5 text-xs outline-none focus:border-primary/60 text-foreground placeholder:text-muted-foreground"
-                  />
-                  <button
-                    onClick={handleCreateFolder}
-                    className="p-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    <Plus className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setAddingFolder(false);
-                      setNewFolderName("");
-                    }}
-                    className="p-1.5 rounded-md text-muted-foreground hover:bg-muted transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
+          <div className="flex flex-col h-full overflow-hidden">
+            {/* URL 입력 */}
+            <div className="px-3 pt-3 pb-2 shrink-0 space-y-2">
+              <div className="flex gap-1.5">
+                <input
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleLoadTree();
+                    }
+                  }}
+                  placeholder="https://github.com/owner/repo"
+                  className="flex-1 bg-muted border border-border rounded-md px-2.5 py-1.5 text-xs outline-none focus:border-primary/60 text-foreground placeholder:text-muted-foreground"
+                />
                 <button
-                  onClick={() => setAddingFolder(true)}
-                  className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                  onClick={handleLoadTree}
+                  disabled={treeLoading || !repoUrl.trim()}
+                  className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs hover:bg-primary/90 disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  폴더 추가
+                  {treeLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Github className="w-3 h-3" />
+                  )}
+                  불러오기
                 </button>
+              </div>
+              {treeError && (
+                <p className="text-xs text-destructive">{treeError}</p>
               )}
-            </div>
-
-            {/* 폴더 목록 */}
-            <div className="flex-1 overflow-y-auto px-2 pb-2">
-              {foldersLoading ? (
-                <div className="flex items-center justify-center py-8 text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  <span className="text-xs">불러오는 중...</span>
-                </div>
-              ) : folders.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Github className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-xs">폴더를 추가해보세요</p>
-                </div>
-              ) : (
-                folders.map((folder) => {
-                  const isOpen = expandedFolders.has(folder.id);
-                  const isAddingItem = addingItemFolderId === folder.id;
-
-                  return (
-                    <div key={folder.id} className="mb-1">
-                      {/* 폴더 헤더 */}
-                      {editingFolderId === folder.id ? (
-                        <div className="flex items-center gap-1 px-2 py-1.5">
-                          <input
-                            ref={editFolderInputRef}
-                            value={editingFolderName}
-                            onChange={(e) =>
-                              setEditingFolderName(e.target.value)
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleUpdateFolder(folder.id);
-                              }
-                              if (e.key === "Escape") {
-                                setEditingFolderId(null);
-                                setEditingFolderName("");
-                              }
-                            }}
-                            className="flex-1 bg-muted border border-primary/60 rounded px-2 py-0.5 text-xs outline-none text-foreground"
-                          />
-                          <button
-                            onClick={() => handleUpdateFolder(folder.id)}
-                            className="p-1 rounded text-primary hover:bg-primary/10 transition-colors"
-                          >
-                            <Check className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingFolderId(null);
-                              setEditingFolderName("");
-                            }}
-                            className="p-1 rounded text-muted-foreground hover:bg-muted transition-colors"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="group flex items-center rounded-md hover:bg-muted/60 transition-colors">
-                          <button
-                            onClick={() => toggleFolder(folder.id)}
-                            className="flex-1 flex items-center gap-1.5 px-2 py-1.5 text-left min-w-0"
-                          >
-                            {isOpen ? (
-                              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                            ) : (
-                              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                            )}
-                            <Github className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                            <span className="flex-1 truncate text-xs font-medium">
-                              {folder.name}
-                            </span>
-                          </button>
-                          <div className="flex items-center gap-0.5 pr-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                            <button
-                              onClick={() => {
-                                setEditingFolderId(folder.id);
-                                setEditingFolderName(folder.name);
-                              }}
-                              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            >
-                              <Pencil className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleDeleteFolder(folder.id, folder.name)
-                              }
-                              className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 폴더 내용 */}
-                      {isOpen && (
-                        <div className="ml-5 border-l border-border pl-2 mt-0.5">
-                          {folder.items.map((item) => {
-                            const isSelected = selectedItems.has(item.id);
-                            return (
-                              <div key={item.id}>
-                                {editingItemId === item.id ? (
-                                  <div className="mr-1 my-0.5 flex flex-col gap-1">
-                                    <input
-                                      ref={editItemLabelRef}
-                                      value={editingItemLabel}
-                                      onChange={(e) =>
-                                        setEditingItemLabel(e.target.value)
-                                      }
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Escape") {
-                                          setEditingItemId(null);
-                                          setEditingItemLabel("");
-                                          setEditingItemUrl("");
-                                        }
-                                      }}
-                                      placeholder="라벨"
-                                      className="w-full bg-muted border border-primary/60 rounded px-2 py-1 text-xs outline-none text-foreground placeholder:text-muted-foreground"
-                                    />
-                                    <input
-                                      value={editingItemUrl}
-                                      onChange={(e) =>
-                                        setEditingItemUrl(e.target.value)
-                                      }
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          handleUpdateItem(item.id);
-                                        }
-                                        if (e.key === "Escape") {
-                                          setEditingItemId(null);
-                                          setEditingItemLabel("");
-                                          setEditingItemUrl("");
-                                        }
-                                      }}
-                                      placeholder="GitHub URL"
-                                      className="w-full bg-muted border border-primary/60 rounded px-2 py-1 text-xs outline-none text-foreground placeholder:text-muted-foreground"
-                                    />
-                                    <div className="flex gap-1">
-                                      <button
-                                        onClick={() =>
-                                          handleUpdateItem(item.id)
-                                        }
-                                        className="flex-1 py-0.5 rounded bg-primary text-primary-foreground text-xs hover:bg-primary/90 transition-colors"
-                                      >
-                                        저장
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          setEditingItemId(null);
-                                          setEditingItemLabel("");
-                                          setEditingItemUrl("");
-                                        }}
-                                        className="px-2 py-0.5 rounded border border-border text-xs text-muted-foreground hover:bg-muted transition-colors"
-                                      >
-                                        취소
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div
-                                    className={`group/item flex items-center gap-1 py-0.5 pr-1 rounded-md mb-0.5 transition-colors ${
-                                      isSelected
-                                        ? "bg-primary/10"
-                                        : "hover:bg-muted/50"
-                                    }`}
-                                  >
-                                    <button
-                                      onClick={() => toggleItem(item.id)}
-                                      className="flex items-center gap-1.5 flex-1 min-w-0 px-1.5 py-1 text-left"
-                                    >
-                                      <span
-                                        className={`text-xs truncate ${
-                                          isSelected
-                                            ? "text-primary font-medium"
-                                            : "text-muted-foreground"
-                                        }`}
-                                      >
-                                        {isSelected ? "☑" : "☐"} {item.label}
-                                      </span>
-                                    </button>
-                                    <div className="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0">
-                                      <button
-                                        onClick={() => {
-                                          setEditingItemId(item.id);
-                                          setEditingItemLabel(item.label);
-                                          setEditingItemUrl(item.githubUrl);
-                                        }}
-                                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                      >
-                                        <Pencil className="w-3 h-3" />
-                                      </button>
-                                      <a
-                                        href={item.githubUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                      >
-                                        <ExternalLink className="w-3 h-3" />
-                                      </a>
-                                      <button
-                                        onClick={() =>
-                                          handleDeleteItem(item.id, item.label)
-                                        }
-                                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-
-                          {/* 아이템 추가 */}
-                          {isAddingItem ? (
-                            <div className="mt-1 space-y-1.5 pb-1">
-                              <input
-                                ref={newItemLabelRef}
-                                value={newItemLabel}
-                                onChange={(e) =>
-                                  setNewItemLabel(e.target.value)
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Escape") {
-                                    setAddingItemFolderId(null);
-                                    setNewItemLabel("");
-                                    setNewItemUrl("");
-                                  }
-                                }}
-                                placeholder="라벨 (예: JWT 필터)"
-                                className="w-full bg-muted border border-border rounded px-2 py-1 text-xs outline-none focus:border-primary/60 text-foreground placeholder:text-muted-foreground"
-                              />
-                              <input
-                                value={newItemUrl}
-                                onChange={(e) => setNewItemUrl(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleCreateItem(folder.id);
-                                  }
-                                  if (e.key === "Escape") {
-                                    setAddingItemFolderId(null);
-                                    setNewItemLabel("");
-                                    setNewItemUrl("");
-                                  }
-                                }}
-                                placeholder="GitHub URL"
-                                className="w-full bg-muted border border-border rounded px-2 py-1 text-xs outline-none focus:border-primary/60 text-foreground placeholder:text-muted-foreground"
-                              />
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => handleCreateItem(folder.id)}
-                                  className="flex-1 py-1 rounded bg-primary text-primary-foreground text-xs hover:bg-primary/90 transition-colors"
-                                >
-                                  추가
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setAddingItemFolderId(null);
-                                    setNewItemLabel("");
-                                    setNewItemUrl("");
-                                  }}
-                                  className="flex-1 py-1 rounded bg-muted text-muted-foreground text-xs hover:bg-muted/70 transition-colors"
-                                >
-                                  취소
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setAddingItemFolderId(folder.id);
-                                setNewItemLabel("");
-                                setNewItemUrl("");
-                              }}
-                              className="w-full flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors mt-0.5"
-                            >
-                              <Plus className="w-3 h-3" />
-                              URL 추가
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* 하단 선택 상태 */}
-            <div className="px-3 py-2.5 border-t border-border shrink-0">
-              {selectedItems.size > 0 ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-                    GitHub {selectedItems.size}개 참조 중
-                  </span>
-                  <button
-                    onClick={() => setSelectedItems(new Set())}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    초기화
-                  </button>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center">
-                  참조할 항목을 선택하세요
+              {currentRepoUrl && !treeLoading && (
+                <p className="text-xs text-muted-foreground truncate">
+                  ✓ {currentRepoUrl.replace("https://github.com/", "")}
                 </p>
+              )}
+            </div>
+
+            {/* 트리 */}
+            <div className="flex-1 overflow-y-auto px-2 pb-2">
+              {treeLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">
+                    트리 구조 로딩 중...
+                  </p>
+                </div>
+              ) : repoTree.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Github className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                  <p className="text-sm">GitHub URL을 입력하고</p>
+                  <p className="text-sm">불러오기를 클릭하세요</p>
+                </div>
+              ) : (
+                repoTree.map((node) =>
+                  renderTreeNode(
+                    node,
+                    expandedNodes,
+                    toggleNode,
+                    handleFileClick,
+                  ),
+                )
               )}
             </div>
           </div>
@@ -1787,7 +1461,7 @@ export default function SubutaiAiPage() {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-0.5 text-xs text-primary hover:underline"
                             >
-                              {getLabelByUrl(url)}
+                              {url}
                               <ExternalLink className="w-2.5 h-2.5" />
                             </a>
                           ))}
