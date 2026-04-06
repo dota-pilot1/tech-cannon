@@ -14,6 +14,7 @@ import com.mapo.palantier.subutai.ai.infrastructure.SubutaiGithubFolderMapper;
 import com.mapo.palantier.subutai.ai.infrastructure.SubutaiGithubItemMapper;
 import com.mapo.palantier.subutai.ai.util.GithubContentFetcher;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,18 @@ public class SubutaiChatService {
 
     private static final String OPENAI_URL =
         "https://api.openai.com/v1/chat/completions";
+
+    // ── 메뉴얼 문서 URL (docu-for-메뉴얼) ────────────────────────────────────
+    private static final String MANUAL_BASE =
+        "https://raw.githubusercontent.com/dota-pilot1/tech-cannon/main/docu-for-%EB%A9%94%EB%89%B4%EC%96%BC/";
+    private static final List<String> MANUAL_FILES = List.of(
+        "프로젝트 정보.md",
+        "백엔드 아키텍쳐 설명.md",
+        "프론트 아키텍쳐 설명.md"
+    );
+
+    // 메뉴얼 캐시 (서버 재시작 전까지 유지)
+    private final Map<String, String> manualCache = new ConcurrentHashMap<>();
 
     // ── GitHub 폴더 관리 ──────────────────────────────────────────────────────
 
@@ -109,6 +122,64 @@ public class SubutaiChatService {
         itemMapper.delete(id);
     }
 
+    // ── 메뉴얼 문서 로더 ──────────────────────────────────────────────────────
+
+    /**
+     * docu-for-메뉴얼 의 3개 문서를 fetch해서 합친 문자열 반환
+     * 캐시 적용: 서버 재시작 전까지 재사용
+     */
+    private String loadManualDocs() {
+        String cacheKey = "manual_docs";
+        if (manualCache.containsKey(cacheKey)) {
+            return manualCache.get(cacheKey);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== 프로젝트 메뉴얼 문서 ===\n\n");
+
+        for (String filename : MANUAL_FILES) {
+            try {
+                String encodedName = java.net.URLEncoder.encode(
+                    filename,
+                    java.nio.charset.StandardCharsets.UTF_8
+                ).replace("+", "%20");
+                String url = MANUAL_BASE + encodedName;
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("User-Agent", "SubutaiAI/1.0");
+                ResponseEntity<String> resp = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    String.class
+                );
+                if (resp.getBody() != null) {
+                    sb.append("--- ").append(filename).append(" ---\n");
+                    sb.append(resp.getBody()).append("\n\n");
+                    log.info("메뉴얼 문서 로드 완료: {}", filename);
+                }
+            } catch (Exception e) {
+                log.warn(
+                    "메뉴얼 문서 로드 실패 ({}): {}",
+                    filename,
+                    e.getMessage()
+                );
+            }
+        }
+
+        String result = sb.toString();
+        if (result.length() > 100) {
+            manualCache.put(cacheKey, result);
+        }
+        return result;
+    }
+
+    /** 캐시 무효화 (필요 시 호출) */
+    public void clearManualCache() {
+        manualCache.clear();
+        log.info("메뉴얼 캐시 초기화 완료");
+    }
+
     // ── 챗봇 (Function Calling) ───────────────────────────────────────────────
 
     @Transactional
@@ -171,18 +242,26 @@ public class SubutaiChatService {
                 .append("\n");
         }
 
+        // 메뉴얼 문서 로드
+        String manualDocs = loadManualDocs();
+
         String systemPrompt = """
             당신은 TechCannon 팀의 내부 AI 어시스턴트 Subutai입니다.
             사용자의 질문을 분석하고, 답변에 필요한 GitHub 코드를 가져오기 위해
             아래 함수를 호출하세요.
 
+            아래는 프로젝트의 구조와 아키텍처 문서입니다. 이를 기반으로
+            어떤 코드를 가져올지 정확하게 판단하세요:
+
+            %s
+
             등록된 GitHub 저장소:
             %s
             질문의 성격을 판단해서:
-            - 백엔드(API, Spring, Java, DB, 서버) 관련 → backend 선택
-            - 프론트엔드(UI, React, TypeScript, 컴포넌트) 관련 → frontend 선택
+            - 백엔드(API, Spring, Java, DB, 서버, Controller, Service, Mapper) 관련 → backend 선택
+            - 프론트엔드(UI, React, TypeScript, 컴포넌트, 페이지, 훅) 관련 → frontend 선택
             - 둘 다 관련 → both 선택
-            """.formatted(urlList.toString());
+            """.formatted(manualDocs, urlList.toString());
 
         // Function 정의
         Map<String, Object> fetchCodeFunction = buildFetchCodeFunctionDef(
@@ -256,6 +335,9 @@ public class SubutaiChatService {
         List<SubutaiGithubItem> items
     ) {
         List<Map<String, Object>> messages = new ArrayList<>();
+        // 2차 호출 시에도 메뉴얼 문서 포함
+        String manualDocs = loadManualDocs();
+
         messages.add(
             Map.of(
                 "role",
@@ -263,10 +345,14 @@ public class SubutaiChatService {
                 "content",
                 """
                 당신은 TechCannon 팀의 내부 AI 어시스턴트 Subutai입니다.
-                아래 제공된 실제 프로젝트 코드를 기반으로 답변하세요.
-                코드에 없는 내용은 일반 지식으로 보완하되, 코드 기반 답변을 우선하세요.
+                아래 프로젝트 메뉴얼 문서와 실제 코드를 함께 참고하여 답변하세요.
+                메뉴얼 문서로 전체 구조를 파악하고, 실제 코드로 세부 구현을 확인하세요.
+                코드에 없는 내용은 메뉴얼 문서를 우선 참고하고, 그래도 없으면 일반 지식으로 보완하세요.
                 답변은 한국어로 해주세요.
-                """
+
+                [프로젝트 메뉴얼]
+                %s
+                """.formatted(manualDocs)
             )
         );
         messages.add(Map.of("role", "user", "content", question));
@@ -480,11 +566,17 @@ public class SubutaiChatService {
 
     @SuppressWarnings("unchecked")
     private String callOpenAiSimple(String question) {
+        // 저장소 미선택 시에도 메뉴얼 문서는 참고
+        String manualDocs = loadManualDocs();
+
         String systemPrompt = """
             당신은 TechCannon 팀의 내부 AI 어시스턴트 Subutai입니다.
-            개발 관련 질문에 친절하고 정확하게 답변해주세요.
+            아래 프로젝트 메뉴얼 문서를 참고하여 답변하세요.
             답변은 한국어로 해주세요.
-            """;
+
+            [프로젝트 메뉴얼]
+            %s
+            """.formatted(manualDocs);
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("model", openAiModel);
