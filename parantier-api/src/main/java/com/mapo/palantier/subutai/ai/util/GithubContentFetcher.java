@@ -67,13 +67,13 @@ public class GithubContentFetcher {
                 );
             }
 
-            // tree → 디렉토리
+            // tree → 디렉토리 (Git Tree API recursive 사용)
             Pattern treePattern = Pattern.compile(
                 "github\\.com/([^/]+)/([^/]+)/tree/([^/]+)/(.+)"
             );
             Matcher treeMatcher = treePattern.matcher(normalized);
             if (treeMatcher.find()) {
-                return fetchDirectoryContents(
+                return fetchDirectoryRecursive(
                     treeMatcher.group(1),
                     treeMatcher.group(2),
                     treeMatcher.group(3),
@@ -338,7 +338,100 @@ public class GithubContentFetcher {
         }
     }
 
-    // ── 디렉토리 ───────────────────────────────────────────────────────────────
+    // ── 디렉토리 재귀 (Git Tree API) ──────────────────────────────────────────
+
+    /**
+     * tree URL → Git Tree API recursive=1 로 하위 모든 파일 탐색
+     * ex) github.com/org/repo/tree/main/parantier-api/src/main/java
+     */
+    @SuppressWarnings("unchecked")
+    private String fetchDirectoryRecursive(
+        String owner,
+        String repo,
+        String branch,
+        String dirPath
+    ) {
+        // 브랜치의 루트 Tree SHA를 얻은 뒤 recursive 탐색
+        String treeUrl = String.format(
+            "https://api.github.com/repos/%s/%s/git/trees/%s?recursive=1",
+            owner,
+            repo,
+            branch
+        );
+
+        HttpHeaders headers = buildHeaders();
+        headers.set("Accept", "application/vnd.github.v3+json");
+
+        try {
+            ResponseEntity<Map> resp = restTemplate.exchange(
+                treeUrl,
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                Map.class
+            );
+            Map<String, Object> body = resp.getBody();
+            if (body == null) return "[Tree API 응답 없음]";
+
+            List<Map<String, Object>> allFiles = (List<
+                Map<String, Object>
+            >) body.get("tree");
+            if (allFiles == null) return "[파일 목록 없음]";
+
+            // dirPath 하위 소스 파일만 필터링
+            String prefix = dirPath.endsWith("/") ? dirPath : dirPath + "/";
+            List<String> sourcePaths = allFiles
+                .stream()
+                .filter(f -> "blob".equals(f.get("type")))
+                .map(f -> (String) f.get("path"))
+                .filter(p -> p != null && p.startsWith(prefix))
+                .filter(p -> isSourceFile(p) && !isIgnoredPath(p))
+                .sorted((a, b) -> Integer.compare(a.length(), b.length()))
+                .collect(Collectors.toList());
+
+            if (sourcePaths.isEmpty()) {
+                return "[" + dirPath + " 하위에 소스 파일 없음]";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb
+                .append("=== 디렉토리: ")
+                .append(dirPath)
+                .append(" (")
+                .append(sourcePaths.size())
+                .append("개 파일) ===\n\n");
+
+            int count = 0;
+            for (String path : sourcePaths) {
+                if (count >= MAX_FILES) {
+                    sb
+                        .append("\n... (총 ")
+                        .append(sourcePaths.size())
+                        .append("개 중 ")
+                        .append(MAX_FILES)
+                        .append("개만 표시)\n");
+                    break;
+                }
+                sb.append("=== ").append(path).append(" ===\n");
+                sb
+                    .append(fetchFileContent(owner, repo, branch, path))
+                    .append("\n\n");
+                count++;
+            }
+
+            log.info("디렉토리 {} 파일 {}개 fetch 완료", dirPath, count);
+            return sb.toString();
+        } catch (Exception e) {
+            log.warn(
+                "디렉토리 재귀 fetch 실패 ({}): {}",
+                dirPath,
+                e.getMessage()
+            );
+            // fallback: 기존 방식
+            return fetchDirectoryContents(owner, repo, branch, dirPath);
+        }
+    }
+
+    // ── 디렉토리 (1depth, fallback용) ─────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
     private String fetchDirectoryContents(
