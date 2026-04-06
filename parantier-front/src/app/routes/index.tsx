@@ -40,6 +40,9 @@ import ApiDocPage from "@/pages/apidoc/ApiDocPage";
 import { HackathonPage } from "@/pages/hackathon/HackathonPage";
 import FigmaPage from "@/pages/figma/FigmaPage";
 import DevLogPage from "@/pages/devlog/DevLogPage";
+import SubutaiAiPage from "@/pages/subutai/SubutaiAiPage";
+import SubutaiFaqPage from "@/pages/subutai/SubutaiFaqPage";
+import SubutaiDocuPage from "@/pages/subutai/SubutaiDocuPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -373,6 +376,30 @@ const workStatusRoute = createRoute({
   component: WorkStatusPage,
 });
 
+// Subutai AI 페이지 (로그인 필요)
+const subutaiAiRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/subutai/ai",
+  beforeLoad: () => requireAuth(),
+  component: SubutaiAiPage,
+});
+
+// Subutai FAQ 페이지 (로그인 필요)
+const subutaiFaqRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/subutai/faq",
+  beforeLoad: () => requireAuth(),
+  component: SubutaiFaqPage,
+});
+
+// Subutai Docu 페이지 (로그인 필요)
+const subutaiDocuRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/subutai/docu",
+  beforeLoad: () => requireAuth(),
+  component: SubutaiDocuPage,
+});
+
 // 404 Not Found Route
 const notFoundRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -416,6 +443,9 @@ const routeTree = rootRoute.addChildren([
   apiDocRoute,
   figmaRoute,
   devLogRoute,
+  subutaiAiRoute,
+  subutaiFaqRoute,
+  subutaiDocuRoute,
   notFoundRoute,
 ]);
 
