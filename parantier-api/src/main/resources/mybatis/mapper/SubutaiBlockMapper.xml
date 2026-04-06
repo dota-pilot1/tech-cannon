@@ -7,7 +7,7 @@
     <resultMap id="SubutaiBlockResultMap" type="com.mapo.palantier.subutai.block.SubutaiBlock">
         <id property="id" column="id"/>
         <result property="postId" column="post_id"/>
-        <result property="blockType" column="block_type" typeHandler="org.apache.ibatis.type.EnumTypeHandler" javaType="com.mapo.palantier.subutai.block.SubutaiBlockType"/>
+        <result property="blockType" column="block_type" typeHandler="com.mapo.palantier.subutai.block.SubutaiBlockTypeHandler"/>
         <result property="content" column="content"/>
         <result property="sortOrder" column="sort_order"/>
         <result property="createdAt" column="created_at"/>
