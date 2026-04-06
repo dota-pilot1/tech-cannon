@@ -6,11 +6,15 @@ import com.mapo.palantier.subutai.ai.domain.SubutaiGithubItem;
 import com.mapo.palantier.subutai.ai.dto.SubutaiChatRequest;
 import com.mapo.palantier.subutai.ai.dto.SubutaiChatResponse;
 import com.mapo.palantier.subutai.ai.dto.SubutaiGithubFolderRequest;
+import com.mapo.palantier.subutai.ai.dto.SubutaiGithubFolderUpdateRequest;
 import com.mapo.palantier.subutai.ai.dto.SubutaiGithubItemRequest;
+import com.mapo.palantier.subutai.ai.dto.SubutaiGithubItemUpdateRequest;
 import com.mapo.palantier.subutai.ai.infrastructure.SubutaiChatHistoryMapper;
 import com.mapo.palantier.subutai.ai.infrastructure.SubutaiGithubFolderMapper;
 import com.mapo.palantier.subutai.ai.infrastructure.SubutaiGithubItemMapper;
 import com.mapo.palantier.subutai.ai.util.GithubContentFetcher;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,9 +22,6 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -64,6 +65,17 @@ public class SubutaiChatService {
         folderMapper.delete(id);
     }
 
+    @Transactional
+    public void updateFolder(Long id, SubutaiGithubFolderUpdateRequest req) {
+        SubutaiGithubFolder folder = folderMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException("폴더를 찾을 수 없습니다: " + id)
+            );
+        folder.setName(req.getName());
+        folderMapper.update(folder);
+    }
+
     // ── GitHub 아이템 관리 ────────────────────────────────────
 
     @Transactional
@@ -81,6 +93,18 @@ public class SubutaiChatService {
         itemMapper.delete(id);
     }
 
+    @Transactional
+    public void updateItem(Long id, SubutaiGithubItemUpdateRequest req) {
+        SubutaiGithubItem item = itemMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException("아이템을 찾을 수 없습니다: " + id)
+            );
+        item.setLabel(req.getLabel());
+        item.setGithubUrl(req.getGithubUrl());
+        itemMapper.update(item);
+    }
+
     // ── 챗봇 ─────────────────────────────────────────────────
 
     @Transactional
@@ -88,18 +112,25 @@ public class SubutaiChatService {
         List<SubutaiGithubItem> items = Collections.emptyList();
         List<String> urls = new ArrayList<>();
 
-        if (req.getGithubItemIds() != null && !req.getGithubItemIds().isEmpty()) {
+        if (
+            req.getGithubItemIds() != null && !req.getGithubItemIds().isEmpty()
+        ) {
             items = itemMapper.findByIds(req.getGithubItemIds());
-            urls = items.stream()
-                        .map(SubutaiGithubItem::getGithubUrl)
-                        .collect(Collectors.toList());
+            urls = items
+                .stream()
+                .map(SubutaiGithubItem::getGithubUrl)
+                .collect(Collectors.toList());
         }
 
         // GitHub 코드 fetch
         StringBuilder codeContext = new StringBuilder();
         for (SubutaiGithubItem item : items) {
-            codeContext.append("=== [").append(item.getLabel())
-                       .append("] ").append(item.getGithubUrl()).append(" ===\n");
+            codeContext
+                .append("=== [")
+                .append(item.getLabel())
+                .append("] ")
+                .append(item.getGithubUrl())
+                .append(" ===\n");
             codeContext.append(githubFetcher.fetchContent(item.getGithubUrl()));
             codeContext.append("\n\n");
         }
@@ -116,9 +147,9 @@ public class SubutaiChatService {
         historyMapper.insert(history);
 
         return SubutaiChatResponse.builder()
-                .answer(answer)
-                .referencedUrls(urls)
-                .build();
+            .answer(answer)
+            .referencedUrls(urls)
+            .build();
     }
 
     private String callOpenAi(String question, String codeContext) {
@@ -142,10 +173,13 @@ public class SubutaiChatService {
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("model", openAiModel);
-        requestBody.put("messages", List.of(
-            Map.of("role", "system", "content", systemPrompt),
-            Map.of("role", "user", "content", question)
-        ));
+        requestBody.put(
+            "messages",
+            List.of(
+                Map.of("role", "system", "content", systemPrompt),
+                Map.of("role", "user", "content", question)
+            )
+        );
         requestBody.put("max_tokens", 2000);
         requestBody.put("temperature", 0.7);
 
@@ -162,11 +196,15 @@ public class SubutaiChatService {
             );
             Map body = resp.getBody();
             if (body == null) return "응답을 받지 못했습니다.";
-            List<Map<String, Object>> choices =
-                (List<Map<String, Object>>) body.get("choices");
-            if (choices == null || choices.isEmpty()) return "응답이 비어있습니다.";
-            Map<String, Object> message =
-                (Map<String, Object>) choices.get(0).get("message");
+            List<Map<String, Object>> choices = (List<
+                Map<String, Object>
+            >) body.get("choices");
+            if (
+                choices == null || choices.isEmpty()
+            ) return "응답이 비어있습니다.";
+            Map<String, Object> message = (Map<String, Object>) choices
+                .get(0)
+                .get("message");
             return (String) message.get("content");
         } catch (Exception e) {
             log.error("OpenAI 호출 실패", e);

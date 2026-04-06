@@ -13,6 +13,8 @@ import {
   X,
   RotateCcw,
   Loader2,
+  Pencil,
+  Check,
 } from "lucide-react";
 
 // ─── API 설정 ──────────────────────────────────────────────────────────────────
@@ -73,6 +75,15 @@ const subutaiAiApi = {
       if (!r.ok) throw new Error("폴더 생성 실패");
     }),
 
+  updateFolder: (id: number, name: string): Promise<void> =>
+    fetch(`${BASE}/subutai/ai/folders/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name }),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
+    }),
+
   deleteFolder: (id: number): Promise<void> =>
     fetch(`${BASE}/subutai/ai/folders/${id}`, {
       method: "DELETE",
@@ -92,6 +103,18 @@ const subutaiAiApi = {
       body: JSON.stringify(data),
     }).then((r) => {
       if (!r.ok) throw new Error("아이템 생성 실패");
+    }),
+
+  updateItem: (
+    id: number,
+    data: { label: string; githubUrl: string },
+  ): Promise<void> =>
+    fetch(`${BASE}/subutai/ai/items/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
     }),
 
   deleteItem: (id: number): Promise<void> =>
@@ -227,12 +250,21 @@ export default function SubutaiAiPage() {
   const [addingFolder, setAddingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
+  // 폴더 수정
+  const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
+
   // 아이템 추가
   const [addingItemFolderId, setAddingItemFolderId] = useState<number | null>(
     null,
   );
   const [newItemLabel, setNewItemLabel] = useState("");
   const [newItemUrl, setNewItemUrl] = useState("");
+
+  // 아이템 수정
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [editingItemLabel, setEditingItemLabel] = useState("");
+  const [editingItemUrl, setEditingItemUrl] = useState("");
 
   // 챗봇
   const [messages, setMessages] = useState<Message[]>([]);
@@ -247,6 +279,8 @@ export default function SubutaiAiPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
   const newItemLabelRef = useRef<HTMLInputElement>(null);
+  const editFolderInputRef = useRef<HTMLInputElement>(null);
+  const editItemLabelRef = useRef<HTMLInputElement>(null);
 
   // ── 초기 로드 ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -275,6 +309,21 @@ export default function SubutaiAiPage() {
       loadHistories();
     }
   }, [leftTab]);
+
+  // ── 수정 모드 포커스 ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (editingFolderId !== null && editFolderInputRef.current) {
+      editFolderInputRef.current.focus();
+      editFolderInputRef.current.select();
+    }
+  }, [editingFolderId]);
+
+  useEffect(() => {
+    if (editingItemId !== null && editItemLabelRef.current) {
+      editItemLabelRef.current.focus();
+      editItemLabelRef.current.select();
+    }
+  }, [editingItemId]);
 
   // ── API 로더 ───────────────────────────────────────────────────────────────
   const loadFolders = async () => {
@@ -321,6 +370,19 @@ export default function SubutaiAiPage() {
     }
   };
 
+  const handleUpdateFolder = async (id: number) => {
+    const name = editingFolderName.trim();
+    if (!name) return;
+    try {
+      await subutaiAiApi.updateFolder(id, name);
+      setEditingFolderId(null);
+      setEditingFolderName("");
+      await loadFolders();
+    } catch {
+      // 무시
+    }
+  };
+
   const handleDeleteFolder = async (id: number) => {
     try {
       await subutaiAiApi.deleteFolder(id);
@@ -358,6 +420,21 @@ export default function SubutaiAiPage() {
       setNewItemLabel("");
       setNewItemUrl("");
       setAddingItemFolderId(null);
+      await loadFolders();
+    } catch {
+      // 무시
+    }
+  };
+
+  const handleUpdateItem = async (id: number) => {
+    const label = editingItemLabel.trim();
+    const githubUrl = editingItemUrl.trim();
+    if (!label || !githubUrl) return;
+    try {
+      await subutaiAiApi.updateItem(id, { label, githubUrl });
+      setEditingItemId(null);
+      setEditingItemLabel("");
+      setEditingItemUrl("");
       await loadFolders();
     } catch {
       // 무시
@@ -619,27 +696,81 @@ export default function SubutaiAiPage() {
                   return (
                     <div key={folder.id} className="mb-1">
                       {/* 폴더 헤더 */}
-                      <div className="flex items-center gap-1 px-1 py-1 rounded-md hover:bg-muted/60 group">
-                        <button
-                          onClick={() => toggleFolder(folder.id)}
-                          className="flex items-center gap-1.5 flex-1 text-left min-w-0"
-                        >
-                          {isOpen ? (
-                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                          ) : (
-                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                          )}
-                          <span className="text-xs font-medium truncate">
-                            📁 {folder.name}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteFolder(folder.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
+                      {editingFolderId === folder.id ? (
+                        // 수정 모드
+                        <div className="flex items-center gap-1 px-2 py-1.5">
+                          <input
+                            ref={editFolderInputRef}
+                            value={editingFolderName}
+                            onChange={(e) =>
+                              setEditingFolderName(e.target.value)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleUpdateFolder(folder.id);
+                              }
+                              if (e.key === "Escape") {
+                                setEditingFolderId(null);
+                                setEditingFolderName("");
+                              }
+                            }}
+                            className="flex-1 bg-muted border border-primary/60 rounded px-2 py-0.5 text-xs outline-none text-foreground"
+                          />
+                          <button
+                            onClick={() => handleUpdateFolder(folder.id)}
+                            className="p-1 rounded text-primary hover:bg-primary/10 transition-colors"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingFolderId(null);
+                              setEditingFolderName("");
+                            }}
+                            className="p-1 rounded text-muted-foreground hover:bg-muted transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        // 일반 모드
+                        <div className="group flex items-center rounded-md hover:bg-muted/60 transition-colors">
+                          <button
+                            onClick={() => toggleFolder(folder.id)}
+                            className="flex-1 flex items-center gap-1.5 px-2 py-1.5 text-left min-w-0"
+                          >
+                            {isOpen ? (
+                              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            ) : (
+                              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            )}
+                            <Github className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <span className="flex-1 truncate text-xs font-medium">
+                              {folder.name}
+                            </span>
+                          </button>
+                          {/* 호버 시 나타나는 수정/삭제 버튼 */}
+                          <div className="flex items-center gap-0.5 pr-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <button
+                              onClick={() => {
+                                setEditingFolderId(folder.id);
+                                setEditingFolderName(folder.name);
+                              }}
+                              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFolder(folder.id)}
+                              className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* 폴더 내용 */}
                       {isOpen && (
@@ -647,44 +778,121 @@ export default function SubutaiAiPage() {
                           {folder.items.map((item) => {
                             const isSelected = selectedItems.has(item.id);
                             return (
-                              <div
-                                key={item.id}
-                                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md mb-0.5 group/item cursor-pointer transition-colors ${
-                                  isSelected
-                                    ? "bg-primary/10 text-primary"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => toggleItem(item.id)}
-                                  className="w-3 h-3 shrink-0 cursor-pointer accent-primary"
-                                />
-                                <span
-                                  onClick={() => toggleItem(item.id)}
-                                  className="flex-1 text-xs truncate cursor-pointer"
-                                >
-                                  {item.label}
-                                </span>
-                                <a
-                                  href={item.githubUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="opacity-0 group-hover/item:opacity-100 p-0.5 rounded text-muted-foreground hover:text-foreground transition-all shrink-0"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteItem(item.id);
-                                  }}
-                                  className="opacity-0 group-hover/item:opacity-100 p-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
+                              <div key={item.id}>
+                                {editingItemId === item.id ? (
+                                  // 아이템 수정 모드
+                                  <div className="mr-1 my-0.5 flex flex-col gap-1">
+                                    <input
+                                      ref={editItemLabelRef}
+                                      value={editingItemLabel}
+                                      onChange={(e) =>
+                                        setEditingItemLabel(e.target.value)
+                                      }
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Escape") {
+                                          setEditingItemId(null);
+                                          setEditingItemLabel("");
+                                          setEditingItemUrl("");
+                                        }
+                                      }}
+                                      placeholder="라벨"
+                                      className="w-full bg-muted border border-primary/60 rounded px-2 py-1 text-xs outline-none text-foreground placeholder:text-muted-foreground"
+                                    />
+                                    <input
+                                      value={editingItemUrl}
+                                      onChange={(e) =>
+                                        setEditingItemUrl(e.target.value)
+                                      }
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleUpdateItem(item.id);
+                                        }
+                                        if (e.key === "Escape") {
+                                          setEditingItemId(null);
+                                          setEditingItemLabel("");
+                                          setEditingItemUrl("");
+                                        }
+                                      }}
+                                      placeholder="GitHub URL"
+                                      className="w-full bg-muted border border-primary/60 rounded px-2 py-1 text-xs outline-none text-foreground placeholder:text-muted-foreground"
+                                    />
+                                    <div className="flex gap-1">
+                                      <button
+                                        onClick={() =>
+                                          handleUpdateItem(item.id)
+                                        }
+                                        className="flex-1 py-0.5 rounded bg-primary text-primary-foreground text-xs hover:bg-primary/90 transition-colors"
+                                      >
+                                        저장
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingItemId(null);
+                                          setEditingItemLabel("");
+                                          setEditingItemUrl("");
+                                        }}
+                                        className="px-2 py-0.5 rounded border border-border text-xs text-muted-foreground hover:bg-muted transition-colors"
+                                      >
+                                        취소
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  // 아이템 일반 모드
+                                  <div
+                                    className={`group/item flex items-center gap-1 py-0.5 pr-1 rounded-md mb-0.5 transition-colors ${
+                                      isSelected
+                                        ? "bg-primary/10"
+                                        : "hover:bg-muted/50"
+                                    }`}
+                                  >
+                                    <button
+                                      onClick={() => toggleItem(item.id)}
+                                      className="flex items-center gap-1.5 flex-1 min-w-0 px-1.5 py-1 text-left"
+                                    >
+                                      <span
+                                        className={`text-xs truncate ${
+                                          isSelected
+                                            ? "text-primary font-medium"
+                                            : "text-muted-foreground"
+                                        }`}
+                                      >
+                                        {isSelected ? "☑" : "☐"} {item.label}
+                                      </span>
+                                    </button>
+                                    {/* 호버 시 아이콘들 */}
+                                    <div className="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0">
+                                      <button
+                                        onClick={() => {
+                                          setEditingItemId(item.id);
+                                          setEditingItemLabel(item.label);
+                                          setEditingItemUrl(item.githubUrl);
+                                        }}
+                                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </button>
+                                      <a
+                                        href={item.githubUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                      <button
+                                        onClick={() =>
+                                          handleDeleteItem(item.id)
+                                        }
+                                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}

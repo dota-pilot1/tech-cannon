@@ -43,4 +43,11 @@
         DELETE FROM subutai_github_items WHERE id = #{id}
     </delete>
 
+    <update id="update">
+        UPDATE subutai_github_items
+        SET label = #{label},
+            github_url = #{githubUrl}
+        WHERE id = #{id}
+    </update>
+
 </mapper>
