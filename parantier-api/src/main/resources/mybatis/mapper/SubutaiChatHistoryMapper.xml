@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapo.palantier.subutai.ai.infrastructure.SubutaiChatHistoryMapper">
+
+    <resultMap id="HistoryResultMap" type="com.mapo.palantier.subutai.ai.domain.SubutaiChatHistory">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="question" column="question"/>
+        <result property="answer" column="answer"/>
+        <result property="githubUrls" column="github_urls"
+                typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findByUserId" resultMap="HistoryResultMap">
+        SELECT id, user_id, question, answer, github_urls, created_at
+        FROM subutai_chat_histories
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT 50
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO subutai_chat_histories (user_id, question, answer, github_urls)
+        VALUES (#{userId}, #{question}, #{answer},
+                #{githubUrls, typeHandler=org.apache.ibatis.type.ArrayTypeHandler})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM subutai_chat_histories WHERE id = #{id}
+    </delete>
+
+</mapper>

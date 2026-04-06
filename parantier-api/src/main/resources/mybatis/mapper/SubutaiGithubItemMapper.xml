@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapo.palantier.subutai.ai.infrastructure.SubutaiGithubItemMapper">
+
+    <resultMap id="ItemResultMap" type="com.mapo.palantier.subutai.ai.domain.SubutaiGithubItem">
+        <id property="id" column="id"/>
+        <result property="folderId" column="folder_id"/>
+        <result property="label" column="label"/>
+        <result property="githubUrl" column="github_url"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findByFolderId" resultMap="ItemResultMap">
+        SELECT id, folder_id, label, github_url, order_num, created_at
+        FROM subutai_github_items
+        WHERE folder_id = #{folderId}
+        ORDER BY order_num ASC, id ASC
+    </select>
+
+    <select id="findByIds" resultMap="ItemResultMap">
+        SELECT id, folder_id, label, github_url, order_num, created_at
+        FROM subutai_github_items
+        WHERE id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="findById" resultMap="ItemResultMap">
+        SELECT id, folder_id, label, github_url, order_num, created_at
+        FROM subutai_github_items
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO subutai_github_items (folder_id, label, github_url, order_num)
+        VALUES (#{folderId}, #{label}, #{githubUrl}, #{orderNum})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM subutai_github_items WHERE id = #{id}
+    </delete>
+
+</mapper>
