@@ -334,10 +334,16 @@ export default function SubutaiAiPage() {
     try {
       const data = await subutaiAiApi.getFolders();
       setFolders(data);
-      // 새 폴더는 자동 펼침
+      // 모든 폴더 자동 펼침
       setExpandedFolders((prev) => {
         const next = new Set(prev);
         data.forEach((f) => next.add(f.id));
+        return next;
+      });
+      // 모든 아이템 자동 선택 (기존에 선택된 것은 유지, 새 것만 추가)
+      setSelectedItems((prev) => {
+        const next = new Set(prev);
+        data.forEach((f) => f.items.forEach((item) => next.add(item.id)));
         return next;
       });
     } catch {
@@ -429,7 +435,7 @@ export default function SubutaiAiPage() {
       setNewItemLabel("");
       setNewItemUrl("");
       setAddingItemFolderId(null);
-      await loadFolders();
+      await loadFolders(); // loadFolders 내에서 자동 선택 처리
     } catch {
       // 무시
     }
