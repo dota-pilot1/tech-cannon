@@ -18,22 +18,30 @@ public class GithubContentFetcher {
     @Value("${github.token:}")
     private String githubToken;
 
-    private static final List<String> PRIORITY_DIRS = List.of(
-        "src/main/java",
-        "src",
-        "parantier-api/src",
+    // 레포 루트 URL 시 직접 탐색할 소스 디렉토리 (순서대로 시도)
+    private static final List<String> TARGET_SOURCE_DIRS = List.of(
+        "parantier-api/src/main/java",
         "parantier-front/src",
-        "backend",
-        "frontend",
-        "api",
-        "app",
-        "lib",
-        "server",
-        "client"
+        "src/main/java",
+        "src"
     );
 
-    private static final int MAX_FILES = 30; // 레포 전체 탐색 시 최대 파일 수
-    private static final int MAX_LINES = 200; // 파일당 최대 줄 수
+    private static final List<String> PRIORITY_DIRS = List.of(
+        "parantier-api/src/main/java",
+        "parantier-front/src",
+        "src/main/java",
+        "src/main/resources/mybatis",
+        "src",
+        "backend/src",
+        "frontend/src",
+        "api/src",
+        "app/src",
+        "server/src"
+    );
+
+    private static final int MAX_FILES_PER_DIR = 20; // 디렉토리별 최대 파일 수
+    private static final int MAX_FILES = 40; // 레포 전체 탐색 시 최대 파일 수
+    private static final int MAX_LINES = 150; // 파일당 최대 줄 수
 
     /**
      * GitHub URL 형식 지원:
@@ -73,7 +81,7 @@ public class GithubContentFetcher {
                 );
             }
 
-            // 레포 루트 → Tree API로 전체 소스 파일 탐색
+            // 레포 루트 → 소스 디렉토리 직접 타겟팅
             Pattern repoPattern = Pattern.compile(
                 "github\\.com/([^/]+)/([^/]+)$"
             );
@@ -133,7 +141,7 @@ public class GithubContentFetcher {
             .stream()
             .filter(f -> "blob".equals(f.get("type")))
             .map(f -> (String) f.get("path"))
-            .filter(p -> p != null && isTextFile(p))
+            .filter(p -> p != null && isSourceFile(p))
             .filter(p -> !isIgnoredPath(p))
             .collect(Collectors.toList());
 
@@ -226,7 +234,9 @@ public class GithubContentFetcher {
 
     private boolean isIgnoredPath(String path) {
         String lower = path.toLowerCase();
-        return (
+
+        // 경로에 포함되면 제외
+        if (
             lower.contains("node_modules/") ||
             lower.contains(".git/") ||
             lower.contains("build/") ||
@@ -234,11 +244,7 @@ public class GithubContentFetcher {
             lower.contains("out/") ||
             lower.contains(".gradle/") ||
             lower.contains("__pycache__/") ||
-            lower.contains("test/") ||
-            lower.contains("tests/") ||
-            lower.contains("spec/") ||
             lower.contains(".min.") ||
-            lower.contains("lock") || // package-lock.json, yarn.lock 등
             lower.endsWith(".map") ||
             lower.endsWith(".png") ||
             lower.endsWith(".jpg") ||
@@ -247,7 +253,36 @@ public class GithubContentFetcher {
             lower.endsWith(".woff") ||
             lower.endsWith(".woff2") ||
             lower.endsWith(".ttf")
-        );
+        ) {
+            return true;
+        }
+
+        // docs 폴더, 문서 전용 경로 제외
+        String[] segments = lower.split("/");
+        for (String seg : segments) {
+            if (
+                seg.startsWith("docs") ||
+                seg.startsWith("doc-") ||
+                seg.startsWith("docs-") ||
+                seg.equals("doc")
+            ) {
+                return true;
+            }
+        }
+
+        // 루트 레벨 스크립트/설정 파일 제외 (경로에 / 없으면 루트)
+        if (!path.contains("/")) {
+            return (
+                lower.endsWith(".sh") ||
+                lower.endsWith(".md") ||
+                lower.endsWith(".txt") ||
+                lower.equals(".gitignore") ||
+                lower.equals("gradlew") ||
+                lower.equals("gradlew.bat")
+            );
+        }
+
+        return false;
     }
 
     // ── 단일 파일 ──────────────────────────────────────────────────────────────
@@ -359,6 +394,34 @@ public class GithubContentFetcher {
 
     // ── 유틸 ──────────────────────────────────────────────────────────────────
 
+    /**
+     * 소스 파일 여부 (레포 전체 탐색 시 — 실제 코드 파일만)
+     * docs, md 등 문서 파일 제외
+     */
+    private boolean isSourceFile(String path) {
+        String lower = path.toLowerCase();
+        // 실제 소스 코드 확장자만
+        return (
+            lower.endsWith(".java") ||
+            lower.endsWith(".ts") ||
+            lower.endsWith(".tsx") ||
+            lower.endsWith(".js") ||
+            lower.endsWith(".jsx") ||
+            lower.endsWith(".kt") ||
+            lower.endsWith(".py") ||
+            lower.endsWith(".go") ||
+            lower.endsWith(".xml") ||
+            lower.endsWith(".yml") ||
+            lower.endsWith(".yaml") ||
+            lower.endsWith(".sql") ||
+            lower.endsWith(".gradle") ||
+            lower.endsWith(".properties")
+        );
+    }
+
+    /**
+     * 디렉토리 탐색용 텍스트 파일 여부 (단일/디렉토리 URL)
+     */
     private boolean isTextFile(String filename) {
         String lower = filename.toLowerCase();
         return (
