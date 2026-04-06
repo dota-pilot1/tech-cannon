@@ -2,12 +2,12 @@ import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
-import { coreApi } from "@/features/core/api/coreApi";
+import { coreApi } from "@/features/backend/api/backendApi";
 import type {
   CoreCategory,
   CoreSection,
   CoreBlock,
-} from "@/features/core/api/coreApi";
+} from "@/features/backend/api/backendApi";
 import TaskBlockEditor from "@/features/task/components/TaskBlockEditor";
 import type { TaskBlock, BlockType } from "@/features/task/types/task.types";
 import { TYPE_META } from "@/features/task/types/task.types";

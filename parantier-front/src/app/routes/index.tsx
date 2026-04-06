@@ -34,7 +34,7 @@ import { DbPage } from "@/pages/db/DbPage";
 import { SqlPage } from "@/pages/sql/SqlPage";
 import ArchitecturePage from "@/pages/architecture/ArchitecturePage";
 import FrontendPage from "@/pages/frontend/FrontendPage";
-import CorePage from "@/pages/core/CorePage";
+import BackendPage from "@/pages/backend/BackendPage";
 import TextbookPage from "@/pages/textbook/TextbookPage";
 import ApiDocPage from "@/pages/apidoc/ApiDocPage";
 import { HackathonPage } from "@/pages/hackathon/HackathonPage";
@@ -309,12 +309,12 @@ const frontendRoute = createRoute({
   component: FrontendPage,
 });
 
-// Core 페이지 (로그인 필요)
+// Backend 페이지 (로그인 필요)
 const coreRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/core",
+  path: "/backend",
   beforeLoad: () => requireAuth(),
-  component: CorePage,
+  component: BackendPage,
 });
 
 // TextBook 페이지 (로그인 필요)
