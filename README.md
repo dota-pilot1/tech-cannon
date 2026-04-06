@@ -13,8 +13,9 @@
 - AG Grid, React Hook Form
 
 ### 백엔드
-- Spring Boot 3 (Java 17)
+- Spring Boot 3 (Java 21)
 - Spring Security + JWT
+- MyBatis
 - PostgreSQL (Docker)
 - AWS S3
 
