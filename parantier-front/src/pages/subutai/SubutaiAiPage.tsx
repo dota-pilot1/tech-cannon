@@ -559,7 +559,11 @@ export default function SubutaiAiPage() {
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleCreateFolder();
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCreateFolder();
+                      }
                       if (e.key === "Escape") {
                         setAddingFolder(false);
                         setNewFolderName("");
@@ -708,8 +712,11 @@ export default function SubutaiAiPage() {
                                 value={newItemUrl}
                                 onChange={(e) => setNewItemUrl(e.target.value)}
                                 onKeyDown={(e) => {
-                                  if (e.key === "Enter")
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     handleCreateItem(folder.id);
+                                  }
                                   if (e.key === "Escape") {
                                     setAddingItemFolderId(null);
                                     setNewItemLabel("");
