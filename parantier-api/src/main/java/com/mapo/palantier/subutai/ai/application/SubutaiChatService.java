@@ -48,10 +48,19 @@ public class SubutaiChatService {
     // ── 메뉴얼 문서 URL (docu-for-메뉴얼) ────────────────────────────────────
     private static final String MANUAL_BASE =
         "https://raw.githubusercontent.com/dota-pilot1/tech-cannon/main/docu-for-%EB%A9%94%EB%89%B4%EC%96%BC/";
+    private static final String MANUAL_COMMON_BASE =
+        "https://raw.githubusercontent.com/dota-pilot1/tech-cannon/main/docu-for-%EB%A9%94%EB%89%B4%EC%96%BC/%EC%A3%BC%EC%9A%94%20%EA%B3%B5%ED%86%B5%20%EB%A1%9C%EC%A7%81/";
     private static final List<String> MANUAL_FILES = List.of(
         "프로젝트 정보.md",
         "백엔드 아키텍쳐 설명.md",
         "프론트 아키텍쳐 설명.md"
+    );
+    private static final List<String> MANUAL_COMMON_FILES = List.of(
+        "공통 에러 처리.md",
+        "메뉴 데이터 관리.md",
+        "마이바티스 주요 아키텍쳐.md",
+        "시큐리티 주요 구조.md",
+        "인증 인가 주요 프로세스.md"
     );
 
     // 메뉴얼 캐시 (서버 재시작 전까지 유지)
@@ -137,6 +146,7 @@ public class SubutaiChatService {
         StringBuilder sb = new StringBuilder();
         sb.append("=== 프로젝트 메뉴얼 문서 ===\n\n");
 
+        // 기본 아키텍처 문서 3개
         for (String filename : MANUAL_FILES) {
             try {
                 String encodedName = java.net.URLEncoder.encode(
@@ -161,6 +171,38 @@ public class SubutaiChatService {
             } catch (Exception e) {
                 log.warn(
                     "메뉴얼 문서 로드 실패 ({}): {}",
+                    filename,
+                    e.getMessage()
+                );
+            }
+        }
+
+        // 주요 공통 로직 문서 5개
+        sb.append("=== 주요 공통 로직 문서 ===\n\n");
+        for (String filename : MANUAL_COMMON_FILES) {
+            try {
+                String encodedName = java.net.URLEncoder.encode(
+                    filename,
+                    java.nio.charset.StandardCharsets.UTF_8
+                ).replace("+", "%20");
+                String url = MANUAL_COMMON_BASE + encodedName;
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("User-Agent", "SubutaiAI/1.0");
+                ResponseEntity<String> resp = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    String.class
+                );
+                if (resp.getBody() != null) {
+                    sb.append("--- ").append(filename).append(" ---\n");
+                    sb.append(resp.getBody()).append("\n\n");
+                    log.info("공통 로직 문서 로드 완료: {}", filename);
+                }
+            } catch (Exception e) {
+                log.warn(
+                    "공통 로직 문서 로드 실패 ({}): {}",
                     filename,
                     e.getMessage()
                 );
