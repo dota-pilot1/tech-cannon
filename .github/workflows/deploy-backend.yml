@@ -90,6 +90,13 @@ jobs:
               access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
               secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+          openai:
+            api-key: ${{ secrets.OPENAI_API_KEY }}
+            model: gpt-4o
+
+          github:
+            token: ${{ secrets.GITHUB_TOKEN }}
+
           cors:
             allowed-origins:
               - https://dxline-tallent.com
