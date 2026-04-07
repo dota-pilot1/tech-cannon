@@ -1,5 +1,7 @@
 package com.mapo.palantier.subutai.faq.application;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.subutai.faq.domain.SubutaiFaqBlock;
 import com.mapo.palantier.subutai.faq.domain.SubutaiFaqCategory;
 import com.mapo.palantier.subutai.faq.domain.SubutaiFaqSection;
@@ -49,8 +51,8 @@ public class SubutaiFaqService {
         SubutaiFaqCategory existing = categoryMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "카테고리를 찾을 수 없습니다: " + id
+                new ResourceNotFoundException(
+                    ErrorCode.SUBUTAI_FAQ_CATEGORY_NOT_FOUND
                 )
             );
         SubutaiFaqCategory category = SubutaiFaqCategory.builder()
@@ -105,7 +107,9 @@ public class SubutaiFaqService {
         SubutaiFaqSection existing = sectionMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(
+                    ErrorCode.SUBUTAI_FAQ_SECTION_NOT_FOUND
+                )
             );
         SubutaiFaqSection section = SubutaiFaqSection.builder()
             .id(existing.getId())

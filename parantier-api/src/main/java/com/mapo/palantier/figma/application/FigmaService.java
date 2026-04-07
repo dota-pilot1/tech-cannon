@@ -1,5 +1,7 @@
 package com.mapo.palantier.figma.application;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.figma.domain.FigmaCategory;
 import com.mapo.palantier.figma.domain.FigmaLink;
 import com.mapo.palantier.figma.dto.FigmaCategoryRequest;
@@ -38,14 +40,23 @@ public class FigmaService {
 
     @Transactional
     public void updateCategory(Long id, FigmaCategoryRequest req) {
-        FigmaCategory existing = categoryMapper.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다: " + id));
+        FigmaCategory existing = categoryMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException(
+                    ErrorCode.FIGMA_CATEGORY_NOT_FOUND
+                )
+            );
         FigmaCategory updated = FigmaCategory.builder()
             .id(existing.getId())
             .name(req.getName())
             .icon(req.getIcon())
             .emoji(req.getEmoji())
-            .orderNum(req.getOrderNum() != null ? req.getOrderNum() : existing.getOrderNum())
+            .orderNum(
+                req.getOrderNum() != null
+                    ? req.getOrderNum()
+                    : existing.getOrderNum()
+            )
             .isActive(existing.getIsActive())
             .createdAt(existing.getCreatedAt())
             .build();
@@ -81,14 +92,25 @@ public class FigmaService {
 
     @Transactional
     public void updateLink(Long id, FigmaLinkRequest req) {
-        FigmaLink existing = linkMapper.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("링크를 찾을 수 없습니다: " + id));
+        FigmaLink existing = linkMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException(ErrorCode.FIGMA_LINK_NOT_FOUND)
+            );
         FigmaLink updated = FigmaLink.builder()
             .id(existing.getId())
-            .categoryId(req.getCategoryId() != null ? req.getCategoryId() : existing.getCategoryId())
+            .categoryId(
+                req.getCategoryId() != null
+                    ? req.getCategoryId()
+                    : existing.getCategoryId()
+            )
             .title(req.getTitle())
             .url(req.getUrl())
-            .orderNum(req.getOrderNum() != null ? req.getOrderNum() : existing.getOrderNum())
+            .orderNum(
+                req.getOrderNum() != null
+                    ? req.getOrderNum()
+                    : existing.getOrderNum()
+            )
             .createdAt(existing.getCreatedAt())
             .build();
         linkMapper.update(updated);

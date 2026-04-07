@@ -1,5 +1,7 @@
 package com.mapo.palantier.prototype.folder;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.prototype.dto.ProtoFolderDto;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,7 @@ public class ProtoFolderService {
         return protoFolderMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("폴더를 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.PROTO_FOLDER_NOT_FOUND)
             );
     }
 

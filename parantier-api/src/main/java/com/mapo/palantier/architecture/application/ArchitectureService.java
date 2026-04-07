@@ -10,6 +10,8 @@ import com.mapo.palantier.architecture.dto.SectionRequest;
 import com.mapo.palantier.architecture.infrastructure.ArchitectureBlockMapper;
 import com.mapo.palantier.architecture.infrastructure.ArchitectureCategoryMapper;
 import com.mapo.palantier.architecture.infrastructure.ArchitectureSectionMapper;
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -49,8 +51,8 @@ public class ArchitectureService {
         ArchitectureCategory existing = categoryMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "카테고리를 찾을 수 없습니다: " + id
+                new ResourceNotFoundException(
+                    ErrorCode.ARCHITECTURE_CATEGORY_NOT_FOUND
                 )
             );
         ArchitectureCategory category = ArchitectureCategory.builder()
@@ -105,7 +107,9 @@ public class ArchitectureService {
         ArchitectureSection existing = sectionMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(
+                    ErrorCode.ARCHITECTURE_SECTION_NOT_FOUND
+                )
             );
         ArchitectureSection section = ArchitectureSection.builder()
             .id(existing.getId())

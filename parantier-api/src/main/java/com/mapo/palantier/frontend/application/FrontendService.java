@@ -1,5 +1,7 @@
 package com.mapo.palantier.frontend.application;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.frontend.domain.FrontendBlock;
 import com.mapo.palantier.frontend.domain.FrontendCategory;
 import com.mapo.palantier.frontend.domain.FrontendSection;
@@ -49,8 +51,8 @@ public class FrontendService {
         FrontendCategory existing = categoryMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "카테고리를 찾을 수 없습니다: " + id
+                new ResourceNotFoundException(
+                    ErrorCode.FRONTEND_CATEGORY_NOT_FOUND
                 )
             );
         FrontendCategory category = FrontendCategory.builder()
@@ -105,7 +107,9 @@ public class FrontendService {
         FrontendSection existing = sectionMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(
+                    ErrorCode.FRONTEND_SECTION_NOT_FOUND
+                )
             );
         FrontendSection section = FrontendSection.builder()
             .id(existing.getId())

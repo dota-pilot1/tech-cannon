@@ -1,5 +1,7 @@
 package com.mapo.palantier.core.application;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.core.domain.CoreBlock;
 import com.mapo.palantier.core.domain.CoreCategory;
 import com.mapo.palantier.core.domain.CoreSection;
@@ -49,9 +51,7 @@ public class CoreService {
         CoreCategory existing = categoryMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "카테고리를 찾을 수 없습니다: " + id
-                )
+                new ResourceNotFoundException(ErrorCode.CORE_CATEGORY_NOT_FOUND)
             );
         CoreCategory category = CoreCategory.builder()
             .id(existing.getId())
@@ -105,7 +105,7 @@ public class CoreService {
         CoreSection existing = sectionMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.CORE_SECTION_NOT_FOUND)
             );
         CoreSection section = CoreSection.builder()
             .id(existing.getId())

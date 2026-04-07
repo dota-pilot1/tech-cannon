@@ -10,6 +10,8 @@ import com.mapo.palantier.apidoc.dto.ApiDocSectionRequest;
 import com.mapo.palantier.apidoc.infrastructure.ApiDocBlockMapper;
 import com.mapo.palantier.apidoc.infrastructure.ApiDocCategoryMapper;
 import com.mapo.palantier.apidoc.infrastructure.ApiDocSectionMapper;
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -49,8 +51,8 @@ public class ApiDocService {
         ApiDocCategory existing = categoryMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "카테고리를 찾을 수 없습니다: " + id
+                new ResourceNotFoundException(
+                    ErrorCode.APIDOC_CATEGORY_NOT_FOUND
                 )
             );
         ApiDocCategory category = ApiDocCategory.builder()
@@ -105,7 +107,9 @@ public class ApiDocService {
         ApiDocSection existing = sectionMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(
+                    ErrorCode.APIDOC_SECTION_NOT_FOUND
+                )
             );
         ApiDocSection section = ApiDocSection.builder()
             .id(existing.getId())

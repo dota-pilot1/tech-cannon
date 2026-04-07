@@ -1,5 +1,7 @@
 package com.mapo.palantier.subutai.post;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.subutai.block.SubutaiBlock;
 import com.mapo.palantier.subutai.block.SubutaiBlockMapper;
 import com.mapo.palantier.subutai.dto.SubutaiBlockDto;
@@ -29,7 +31,7 @@ public class SubutaiPostService {
         return subutaiPostMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.SUBUTAI_POST_NOT_FOUND)
             );
     }
 
@@ -37,7 +39,7 @@ public class SubutaiPostService {
         return subutaiPostMapper
             .findByIdWithBlocks(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.SUBUTAI_POST_NOT_FOUND)
             );
     }
 

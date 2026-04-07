@@ -1,5 +1,7 @@
 package com.mapo.palantier.pilot.post;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.pilot.block.PilotBlock;
 import com.mapo.palantier.pilot.block.PilotBlockMapper;
 import com.mapo.palantier.pilot.dto.PilotBlockDto;
@@ -26,13 +28,19 @@ public class PilotPostService {
     }
 
     public PilotPost getPostById(Long id) {
-        return pilotPostMapper.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id));
+        return pilotPostMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException(ErrorCode.PILOT_POST_NOT_FOUND)
+            );
     }
 
     public PilotPost getPostWithBlocks(Long id) {
-        return pilotPostMapper.findByIdWithBlocks(id)
-            .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id));
+        return pilotPostMapper
+            .findByIdWithBlocks(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException(ErrorCode.PILOT_POST_NOT_FOUND)
+            );
     }
 
     @Transactional

@@ -1,5 +1,7 @@
 package com.mapo.palantier.pilot.folder;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.pilot.dto.PilotFolderDto;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +20,11 @@ public class PilotFolderService {
     }
 
     public PilotFolder getFolderById(Long id) {
-        return pilotFolderMapper.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("폴더를 찾을 수 없습니다: " + id));
+        return pilotFolderMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException(ErrorCode.PILOT_FOLDER_NOT_FOUND)
+            );
     }
 
     @Transactional
@@ -39,9 +44,17 @@ public class PilotFolderService {
         PilotFolder existing = getFolderById(id);
         PilotFolder updated = PilotFolder.builder()
             .id(existing.getId())
-            .parentId(dto.getParentId() != null ? dto.getParentId() : existing.getParentId())
+            .parentId(
+                dto.getParentId() != null
+                    ? dto.getParentId()
+                    : existing.getParentId()
+            )
             .name(dto.getName())
-            .sortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : existing.getSortOrder())
+            .sortOrder(
+                dto.getSortOrder() != null
+                    ? dto.getSortOrder()
+                    : existing.getSortOrder()
+            )
             .createdBy(existing.getCreatedBy())
             .createdAt(existing.getCreatedAt())
             .build();

@@ -1,5 +1,7 @@
 package com.mapo.palantier.subutai.folder;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.subutai.dto.SubutaiFolderDto;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,9 @@ public class SubutaiFolderService {
         return subutaiFolderMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("폴더를 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(
+                    ErrorCode.SUBUTAI_FOLDER_NOT_FOUND
+                )
             );
     }
 

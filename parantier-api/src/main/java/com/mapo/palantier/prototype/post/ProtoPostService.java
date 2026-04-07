@@ -1,5 +1,7 @@
 package com.mapo.palantier.prototype.post;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.prototype.block.ProtoBlock;
 import com.mapo.palantier.prototype.block.ProtoBlockMapper;
 import com.mapo.palantier.prototype.dto.ProtoBlockDto;
@@ -29,7 +31,7 @@ public class ProtoPostService {
         return protoPostMapper
             .findByIdWithBlocks(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("문서를 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.PROTO_POST_NOT_FOUND)
             );
     }
 

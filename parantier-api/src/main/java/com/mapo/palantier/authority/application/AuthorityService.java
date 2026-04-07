@@ -4,21 +4,24 @@ import com.mapo.palantier.authority.domain.Authority;
 import com.mapo.palantier.authority.domain.AuthorityRepository;
 import com.mapo.palantier.authority.domain.UserAuthority;
 import com.mapo.palantier.authority.domain.UserAuthorityRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
+import com.mapo.palantier.common.exception.DuplicateException;
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuthorityService {
+
     private final AuthorityRepository authorityRepository;
     private final UserAuthorityRepository userAuthorityRepository;
 
@@ -48,12 +51,16 @@ public class AuthorityService {
      * 권한 생성
      */
     @Transactional
-    public Authority createAuthority(String name, String description, Long categoryId) {
+    public Authority createAuthority(
+        String name,
+        String description,
+        Long categoryId
+    ) {
         Authority authority = Authority.builder()
-                .name(name)
-                .description(description)
-                .categoryId(categoryId)
-                .build();
+            .name(name)
+            .description(description)
+            .categoryId(categoryId)
+            .build();
         authorityRepository.create(authority);
         return authority;
     }
@@ -62,13 +69,18 @@ public class AuthorityService {
      * 권한 수정
      */
     @Transactional
-    public Authority updateAuthority(Long id, String name, String description, Long categoryId) {
+    public Authority updateAuthority(
+        Long id,
+        String name,
+        String description,
+        Long categoryId
+    ) {
         Authority authority = Authority.builder()
-                .id(id)
-                .name(name)
-                .description(description)
-                .categoryId(categoryId)
-                .build();
+            .id(id)
+            .name(name)
+            .description(description)
+            .categoryId(categoryId)
+            .build();
         authorityRepository.update(authority);
         return authority;
     }
@@ -112,42 +124,55 @@ public class AuthorityService {
      */
     public List<String> getUserEffectiveAuthorities(Long userId, String role) {
         // 1. 역할 기반 권한 조회
-        List<String> roleAuthorities = authorityRepository.findAuthorityNamesByRole(role);
+        List<String> roleAuthorities =
+            authorityRepository.findAuthorityNamesByRole(role);
 
         // 2. 개별 사용자 권한 조회 (유효한 것만)
-        List<String> userAuthorities = userAuthorityRepository.findValidByUserId(userId)
-                .stream()
-                .map(ua -> ua.getAuthority().getName())
-                .collect(Collectors.toList());
+        List<String> userAuthorities = userAuthorityRepository
+            .findValidByUserId(userId)
+            .stream()
+            .map(ua -> ua.getAuthority().getName())
+            .collect(Collectors.toList());
 
         // 3. 중복 제거 후 병합
         return Stream.concat(roleAuthorities.stream(), userAuthorities.stream())
-                .distinct()
-                .collect(Collectors.toList());
+            .distinct()
+            .collect(Collectors.toList());
     }
 
     /**
      * 사용자에게 권한 부여
      */
     @Transactional
-    public void grantUserAuthority(Long userId, Long authorityId, Long grantedBy, LocalDateTime expiresAt, String notes) {
+    public void grantUserAuthority(
+        Long userId,
+        Long authorityId,
+        Long grantedBy,
+        LocalDateTime expiresAt,
+        String notes
+    ) {
         // 이미 존재하는지 확인
         if (userAuthorityRepository.exists(userId, authorityId)) {
             log.warn("User {} already has authority {}", userId, authorityId);
-            throw new IllegalArgumentException("User already has this authority");
+            throw new DuplicateException(ErrorCode.DUPLICATE_AUTHORITY);
         }
 
         UserAuthority userAuthority = UserAuthority.builder()
-                .userId(userId)
-                .authorityId(authorityId)
-                .grantedAt(LocalDateTime.now())
-                .grantedBy(grantedBy)
-                .expiresAt(expiresAt)
-                .notes(notes)
-                .build();
+            .userId(userId)
+            .authorityId(authorityId)
+            .grantedAt(LocalDateTime.now())
+            .grantedBy(grantedBy)
+            .expiresAt(expiresAt)
+            .notes(notes)
+            .build();
 
         userAuthorityRepository.grant(userAuthority);
-        log.info("Granted authority {} to user {} by user {}", authorityId, userId, grantedBy);
+        log.info(
+            "Granted authority {} to user {} by user {}",
+            authorityId,
+            userId,
+            grantedBy
+        );
     }
 
     /**
@@ -157,7 +182,7 @@ public class AuthorityService {
     public void revokeUserAuthority(Long userId, Long authorityId) {
         if (!userAuthorityRepository.exists(userId, authorityId)) {
             log.warn("User {} does not have authority {}", userId, authorityId);
-            throw new IllegalArgumentException("User does not have this authority");
+            throw new ResourceNotFoundException(ErrorCode.AUTHORITY_NOT_FOUND);
         }
 
         userAuthorityRepository.revoke(userId, authorityId);

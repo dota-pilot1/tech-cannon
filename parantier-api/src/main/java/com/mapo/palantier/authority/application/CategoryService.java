@@ -2,18 +2,21 @@ package com.mapo.palantier.authority.application;
 
 import com.mapo.palantier.authority.domain.Category;
 import com.mapo.palantier.authority.domain.CategoryRepository;
+import com.mapo.palantier.common.exception.DuplicateException;
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CategoryService {
+
     private final CategoryRepository categoryRepository;
 
     /**
@@ -38,13 +41,13 @@ public class CategoryService {
         // 중복 확인
         Category existing = categoryRepository.findByName(name);
         if (existing != null) {
-            throw new IllegalArgumentException("Category with name '" + name + "' already exists");
+            throw new DuplicateException(ErrorCode.DUPLICATE_CATEGORY);
         }
 
         Category category = Category.builder()
-                .name(name)
-                .description(description)
-                .build();
+            .name(name)
+            .description(description)
+            .build();
         categoryRepository.create(category);
         log.info("Created category: {} (id={})", name, category.getId());
         return category;
@@ -57,22 +60,24 @@ public class CategoryService {
     public Category updateCategory(Long id, String name, String description) {
         Category existing = categoryRepository.findById(id);
         if (existing == null) {
-            throw new IllegalArgumentException("Category not found: " + id);
+            throw new ResourceNotFoundException(
+                ErrorCode.AUTHORITY_CATEGORY_NOT_FOUND
+            );
         }
 
         // 이름 변경 시 중복 확인
         if (!existing.getName().equals(name)) {
             Category duplicate = categoryRepository.findByName(name);
             if (duplicate != null) {
-                throw new IllegalArgumentException("Category with name '" + name + "' already exists");
+                throw new DuplicateException(ErrorCode.DUPLICATE_CATEGORY);
             }
         }
 
         Category category = Category.builder()
-                .id(id)
-                .name(name)
-                .description(description)
-                .build();
+            .id(id)
+            .name(name)
+            .description(description)
+            .build();
         categoryRepository.update(category);
         log.info("Updated category: {} (id={})", name, id);
         return category;
@@ -85,7 +90,9 @@ public class CategoryService {
     public void deleteCategory(Long id) {
         Category existing = categoryRepository.findById(id);
         if (existing == null) {
-            throw new IllegalArgumentException("Category not found: " + id);
+            throw new ResourceNotFoundException(
+                ErrorCode.AUTHORITY_CATEGORY_NOT_FOUND
+            );
         }
 
         // FK 제약조건으로 인해 권한이 있으면 삭제 불가

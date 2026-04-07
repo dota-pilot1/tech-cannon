@@ -2,6 +2,9 @@ package com.mapo.palantier.role.application;
 
 import com.mapo.palantier.authority.domain.UserAuthority;
 import com.mapo.palantier.authority.domain.UserAuthorityRepository;
+import com.mapo.palantier.common.exception.DuplicateException;
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.role.domain.Role;
 import com.mapo.palantier.role.domain.RoleRepository;
 import java.time.LocalDateTime;
@@ -50,7 +53,7 @@ public class RoleService {
         Role role = roleRepository
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("Role not found: " + id)
+                new ResourceNotFoundException(ErrorCode.ROLE_NOT_FOUND)
             );
 
         // 권한 ID 목록 로드
@@ -73,7 +76,7 @@ public class RoleService {
         return roleRepository
             .findByName(name)
             .orElseThrow(() ->
-                new IllegalArgumentException("Role not found: " + name)
+                new ResourceNotFoundException(ErrorCode.ROLE_NOT_FOUND)
             );
     }
 
@@ -86,9 +89,7 @@ public class RoleService {
         roleRepository
             .findByName(name)
             .ifPresent(existing -> {
-                throw new IllegalArgumentException(
-                    "Role already exists: " + name
-                );
+                throw new DuplicateException(ErrorCode.DUPLICATE_ROLE);
             });
 
         Role role = Role.builder().name(name).description(description).build();
@@ -108,9 +109,7 @@ public class RoleService {
             roleRepository
                 .findByName(name)
                 .ifPresent(existing -> {
-                    throw new IllegalArgumentException(
-                        "Role name already exists: " + name
-                    );
+                    throw new DuplicateException(ErrorCode.DUPLICATE_ROLE);
                 });
         }
 

@@ -1,5 +1,7 @@
 package com.mapo.palantier.db.post;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.db.block.DbBlock;
 import com.mapo.palantier.db.block.DbBlockMapper;
 import com.mapo.palantier.db.dto.DbBlockDto;
@@ -29,7 +31,7 @@ public class DbPostService {
         return dbPostMapper
             .findByIdWithBlocks(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("문서를 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.DB_POST_NOT_FOUND)
             );
     }
 

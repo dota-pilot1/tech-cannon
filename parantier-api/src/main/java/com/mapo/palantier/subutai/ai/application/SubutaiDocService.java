@@ -1,5 +1,7 @@
 package com.mapo.palantier.subutai.ai.application;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.subutai.ai.domain.*;
 import com.mapo.palantier.subutai.ai.dto.*;
 import com.mapo.palantier.subutai.ai.infrastructure.*;
@@ -51,7 +53,7 @@ public class SubutaiDocService {
         SubutaiDocPost post = postMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("문서를 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.SUBUTAI_DOC_NOT_FOUND)
             );
         List<SubutaiDocSection> sections = sectionMapper.findByPostId(id);
         return SubutaiDocPost.builder()

@@ -1,5 +1,8 @@
 package com.mapo.palantier.personal.bookmark;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ForbiddenException;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,12 +38,10 @@ public class PersonalBookmarkService {
         PersonalBookmark existing = personalBookmarkMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "즐겨찾기를 찾을 수 없습니다: " + id
-                )
+                new ResourceNotFoundException(ErrorCode.BOOKMARK_NOT_FOUND)
             );
         if (!existing.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("수정 권한이 없습니다");
+            throw new ForbiddenException(ErrorCode.FORBIDDEN_UPDATE);
         }
         PersonalBookmark bookmark = PersonalBookmark.builder()
             .id(existing.getId())
@@ -65,12 +66,10 @@ public class PersonalBookmarkService {
         PersonalBookmark bookmark = personalBookmarkMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "즐겨찾기를 찾을 수 없습니다: " + id
-                )
+                new ResourceNotFoundException(ErrorCode.BOOKMARK_NOT_FOUND)
             );
         if (!bookmark.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("삭제 권한이 없습니다");
+            throw new ForbiddenException(ErrorCode.FORBIDDEN_DELETE);
         }
         personalBookmarkMapper.softDelete(id);
     }

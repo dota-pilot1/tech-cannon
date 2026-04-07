@@ -1,15 +1,17 @@
 package com.mapo.palantier.chat;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ChatRoomService {
+
     private final ChatRoomMapper chatRoomMapper;
 
     /**
@@ -30,8 +32,11 @@ public class ChatRoomService {
      * 채팅방 상세 조회
      */
     public ChatRoom getRoomById(Long id) {
-        return chatRoomMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다: " + id));
+        return chatRoomMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException(ErrorCode.CHAT_ROOM_NOT_FOUND)
+            );
     }
 
     /**

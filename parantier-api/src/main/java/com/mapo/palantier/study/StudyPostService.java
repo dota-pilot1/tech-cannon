@@ -1,5 +1,7 @@
 package com.mapo.palantier.study;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,7 +33,7 @@ public class StudyPostService {
         StudyPost post = studyPostMapper
             .findById(id, currentUserId)
             .orElseThrow(() ->
-                new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.STUDY_POST_NOT_FOUND)
             );
         studyPostMapper.incrementViewCount(id);
         return post;
@@ -55,7 +57,7 @@ public class StudyPostService {
         StudyPost existing = studyPostMapper
             .findById(id, currentUserId)
             .orElseThrow(() ->
-                new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.STUDY_POST_NOT_FOUND)
             );
         StudyPost post = StudyPost.builder()
             .id(existing.getId())
@@ -84,7 +86,7 @@ public class StudyPostService {
         StudyPost post = studyPostMapper
             .findById(id, null)
             .orElseThrow(() ->
-                new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.STUDY_POST_NOT_FOUND)
             );
         studyPostMapper.updatePinned(
             id,

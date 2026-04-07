@@ -1,5 +1,7 @@
 package com.mapo.palantier.textbook.application;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.textbook.domain.TextbookBlock;
 import com.mapo.palantier.textbook.domain.TextbookCategory;
 import com.mapo.palantier.textbook.domain.TextbookSection;
@@ -49,8 +51,8 @@ public class TextbookService {
         TextbookCategory existing = categoryMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "카테고리를 찾을 수 없습니다: " + id
+                new ResourceNotFoundException(
+                    ErrorCode.TEXTBOOK_CATEGORY_NOT_FOUND
                 )
             );
         TextbookCategory category = TextbookCategory.builder()
@@ -105,7 +107,9 @@ public class TextbookService {
         TextbookSection existing = sectionMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(
+                    ErrorCode.TEXTBOOK_SECTION_NOT_FOUND
+                )
             );
         TextbookSection section = TextbookSection.builder()
             .id(existing.getId())

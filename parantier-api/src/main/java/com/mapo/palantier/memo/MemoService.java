@@ -1,5 +1,8 @@
 package com.mapo.palantier.memo;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ForbiddenException;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,10 +36,10 @@ public class MemoService {
         Memo memo = memoMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("메모를 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.MEMO_NOT_FOUND)
             );
         if (!memo.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("수정 권한이 없습니다");
+            throw new ForbiddenException(ErrorCode.FORBIDDEN_UPDATE);
         }
         Memo updated = Memo.builder()
             .id(memo.getId())
@@ -58,10 +61,10 @@ public class MemoService {
         Memo memo = memoMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("메모를 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.MEMO_NOT_FOUND)
             );
         if (!memo.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("삭제 권한이 없습니다");
+            throw new ForbiddenException(ErrorCode.FORBIDDEN_DELETE);
         }
         memoMapper.softDelete(id);
     }

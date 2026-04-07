@@ -148,6 +148,58 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 중복 리소스 예외 처리
+     * HTTP Status: 409 Conflict
+     */
+    @ExceptionHandler(DuplicateException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateException(
+        DuplicateException e,
+        HttpServletRequest request
+    ) {
+        log.warn(
+            "Duplicate resource: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        ErrorResponse errorResponse = ErrorResponse.of(
+            e.getErrorCode().getCode(),
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(
+            errorResponse
+        );
+    }
+
+    /**
+     * 권한 없음 예외 처리
+     * HTTP Status: 403 Forbidden
+     */
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleForbiddenException(
+        ForbiddenException e,
+        HttpServletRequest request
+    ) {
+        log.warn(
+            "Forbidden: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        ErrorResponse errorResponse = ErrorResponse.of(
+            e.getErrorCode().getCode(),
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(
+            errorResponse
+        );
+    }
+
+    /**
      * 리소스를 찾을 수 없는 예외 처리
      * HTTP Status: 404 Not Found
      */

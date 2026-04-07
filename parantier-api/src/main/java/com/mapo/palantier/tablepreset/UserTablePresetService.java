@@ -1,5 +1,7 @@
 package com.mapo.palantier.tablepreset;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -53,8 +55,8 @@ public class UserTablePresetService {
     ) {
         UserTablePreset existing = presetMapper.findById(id);
         if (existing == null) {
-            throw new IllegalArgumentException(
-                "Preset not found with id: " + id
+            throw new ResourceNotFoundException(
+                ErrorCode.TABLE_PRESET_NOT_FOUND
             );
         }
 

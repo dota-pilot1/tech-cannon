@@ -1,5 +1,7 @@
 package com.mapo.palantier.faq.application;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.faq.domain.FaqBlock;
 import com.mapo.palantier.faq.domain.FaqCategory;
 import com.mapo.palantier.faq.domain.FaqSection;
@@ -49,9 +51,7 @@ public class FaqService {
         FaqCategory existing = categoryMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "카테고리를 찾을 수 없습니다: " + id
-                )
+                new ResourceNotFoundException(ErrorCode.FAQ_CATEGORY_NOT_FOUND)
             );
         FaqCategory category = FaqCategory.builder()
             .id(existing.getId())
@@ -105,7 +105,7 @@ public class FaqService {
         FaqSection existing = sectionMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.FAQ_SECTION_NOT_FOUND)
             );
         FaqSection section = FaqSection.builder()
             .id(existing.getId())

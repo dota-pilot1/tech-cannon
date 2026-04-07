@@ -1,5 +1,7 @@
 package com.mapo.palantier.prompt.post;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,13 +23,17 @@ public class PromptService {
     }
 
     public Prompt getPrompt(Long id) {
-        return promptMapper.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("프롬프트를 찾을 수 없습니다: " + id));
+        return promptMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException(ErrorCode.PROMPT_NOT_FOUND)
+            );
     }
 
     @Transactional
     public Long savePrompt(PromptDto dto, Long authorId) {
-        String tags = dto.getTags() != null ? String.join(",", dto.getTags()) : "";
+        String tags =
+            dto.getTags() != null ? String.join(",", dto.getTags()) : "";
         if (dto.getId() == null) {
             Prompt prompt = Prompt.builder()
                 .folderId(dto.getFolderId())

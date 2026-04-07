@@ -1,5 +1,7 @@
 package com.mapo.palantier.user.application;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.user.domain.User;
 import com.mapo.palantier.user.domain.UserRepository;
 import com.mapo.palantier.user.domain.UserRole;
@@ -33,7 +35,7 @@ public class UserService {
         User user = userRepository
             .findById(userId)
             .orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND)
             );
 
         // 권한 업데이트
@@ -49,7 +51,7 @@ public class UserService {
         User user = userRepository
             .findById(userId)
             .orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND)
             );
 
         // 조직 업데이트
@@ -78,7 +80,7 @@ public class UserService {
         User user = userRepository
             .findById(userId)
             .orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND)
             );
 
         // 조직을 NULL로 업데이트
@@ -92,7 +94,7 @@ public class UserService {
         return userRepository
             .findByEmail(email)
             .orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND)
             );
     }
 
@@ -103,7 +105,7 @@ public class UserService {
         return userRepository
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND)
             );
     }
 
@@ -115,7 +117,7 @@ public class UserService {
         User existingUser = userRepository
             .findById(userId)
             .orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND)
             );
 
         // 사용자명만 업데이트
@@ -129,7 +131,7 @@ public class UserService {
         User user = userRepository
             .findById(userId)
             .orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND)
             );
 
         return passwordEncoder.matches(currentPassword, user.getPassword());

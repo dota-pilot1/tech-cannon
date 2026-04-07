@@ -1,5 +1,8 @@
 package com.mapo.palantier.devlog;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ForbiddenException;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,12 +38,10 @@ public class DevLogService {
         DevLog devLog = devLogMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "개발 일지를 찾을 수 없습니다: " + id
-                )
+                new ResourceNotFoundException(ErrorCode.DEVLOG_NOT_FOUND)
             );
         if (!devLog.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("수정 권한이 없습니다");
+            throw new ForbiddenException(ErrorCode.FORBIDDEN_UPDATE);
         }
         DevLog updated = DevLog.builder()
             .id(devLog.getId())
@@ -72,12 +73,10 @@ public class DevLogService {
         DevLog devLog = devLogMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "개발 일지를 찾을 수 없습니다: " + id
-                )
+                new ResourceNotFoundException(ErrorCode.DEVLOG_NOT_FOUND)
             );
         if (!devLog.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("삭제 권한이 없습니다");
+            throw new ForbiddenException(ErrorCode.FORBIDDEN_DELETE);
         }
         devLogMapper.softDelete(id);
     }

@@ -9,6 +9,8 @@ import com.mapo.palantier.apidoc.dto.ApiDocReorderRequest;
 import com.mapo.palantier.apidoc.dto.ApiDocSectionRequest;
 import com.mapo.palantier.apidoc.infrastructure.ApiDocBlockMapper;
 import com.mapo.palantier.apidoc.infrastructure.ApiDocSectionMapper;
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.hackathon.apidoc.infrastructure.HackathonApiDocCategoryMapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -47,8 +49,8 @@ public class HackathonApiDocService {
         ApiDocCategory existing = categoryMapper
             .findByIdForTeam(id)
             .orElseThrow(() ->
-                new IllegalArgumentException(
-                    "카테고리를 찾을 수 없습니다: " + id
+                new ResourceNotFoundException(
+                    ErrorCode.HACKATHON_CATEGORY_NOT_FOUND
                 )
             );
         ApiDocCategory category = ApiDocCategory.builder()
@@ -106,7 +108,9 @@ public class HackathonApiDocService {
         ApiDocSection existing = sectionMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(
+                    ErrorCode.HACKATHON_SECTION_NOT_FOUND
+                )
             );
         ApiDocSection section = ApiDocSection.builder()
             .id(existing.getId())

@@ -1,5 +1,7 @@
 package com.mapo.palantier.db.folder;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.db.dto.DbFolderDto;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,7 @@ public class DbFolderService {
         return dbFolderMapper
             .findById(id)
             .orElseThrow(() ->
-                new IllegalArgumentException("폴더를 찾을 수 없습니다: " + id)
+                new ResourceNotFoundException(ErrorCode.DB_FOLDER_NOT_FOUND)
             );
     }
 

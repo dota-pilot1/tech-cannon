@@ -1,5 +1,7 @@
 package com.mapo.palantier.hackathon.application;
 
+import com.mapo.palantier.common.exception.ErrorCode;
+import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.hackathon.domain.HackathonEvent;
 import com.mapo.palantier.hackathon.domain.HackathonTeam;
 import com.mapo.palantier.hackathon.dto.CreateEventRequest;
@@ -123,8 +125,8 @@ public class HackathonEventService {
     @Transactional
     public void updateTeam(Long teamId, CreateTeamRequest req) {
         HackathonTeam team = hackathonTeamMapper.findById(teamId);
-        if (team == null) throw new IllegalArgumentException(
-            "팀을 찾을 수 없습니다: " + teamId
+        if (team == null) throw new ResourceNotFoundException(
+            ErrorCode.HACKATHON_TEAM_NOT_FOUND
         );
         team.setName(req.getName());
         team.setProject(req.getProject());
