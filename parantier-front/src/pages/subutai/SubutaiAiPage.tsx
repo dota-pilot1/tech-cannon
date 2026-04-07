@@ -773,8 +773,8 @@ export default function SubutaiAiPage() {
               <input
                 value={editingTitle}
                 onChange={(e) => setEditingTitle(e.target.value)}
-                className="flex-1 text-base font-semibold bg-transparent outline-none"
-                placeholder="문서 제목"
+                className="flex-1 text-base font-semibold bg-transparent outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors pb-0.5"
+                placeholder="문서 제목을 입력하세요"
               />
               <button
                 onClick={handleSavePost}
