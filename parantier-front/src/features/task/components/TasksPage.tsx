@@ -14,140 +14,15 @@ import {
   useDeleteFolderMutation,
 } from "../hooks/useTask";
 import { taskApi } from "../api/taskApi";
-import type { TaskFolder, TaskPost, TaskBlock } from "../types/task.types";
+import type { TaskPost, TaskBlock } from "../types/task.types";
 import { buildTree } from "../types/task.types";
 import TaskBlockEditor from "./TaskBlockEditor";
 import TaskBlockViewer from "./TaskBlockViewer";
-
-// 폴더 컨텍스트 메뉴
-type FolderCtxMenu = {
-  x: number;
-  y: number;
-  folderId: number;
-  folderName: string;
-} | null;
-
-// 문서 컨텍스트 메뉴
-type PostCtxMenu = {
-  x: number;
-  y: number;
-  postId: number;
-  postTitle: string;
-} | null;
-
-function FolderContextMenu({
-  menu,
-  onClose,
-  onAddSubFolder,
-  onAddDoc,
-  onRename,
-  onDelete,
-}: {
-  menu: FolderCtxMenu;
-  onClose: () => void;
-  onAddSubFolder: (parentId: number) => void;
-  onAddDoc: (folderId: number) => void;
-  onRename: (id: number, name: string) => void;
-  onDelete: (id: number, name: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose]);
-
-  if (!menu) return null;
-
-  return (
-    <div
-      ref={ref}
-      className="fixed z-50 bg-white border rounded shadow-xl py-1 min-w-[180px] text-sm"
-      style={{ top: menu.y, left: menu.x }}
-    >
-      <button
-        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
-        onClick={() => {
-          onAddSubFolder(menu.folderId);
-          onClose();
-        }}
-      >
-        <span>📁</span> 하위 폴더 추가
-      </button>
-      <button
-        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
-        onClick={() => {
-          onAddDoc(menu.folderId);
-          onClose();
-        }}
-      >
-        <span>📄</span> 새 문서 추가
-      </button>
-      <div className="border-t my-1" />
-      <button
-        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
-        onClick={() => {
-          onRename(menu.folderId, menu.folderName);
-          onClose();
-        }}
-      >
-        <span>✏️</span> 이름 변경
-      </button>
-      <button
-        className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
-        onClick={() => {
-          onDelete(menu.folderId, menu.folderName);
-          onClose();
-        }}
-      >
-        <span>🗑️</span> 폴더 삭제
-      </button>
-    </div>
-  );
-}
-
-function PostContextMenu({
-  menu,
-  onClose,
-  onDelete,
-}: {
-  menu: PostCtxMenu;
-  onClose: () => void;
-  onDelete: (id: number, title: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose]);
-
-  if (!menu) return null;
-
-  return (
-    <div
-      ref={ref}
-      className="fixed z-50 bg-white border rounded shadow-xl py-1 min-w-[160px] text-sm"
-      style={{ top: menu.y, left: menu.x }}
-    >
-      <button
-        className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
-        onClick={() => {
-          onDelete(menu.postId, menu.postTitle);
-          onClose();
-        }}
-      >
-        <span>🗑️</span> 문서 삭제
-      </button>
-    </div>
-  );
-}
+import TaskFolderItem from "./TaskFolderItem";
+import TaskFolderContextMenu from "./TaskFolderContextMenu";
+import type { FolderCtxMenu } from "./TaskFolderContextMenu";
+import TaskPostContextMenu from "./TaskPostContextMenu";
+import type { PostCtxMenu } from "./TaskPostContextMenu";
 
 export default function TasksPage() {
   const { confirm, ConfirmDialog } = useConfirm();
@@ -441,165 +316,11 @@ export default function TasksPage() {
     </div>
   );
 
-  // 폴더 렌더링
-  const renderFolder = (folder: TaskFolder, depth = 0) => {
-    const isSelected = selectedFolderId === folder.id;
-    const isExpanded = expandedFolders.has(folder.id);
-    const subFolders = folderChildren[folder.id] ?? [];
-    const isEditingThis = editingFolderId === folder.id;
-
-    return (
-      <div key={folder.id} className={depth > 0 ? "ml-4" : ""}>
-        <div
-          className={cn(
-            "group flex items-center gap-2 py-2 px-3 rounded cursor-pointer transition-colors",
-            isSelected
-              ? "bg-primary text-primary-foreground font-medium"
-              : "hover:bg-accent",
-          )}
-          onClick={() => handleFolderClick(folder.id)}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            setFolderCtxMenu({
-              x: e.clientX,
-              y: e.clientY,
-              folderId: folder.id,
-              folderName: folder.name,
-            });
-          }}
-        >
-          <span className="shrink-0 text-sm">{isExpanded ? "▼" : "▶"}</span>
-          <FolderOpen
-            className={cn(
-              "w-4 h-4 shrink-0",
-              isSelected ? "text-primary-foreground" : "text-muted-foreground",
-            )}
-          />
-          {isEditingThis ? (
-            <input
-              autoFocus
-              value={editingFolderName}
-              onChange={(e) => setEditingFolderName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.nativeEvent.isComposing) return;
-                if (e.key === "Enter")
-                  renameFolderMutation.mutate({
-                    id: folder.id,
-                    dto: { name: editingFolderName, parentId: folder.parentId },
-                  });
-                if (e.key === "Escape") setEditingFolderId(null);
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="flex-1 border rounded px-1 py-0 text-xs min-w-0 text-foreground bg-background"
-            />
-          ) : (
-            <span className="flex-1 truncate min-w-0 text-sm">
-              {folder.name}
-            </span>
-          )}
-          {!isEditingThis && (
-            <div className="hidden group-hover:flex gap-0.5 shrink-0">
-              <button
-                className={cn(
-                  "text-xs px-1 rounded",
-                  isSelected
-                    ? "text-primary-foreground/70 hover:text-primary-foreground"
-                    : "text-muted-foreground hover:text-primary",
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openNewDoc(folder.id);
-                }}
-                title="새 문서"
-              >
-                +
-              </button>
-              <button
-                className={cn(
-                  "text-xs px-1 rounded",
-                  isSelected
-                    ? "text-primary-foreground/70 hover:text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingFolderId(folder.id);
-                  setEditingFolderName(folder.name);
-                }}
-                title="이름 변경"
-              >
-                ✏️
-              </button>
-              <button
-                className={cn(
-                  "text-xs px-1 rounded",
-                  isSelected
-                    ? "text-primary-foreground/70 hover:text-destructive"
-                    : "text-muted-foreground hover:text-destructive",
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteFolder(folder.id, folder.name);
-                }}
-                title="삭제"
-              >
-                🗑️
-              </button>
-            </div>
-          )}
-        </div>
-
-        {isExpanded && (
-          <>
-            {subFolders.map((sub) => renderFolder(sub, depth + 1))}
-            {inlineFolderInput?.parentId === folder.id &&
-              renderInlineFolderInput(depth + 1)}
-            {inlineDocInput?.folderId === folder.id &&
-              renderInlineDocInput(depth + 1)}
-            {(postsByFolder.get(folder.id) || []).map((post) => {
-              return (
-                <div
-                  key={post.id}
-                  onClick={() => handlePostClick(post)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setPostCtxMenu({
-                      x: Math.min(e.clientX, window.innerWidth - 180),
-                      y: Math.min(e.clientY, window.innerHeight - 80),
-                      postId: post.id,
-                      postTitle: post.title,
-                    });
-                  }}
-                  className={cn(
-                    "ml-4 flex items-center gap-2 py-2 px-3 rounded cursor-pointer text-sm transition-colors",
-                    selectedPostId === post.id
-                      ? "bg-primary text-primary-foreground font-medium"
-                      : "hover:bg-accent text-foreground",
-                  )}
-                >
-                  <FileText
-                    className={cn(
-                      "w-4 h-4 shrink-0",
-                      selectedPostId === post.id
-                        ? "text-primary-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                  <span className="truncate min-w-0">{post.title}</span>
-                </div>
-              );
-            })}
-          </>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <ConfirmDialog />
-      <PostContextMenu
+      <TaskPostContextMenu
         menu={postCtxMenu}
         onClose={() => setPostCtxMenu(null)}
         onDelete={async (id, title) => {
@@ -617,7 +338,7 @@ export default function TasksPage() {
           }
         }}
       />
-      <FolderContextMenu
+      <TaskFolderContextMenu
         menu={folderCtxMenu}
         onClose={() => setFolderCtxMenu(null)}
         onAddSubFolder={(parentId) => openInlineFolderInput(parentId)}
@@ -779,7 +500,34 @@ export default function TasksPage() {
                 );
               })()
             ) : (
-              roots.map((f) => renderFolder(f))
+              roots.map((f) => (
+                <TaskFolderItem
+                  key={f.id}
+                  folder={f}
+                  depth={0}
+                  selectedFolderId={selectedFolderId}
+                  selectedPostId={selectedPostId}
+                  expandedFolders={expandedFolders}
+                  folderChildren={folderChildren}
+                  postsByFolder={postsByFolder}
+                  inlineFolderInput={inlineFolderInput}
+                  inlineDocInput={inlineDocInput}
+                  editingFolderId={editingFolderId}
+                  editingFolderName={editingFolderName}
+                  onFolderClick={handleFolderClick}
+                  onPostClick={handlePostClick}
+                  onOpenNewDoc={openNewDoc}
+                  onStartEditFolder={(id, name) => { setEditingFolderId(id); setEditingFolderName(name); }}
+                  onDeleteFolder={handleDeleteFolder}
+                  onSetFolderCtxMenu={setFolderCtxMenu}
+                  onSetPostCtxMenu={setPostCtxMenu}
+                  onEditingFolderNameChange={setEditingFolderName}
+                  onRenameFolderConfirm={(id, name, parentId) => renameFolderMutation.mutate({ id, dto: { name, parentId } })}
+                  onRenameFolderCancel={() => setEditingFolderId(null)}
+                  renderInlineFolderInput={renderInlineFolderInput}
+                  renderInlineDocInput={renderInlineDocInput}
+                />
+              ))
             )}
             {!searchQuery.trim() &&
               inlineFolderInput?.parentId === null &&
