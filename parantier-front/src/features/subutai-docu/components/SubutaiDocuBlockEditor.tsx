@@ -97,37 +97,17 @@ export default function SubutaiDocuBlockEditor({
                 >
                   <span className="text-base shrink-0">{meta.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{meta.label}</p>
-                    <p className="text-[10px] opacity-60">{idx + 1}번 블록</p>
+                    <p className="text-xs font-medium truncate">
+                      {block.blockTitle?.trim() ? block.blockTitle : meta.label}
+                    </p>
+                    <p className="text-[10px] opacity-60">
+                      {idx + 1}번 · {meta.label}
+                    </p>
                   </div>
                 </button>
               );
             })
           )}
-        </div>
-
-        {/* 블록 추가 버튼 */}
-        <div className="border-t border-border p-2 shrink-0">
-          <p className="text-[10px] text-muted-foreground mb-1.5 px-1">
-            블록 추가
-          </p>
-          <div className="grid grid-cols-2 gap-1">
-            {(
-              Object.entries(TYPE_META) as [
-                BlockType,
-                (typeof TYPE_META)[BlockType],
-              ][]
-            ).map(([type, meta]) => (
-              <button
-                key={type}
-                onClick={() => addBlock(type)}
-                className="flex items-center gap-1 px-1.5 py-1 text-[11px] bg-background border border-border rounded hover:bg-accent transition-colors"
-              >
-                <span>{meta.icon}</span>
-                <span className="truncate">{meta.label}</span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -140,22 +120,36 @@ export default function SubutaiDocuBlockEditor({
         ) : (
           <>
             {/* 블록 헤더 */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 shrink-0">
-              <span
-                className={`px-2 py-0.5 text-xs rounded font-medium ${selectedMeta!.color}`}
-              >
-                {selectedMeta!.icon} {selectedMeta!.label}
-              </span>
-              <button
-                onClick={() => removeBlock(selectedIdx)}
-                className="text-xs px-2 py-1 text-destructive hover:bg-destructive/10 rounded transition-colors"
-              >
-                삭제
-              </button>
+            <div className="flex flex-col border-b border-border bg-muted/30 shrink-0">
+              <div className="flex items-center justify-between px-4 py-2">
+                <span
+                  className={`px-2 py-0.5 text-xs rounded font-medium ${selectedMeta!.color}`}
+                >
+                  {selectedMeta!.icon} {selectedMeta!.label}
+                </span>
+                <button
+                  onClick={() => removeBlock(selectedIdx)}
+                  className="text-xs px-2 py-1 text-destructive hover:bg-destructive/10 rounded transition-colors"
+                >
+                  삭제
+                </button>
+              </div>
+              {/* 블록 제목 입력 */}
+              <div className="px-4 pb-2">
+                <input
+                  type="text"
+                  value={selectedBlock.blockTitle ?? ""}
+                  onChange={(e) =>
+                    updateBlock(selectedIdx, "blockTitle", e.target.value)
+                  }
+                  placeholder="블록 제목 (선택)"
+                  className="w-full text-sm font-medium bg-background border border-border rounded px-2.5 py-1.5 outline-none focus:border-primary/60 placeholder:text-muted-foreground/50"
+                />
+              </div>
             </div>
 
             {/* 블록 편집 영역 */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto flex flex-col">
               {selectedBlock.blockType === "DBTABLE" ? (
                 <DbTableBlockEditor
                   content={selectedBlock.content}
@@ -194,8 +188,56 @@ export default function SubutaiDocuBlockEditor({
                   style={{ minHeight: "300px" }}
                 />
               )}
+
+              {/* 블록 추가 버튼 - 하단 */}
+              <div className="border-t border-border px-4 py-3 mt-auto shrink-0">
+                <p className="text-[10px] text-muted-foreground mb-2">
+                  본문 추가
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    Object.entries(TYPE_META) as [
+                      BlockType,
+                      (typeof TYPE_META)[BlockType],
+                    ][]
+                  ).map(([type, meta]) => (
+                    <button
+                      key={type}
+                      onClick={() => addBlock(type)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-background border border-border rounded hover:bg-accent transition-colors"
+                    >
+                      <span>{meta.icon}</span>
+                      <span>{meta.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </>
+        )}
+
+        {/* 블록 없을 때도 추가 버튼 표시 */}
+        {selectedBlock === null && (
+          <div className="border-t border-border px-4 py-3 shrink-0">
+            <p className="text-[10px] text-muted-foreground mb-2">본문 추가</p>
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                Object.entries(TYPE_META) as [
+                  BlockType,
+                  (typeof TYPE_META)[BlockType],
+                ][]
+              ).map(([type, meta]) => (
+                <button
+                  key={type}
+                  onClick={() => addBlock(type)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-background border border-border rounded hover:bg-accent transition-colors"
+                >
+                  <span>{meta.icon}</span>
+                  <span>{meta.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

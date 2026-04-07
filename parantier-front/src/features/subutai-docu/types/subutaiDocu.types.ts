@@ -21,6 +21,7 @@ export interface SubutaiDocuBlock {
   postId?: number;
   blockType: BlockType;
   content: string;
+  blockTitle?: string;
   sortOrder?: number;
 }
 
