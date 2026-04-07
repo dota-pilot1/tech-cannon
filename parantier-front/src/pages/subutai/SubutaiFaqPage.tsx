@@ -70,39 +70,56 @@ function SortableItem({
 // ─────────────────────────────────────────────
 // SubutaiFaqBlockViewer - Q/A 말풍선 스타일
 // ─────────────────────────────────────────────
-function SubutaiFaqBlockViewer({ block }: { block: SubutaiFaqBlock }) {
+function SubutaiFaqBlockViewer({
+  block,
+  qaPct,
+}: {
+  block: SubutaiFaqBlock;
+  qaPct: number; // 질문 버블 너비 % (25~75), 답변도 동일 너비로 오른쪽 정렬
+}) {
   const isQuestion = block.blockType === "QUESTION";
   const isAnswer = block.blockType === "ANSWER";
 
+  // 질문: 왼쪽 qaPct%, 오른쪽 나머지
+  // 답변: 왼쪽 나머지, 오른쪽 qaPct%
+  const bubblePct = `${qaPct}%`;
+  const spacePct = `${100 - qaPct}%`;
+
   if (isQuestion) {
     return (
-      <div className="flex mb-3">
-        {/* Q 왼쪽 고정 */}
-        <div className="flex items-start gap-3 w-[48%]">
+      <div className="flex mb-3 overflow-hidden">
+        {/* Q 왼쪽 */}
+        <div
+          className="flex items-start gap-3 min-w-0 shrink-0"
+          style={{ width: bubblePct }}
+        >
           <div className="w-8 h-8 rounded-full bg-muted border-2 border-border flex items-center justify-center shrink-0 text-sm font-bold text-foreground mt-1">
             Q
           </div>
-          <div className="flex-1 bg-muted border border-border rounded-2xl rounded-tl-none px-4 py-3 min-w-0">
+          <div className="flex-1 bg-muted border border-border rounded-2xl rounded-tl-none px-4 py-3 min-w-0 overflow-hidden break-words">
             <LexicalViewer content={block.content} />
           </div>
         </div>
         {/* 오른쪽 빈 공간 */}
-        <div className="w-[52%]" />
+        <div className="shrink-0" style={{ width: spacePct }} />
       </div>
     );
   }
 
   if (isAnswer) {
     return (
-      <div className="flex mb-3">
+      <div className="flex mb-3 overflow-hidden">
         {/* 왼쪽 빈 공간 */}
-        <div className="w-[52%]" />
-        {/* A 오른쪽 고정 */}
-        <div className="flex items-start gap-3 w-[48%] flex-row-reverse">
+        <div className="shrink-0" style={{ width: spacePct }} />
+        {/* A 오른쪽 */}
+        <div
+          className="flex items-start gap-3 flex-row-reverse min-w-0 shrink-0"
+          style={{ width: bubblePct }}
+        >
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 text-sm font-bold text-primary-foreground mt-1">
             A
           </div>
-          <div className="flex-1 bg-primary/15 border border-primary/30 rounded-2xl rounded-tr-none px-4 py-3 min-w-0">
+          <div className="flex-1 bg-primary/15 border border-primary/30 rounded-2xl rounded-tr-none px-4 py-3 min-w-0 overflow-hidden break-words">
             <LexicalViewer content={block.content} />
           </div>
         </div>
@@ -142,6 +159,38 @@ export default function SubutaiFaqPage() {
   const queryClient = useQueryClient();
   const { user } = useStore(authStore, (s) => s);
   const isAdmin = user?.role === "ROLE_ADMIN";
+
+  // ── Q/A 너비 비율 (localStorage 복원)
+  const [qaPct, setQaPct] = useState(() => {
+    const saved = localStorage.getItem("subutai-faq-qa-pct");
+    return saved ? Number(saved) : 48;
+  });
+  const isResizingQA = useRef(false);
+  const qaContainerRef = useRef<HTMLDivElement>(null);
+
+  const startResizeQA = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingQA.current = true;
+    const onMove = (ev: MouseEvent) => {
+      if (!isResizingQA.current) return;
+      const rect = qaContainerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const relX = ev.clientX - rect.left;
+      const pct = Math.min(
+        75,
+        Math.max(25, Math.round((relX / rect.width) * 100)),
+      );
+      setQaPct(pct);
+      localStorage.setItem("subutai-faq-qa-pct", String(pct));
+    };
+    const onUp = () => {
+      isResizingQA.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
 
   // ── 사이드바 넓이 (localStorage 복원)
   const [cat1Width, setCat1Width] = useState(() => {
@@ -967,7 +1016,7 @@ export default function SubutaiFaqPage() {
 
         {/* 섹션 선택됨 */}
         {selectedSectionId && (
-          <div className="relative px-6 py-6">
+          <div className="relative px-6 py-6" ref={qaContainerRef}>
             {/* 편집 버튼 - 우상단 고정 (ADMIN, 뷰어 모드에서만) */}
             {isAdmin && !isEditing && (
               <div className="absolute top-4 right-6">
@@ -1145,11 +1194,25 @@ export default function SubutaiFaqPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="py-2">
+                  <div className="py-2 relative">
+                    {/* 중앙 구분선 + 드래그 핸들 */}
+                    <div
+                      className="absolute top-0 bottom-0 z-10 flex items-stretch group"
+                      style={{
+                        left: `calc(${qaPct}% - 8px)`,
+                        width: "16px",
+                        cursor: "col-resize",
+                      }}
+                      onMouseDown={startResizeQA}
+                      title="드래그로 Q/A 너비 조절"
+                    >
+                      <div className="mx-auto w-px h-full bg-border/50 group-hover:bg-primary/50 transition-colors" />
+                    </div>
                     {blocks.map((block, idx) => (
                       <SubutaiFaqBlockViewer
                         key={block.id ?? idx}
                         block={block}
+                        qaPct={qaPct}
                       />
                     ))}
                   </div>
