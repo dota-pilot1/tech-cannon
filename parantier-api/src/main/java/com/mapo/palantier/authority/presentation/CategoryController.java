@@ -3,12 +3,11 @@ package com.mapo.palantier.authority.presentation;
 import com.mapo.palantier.authority.application.CategoryService;
 import com.mapo.palantier.authority.domain.Category;
 import com.mapo.palantier.authority.presentation.dto.CreateCategoryRequest;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -23,11 +22,18 @@ public class CategoryController {
      */
     @GetMapping
     public ResponseEntity<List<Category>> getAllCategories() {
-        log.info("=== GET /api/categories 요청 시작 ===");
+        log.debug("=== GET /api/categories 요청 시작 ===");
         List<Category> categories = categoryService.getAllCategories();
-        log.info("조회된 카테고리 개수: {}", categories.size());
-        categories.forEach(cat -> log.info("  - ID: {}, Name: {}, Description: {}", cat.getId(), cat.getName(), cat.getDescription()));
-        log.info("=== GET /api/categories 요청 완료 ===");
+        log.debug("조회된 카테고리 개수: {}", categories.size());
+        categories.forEach(cat ->
+            log.debug(
+                "  - ID: {}, Name: {}, Description: {}",
+                cat.getId(),
+                cat.getName(),
+                cat.getDescription()
+            )
+        );
+        log.debug("=== GET /api/categories 요청 완료 ===");
         return ResponseEntity.ok(categories);
     }
 
@@ -35,8 +41,13 @@ public class CategoryController {
      * 카테고리 생성
      */
     @PostMapping
-    public ResponseEntity<Category> createCategory(@RequestBody CreateCategoryRequest request) {
-        Category category = categoryService.createCategory(request.getName(), request.getDescription());
+    public ResponseEntity<Category> createCategory(
+        @RequestBody CreateCategoryRequest request
+    ) {
+        Category category = categoryService.createCategory(
+            request.getName(),
+            request.getDescription()
+        );
         return ResponseEntity.ok(category);
     }
 
@@ -45,9 +56,14 @@ public class CategoryController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<Category> updateCategory(
-            @PathVariable Long id,
-            @RequestBody CreateCategoryRequest request) {
-        Category category = categoryService.updateCategory(id, request.getName(), request.getDescription());
+        @PathVariable Long id,
+        @RequestBody CreateCategoryRequest request
+    ) {
+        Category category = categoryService.updateCategory(
+            id,
+            request.getName(),
+            request.getDescription()
+        );
         return ResponseEntity.ok(category);
     }
 

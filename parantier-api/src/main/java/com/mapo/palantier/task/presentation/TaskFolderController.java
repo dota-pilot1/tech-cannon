@@ -5,6 +5,7 @@ import com.mapo.palantier.task.presentation.dto.TaskFolderRequest;
 import com.mapo.palantier.task.presentation.dto.TaskFolderResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +42,7 @@ public class TaskFolderController {
     @Operation(summary = "폴더 생성")
     @PostMapping
     public ResponseEntity<Long> createFolder(
-        @RequestBody TaskFolderRequest request,
+        @RequestBody @Valid TaskFolderRequest request,
         @RequestAttribute("userId") Long userId
     ) {
         return ResponseEntity.ok(
@@ -53,7 +54,7 @@ public class TaskFolderController {
     @PutMapping("/{id}")
     public ResponseEntity<Void> updateFolder(
         @PathVariable Long id,
-        @RequestBody TaskFolderRequest request
+        @RequestBody @Valid TaskFolderRequest request
     ) {
         taskFolderService.updateFolder(id, request);
         return ResponseEntity.ok().build();

@@ -14,9 +14,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.crypto.SecretKey;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class JwtTokenProvider {
 
@@ -76,17 +78,13 @@ public class JwtTokenProvider {
             .sorted()
             .collect(Collectors.toList());
 
-        System.out.println(
-            "🔑 JWT generateAccessToken - userId: " +
-                userId +
-                ", email: " +
-                email +
-                ", role: " +
-                role +
-                ", organizationId: " +
-                organizationId +
-                ", authorities: " +
-                authorities
+        log.debug(
+            "JWT generateAccessToken - userId: {}, email: {}, role: {}, organizationId: {}, authorities: {}",
+            userId,
+            email,
+            role,
+            organizationId,
+            authorities
         );
 
         return Jwts.builder()

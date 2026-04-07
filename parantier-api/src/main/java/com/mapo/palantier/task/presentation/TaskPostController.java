@@ -6,6 +6,7 @@ import com.mapo.palantier.task.presentation.dto.TaskPostRequest;
 import com.mapo.palantier.task.presentation.dto.TaskPostSummary;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -40,7 +41,7 @@ public class TaskPostController {
     @Operation(summary = "게시글 생성/수정")
     @PostMapping
     public ResponseEntity<Long> savePost(
-        @RequestBody TaskPostRequest request,
+        @RequestBody @Valid TaskPostRequest request,
         @RequestAttribute("userId") Long userId
     ) {
         return ResponseEntity.ok(taskPostService.savePost(request, userId));

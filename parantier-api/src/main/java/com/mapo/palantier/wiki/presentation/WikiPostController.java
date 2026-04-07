@@ -6,6 +6,7 @@ import com.mapo.palantier.wiki.presentation.dto.WikiPostRequest;
 import com.mapo.palantier.wiki.presentation.dto.WikiPostSummary;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -40,7 +41,7 @@ public class WikiPostController {
     @Operation(summary = "문서 생성/수정")
     @PostMapping
     public ResponseEntity<Long> savePost(
-        @RequestBody WikiPostRequest request,
+        @RequestBody @Valid WikiPostRequest request,
         @RequestAttribute("userId") Long userId
     ) {
         return ResponseEntity.ok(wikiPostService.savePost(request, userId));

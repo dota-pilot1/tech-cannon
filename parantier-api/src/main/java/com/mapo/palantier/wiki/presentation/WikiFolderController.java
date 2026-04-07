@@ -5,6 +5,7 @@ import com.mapo.palantier.wiki.presentation.dto.WikiFolderRequest;
 import com.mapo.palantier.wiki.presentation.dto.WikiFolderResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +34,7 @@ public class WikiFolderController {
     @Operation(summary = "폴더 생성")
     @PostMapping
     public ResponseEntity<Long> createFolder(
-        @RequestBody WikiFolderRequest request,
+        @RequestBody @Valid WikiFolderRequest request,
         @RequestAttribute("userId") Long userId
     ) {
         return ResponseEntity.ok(
@@ -45,7 +46,7 @@ public class WikiFolderController {
     @PutMapping("/{id}")
     public ResponseEntity<Void> updateFolder(
         @PathVariable Long id,
-        @RequestBody WikiFolderRequest request
+        @RequestBody @Valid WikiFolderRequest request
     ) {
         wikiFolderService.updateFolder(id, request);
         return ResponseEntity.ok().build();

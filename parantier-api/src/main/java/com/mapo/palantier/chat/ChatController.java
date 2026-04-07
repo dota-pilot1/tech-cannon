@@ -6,10 +6,12 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.stereotype.Controller;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class ChatController {
@@ -28,9 +30,7 @@ public class ChatController {
         @DestinationVariable Long roomId,
         ChatMessage message
     ) {
-        System.out.println(
-            "Room " + roomId + " - Received message: " + message
-        );
+        log.debug("Room {} - Received message: {}", roomId, message);
 
         message.setRoomId(roomId);
         message.setCreatedAt(LocalDateTime.now());
