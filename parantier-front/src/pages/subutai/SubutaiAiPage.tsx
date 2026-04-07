@@ -1661,16 +1661,12 @@ export default function SubutaiAiPage() {
       ══════════════════════════════════════════════════════════ */}
       <section className="flex-1 flex flex-col overflow-hidden">
         {/* 챗봇 헤더 */}
-        <div className="px-5 py-3 border-b border-border flex items-center gap-3 shrink-0">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <Bot className="w-4 h-4 text-primary" />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">Subutai AI</span>
-            <span className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium border border-amber-500/20">
-              Beta
-            </span>
-          </div>
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-border shrink-0">
+          <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
+          <span className="text-sm font-medium">Subutai AI</span>
+          <span className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium border border-amber-500/20">
+            Beta
+          </span>
           {selectedPostIds.size > 0 && (
             <span className="ml-auto text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
               문서 {selectedPostIds.size}개 참조 중

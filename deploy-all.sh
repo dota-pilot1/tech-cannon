@@ -2,7 +2,7 @@
 set -e
 
 PROJECT_ROOT="/Users/terecal/mapo-palantier-project"
-PEM="/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem"
+PEM="/Users/terecal/mapo-palantier-project/docs-hyun/배포 가이드/hibot-d-server-key.pem"
 EC2_HOST="ubuntu@43.200.241.26"
 
 echo "=========================================="
