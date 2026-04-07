@@ -23,6 +23,7 @@ interface Props {
   setTitle: (title: string) => void;
   blocks: SubutaiDocuBlock[];
   setBlocks: (blocks: SubutaiDocuBlock[]) => void;
+  hideTitle?: boolean;
 }
 
 export default function SubutaiDocuBlockEditor({
@@ -30,8 +31,13 @@ export default function SubutaiDocuBlockEditor({
   setTitle,
   blocks,
   setBlocks,
+  hideTitle = false,
 }: Props) {
-  const updateBlock = (idx: number, prop: keyof SubutaiDocuBlock, val: string) => {
+  const updateBlock = (
+    idx: number,
+    prop: keyof SubutaiDocuBlock,
+    val: string,
+  ) => {
     setBlocks(blocks.map((b, i) => (i === idx ? { ...b, [prop]: val } : b)));
   };
 
@@ -49,24 +55,26 @@ export default function SubutaiDocuBlockEditor({
 
   return (
     <div className="space-y-4 text-sm">
-      <table className="w-full border-collapse">
-        <tbody>
-          <tr>
-            <th className={thStyle} style={{ width: "80px" }}>
-              제목 <span className="text-red-500">*</span>
-            </th>
-            <td className={tdStyle}>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full border rounded px-2 py-1.5"
-                placeholder="Subutai Docu 제목"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {!hideTitle && (
+        <table className="w-full border-collapse">
+          <tbody>
+            <tr>
+              <th className={thStyle} style={{ width: "80px" }}>
+                제목 <span className="text-red-500">*</span>
+              </th>
+              <td className={tdStyle}>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full border rounded px-2 py-1.5"
+                  placeholder="Subutai Docu 제목"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
 
       <div className="space-y-3">
         {blocks.map((block, _idx) => {

@@ -1,20 +1,12 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from "react";
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-  arrayMove,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useConfirm } from "@/shared/hooks/useConfirm";
+import { subutaiDocuApi } from "@/features/subutai-docu/api/subutaiDocuApi";
+import type {
+  SubutaiDocuFolder,
+  SubutaiDocuPost,
+  SubutaiDocuBlock,
+} from "@/features/subutai-docu/types/subutaiDocu.types";
+import SubutaiDocuBlockEditor from "@/features/subutai-docu/components/SubutaiDocuBlockEditor";
 import {
   Bot,
   User,
@@ -32,17 +24,7 @@ import {
   Check,
   FileText,
   FolderOpen,
-  GripVertical,
 } from "lucide-react";
-
-// ─── API 설정 ──────────────────────────────────────────────────────────────────
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
-const BASE = API_BASE.endsWith("/api") ? API_BASE : API_BASE + "/api";
-
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${localStorage.getItem("accessToken") ?? ""}`,
-});
 
 // ─── 타입 정의 ─────────────────────────────────────────────────────────────────
 interface TreeNode {
@@ -78,122 +60,16 @@ interface Message {
   referencedDocs?: ReferencedDoc[];
 }
 
-// ─── Subutai Doc API ──────────────────────────────────────────────────────────
-interface DocFolder {
-  id: number;
-  name: string;
-  orderNum: number;
-}
-
-interface DocPost {
-  id: number;
-  folderId: number;
-  title: string;
-  orderNum: number;
-  sections?: DocSection[];
-}
-
-interface DocSection {
-  id?: number;
-  postId?: number;
-  title: string;
-  content: string;
-  orderNum?: number;
-}
-
-const docApi = {
-  getFolders: (): Promise<DocFolder[]> =>
-    fetch(`${BASE}/subutai/doc/folders`, { headers: getAuthHeaders() })
-      .then((r) => r.json())
-      .then((d) => (Array.isArray(d) ? d : [])),
-
-  createFolder: (name: string): Promise<void> =>
-    fetch(`${BASE}/subutai/doc/folders`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ name }),
-    }).then((r) => {
-      if (!r.ok) throw new Error();
-    }),
-
-  updateFolder: (id: number, name: string): Promise<void> =>
-    fetch(`${BASE}/subutai/doc/folders/${id}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ name }),
-    }).then((r) => {
-      if (!r.ok) throw new Error();
-    }),
-
-  deleteFolder: (id: number): Promise<void> =>
-    fetch(`${BASE}/subutai/doc/folders/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    }).then((r) => {
-      if (!r.ok) throw new Error();
-    }),
-
-  getPostsByFolder: (folderId: number): Promise<DocPost[]> =>
-    fetch(`${BASE}/subutai/doc/folders/${folderId}/posts`, {
-      headers: getAuthHeaders(),
-    })
-      .then((r) => r.json())
-      .then((d) => (Array.isArray(d) ? d : [])),
-
-  getPost: (id: number): Promise<DocPost> =>
-    fetch(`${BASE}/subutai/doc/posts/${id}`, {
-      headers: getAuthHeaders(),
-    }).then((r) => r.json()),
-
-  createPost: (data: {
-    folderId: number;
-    title: string;
-    sections: DocSection[];
-  }): Promise<number> =>
-    fetch(`${BASE}/subutai/doc/posts`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    }).then((r) => r.json()),
-
-  updatePost: (
-    id: number,
-    data: { folderId: number; title: string; sections: DocSection[] },
-  ): Promise<void> =>
-    fetch(`${BASE}/subutai/doc/posts/${id}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    }).then((r) => {
-      if (!r.ok) throw new Error();
-    }),
-
-  deletePost: (id: number): Promise<void> =>
-    fetch(`${BASE}/subutai/doc/posts/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    }).then((r) => {
-      if (!r.ok) throw new Error();
-    }),
-
-  getTags: (postId: number): Promise<string[]> =>
-    fetch(`${BASE}/subutai/doc/posts/${postId}/tags`, {
-      headers: getAuthHeaders(),
-    })
-      .then((r) => r.json())
-      .then((d) => (Array.isArray(d) ? d : [])),
-
-  saveTags: (postId: number, tags: string[]): Promise<void> =>
-    fetch(`${BASE}/subutai/doc/posts/${postId}/tags`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ tags }),
-    }).then((r) => {
-      if (!r.ok) throw new Error();
-    }),
-};
-
 // ─── GitHub API ────────────────────────────────────────────────────────────────
+// ─── API 설정 ──────────────────────────────────────────────────────────────────
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const BASE = API_BASE.endsWith("/api") ? API_BASE : API_BASE + "/api";
+
+const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${localStorage.getItem("accessToken") ?? ""}`,
+});
+
 const githubApi = {
   getTree: (repoUrl: string): Promise<TreeNode[]> =>
     fetch(`${BASE}/subutai/github/tree?url=${encodeURIComponent(repoUrl)}`, {
@@ -333,68 +209,6 @@ function parseInline(text: string, keyPrefix: string): React.ReactNode[] {
   return nodes;
 }
 
-// ─── SortableSectionItem ───────────────────────────────────────────────────────
-function SortableSectionItem({
-  id,
-  idx,
-  title,
-  isSelected,
-  onClick,
-}: {
-  id: string;
-  idx: number;
-  title: string;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex items-center gap-1 rounded-lg transition-colors text-sm ${
-        isSelected
-          ? "bg-primary/10 text-primary"
-          : "text-foreground hover:bg-muted/60"
-      }`}
-    >
-      {/* 드래그 핸들 */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="p-1.5 pl-2 text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing shrink-0"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <GripVertical className="w-3.5 h-3.5" />
-      </button>
-      {/* 클릭 영역 */}
-      <button
-        onClick={onClick}
-        className="flex-1 flex items-center gap-2 py-2 pr-3 text-left min-w-0"
-      >
-        <span className="text-xs text-muted-foreground shrink-0 w-4 text-center font-mono">
-          {idx + 1}
-        </span>
-        <span className="truncate">{title || `본문 ${idx + 1}`}</span>
-      </button>
-    </div>
-  );
-}
-
 // ─── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 export default function SubutaiAiPage() {
   const { confirm, ConfirmDialog } = useConfirm();
@@ -403,8 +217,10 @@ export default function SubutaiAiPage() {
   const [leftTab, setLeftTab] = useState<"doc" | "repos" | "history">("doc");
 
   // ── 문서 탭 상태 ────────────────────────────────────────────────────────────
-  const [docFolders, setDocFolders] = useState<DocFolder[]>([]);
-  const [docPosts, setDocPosts] = useState<Record<number, DocPost[]>>({});
+  const [docFolders, setDocFolders] = useState<SubutaiDocuFolder[]>([]);
+  const [docPosts, setDocPosts] = useState<Record<number, SubutaiDocuPost[]>>(
+    {},
+  );
   const [expandedDocFolders, setExpandedDocFolders] = useState<Set<number>>(
     new Set(),
   );
@@ -423,19 +239,15 @@ export default function SubutaiAiPage() {
   const [newPostTitle, setNewPostTitle] = useState("");
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
 
-  const [viewPost, setViewPost] = useState<DocPost | null>(null);
+  const [viewPost, setViewPost] = useState<SubutaiDocuPost | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState("");
-  const [editingSections, setEditingSections] = useState<DocSection[]>([]);
+  const [editingBlocks, setEditingBlocks] = useState<SubutaiDocuBlock[]>([]);
   const [isSavingPost, setIsSavingPost] = useState(false);
-  const [selectedSectionIdx, setSelectedSectionIdx] = useState<number>(0);
 
   // 태그 state
   const [editingTags, setEditingTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
-  const sectionDndSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-  );
 
   // ── 저장소 탭 상태 ──────────────────────────────────────────────────────────
   const [repoUrl, setRepoUrl] = useState("");
@@ -490,13 +302,13 @@ export default function SubutaiAiPage() {
   const loadDocFolders = async () => {
     setDocLoading(true);
     try {
-      const folders = await docApi.getFolders();
+      const folders = await subutaiDocuApi.getFolders();
       setDocFolders(folders);
       setExpandedDocFolders(new Set(folders.map((f) => f.id)));
-      const postsMap: Record<number, DocPost[]> = {};
+      const postsMap: Record<number, SubutaiDocuPost[]> = {};
       await Promise.all(
         folders.map(async (f) => {
-          postsMap[f.id] = await docApi.getPostsByFolder(f.id);
+          postsMap[f.id] = await subutaiDocuApi.getPostsByFolder(f.id);
         }),
       );
       setDocPosts(postsMap);
@@ -521,7 +333,7 @@ export default function SubutaiAiPage() {
     if (!name) return;
     setIsSubmittingFolder(true);
     try {
-      await docApi.createFolder(name);
+      await subutaiDocuApi.createFolder({ parentId: null, name });
       setNewDocFolderName("");
       setAddingDocFolder(false);
       await loadDocFolders();
@@ -541,7 +353,7 @@ export default function SubutaiAiPage() {
     });
     if (!ok) return;
     try {
-      await docApi.deleteFolder(id);
+      await subutaiDocuApi.deleteFolder(id);
       setSelectedPostIds((prev) => {
         const next = new Set(prev);
         (docPosts[id] || []).forEach((p) => next.delete(p.id));
@@ -559,7 +371,7 @@ export default function SubutaiAiPage() {
     if (!title) return;
     setIsSubmittingPost(true);
     try {
-      await docApi.createPost({ folderId, title, sections: [] });
+      await subutaiDocuApi.savePost({ folderId, title, blocks: [] });
       setNewPostTitle("");
       setAddingPostFolderId(null);
       await loadDocFolders();
@@ -579,7 +391,7 @@ export default function SubutaiAiPage() {
     });
     if (!ok) return;
     try {
-      await docApi.deletePost(id);
+      await subutaiDocuApi.deletePost(id);
       setSelectedPostIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
@@ -609,15 +421,16 @@ export default function SubutaiAiPage() {
     });
   };
 
-  const openViewDialog = async (post: DocPost) => {
+  const openViewDialog = async (
+    post: SubutaiDocuPost | { id: number; folderId: number; title: string },
+  ) => {
     try {
-      const full = await docApi.getPost(post.id);
+      const full = await subutaiDocuApi.getPost(post.id);
       setViewPost(full);
       setEditingTitle(full.title);
-      setEditingSections(full.sections ?? []);
-      setSelectedSectionIdx(0);
+      setEditingBlocks(full.blocks ?? []);
       // 태그 로드
-      const tags = await docApi.getTags(post.id).catch(() => []);
+      const tags = await subutaiDocuApi.getTags(post.id).catch(() => []);
       setEditingTags(tags);
       setTagInput("");
       setIsViewDialogOpen(true);
@@ -630,13 +443,14 @@ export default function SubutaiAiPage() {
     if (!viewPost || isSavingPost) return;
     setIsSavingPost(true);
     try {
-      await docApi.updatePost(viewPost.id, {
+      await subutaiDocuApi.savePost({
+        id: viewPost.id,
         folderId: viewPost.folderId,
         title: editingTitle,
-        sections: editingSections,
+        blocks: editingBlocks,
       });
       // 태그 저장
-      await docApi.saveTags(viewPost.id, editingTags).catch(() => {});
+      await subutaiDocuApi.saveTags(viewPost.id, editingTags).catch(() => {});
       setIsViewDialogOpen(false);
       await loadDocFolders();
     } catch {
@@ -644,55 +458,6 @@ export default function SubutaiAiPage() {
     } finally {
       setIsSavingPost(false);
     }
-  };
-
-  const handleSectionDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setEditingSections((prev) => {
-      const oldIdx = prev.findIndex((_, i) => String(i) === active.id);
-      const newIdx = prev.findIndex((_, i) => String(i) === over.id);
-      if (oldIdx < 0 || newIdx < 0) return prev;
-      const reordered = arrayMove(prev, oldIdx, newIdx);
-      // selectedSectionIdx 업데이트
-      if (selectedSectionIdx === oldIdx) {
-        setSelectedSectionIdx(newIdx);
-      } else if (selectedSectionIdx > oldIdx && selectedSectionIdx <= newIdx) {
-        setSelectedSectionIdx(selectedSectionIdx - 1);
-      } else if (selectedSectionIdx < oldIdx && selectedSectionIdx >= newIdx) {
-        setSelectedSectionIdx(selectedSectionIdx + 1);
-      }
-      return reordered;
-    });
-  };
-
-  const addSection = () => {
-    setEditingSections((prev) => {
-      const next = [
-        ...prev,
-        {
-          title: `본문 ${prev.length + 1}`,
-          content: "",
-          orderNum: prev.length,
-        },
-      ];
-      setSelectedSectionIdx(next.length - 1);
-      return next;
-    });
-  };
-
-  const removeSection = (idx: number) => {
-    setEditingSections((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const updateSection = (
-    idx: number,
-    field: "title" | "content",
-    value: string,
-  ) => {
-    setEditingSections((prev) =>
-      prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s)),
-    );
   };
 
   // ── 저장소 탭 핸들러 ────────────────────────────────────────────────────────
@@ -980,7 +745,7 @@ export default function SubutaiAiPage() {
     >
       <ConfirmDialog />
 
-      {/* 문서 보기/편집 다이얼로그 - 풀스크린 좌우 분할 */}
+      {/* 문서 보기/편집 다이얼로그 - 풀스크린 */}
       {isViewDialogOpen && viewPost && (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
           {/* 헤더 */}
@@ -1072,118 +837,15 @@ export default function SubutaiAiPage() {
             </div>
           </div>
 
-          {/* 본문: 좌측 목록 + 우측 편집 */}
-          <div className="flex flex-1 overflow-hidden">
-            {/* 좌측: 본문 목록 */}
-            <div className="w-64 shrink-0 border-r border-border flex flex-col bg-card/50">
-              <div className="px-3 py-2 border-b border-border shrink-0">
-                <span className="text-xs font-medium text-muted-foreground">
-                  본문 목록
-                </span>
-              </div>
-              <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
-                {editingSections.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-xs">본문을 추가해주세요</p>
-                  </div>
-                ) : (
-                  <DndContext
-                    sensors={sectionDndSensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleSectionDragEnd}
-                  >
-                    <SortableContext
-                      items={editingSections.map((_, i) => String(i))}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {editingSections.map((section, idx) => (
-                        <SortableSectionItem
-                          key={idx}
-                          id={String(idx)}
-                          idx={idx}
-                          title={section.title}
-                          isSelected={selectedSectionIdx === idx}
-                          onClick={() => setSelectedSectionIdx(idx)}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                )}
-              </div>
-              {/* 본문 추가 버튼 */}
-              <div className="px-3 py-2 border-t border-border shrink-0">
-                <button
-                  onClick={addSection}
-                  className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-3 py-2 rounded-lg transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" /> 본문 추가
-                </button>
-              </div>
-            </div>
-
-            {/* 우측: 선택된 본문 편집 */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {editingSections.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
-                  <FileText className="w-12 h-12 opacity-20" />
-                  <p className="text-sm">왼쪽에서 본문을 추가하세요</p>
-                  <button
-                    onClick={addSection}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border hover:bg-muted text-sm transition-colors"
-                  >
-                    <Plus className="w-4 h-4" /> 첫 본문 추가
-                  </button>
-                </div>
-              ) : editingSections[selectedSectionIdx] ? (
-                <div className="flex flex-col h-full p-5 gap-4">
-                  {/* 본문 제목 + 삭제 */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-2 flex-1 bg-muted/40 border border-border rounded-lg px-3 py-2">
-                      <span className="text-xs text-muted-foreground font-mono shrink-0">
-                        {selectedSectionIdx + 1}
-                      </span>
-                      <input
-                        value={editingSections[selectedSectionIdx].title}
-                        onChange={(e) =>
-                          updateSection(
-                            selectedSectionIdx,
-                            "title",
-                            e.target.value,
-                          )
-                        }
-                        placeholder="본문 제목 (선택)"
-                        className="flex-1 bg-transparent outline-none text-sm font-medium"
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        removeSection(selectedSectionIdx);
-                        setSelectedSectionIdx(
-                          Math.max(0, selectedSectionIdx - 1),
-                        );
-                      }}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* 본문 내용 */}
-                  <textarea
-                    value={editingSections[selectedSectionIdx].content}
-                    onChange={(e) =>
-                      updateSection(
-                        selectedSectionIdx,
-                        "content",
-                        e.target.value,
-                      )
-                    }
-                    placeholder="내용을 입력하세요..."
-                    className="flex-1 bg-muted/20 border border-border rounded-lg px-4 py-3 text-sm outline-none focus:border-primary/60 resize-none leading-relaxed"
-                  />
-                </div>
-              ) : null}
-            </div>
+          {/* 본문: 블록 에디터 */}
+          <div className="flex-1 overflow-y-auto p-5">
+            <SubutaiDocuBlockEditor
+              title={editingTitle}
+              setTitle={setEditingTitle}
+              blocks={editingBlocks}
+              setBlocks={setEditingBlocks}
+              hideTitle
+            />
           </div>
         </div>
       )}
@@ -1714,7 +1376,6 @@ export default function SubutaiAiPage() {
                                     id: doc.postId,
                                     folderId: 0,
                                     title: doc.title,
-                                    orderNum: 0,
                                   })
                                 }
                                 className="inline-flex items-center gap-2 text-xs bg-background rounded-lg px-2.5 py-1.5 border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors w-fit text-left"

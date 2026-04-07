@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapo.palantier.subutai.post.SubutaiPostTagMapper">
+    <resultMap id="TagRM" type="com.mapo.palantier.subutai.post.SubutaiPostTag">
+        <id property="id" column="id"/>
+        <result property="postId" column="post_id"/>
+        <result property="tag" column="tag"/>
+    </resultMap>
+    <select id="findByPostId" resultMap="TagRM">SELECT id,post_id,tag FROM subutai_post_tags WHERE post_id=#{postId} ORDER BY id</select>
+    <select id="findAll" resultMap="TagRM">SELECT id,post_id,tag FROM subutai_post_tags ORDER BY post_id,id</select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">INSERT INTO subutai_post_tags(post_id,tag) VALUES(#{postId},#{tag})</insert>
+    <delete id="deleteByPostId">DELETE FROM subutai_post_tags WHERE post_id=#{postId}</delete>
+</mapper>

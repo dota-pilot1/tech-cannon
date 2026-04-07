@@ -3,8 +3,8 @@ package com.mapo.palantier.subutai.ai.application;
 import com.mapo.palantier.subutai.ai.domain.SubutaiChatHistory;
 import com.mapo.palantier.subutai.ai.dto.SubutaiChatRequest;
 import com.mapo.palantier.subutai.ai.dto.SubutaiChatResponse;
-import com.mapo.palantier.subutai.ai.dto.SubutaiTagSearchResponse;
 import com.mapo.palantier.subutai.ai.infrastructure.SubutaiChatHistoryMapper;
+import com.mapo.palantier.subutai.post.SubutaiPostService;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +23,7 @@ public class SubutaiChatService {
 
     private final SubutaiChatHistoryMapper historyMapper;
     private final SubutaiDocService docService;
+    private final SubutaiPostService subutaiPostService;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${openai.api-key:}")
@@ -56,6 +57,7 @@ public class SubutaiChatService {
 
     // ── 챗봇 ──────────────────────────────────────────────────────────────────
 
+    @SuppressWarnings("unchecked")
     @Transactional
     public SubutaiChatResponse chat(SubutaiChatRequest req, Long userId) {
         String manualDocs = loadManualDocs();
@@ -74,18 +76,17 @@ public class SubutaiChatService {
             .build();
         historyMapper.insert(history);
 
-        // 태그 기반 관련 문서 검색
-        List<SubutaiTagSearchResponse> tagResults = docService.searchByTag(
-            req.getQuestion()
-        );
+        // 태그 기반 관련 문서 검색 (subutai_post_tags 기반)
+        List<java.util.Map<String, Object>> tagResults =
+            subutaiPostService.searchByTag(req.getQuestion());
         List<SubutaiChatResponse.ReferencedDoc> referencedDocs = tagResults
             .stream()
             .map(r ->
                 SubutaiChatResponse.ReferencedDoc.builder()
-                    .postId(r.getPostId())
-                    .title(r.getTitle())
-                    .folderName(r.getFolderName())
-                    .tags(r.getTags())
+                    .postId(((Number) r.get("postId")).longValue())
+                    .title((String) r.get("title"))
+                    .folderName((String) r.get("folderName"))
+                    .tags((List<String>) r.get("tags"))
                     .build()
             )
             .collect(java.util.stream.Collectors.toList());
@@ -133,13 +134,13 @@ public class SubutaiChatService {
 
         HttpHeaders headers = buildHeaders();
         try {
-            ResponseEntity<Map> resp = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
                 OPENAI_URL,
                 HttpMethod.POST,
                 new HttpEntity<>(requestBody, headers),
-                Map.class
+                (Class<Map<String, Object>>) (Class<?>) Map.class
             );
-            Map body = resp.getBody();
+            Map<String, Object> body = resp.getBody();
             if (body == null) return "응답을 받지 못했습니다.";
             List<Map<String, Object>> choices = (List<
                 Map<String, Object>

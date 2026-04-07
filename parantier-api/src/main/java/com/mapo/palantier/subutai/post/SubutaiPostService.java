@@ -6,7 +6,12 @@ import com.mapo.palantier.subutai.block.SubutaiBlock;
 import com.mapo.palantier.subutai.block.SubutaiBlockMapper;
 import com.mapo.palantier.subutai.dto.SubutaiBlockDto;
 import com.mapo.palantier.subutai.dto.SubutaiPostDto;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +23,7 @@ public class SubutaiPostService {
 
     private final SubutaiPostMapper subutaiPostMapper;
     private final SubutaiBlockMapper subutaiBlockMapper;
+    private final SubutaiPostTagMapper postTagMapper;
 
     public List<SubutaiPost> getAllPosts() {
         return subutaiPostMapper.findAll();
@@ -103,5 +109,70 @@ public class SubutaiPostService {
     @Transactional
     public void deletePost(Long id) {
         subutaiPostMapper.softDelete(id);
+    }
+
+    // ── 태그 관련 메서드 ──────────────────────────────────────────────────────
+
+    public List<String> getTagsByPost(Long postId) {
+        return postTagMapper
+            .findByPostId(postId)
+            .stream()
+            .map(SubutaiPostTag::getTag)
+            .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void saveTags(Long postId, List<String> tags) {
+        postTagMapper.deleteByPostId(postId);
+        if (tags == null) return;
+        for (String tag : tags) {
+            String trimmed = tag.trim();
+            if (!trimmed.isBlank()) {
+                postTagMapper.insert(
+                    SubutaiPostTag.builder().postId(postId).tag(trimmed).build()
+                );
+            }
+        }
+    }
+
+    public List<Map<String, Object>> searchByTag(String keyword) {
+        List<SubutaiPostTag> allTags = postTagMapper.findAll();
+        String[] words = keyword.trim().toLowerCase().split("[\\s,./·]+");
+
+        Set<Long> matchedPostIds = allTags
+            .stream()
+            .filter(t -> {
+                String tag = t.getTag().toLowerCase();
+                for (String word : words) {
+                    if (word.length() >= 2 && tag.contains(word)) return true;
+                }
+                return false;
+            })
+            .map(SubutaiPostTag::getPostId)
+            .collect(Collectors.toSet());
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Long postId : matchedPostIds) {
+            try {
+                SubutaiPost post = subutaiPostMapper
+                    .findById(postId)
+                    .orElse(null);
+                if (post == null) continue;
+                List<String> tags = postTagMapper
+                    .findByPostId(postId)
+                    .stream()
+                    .map(SubutaiPostTag::getTag)
+                    .collect(Collectors.toList());
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("postId", postId);
+                map.put("title", post.getTitle());
+                map.put("folderName", "");
+                map.put("tags", tags);
+                result.add(map);
+            } catch (Exception e) {
+                // 무시
+            }
+        }
+        return result;
     }
 }

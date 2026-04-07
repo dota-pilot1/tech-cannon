@@ -6,6 +6,7 @@ import com.mapo.palantier.subutai.post.SubutaiPostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -52,5 +53,29 @@ public class SubutaiPostController {
     public ResponseEntity<Void> deletePost(@PathVariable Long id) {
         subutaiPostService.deletePost(id);
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "게시글 태그 조회")
+    @GetMapping("/{id}/tags")
+    public ResponseEntity<List<String>> getTags(@PathVariable Long id) {
+        return ResponseEntity.ok(subutaiPostService.getTagsByPost(id));
+    }
+
+    @Operation(summary = "게시글 태그 저장")
+    @PutMapping("/{id}/tags")
+    public ResponseEntity<Void> saveTags(
+        @PathVariable Long id,
+        @RequestBody Map<String, List<String>> body
+    ) {
+        subutaiPostService.saveTags(id, body.get("tags"));
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "태그 키워드로 게시글 검색")
+    @GetMapping("/tags/search")
+    public ResponseEntity<List<Map<String, Object>>> searchByTag(
+        @RequestParam String keyword
+    ) {
+        return ResponseEntity.ok(subutaiPostService.searchByTag(keyword));
     }
 }
