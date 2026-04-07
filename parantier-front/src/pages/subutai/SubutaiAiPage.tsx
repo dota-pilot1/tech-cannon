@@ -24,6 +24,7 @@ import {
   Check,
   FileText,
   FolderOpen,
+  Pencil,
 } from "lucide-react";
 
 // ─── 타입 정의 ─────────────────────────────────────────────────────────────────
@@ -233,6 +234,9 @@ export default function SubutaiAiPage() {
   const [newDocFolderName, setNewDocFolderName] = useState("");
   const [isSubmittingFolder, setIsSubmittingFolder] = useState(false);
 
+  const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
+  const [renamingFolderName, setRenamingFolderName] = useState("");
+
   const [addingPostFolderId, setAddingPostFolderId] = useState<number | null>(
     null,
   );
@@ -324,6 +328,19 @@ export default function SubutaiAiPage() {
       // 무시
     } finally {
       setDocLoading(false);
+    }
+  };
+
+  const handleRenameDocFolder = async (id: number) => {
+    const name = renamingFolderName.trim();
+    if (!name) return;
+    try {
+      await subutaiDocuApi.updateFolder(id, { parentId: null, name });
+      setRenamingFolderId(null);
+      setRenamingFolderName("");
+      await loadDocFolders();
+    } catch {
+      // 무시
     }
   };
 
@@ -1039,35 +1056,85 @@ export default function SubutaiAiPage() {
                     <div key={folder.id} className="mb-1">
                       {/* 폴더 헤더 */}
                       <div className="group flex items-center rounded-md hover:bg-muted/60 transition-colors">
-                        <button
-                          onClick={() => toggleDocFolder(folder.id)}
-                          className="flex-1 flex items-center gap-1.5 px-2 py-2 text-left min-w-0"
-                        >
-                          {isOpen ? (
-                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                          ) : (
-                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                          )}
-                          <FolderOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                          <span className="flex-1 truncate text-sm font-medium">
-                            {folder.name}
-                          </span>
-                          {selectedCount > 0 && (
-                            <span className="text-xs text-primary font-semibold mr-1">
-                              {selectedCount}
-                            </span>
-                          )}
-                        </button>
-                        <div className="flex items-center gap-0.5 pr-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() =>
-                              handleDeleteDocFolder(folder.id, folder.name)
-                            }
-                            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        {renamingFolderId === folder.id ? (
+                          /* 이름 변경 인라인 편집 */
+                          <div className="flex-1 flex items-center gap-1 px-2 py-1.5">
+                            <FolderOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <input
+                              autoFocus
+                              value={renamingFolderName}
+                              onChange={(e) =>
+                                setRenamingFolderName(e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.nativeEvent.isComposing) return;
+                                if (e.key === "Enter")
+                                  handleRenameDocFolder(folder.id);
+                                if (e.key === "Escape") {
+                                  setRenamingFolderId(null);
+                                  setRenamingFolderName("");
+                                }
+                              }}
+                              className="flex-1 text-sm bg-background border border-border rounded px-1.5 py-0.5 outline-none focus:border-primary/60"
+                            />
+                            <button
+                              onClick={() => handleRenameDocFolder(folder.id)}
+                              className="p-1 rounded text-primary hover:bg-primary/10 transition-colors"
+                            >
+                              <Check className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRenamingFolderId(null);
+                                setRenamingFolderName("");
+                              }}
+                              className="p-1 rounded text-muted-foreground hover:bg-muted transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => toggleDocFolder(folder.id)}
+                              className="flex-1 flex items-center gap-1.5 px-2 py-2 text-left min-w-0"
+                            >
+                              {isOpen ? (
+                                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              )}
+                              <FolderOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <span className="flex-1 truncate text-sm font-medium">
+                                {folder.name}
+                              </span>
+                              {selectedCount > 0 && (
+                                <span className="text-xs text-primary font-semibold mr-1">
+                                  {selectedCount}
+                                </span>
+                              )}
+                            </button>
+                            <div className="flex items-center gap-0.5 pr-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => {
+                                  setRenamingFolderId(folder.id);
+                                  setRenamingFolderName(folder.name);
+                                }}
+                                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleDeleteDocFolder(folder.id, folder.name)
+                                }
+                                className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       {/* 문서 목록 */}

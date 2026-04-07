@@ -33,6 +33,8 @@ export default function SubutaiDocuBlockEditor({
   setBlocks,
   hideTitle = false,
 }: Props) {
+  const [selectedIdx, setSelectedIdx] = useState<number>(0);
+
   const updateBlock = (
     idx: number,
     prop: keyof SubutaiDocuBlock,
@@ -42,132 +44,166 @@ export default function SubutaiDocuBlockEditor({
   };
 
   const addBlock = (type: BlockType) => {
-    setBlocks([...blocks, { blockType: type, content: "" }]);
+    const next = [...blocks, { blockType: type, content: "" }];
+    setBlocks(next);
+    setSelectedIdx(next.length - 1);
   };
 
   const removeBlock = (idx: number) => {
-    setBlocks(blocks.filter((_, i) => i !== idx));
+    const next = blocks.filter((_, i) => i !== idx);
+    setBlocks(next);
+    setSelectedIdx(Math.max(0, idx - 1));
   };
 
-  const thStyle =
-    "bg-gray-50 border border-gray-200 px-3 py-2 text-left font-normal text-sm whitespace-nowrap";
-  const tdStyle = "border border-gray-200 px-3 py-1 text-sm";
+  const selectedBlock = blocks[selectedIdx] ?? null;
+  const selectedMeta = selectedBlock
+    ? (TYPE_META[selectedBlock.blockType] ?? TYPE_META.NOTE)
+    : null;
 
   return (
-    <div className="space-y-4 text-sm">
-      {!hideTitle && (
-        <table className="w-full border-collapse">
-          <tbody>
-            <tr>
-              <th className={thStyle} style={{ width: "80px" }}>
-                제목 <span className="text-red-500">*</span>
-              </th>
-              <td className={tdStyle}>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full border rounded px-2 py-1.5"
-                  placeholder="Subutai Docu 제목"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      )}
+    <div className="flex h-full min-h-0 text-sm overflow-hidden">
+      {/* 좌측: 블록 목록 사이드바 */}
+      <div className="w-52 shrink-0 border-r border-border flex flex-col bg-muted/20">
+        {!hideTitle && (
+          <div className="px-3 py-2.5 border-b border-border">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full text-sm font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
+              placeholder="문서 제목"
+            />
+          </div>
+        )}
 
-      <div className="space-y-3">
-        {blocks.map((block, _idx) => {
-          const meta = TYPE_META[block.blockType] ?? TYPE_META.NOTE;
-          return (
-            <div
-              key={_idx}
-              className="border rounded overflow-hidden shadow-sm relative group bg-white"
-            >
-              <div className="px-3 py-2 bg-gray-50 border-b flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400 font-bold px-1">
-                    {_idx + 1}.
-                  </span>
-                  <span className={`px-2 py-0.5 text-xs rounded ${meta.color}`}>
-                    {meta.icon} {meta.label}
-                  </span>
-                </div>
+        {/* 블록 목록 */}
+        <div className="flex-1 overflow-y-auto py-1 px-1 space-y-0.5">
+          {blocks.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">
+              아래에서 블록을 추가하세요
+            </p>
+          ) : (
+            blocks.map((block, idx) => {
+              const meta = TYPE_META[block.blockType] ?? TYPE_META.NOTE;
+              return (
                 <button
-                  onClick={() => removeBlock(_idx)}
-                  className="text-xs px-2 py-1 bg-red-50 text-red-500 hover:bg-red-100 rounded border border-red-200"
+                  key={idx}
+                  onClick={() => setSelectedIdx(idx)}
+                  className={`w-full flex items-center gap-2 px-2 py-2 rounded text-left transition-colors ${
+                    selectedIdx === idx
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent text-foreground"
+                  }`}
                 >
-                  삭제
+                  <span className="text-base shrink-0">{meta.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{meta.label}</p>
+                    <p className="text-[10px] opacity-60">{idx + 1}번 블록</p>
+                  </div>
                 </button>
-              </div>
+              );
+            })
+          )}
+        </div>
 
-              {block.blockType === "DBTABLE" ? (
-                <DbTableBlockEditor
-                  content={block.content}
-                  onChange={(newContent) =>
-                    updateBlock(_idx, "content", newContent)
-                  }
-                />
-              ) : block.blockType === "GITHUB" ? (
-                <GithubBlockEditor
-                  content={block.content}
-                  onChange={(val) => updateBlock(_idx, "content", val)}
-                />
-              ) : block.blockType === "NOTE" ? (
-                <LexicalEditor
-                  initialState={block.content}
-                  onChange={(val) => updateBlock(_idx, "content", val)}
-                  placeholder="내용을 입력하세요..."
-                  minHeight="200px"
-                />
-              ) : (
-                <div className="p-0">
-                  <textarea
-                    value={block.content}
-                    onChange={(e) =>
-                      updateBlock(_idx, "content", e.target.value)
-                    }
-                    rows={10}
-                    className="w-full px-3 py-2 text-sm font-mono border-0 resize-y focus:outline-none"
-                    placeholder={
-                      block.blockType === "MMD"
-                        ? "flowchart LR\n    A[시작] --> B[끝]"
-                        : block.blockType === "FIGMA"
-                          ? "https://www.figma.com/file/..."
-                          : block.blockType === "FILE"
-                            ? '{"url": "", "filename": "", "description": ""}'
-                            : "마크다운 형식으로 자유롭게 작성하세요."
-                    }
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {/* 블록 추가 버튼 */}
+        <div className="border-t border-border p-2 shrink-0">
+          <p className="text-[10px] text-muted-foreground mb-1.5 px-1">
+            블록 추가
+          </p>
+          <div className="grid grid-cols-2 gap-1">
+            {(
+              Object.entries(TYPE_META) as [
+                BlockType,
+                (typeof TYPE_META)[BlockType],
+              ][]
+            ).map(([type, meta]) => (
+              <button
+                key={type}
+                onClick={() => addBlock(type)}
+                className="flex items-center gap-1 px-1.5 py-1 text-[11px] bg-background border border-border rounded hover:bg-accent transition-colors"
+              >
+                <span>{meta.icon}</span>
+                <span className="truncate">{meta.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 pt-2 border-t border-dashed border-gray-300">
-        <span className="text-xs text-gray-500 mr-2">블록 추가:</span>
-        {(
-          Object.entries(TYPE_META) as [
-            BlockType,
-            (typeof TYPE_META)[BlockType],
-          ][]
-        ).map(([type, meta]) => (
-          <button
-            key={type}
-            onClick={() => addBlock(type)}
-            className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-1"
-          >
-            {meta.icon} {meta.label}
-          </button>
-        ))}
+      {/* 우측: 선택된 블록 편집 */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {selectedBlock === null ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
+            <p className="text-sm">왼쪽에서 블록을 선택하거나 추가하세요</p>
+          </div>
+        ) : (
+          <>
+            {/* 블록 헤더 */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 shrink-0">
+              <span
+                className={`px-2 py-0.5 text-xs rounded font-medium ${selectedMeta!.color}`}
+              >
+                {selectedMeta!.icon} {selectedMeta!.label}
+              </span>
+              <button
+                onClick={() => removeBlock(selectedIdx)}
+                className="text-xs px-2 py-1 text-destructive hover:bg-destructive/10 rounded transition-colors"
+              >
+                삭제
+              </button>
+            </div>
+
+            {/* 블록 편집 영역 */}
+            <div className="flex-1 overflow-y-auto">
+              {selectedBlock.blockType === "DBTABLE" ? (
+                <DbTableBlockEditor
+                  content={selectedBlock.content}
+                  onChange={(newContent) =>
+                    updateBlock(selectedIdx, "content", newContent)
+                  }
+                />
+              ) : selectedBlock.blockType === "GITHUB" ? (
+                <GithubBlockEditor
+                  content={selectedBlock.content}
+                  onChange={(val) => updateBlock(selectedIdx, "content", val)}
+                />
+              ) : selectedBlock.blockType === "NOTE" ? (
+                <LexicalEditor
+                  initialState={selectedBlock.content}
+                  onChange={(val) => updateBlock(selectedIdx, "content", val)}
+                  placeholder="내용을 입력하세요..."
+                  minHeight="300px"
+                />
+              ) : (
+                <textarea
+                  value={selectedBlock.content}
+                  onChange={(e) =>
+                    updateBlock(selectedIdx, "content", e.target.value)
+                  }
+                  className="w-full h-full px-4 py-3 text-sm font-mono border-0 resize-none focus:outline-none bg-background"
+                  placeholder={
+                    selectedBlock.blockType === "MMD"
+                      ? "flowchart LR\n    A[시작] --> B[끝]"
+                      : selectedBlock.blockType === "FIGMA"
+                        ? "https://www.figma.com/file/..."
+                        : selectedBlock.blockType === "FILE"
+                          ? '{"url": "", "filename": "", "description": ""}'
+                          : "내용을 입력하세요."
+                  }
+                  style={{ minHeight: "300px" }}
+                />
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-// GitHub 블록 전용 에디터
+// ── GitHub 블록 전용 에디터 ────────────────────────────────────────────────────
+
 function GithubBlockEditor({
   content,
   onChange,
@@ -237,7 +273,8 @@ function GithubBlockEditor({
   );
 }
 
-// DB 테이블 블록 전용 에디터
+// ── DB 테이블 블록 전용 에디터 ────────────────────────────────────────────────
+
 function DbTableBlockEditor({
   content,
   onChange,
@@ -251,25 +288,21 @@ function DbTableBlockEditor({
   const [presets, setPresets] = useState<TablePreset[]>([]);
   const [selectedPresetId, setSelectedPresetId] = useState<number | null>(null);
 
-  // 프리셋 로드
   useEffect(() => {
     tablePresetApi.getMyPresets().then(setPresets).catch(console.error);
   }, []);
 
-  // dbTable 변경 시 JSON 문자열로 변환하여 부모에 전달
   const handleUpdate = (updated: DbTableContent) => {
     setDbTable(updated);
     onChange(JSON.stringify(updated));
   };
 
-  // 프리셋 적용
   const handleApplyPreset = (presetId: number | null) => {
     setSelectedPresetId(presetId);
     if (presetId === null) {
       handleUpdate({ ...dbTable, headers: [] });
       return;
     }
-
     const preset = presets.find((p) => p.id === presetId);
     if (preset) {
       handleUpdate({ ...dbTable, headers: preset.headers });
@@ -461,10 +494,9 @@ function DbTableBlockEditor({
                 <tr>
                   <td
                     colSpan={9}
-                    className="px-3 py-6 text-center text-gray-400 text-xs"
+                    className="text-center py-4 text-gray-400 text-xs"
                   >
-                    위의 TSV 붙여넣기 영역에 데이터를 붙여넣거나 "행 추가"
-                    버튼을 클릭하세요
+                    + 행 추가 버튼을 클릭하거나 TSV를 붙여넣으세요
                   </td>
                 </tr>
               ) : (
