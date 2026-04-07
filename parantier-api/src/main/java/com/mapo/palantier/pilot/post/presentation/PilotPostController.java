@@ -5,24 +5,23 @@ import com.mapo.palantier.pilot.post.PilotPost;
 import com.mapo.palantier.pilot.post.PilotPostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Tag(name = "Pilot 게시글", description = "Pilot 게시글 관리 API")
 @RestController
 @RequestMapping("/api/pilots/posts")
 @RequiredArgsConstructor
 public class PilotPostController {
+
     private final PilotPostService pilotPostService;
 
     @Operation(summary = "폴더별 게시글 목록 조회 (folderId 없으면 전체 조회)")
     @GetMapping
     public ResponseEntity<List<PilotPost>> getPostsByFolder(
-            @RequestParam(required = false) Long folderId
+        @RequestParam(required = false) Long folderId
     ) {
         if (folderId == null) {
             return ResponseEntity.ok(pilotPostService.getAllPosts());
@@ -39,10 +38,9 @@ public class PilotPostController {
     @Operation(summary = "게시글 생성/수정")
     @PostMapping
     public ResponseEntity<Long> savePost(
-            @RequestBody PilotPostDto dto,
-            Authentication auth
+        @RequestBody PilotPostDto dto,
+        @RequestAttribute("userId") Long userId
     ) {
-        Long userId = getUserIdFromAuth(auth);
         Long postId = pilotPostService.savePost(dto, userId);
         return ResponseEntity.ok(postId);
     }
@@ -52,10 +50,5 @@ public class PilotPostController {
     public ResponseEntity<Void> deletePost(@PathVariable Long id) {
         pilotPostService.deletePost(id);
         return ResponseEntity.ok().build();
-    }
-
-    private Long getUserIdFromAuth(Authentication auth) {
-        // TODO: JWT 토큰에서 userId 추출
-        return 1L;
     }
 }

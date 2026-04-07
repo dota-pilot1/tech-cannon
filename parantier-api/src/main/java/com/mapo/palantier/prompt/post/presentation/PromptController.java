@@ -5,12 +5,10 @@ import com.mapo.palantier.prompt.post.PromptDto;
 import com.mapo.palantier.prompt.post.PromptService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Tag(name = "Prompts", description = "프롬프트 관리")
 @RestController
@@ -22,9 +20,13 @@ public class PromptController {
 
     @Operation(summary = "프롬프트 목록 조회")
     @GetMapping
-    public ResponseEntity<List<Prompt>> getPrompts(@RequestParam(required = false) Long folderId) {
+    public ResponseEntity<List<Prompt>> getPrompts(
+        @RequestParam(required = false) Long folderId
+    ) {
         if (folderId != null) {
-            return ResponseEntity.ok(promptService.getPromptsByFolder(folderId));
+            return ResponseEntity.ok(
+                promptService.getPromptsByFolder(folderId)
+            );
         }
         return ResponseEntity.ok(promptService.getAllPrompts());
     }
@@ -37,8 +39,10 @@ public class PromptController {
 
     @Operation(summary = "프롬프트 저장 (생성/수정)")
     @PostMapping
-    public ResponseEntity<Long> savePrompt(@RequestBody PromptDto dto, Authentication auth) {
-        Long userId = getUserIdFromAuth(auth);
+    public ResponseEntity<Long> savePrompt(
+        @RequestBody PromptDto dto,
+        @RequestAttribute("userId") Long userId
+    ) {
         return ResponseEntity.ok(promptService.savePrompt(dto, userId));
     }
 
@@ -47,10 +51,5 @@ public class PromptController {
     public ResponseEntity<Void> deletePrompt(@PathVariable Long id) {
         promptService.deletePrompt(id);
         return ResponseEntity.ok().build();
-    }
-
-    private Long getUserIdFromAuth(Authentication auth) {
-        // TODO: JWT 토큰에서 userId 추출
-        return 1L;
     }
 }

@@ -10,7 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Prompt Folders", description = "프롬프트 폴더 관리")
@@ -24,6 +23,7 @@ public class PromptFolderController {
     @Getter
     @NoArgsConstructor
     static class CreateFolderRequest {
+
         private Long parentId;
         private String name;
         private Integer sortOrder;
@@ -39,9 +39,8 @@ public class PromptFolderController {
     @PostMapping
     public ResponseEntity<Void> createFolder(
         @RequestBody CreateFolderRequest req,
-        Authentication auth
+        @RequestAttribute("userId") Long userId
     ) {
-        Long userId = getUserIdFromAuth(auth);
         PromptFolder folder = PromptFolder.builder()
             .parentId(req.getParentId())
             .name(req.getName())
@@ -67,10 +66,5 @@ public class PromptFolderController {
     public ResponseEntity<Void> deleteFolder(@PathVariable Long id) {
         promptFolderService.deleteFolder(id);
         return ResponseEntity.ok().build();
-    }
-
-    private Long getUserIdFromAuth(Authentication auth) {
-        // TODO: JWT 토큰에서 userId 추출
-        return 1L;
     }
 }

@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.mapo.palantier.study.StudyPostMapper">
+<mapper namespace="com.mapo.palantier.study.infrastructure.StudyPostMapper">
 
-    <resultMap id="StudyPostResultMap" type="com.mapo.palantier.study.StudyPost">
+    <resultMap id="StudyPostResultMap" type="com.mapo.palantier.study.domain.StudyPost">
         <id property="id" column="id"/>
         <result property="categoryId" column="category_id"/>
         <result property="categoryName" column="category_name"/>

@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "DB 관리", description = "DB 관리 API")
@@ -40,9 +39,8 @@ public class DbPostController {
     @PostMapping
     public ResponseEntity<Long> savePost(
         @RequestBody DbPostDto dto,
-        Authentication auth
+        @RequestAttribute("userId") Long userId
     ) {
-        Long userId = getUserIdFromAuth(auth);
         return ResponseEntity.ok(dbPostService.savePost(dto, userId));
     }
 
@@ -51,10 +49,5 @@ public class DbPostController {
     public ResponseEntity<Void> deletePost(@PathVariable Long id) {
         dbPostService.deletePost(id);
         return ResponseEntity.ok().build();
-    }
-
-    private Long getUserIdFromAuth(Authentication auth) {
-        // TODO: JWT 토큰에서 userId 추출
-        return 1L;
     }
 }

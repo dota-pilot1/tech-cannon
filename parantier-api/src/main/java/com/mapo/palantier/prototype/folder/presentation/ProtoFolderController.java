@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Prototype 폴더", description = "Prototype 폴더 관리 API")
@@ -29,9 +28,8 @@ public class ProtoFolderController {
     @PostMapping
     public ResponseEntity<Long> createFolder(
         @RequestBody ProtoFolderDto dto,
-        Authentication auth
+        @RequestAttribute("userId") Long userId
     ) {
-        Long userId = getUserIdFromAuth(auth);
         return ResponseEntity.ok(protoFolderService.createFolder(dto, userId));
     }
 
@@ -50,10 +48,5 @@ public class ProtoFolderController {
     public ResponseEntity<Void> deleteFolder(@PathVariable Long id) {
         protoFolderService.deleteFolder(id);
         return ResponseEntity.ok().build();
-    }
-
-    private Long getUserIdFromAuth(Authentication auth) {
-        // TODO: JWT 토큰에서 userId 추출
-        return 1L;
     }
 }
