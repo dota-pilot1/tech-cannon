@@ -1168,9 +1168,10 @@ export default function SubutaiAiPage() {
                                 >
                                   <button
                                     onClick={() => openViewDialog(post)}
-                                    className="px-2 py-0.5 rounded text-xs border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                    className="flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                                   >
-                                    보기
+                                    <Pencil className="w-3 h-3" />
+                                    편집
                                   </button>
                                   <button
                                     onClick={() =>
