@@ -34,6 +34,10 @@ export default function SubutaiDocuBlockEditor({
   hideTitle = false,
 }: Props) {
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
+  const [addingBlockType, setAddingBlockType] = useState<BlockType | null>(
+    null,
+  );
+  const [addingBlockTitle, setAddingBlockTitle] = useState("");
 
   const updateBlock = (
     idx: number,
@@ -43,10 +47,15 @@ export default function SubutaiDocuBlockEditor({
     setBlocks(blocks.map((b, i) => (i === idx ? { ...b, [prop]: val } : b)));
   };
 
-  const addBlock = (type: BlockType) => {
-    const next = [...blocks, { blockType: type, content: "" }];
+  const addBlock = (type: BlockType, blockTitle: string) => {
+    const next = [
+      ...blocks,
+      { blockType: type, blockTitle: blockTitle.trim(), content: "" },
+    ];
     setBlocks(next);
     setSelectedIdx(next.length - 1);
+    setAddingBlockType(null);
+    setAddingBlockTitle("");
   };
 
   const removeBlock = (idx: number) => {
@@ -78,9 +87,9 @@ export default function SubutaiDocuBlockEditor({
 
         {/* 블록 목록 */}
         <div className="flex-1 overflow-y-auto py-1 px-1 space-y-0.5">
-          {blocks.length === 0 ? (
+          {blocks.length === 0 && !addingBlockType ? (
             <p className="text-xs text-muted-foreground text-center py-8">
-              아래에서 블록을 추가하세요
+              아래에서 본문을 추가하세요
             </p>
           ) : (
             blocks.map((block, idx) => {
@@ -108,6 +117,91 @@ export default function SubutaiDocuBlockEditor({
               );
             })
           )}
+
+          {/* 블록 추가 중 - 제목 입력 */}
+          {addingBlockType &&
+            (() => {
+              const meta = TYPE_META[addingBlockType] ?? TYPE_META.NOTE;
+              return (
+                <div className="border border-primary/40 rounded-lg p-2 bg-primary/5 mt-1">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-sm">{meta.icon}</span>
+                    <span
+                      className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${meta.color}`}
+                    >
+                      {meta.label}
+                    </span>
+                  </div>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={addingBlockTitle}
+                    onChange={(e) => setAddingBlockTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return;
+                      if (e.key === "Enter")
+                        addBlock(addingBlockType, addingBlockTitle);
+                      if (e.key === "Escape") {
+                        setAddingBlockType(null);
+                        setAddingBlockTitle("");
+                      }
+                    }}
+                    placeholder="제목 입력 후 Enter"
+                    className="w-full text-xs border border-border rounded px-2 py-1 bg-background outline-none focus:border-primary/60 mb-1.5"
+                  />
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() =>
+                        addBlock(addingBlockType, addingBlockTitle)
+                      }
+                      className="flex-1 text-xs py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                    >
+                      추가
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAddingBlockType(null);
+                        setAddingBlockTitle("");
+                      }}
+                      className="flex-1 text-xs py-1 bg-muted text-muted-foreground rounded hover:bg-muted/70 transition-colors"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+        </div>
+
+        {/* 하단: 본문 추가 버튼 */}
+        <div className="border-t border-border p-2 shrink-0">
+          <p className="text-[10px] text-muted-foreground mb-1.5 px-1">
+            본문 추가
+          </p>
+          <div className="grid grid-cols-2 gap-1">
+            {(
+              Object.entries(TYPE_META) as [
+                BlockType,
+                (typeof TYPE_META)[BlockType],
+              ][]
+            ).map(([type, meta]) => (
+              <button
+                key={type}
+                onClick={() => {
+                  setAddingBlockType(type);
+                  setAddingBlockTitle("");
+                }}
+                className={`flex items-center gap-1 px-1.5 py-1 text-[11px] border rounded transition-colors ${
+                  addingBlockType === type
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border hover:bg-accent"
+                }`}
+              >
+                <span>{meta.icon}</span>
+                <span className="truncate">{meta.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -188,55 +282,13 @@ export default function SubutaiDocuBlockEditor({
                   style={{ minHeight: "300px" }}
                 />
               )}
-
-              {/* 블록 추가 버튼 - 하단 */}
-              <div className="border-t border-border px-4 py-3 mt-auto shrink-0">
-                <p className="text-[10px] text-muted-foreground mb-2">
-                  본문 추가
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(
-                    Object.entries(TYPE_META) as [
-                      BlockType,
-                      (typeof TYPE_META)[BlockType],
-                    ][]
-                  ).map(([type, meta]) => (
-                    <button
-                      key={type}
-                      onClick={() => addBlock(type)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-background border border-border rounded hover:bg-accent transition-colors"
-                    >
-                      <span>{meta.icon}</span>
-                      <span>{meta.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           </>
         )}
 
-        {/* 블록 없을 때도 추가 버튼 표시 */}
         {selectedBlock === null && (
-          <div className="border-t border-border px-4 py-3 shrink-0">
-            <p className="text-[10px] text-muted-foreground mb-2">본문 추가</p>
-            <div className="flex flex-wrap gap-1.5">
-              {(
-                Object.entries(TYPE_META) as [
-                  BlockType,
-                  (typeof TYPE_META)[BlockType],
-                ][]
-              ).map(([type, meta]) => (
-                <button
-                  key={type}
-                  onClick={() => addBlock(type)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-background border border-border rounded hover:bg-accent transition-colors"
-                >
-                  <span>{meta.icon}</span>
-                  <span>{meta.label}</span>
-                </button>
-              ))}
-            </div>
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <p className="text-sm">왼쪽에서 본문을 선택하거나 추가하세요</p>
           </div>
         )}
       </div>

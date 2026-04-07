@@ -67,6 +67,7 @@ public class SubutaiPostService {
                     SubutaiBlock block = SubutaiBlock.builder()
                         .postId(post.getId())
                         .blockType(blockDto.getBlockType())
+                        .blockTitle(blockDto.getBlockTitle())
                         .content(blockDto.getContent())
                         .sortOrder(i)
                         .build();
@@ -95,6 +96,7 @@ public class SubutaiPostService {
                     SubutaiBlock block = SubutaiBlock.builder()
                         .postId(post.getId())
                         .blockType(blockDto.getBlockType())
+                        .blockTitle(blockDto.getBlockTitle())
                         .content(blockDto.getContent())
                         .sortOrder(i)
                         .build();

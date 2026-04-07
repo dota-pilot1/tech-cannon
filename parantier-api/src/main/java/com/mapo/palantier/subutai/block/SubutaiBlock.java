@@ -15,6 +15,7 @@ public class SubutaiBlock {
     private Long id;
     private Long postId;
     private SubutaiBlockType blockType;
+    private String blockTitle;
     private String content;
     private Integer sortOrder;
     private LocalDateTime createdAt;

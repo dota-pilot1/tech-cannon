@@ -5,6 +5,8 @@ import lombok.Data;
 
 @Data
 public class SubutaiBlockDto {
+
     private SubutaiBlockType blockType;
+    private String blockTitle;
     private String content;
 }
