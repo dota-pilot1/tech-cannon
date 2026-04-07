@@ -4,8 +4,13 @@ import com.mapo.palantier.common.exception.ErrorCode;
 import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.subutai.ai.domain.*;
 import com.mapo.palantier.subutai.ai.dto.*;
+import com.mapo.palantier.subutai.ai.dto.SubutaiDocTagRequest;
+import com.mapo.palantier.subutai.ai.dto.SubutaiTagSearchResponse;
 import com.mapo.palantier.subutai.ai.infrastructure.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +25,7 @@ public class SubutaiDocService {
     private final SubutaiDocFolderMapper folderMapper;
     private final SubutaiDocPostMapper postMapper;
     private final SubutaiDocSectionMapper sectionMapper;
+    private final SubutaiDocTagMapper tagMapper;
 
     public List<SubutaiDocFolder> getFolders() {
         return folderMapper.findAll();
@@ -108,6 +114,78 @@ public class SubutaiDocService {
                 .build();
             sectionMapper.insert(sec);
         }
+    }
+
+    public List<String> getTagsByPost(Long postId) {
+        return tagMapper
+            .findByPostId(postId)
+            .stream()
+            .map(t -> t.getTag())
+            .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void saveTags(Long postId, SubutaiDocTagRequest req) {
+        tagMapper.deleteByPostId(postId);
+        if (req.getTags() == null) return;
+        for (String tag : req.getTags()) {
+            String trimmed = tag.trim();
+            if (!trimmed.isBlank()) {
+                tagMapper.insert(
+                    SubutaiDocTag.builder().postId(postId).tag(trimmed).build()
+                );
+            }
+        }
+    }
+
+    public List<SubutaiTagSearchResponse> searchByTag(String keyword) {
+        List<SubutaiDocTag> allTags = tagMapper.findAll();
+
+        // 질문을 공백/특수문자로 분리해서 각 단어별로 태그 매칭
+        String[] words = keyword.trim().toLowerCase().split("[\\s,./·]+");
+
+        Set<Long> matchedPostIds = allTags
+            .stream()
+            .filter(t -> {
+                String tag = t.getTag().toLowerCase();
+                for (String word : words) {
+                    if (word.length() >= 2 && tag.contains(word)) return true;
+                }
+                return false;
+            })
+            .map(t -> t.getPostId())
+            .collect(Collectors.toSet());
+
+        List<SubutaiTagSearchResponse> result = new ArrayList<>();
+        for (Long postId : matchedPostIds) {
+            try {
+                SubutaiDocPost post = postMapper.findById(postId).orElse(null);
+                if (post == null) continue;
+                SubutaiDocFolder folder = folderMapper
+                    .findById(post.getFolderId())
+                    .orElse(null);
+                List<String> tags = tagMapper
+                    .findByPostId(postId)
+                    .stream()
+                    .map(t -> t.getTag())
+                    .collect(Collectors.toList());
+                result.add(
+                    SubutaiTagSearchResponse.builder()
+                        .postId(postId)
+                        .title(post.getTitle())
+                        .folderName(folder != null ? folder.getName() : "")
+                        .tags(tags)
+                        .build()
+                );
+            } catch (Exception e) {
+                log.warn(
+                    "태그 검색 중 오류 postId={}: {}",
+                    postId,
+                    e.getMessage()
+                );
+            }
+        }
+        return result;
     }
 
     public String buildContext(List<Long> postIds) {

@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { FolderOpen, FileText, Search, X } from "lucide-react";
+import { FolderOpen, FileText, Search, X, Link2, Tag } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
@@ -12,6 +12,8 @@ import {
   useCreateSubutaiDocuFolderMutation,
   useRenameSubutaiDocuFolderMutation,
   useDeleteSubutaiDocuFolderMutation,
+  useSubutaiDocuTags,
+  useSaveSubutaiDocuTagsMutation,
 } from "@/features/subutai-docu/hooks/useSubutaiDocu";
 import { subutaiDocuApi } from "@/features/subutai-docu/api/subutaiDocuApi";
 import type {
@@ -156,6 +158,11 @@ function PostContextMenu({
 export default function SubutaiDocuPage() {
   const { confirm, ConfirmDialog } = useConfirm();
 
+  // 태그 편집 state
+  const [isEditingTags, setIsEditingTags] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const [editingTags, setEditingTags] = useState<string[]>([]);
+
   const { data: folders = [] } = useSubutaiDocuFolders();
   const { roots, children: folderChildren } = useMemo(
     () => buildTree(folders),
@@ -165,7 +172,15 @@ export default function SubutaiDocuPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
-  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const postIdParam = params.get("postId");
+    if (postIdParam) {
+      const id = parseInt(postIdParam, 10);
+      if (!isNaN(id)) return id;
+    }
+    return null;
+  });
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(
     new Set(),
   );
@@ -216,6 +231,9 @@ export default function SubutaiDocuPage() {
     selectedPostId,
     !isEditing,
   );
+
+  const { data: currentTags = [] } = useSubutaiDocuTags(selectedPostId);
+  const saveTagsMutation = useSaveSubutaiDocuTagsMutation(selectedPostId);
 
   const saveMutation = useSaveSubutaiDocuMutation(
     selectedFolderId,
@@ -297,6 +315,10 @@ export default function SubutaiDocuPage() {
     setSelectedPostId(post.id);
     setSelectedFolderId(null);
     setIsEditing(false);
+    // URL 업데이트 (히스토리에 추가하지 않고 replace)
+    const url = new URL(window.location.href);
+    url.searchParams.set("postId", String(post.id));
+    window.history.replaceState({}, "", url.toString());
   };
 
   const openNewDoc = (folderId: number) => {
@@ -839,6 +861,18 @@ export default function SubutaiDocuPage() {
               ) : selectedPostId ? (
                 <>
                   <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/subutai/docu?postId=${selectedPostId}`;
+                      navigator.clipboard.writeText(url);
+                      toast.success("링크가 복사되었습니다");
+                    }}
+                    className="px-3 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/70 flex items-center gap-1"
+                    title="링크 복사"
+                  >
+                    <Link2 className="w-3 h-3" />
+                    링크
+                  </button>
+                  <button
                     onClick={handleEdit}
                     className="px-3 py-1 text-xs bg-foreground text-background rounded hover:opacity-80"
                   >
@@ -864,7 +898,106 @@ export default function SubutaiDocuPage() {
                 setBlocks={setBlocks}
               />
             ) : postDetail ? (
-              <SubutaiDocuBlockViewer post={postDetail} />
+              <>
+                {/* 태그 영역 */}
+                <div className="border-b pb-3 mb-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Tag className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    {!isEditingTags ? (
+                      <>
+                        {currentTags.length === 0 ? (
+                          <span className="text-xs text-muted-foreground/50">
+                            태그 없음
+                          </span>
+                        ) : (
+                          currentTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full"
+                            >
+                              #{tag}
+                            </span>
+                          ))
+                        )}
+                        <button
+                          onClick={() => {
+                            setEditingTags([...currentTags]);
+                            setTagInput("");
+                            setIsEditingTags(true);
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground ml-1"
+                        >
+                          ✏️
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2 flex-wrap flex-1">
+                        {editingTags.map((tag, i) => (
+                          <span
+                            key={i}
+                            className="flex items-center gap-1 px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full"
+                          >
+                            #{tag}
+                            <button
+                              onClick={() =>
+                                setEditingTags(
+                                  editingTags.filter((_, idx) => idx !== i),
+                                )
+                              }
+                              className="hover:text-destructive"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        <input
+                          value={tagInput}
+                          onChange={(e) => setTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.nativeEvent.isComposing) return;
+                            if (
+                              (e.key === "Enter" || e.key === ",") &&
+                              tagInput.trim()
+                            ) {
+                              e.preventDefault();
+                              const newTag = tagInput.trim().replace(/,/g, "");
+                              if (!editingTags.includes(newTag))
+                                setEditingTags([...editingTags, newTag]);
+                              setTagInput("");
+                            }
+                            if (
+                              e.key === "Backspace" &&
+                              !tagInput &&
+                              editingTags.length > 0
+                            ) {
+                              setEditingTags(editingTags.slice(0, -1));
+                            }
+                          }}
+                          placeholder="태그 입력 후 Enter"
+                          className="text-xs border rounded px-2 py-0.5 bg-background outline-none w-28"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => {
+                            saveTagsMutation.mutate(editingTags);
+                            setIsEditingTags(false);
+                          }}
+                          className="text-xs px-2 py-0.5 bg-foreground text-background rounded"
+                        >
+                          저장
+                        </button>
+                        <button
+                          onClick={() => setIsEditingTags(false)}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <SubutaiDocuBlockViewer post={postDetail} />
+              </>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
                 {selectedFolderId

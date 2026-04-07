@@ -3,6 +3,7 @@ package com.mapo.palantier.subutai.ai.application;
 import com.mapo.palantier.subutai.ai.domain.SubutaiChatHistory;
 import com.mapo.palantier.subutai.ai.dto.SubutaiChatRequest;
 import com.mapo.palantier.subutai.ai.dto.SubutaiChatResponse;
+import com.mapo.palantier.subutai.ai.dto.SubutaiTagSearchResponse;
 import com.mapo.palantier.subutai.ai.infrastructure.SubutaiChatHistoryMapper;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,9 +74,26 @@ public class SubutaiChatService {
             .build();
         historyMapper.insert(history);
 
+        // 태그 기반 관련 문서 검색
+        List<SubutaiTagSearchResponse> tagResults = docService.searchByTag(
+            req.getQuestion()
+        );
+        List<SubutaiChatResponse.ReferencedDoc> referencedDocs = tagResults
+            .stream()
+            .map(r ->
+                SubutaiChatResponse.ReferencedDoc.builder()
+                    .postId(r.getPostId())
+                    .title(r.getTitle())
+                    .folderName(r.getFolderName())
+                    .tags(r.getTags())
+                    .build()
+            )
+            .collect(java.util.stream.Collectors.toList());
+
         return SubutaiChatResponse.builder()
             .answer(answer)
             .referencedUrls(java.util.List.of())
+            .referencedDocs(referencedDocs)
             .build();
     }
 

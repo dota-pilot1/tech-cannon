@@ -204,6 +204,20 @@ export const parseTsvToColumns = (tsv: string): DbColumn[] => {
   return parsedColumns;
 };
 
+// 태그 타입
+export interface SubutaiDocuTag {
+  id: number;
+  postId: number;
+  tag: string;
+}
+
+export interface SubutaiTagSearchResult {
+  postId: number;
+  title: string;
+  folderName: string;
+  tags: string[];
+}
+
 // Tree builder
 export const buildTree = (folders: SubutaiDocuFolder[]) => {
   const children: Record<number, SubutaiDocuFolder[]> = {};

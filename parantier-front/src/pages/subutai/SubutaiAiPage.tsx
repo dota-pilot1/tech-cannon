@@ -62,12 +62,20 @@ interface ChatHistory {
   createdAt: string;
 }
 
+interface ReferencedDoc {
+  postId: number;
+  title: string;
+  folderName: string;
+  tags: string[];
+}
+
 interface Message {
   id: string;
   role: "user" | "ai";
   content: string;
   timestamp: string;
   referencedUrls?: string[];
+  referencedDocs?: ReferencedDoc[];
 }
 
 // ─── Subutai Doc API ──────────────────────────────────────────────────────────
@@ -167,6 +175,22 @@ const docApi = {
     }).then((r) => {
       if (!r.ok) throw new Error();
     }),
+
+  getTags: (postId: number): Promise<string[]> =>
+    fetch(`${BASE}/subutai/doc/posts/${postId}/tags`, {
+      headers: getAuthHeaders(),
+    })
+      .then((r) => r.json())
+      .then((d) => (Array.isArray(d) ? d : [])),
+
+  saveTags: (postId: number, tags: string[]): Promise<void> =>
+    fetch(`${BASE}/subutai/doc/posts/${postId}/tags`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ tags }),
+    }).then((r) => {
+      if (!r.ok) throw new Error();
+    }),
 };
 
 // ─── GitHub API ────────────────────────────────────────────────────────────────
@@ -196,7 +220,11 @@ const subutaiAiApi = {
   chat: (data: {
     question: string;
     postIds: number[];
-  }): Promise<{ answer: string; referencedUrls: string[] }> =>
+  }): Promise<{
+    answer: string;
+    referencedUrls: string[];
+    referencedDocs: ReferencedDoc[];
+  }> =>
     fetch(`${BASE}/subutai/ai/chat`, {
       method: "POST",
       headers: getAuthHeaders(),
@@ -401,6 +429,10 @@ export default function SubutaiAiPage() {
   const [editingSections, setEditingSections] = useState<DocSection[]>([]);
   const [isSavingPost, setIsSavingPost] = useState(false);
   const [selectedSectionIdx, setSelectedSectionIdx] = useState<number>(0);
+
+  // 태그 state
+  const [editingTags, setEditingTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const sectionDndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
@@ -584,6 +616,10 @@ export default function SubutaiAiPage() {
       setEditingTitle(full.title);
       setEditingSections(full.sections ?? []);
       setSelectedSectionIdx(0);
+      // 태그 로드
+      const tags = await docApi.getTags(post.id).catch(() => []);
+      setEditingTags(tags);
+      setTagInput("");
       setIsViewDialogOpen(true);
     } catch {
       // 무시
@@ -599,6 +635,8 @@ export default function SubutaiAiPage() {
         title: editingTitle,
         sections: editingSections,
       });
+      // 태그 저장
+      await docApi.saveTags(viewPost.id, editingTags).catch(() => {});
       setIsViewDialogOpen(false);
       await loadDocFolders();
     } catch {
@@ -885,6 +923,7 @@ export default function SubutaiAiPage() {
           minute: "2-digit",
         }),
         referencedUrls: res.referencedUrls,
+        referencedDocs: res.referencedDocs ?? [],
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch {
@@ -945,32 +984,92 @@ export default function SubutaiAiPage() {
       {isViewDialogOpen && viewPost && (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
           {/* 헤더 */}
-          <div className="flex items-center gap-3 px-5 py-3 border-b border-border shrink-0 bg-card">
-            <FileText className="w-4 h-4 text-primary shrink-0" />
-            <input
-              value={editingTitle}
-              onChange={(e) => setEditingTitle(e.target.value)}
-              className="flex-1 text-base font-semibold bg-transparent outline-none"
-              placeholder="문서 제목"
-            />
-            <button
-              onClick={handleSavePost}
-              disabled={isSavingPost}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {isSavingPost ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Check className="w-4 h-4" />
+          <div className="border-b border-border shrink-0 bg-card">
+            {/* 1행: 제목 + 저장/닫기 */}
+            <div className="flex items-center gap-3 px-5 py-3">
+              <FileText className="w-4 h-4 text-primary shrink-0" />
+              <input
+                value={editingTitle}
+                onChange={(e) => setEditingTitle(e.target.value)}
+                className="flex-1 text-base font-semibold bg-transparent outline-none"
+                placeholder="문서 제목"
+              />
+              <button
+                onClick={handleSavePost}
+                disabled={isSavingPost}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {isSavingPost ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                저장
+              </button>
+              <button
+                onClick={() => setIsViewDialogOpen(false)}
+                className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {/* 2행: 태그 */}
+            <div className="flex items-center gap-2 px-5 pb-2.5 flex-wrap">
+              <span className="text-xs text-muted-foreground shrink-0">
+                🏷️ 태그
+              </span>
+              {editingTags.map((tag, i) => (
+                <span
+                  key={i}
+                  className="flex items-center gap-1 px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full"
+                >
+                  #{tag}
+                  <button
+                    onClick={() =>
+                      setEditingTags(editingTags.filter((_, idx) => idx !== i))
+                    }
+                    className="hover:text-destructive leading-none"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return;
+                  if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+                    e.preventDefault();
+                    const newTag = tagInput.trim().replace(/,/g, "");
+                    if (newTag && !editingTags.includes(newTag))
+                      setEditingTags([...editingTags, newTag]);
+                    setTagInput("");
+                  }
+                  if (
+                    e.key === "Backspace" &&
+                    !tagInput &&
+                    editingTags.length > 0
+                  ) {
+                    setEditingTags(editingTags.slice(0, -1));
+                  }
+                }}
+                placeholder={
+                  editingTags.length === 0
+                    ? "태그 입력 후 Enter (예: DDD, 인증, JWT)"
+                    : "태그 추가..."
+                }
+                className="text-xs border border-border rounded px-2 py-0.5 bg-background outline-none focus:border-primary/60 min-w-[180px]"
+              />
+              {editingTags.length > 0 && (
+                <button
+                  onClick={() => setEditingTags([])}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  전체 삭제
+                </button>
               )}
-              저장
-            </button>
-            <button
-              onClick={() => setIsViewDialogOpen(false)}
-              className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            </div>
           </div>
 
           {/* 본문: 좌측 목록 + 우측 편집 */}
@@ -1605,23 +1704,38 @@ export default function SubutaiAiPage() {
                       <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed">
                         {renderMarkdown(msg.content)}
                       </div>
-                      {msg.referencedUrls && msg.referencedUrls.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5 ml-1">
-                          <span className="text-xs text-muted-foreground">
-                            📎 참조:
-                          </span>
-                          {msg.referencedUrls.map((url, idx) => (
-                            <a
-                              key={idx}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-0.5 text-xs text-primary hover:underline"
-                            >
-                              {url}
-                              <ExternalLink className="w-2.5 h-2.5" />
-                            </a>
-                          ))}
+                      {msg.referencedDocs && msg.referencedDocs.length > 0 && (
+                        <div className="mt-2 ml-1 p-2.5 rounded-xl bg-primary/5 border border-primary/15">
+                          <p className="text-xs font-medium text-primary/80 mb-1.5 flex items-center gap-1">
+                            🔖 관련 문서
+                          </p>
+                          <div className="flex flex-col gap-1">
+                            {msg.referencedDocs.map((doc) => (
+                              <button
+                                key={doc.postId}
+                                onClick={() =>
+                                  openViewDialog({
+                                    id: doc.postId,
+                                    folderId: 0,
+                                    title: doc.title,
+                                    orderNum: 0,
+                                  })
+                                }
+                                className="inline-flex items-center gap-2 text-xs bg-background rounded-lg px-2.5 py-1.5 border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors w-fit text-left"
+                              >
+                                <FileText className="w-3 h-3 shrink-0 text-primary" />
+                                <span className="text-foreground font-medium">
+                                  {doc.title}
+                                </span>
+                                {doc.folderName && (
+                                  <span className="text-muted-foreground">
+                                    · {doc.folderName}
+                                  </span>
+                                )}
+                                <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground ml-auto" />
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                       <span className="text-xs text-muted-foreground mt-1 ml-1 block">

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { subutaiDocuApi } from "../api/subutaiDocuApi";
 import type {
   SubutaiDocuFolderDto,
@@ -153,6 +154,26 @@ export function useDeleteSubutaiDocuCommentMutation(postId: number | null) {
         queryKey: ["subutaiDocuComments", postId],
       });
       toast.success("댓글이 삭제되었습니다");
+    },
+  });
+}
+
+// Tag hooks
+export function useSubutaiDocuTags(postId: number | null) {
+  return useQuery({
+    queryKey: ["subutaiDocuTags", postId],
+    queryFn: () => subutaiDocuApi.getTags(postId!),
+    enabled: !!postId,
+  });
+}
+
+export function useSaveSubutaiDocuTagsMutation(postId: number | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tags: string[]) => subutaiDocuApi.saveTags(postId!, tags),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subutaiDocuTags", postId] });
+      toast.success("태그가 저장되었습니다");
     },
   });
 }
