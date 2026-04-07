@@ -1,20 +1,21 @@
-package com.mapo.palantier.chat;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+package com.mapo.palantier.chat.domain;
 
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-@Data
+@Getter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoomMember {
     private Long id;
     private Long roomId;
     private Long userId;
-    private String username;  // JOIN으로 가져올 사용자 이름
-    private String email;     // JOIN으로 가져올 이메일
+    private String username;
+    private String email;
     private LocalDateTime joinedAt;
     private LocalDateTime lastReadAt;
 }

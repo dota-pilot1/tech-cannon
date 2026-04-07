@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.mapo.palantier.chat.ChatRoomMapper">
+<mapper namespace="com.mapo.palantier.chat.infrastructure.ChatRoomMapper">
 
-    <resultMap id="ChatRoomResultMap" type="com.mapo.palantier.chat.ChatRoom">
+    <resultMap id="ChatRoomResultMap" type="com.mapo.palantier.chat.domain.ChatRoom">
         <id property="id" column="id"/>
         <result property="name" column="name"/>
         <result property="roomType" column="room_type"/>
@@ -15,7 +15,7 @@
         <result property="memberCount" column="member_count"/>
     </resultMap>
 
-    <resultMap id="RoomMemberResultMap" type="com.mapo.palantier.chat.RoomMember">
+    <resultMap id="RoomMemberResultMap" type="com.mapo.palantier.chat.domain.RoomMember">
         <id property="id" column="id"/>
         <result property="roomId" column="room_id"/>
         <result property="userId" column="user_id"/>

@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.mapo.palantier.chat.ChatMessageMapper">
+<mapper namespace="com.mapo.palantier.chat.infrastructure.ChatMessageMapper">
 
-    <resultMap id="ChatMessageHistoryResultMap" type="com.mapo.palantier.chat.ChatMessageHistory">
+    <resultMap id="ChatMessageHistoryResultMap" type="com.mapo.palantier.chat.domain.ChatMessageHistory">
         <id property="id" column="id"/>
         <result property="roomId" column="room_id"/>
         <result property="senderId" column="sender_id"/>
