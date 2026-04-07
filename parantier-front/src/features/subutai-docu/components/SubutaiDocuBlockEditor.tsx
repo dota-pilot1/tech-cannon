@@ -246,6 +246,7 @@ export default function SubutaiDocuBlockEditor({
             <div className="flex-1 overflow-y-auto flex flex-col">
               {selectedBlock.blockType === "DBTABLE" ? (
                 <DbTableBlockEditor
+                  key={selectedIdx}
                   content={selectedBlock.content}
                   onChange={(newContent) =>
                     updateBlock(selectedIdx, "content", newContent)
@@ -253,11 +254,13 @@ export default function SubutaiDocuBlockEditor({
                 />
               ) : selectedBlock.blockType === "GITHUB" ? (
                 <GithubBlockEditor
+                  key={selectedIdx}
                   content={selectedBlock.content}
                   onChange={(val) => updateBlock(selectedIdx, "content", val)}
                 />
               ) : selectedBlock.blockType === "NOTE" ? (
                 <LexicalEditor
+                  key={selectedIdx}
                   initialState={selectedBlock.content}
                   onChange={(val) => updateBlock(selectedIdx, "content", val)}
                   placeholder="내용을 입력하세요..."
@@ -265,6 +268,7 @@ export default function SubutaiDocuBlockEditor({
                 />
               ) : (
                 <textarea
+                  key={selectedIdx}
                   value={selectedBlock.content}
                   onChange={(e) =>
                     updateBlock(selectedIdx, "content", e.target.value)
