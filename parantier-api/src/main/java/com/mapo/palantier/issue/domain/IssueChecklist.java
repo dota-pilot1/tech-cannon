@@ -1,11 +1,11 @@
 package com.mapo.palantier.issue.domain;
 
+import lombok.Getter;
 import lombok.Builder;
-import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@Data
+@Getter
 @Builder
 public class IssueChecklist {
     private Long id;

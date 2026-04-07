@@ -3,8 +3,8 @@ package com.mapo.palantier.user.presentation;
 import com.mapo.palantier.upload.application.S3Service;
 import com.mapo.palantier.user.application.UserService;
 import com.mapo.palantier.user.domain.User;
-import com.mapo.palantier.user.presentation.dto.UpdateProfileRequest;
 import com.mapo.palantier.user.presentation.dto.ChangePasswordRequest;
+import com.mapo.palantier.user.presentation.dto.UpdateProfileRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -40,17 +40,17 @@ public class ProfileController {
      */
     @PutMapping
     public ResponseEntity<User> updateProfile(
-            @RequestBody UpdateProfileRequest request,
-            Authentication authentication
+        @RequestBody UpdateProfileRequest request,
+        Authentication authentication
     ) {
         String email = authentication.getName();
         User user = userService.findByEmail(email);
 
         // 사용자명 업데이트
-        user.setUsername(request.getUsername());
-        userService.updateUser(user.getId(), user);
+        User updatedUser = user.withUsername(request.getUsername());
+        userService.updateUser(updatedUser.getId(), updatedUser);
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(updatedUser);
     }
 
     /**
@@ -59,14 +59,19 @@ public class ProfileController {
      */
     @PostMapping("/password")
     public ResponseEntity<Void> changePassword(
-            @RequestBody ChangePasswordRequest request,
-            Authentication authentication
+        @RequestBody ChangePasswordRequest request,
+        Authentication authentication
     ) {
         String email = authentication.getName();
         User user = userService.findByEmail(email);
 
         // 현재 비밀번호 확인
-        if (!userService.verifyPassword(user.getId(), request.getCurrentPassword())) {
+        if (
+            !userService.verifyPassword(
+                user.getId(),
+                request.getCurrentPassword()
+            )
+        ) {
             return ResponseEntity.badRequest().build();
         }
 
@@ -82,8 +87,8 @@ public class ProfileController {
      */
     @PostMapping("/image")
     public ResponseEntity<User> uploadProfileImage(
-            @RequestParam("file") MultipartFile file,
-            Authentication authentication
+        @RequestParam("file") MultipartFile file,
+        Authentication authentication
     ) {
         String email = authentication.getName();
         User user = userService.findByEmail(email);

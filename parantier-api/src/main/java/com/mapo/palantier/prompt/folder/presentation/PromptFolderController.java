@@ -4,13 +4,14 @@ import com.mapo.palantier.prompt.folder.PromptFolder;
 import com.mapo.palantier.prompt.folder.PromptFolderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
+import java.util.Map;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Map;
 
 @Tag(name = "Prompt Folders", description = "프롬프트 폴더 관리")
 @RestController
@@ -20,6 +21,14 @@ public class PromptFolderController {
 
     private final PromptFolderService promptFolderService;
 
+    @Getter
+    @NoArgsConstructor
+    static class CreateFolderRequest {
+        private Long parentId;
+        private String name;
+        private Integer sortOrder;
+    }
+
     @Operation(summary = "폴더 목록 조회")
     @GetMapping
     public ResponseEntity<List<PromptFolder>> getFolders() {
@@ -28,16 +37,27 @@ public class PromptFolderController {
 
     @Operation(summary = "폴더 생성")
     @PostMapping
-    public ResponseEntity<Void> createFolder(@RequestBody PromptFolder folder, Authentication auth) {
+    public ResponseEntity<Void> createFolder(
+        @RequestBody CreateFolderRequest req,
+        Authentication auth
+    ) {
         Long userId = getUserIdFromAuth(auth);
-        folder.setCreatedBy(userId);
+        PromptFolder folder = PromptFolder.builder()
+            .parentId(req.getParentId())
+            .name(req.getName())
+            .sortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0)
+            .createdBy(userId)
+            .build();
         promptFolderService.createFolder(folder);
         return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "폴더 이름 변경")
     @PutMapping("/{id}")
-    public ResponseEntity<Void> renameFolder(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public ResponseEntity<Void> renameFolder(
+        @PathVariable Long id,
+        @RequestBody Map<String, String> body
+    ) {
         promptFolderService.renameFolder(id, body.get("name"));
         return ResponseEntity.ok().build();
     }

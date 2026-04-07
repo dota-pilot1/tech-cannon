@@ -65,11 +65,12 @@ public class SubutaiChatService {
             docContext
         );
 
-        SubutaiChatHistory history = new SubutaiChatHistory();
-        history.setUserId(userId);
-        history.setQuestion(req.getQuestion());
-        history.setAnswer(answer);
-        history.setGithubUrls(new String[0]);
+        SubutaiChatHistory history = SubutaiChatHistory.builder()
+            .userId(userId)
+            .question(req.getQuestion())
+            .answer(answer)
+            .githubUrls(new String[0])
+            .build();
         historyMapper.insert(history);
 
         return SubutaiChatResponse.builder()

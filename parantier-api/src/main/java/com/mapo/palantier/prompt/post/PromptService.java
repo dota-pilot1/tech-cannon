@@ -1,14 +1,15 @@
 package com.mapo.palantier.prompt.post;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PromptService {
+
     private final PromptMapper promptMapper;
 
     public List<Prompt> getAllPrompts() {
@@ -21,26 +22,36 @@ public class PromptService {
 
     public Prompt getPrompt(Long id) {
         return promptMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("프롬프트를 찾을 수 없습니다: " + id));
+            .orElseThrow(() -> new IllegalArgumentException("프롬프트를 찾을 수 없습니다: " + id));
     }
 
     @Transactional
     public Long savePrompt(PromptDto dto, Long authorId) {
-        Prompt prompt = new Prompt();
-        prompt.setFolderId(dto.getFolderId());
-        prompt.setTitle(dto.getTitle());
-        prompt.setContent(dto.getContent());
-        prompt.setAuthorId(authorId);
-        prompt.setIsPinned(dto.getIsPinned() != null ? dto.getIsPinned() : false);
-        prompt.setTags(dto.getTags() != null ? String.join(",", dto.getTags()) : "");
-
+        String tags = dto.getTags() != null ? String.join(",", dto.getTags()) : "";
         if (dto.getId() == null) {
+            Prompt prompt = Prompt.builder()
+                .folderId(dto.getFolderId())
+                .title(dto.getTitle())
+                .content(dto.getContent())
+                .authorId(authorId)
+                .isPinned(dto.getIsPinned() != null ? dto.getIsPinned() : false)
+                .tags(tags)
+                .build();
             promptMapper.insert(prompt);
+            return prompt.getId();
         } else {
-            prompt.setId(dto.getId());
+            Prompt prompt = Prompt.builder()
+                .id(dto.getId())
+                .folderId(dto.getFolderId())
+                .title(dto.getTitle())
+                .content(dto.getContent())
+                .authorId(authorId)
+                .isPinned(dto.getIsPinned() != null ? dto.getIsPinned() : false)
+                .tags(tags)
+                .build();
             promptMapper.update(prompt);
+            return prompt.getId();
         }
-        return prompt.getId();
     }
 
     @Transactional

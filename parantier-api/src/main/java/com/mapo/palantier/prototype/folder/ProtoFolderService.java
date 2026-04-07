@@ -1,15 +1,16 @@
 package com.mapo.palantier.prototype.folder;
 
 import com.mapo.palantier.prototype.dto.ProtoFolderDto;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ProtoFolderService {
+
     private final ProtoFolderMapper protoFolderMapper;
 
     public List<ProtoFolder> getAllFolders() {
@@ -17,27 +18,44 @@ public class ProtoFolderService {
     }
 
     public ProtoFolder getFolderById(Long id) {
-        return protoFolderMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("폴더를 찾을 수 없습니다: " + id));
+        return protoFolderMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException("폴더를 찾을 수 없습니다: " + id)
+            );
     }
 
     @Transactional
     public Long createFolder(ProtoFolderDto dto, Long currentUserId) {
-        ProtoFolder folder = new ProtoFolder();
-        folder.setParentId(dto.getParentId());
-        folder.setName(dto.getName());
-        folder.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0);
-        folder.setCreatedBy(currentUserId);
+        ProtoFolder folder = ProtoFolder.builder()
+            .parentId(dto.getParentId())
+            .name(dto.getName())
+            .sortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0)
+            .createdBy(currentUserId)
+            .build();
         protoFolderMapper.insert(folder);
         return folder.getId();
     }
 
     @Transactional
     public void updateFolder(Long id, ProtoFolderDto dto) {
-        ProtoFolder folder = getFolderById(id);
-        folder.setName(dto.getName());
-        if (dto.getParentId() != null) folder.setParentId(dto.getParentId());
-        if (dto.getSortOrder() != null) folder.setSortOrder(dto.getSortOrder());
+        ProtoFolder existing = getFolderById(id);
+        ProtoFolder folder = ProtoFolder.builder()
+            .id(existing.getId())
+            .parentId(
+                dto.getParentId() != null
+                    ? dto.getParentId()
+                    : existing.getParentId()
+            )
+            .name(dto.getName())
+            .sortOrder(
+                dto.getSortOrder() != null
+                    ? dto.getSortOrder()
+                    : existing.getSortOrder()
+            )
+            .createdBy(existing.getCreatedBy())
+            .createdAt(existing.getCreatedAt())
+            .build();
         protoFolderMapper.update(folder);
     }
 

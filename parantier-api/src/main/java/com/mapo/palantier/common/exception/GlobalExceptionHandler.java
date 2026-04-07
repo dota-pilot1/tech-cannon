@@ -23,20 +23,24 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(
-            AuthenticationException e,
-            HttpServletRequest request
+        AuthenticationException e,
+        HttpServletRequest request
     ) {
-        log.warn("Authentication failed: {} - Path: {}", e.getMessage(), request.getRequestURI());
-
-        ErrorResponse errorResponse = ErrorResponse.of(
-                e.getErrorCode().getCode(),
-                e.getMessage(),
-                request.getRequestURI()
+        log.warn(
+            "Authentication failed: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
         );
 
-        return ResponseEntity
-                .status(e.getErrorCode().getHttpStatus())
-                .body(errorResponse);
+        ErrorResponse errorResponse = ErrorResponse.of(
+            e.getErrorCode().getCode(),
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(
+            errorResponse
+        );
     }
 
     /**
@@ -45,20 +49,24 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccountInactiveException.class)
     public ResponseEntity<ErrorResponse> handleAccountInactiveException(
-            AccountInactiveException e,
-            HttpServletRequest request
+        AccountInactiveException e,
+        HttpServletRequest request
     ) {
-        log.warn("Account inactive: {} - Path: {}", e.getMessage(), request.getRequestURI());
-
-        ErrorResponse errorResponse = ErrorResponse.of(
-                e.getErrorCode().getCode(),
-                e.getMessage(),
-                request.getRequestURI()
+        log.warn(
+            "Account inactive: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
         );
 
-        return ResponseEntity
-                .status(e.getErrorCode().getHttpStatus())
-                .body(errorResponse);
+        ErrorResponse errorResponse = ErrorResponse.of(
+            e.getErrorCode().getCode(),
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(
+            errorResponse
+        );
     }
 
     /**
@@ -67,20 +75,24 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateEmailException(
-            DuplicateEmailException e,
-            HttpServletRequest request
+        DuplicateEmailException e,
+        HttpServletRequest request
     ) {
-        log.warn("Duplicate email: {} - Path: {}", e.getMessage(), request.getRequestURI());
-
-        ErrorResponse errorResponse = ErrorResponse.of(
-                e.getErrorCode().getCode(),
-                e.getMessage(),
-                request.getRequestURI()
+        log.warn(
+            "Duplicate email: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
         );
 
-        return ResponseEntity
-                .status(e.getErrorCode().getHttpStatus())
-                .body(errorResponse);
+        ErrorResponse errorResponse = ErrorResponse.of(
+            e.getErrorCode().getCode(),
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(
+            errorResponse
+        );
     }
 
     /**
@@ -89,20 +101,24 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFoundException(
-            UserNotFoundException e,
-            HttpServletRequest request
+        UserNotFoundException e,
+        HttpServletRequest request
     ) {
-        log.warn("User not found: {} - Path: {}", e.getMessage(), request.getRequestURI());
-
-        ErrorResponse errorResponse = ErrorResponse.of(
-                e.getErrorCode().getCode(),
-                e.getMessage(),
-                request.getRequestURI()
+        log.warn(
+            "User not found: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
         );
 
-        return ResponseEntity
-                .status(e.getErrorCode().getHttpStatus())
-                .body(errorResponse);
+        ErrorResponse errorResponse = ErrorResponse.of(
+            e.getErrorCode().getCode(),
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(
+            errorResponse
+        );
     }
 
     /**
@@ -111,20 +127,50 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(InvalidTokenException.class)
     public ResponseEntity<ErrorResponse> handleInvalidTokenException(
-            InvalidTokenException e,
-            HttpServletRequest request
+        InvalidTokenException e,
+        HttpServletRequest request
     ) {
-        log.warn("Invalid token: {} - Path: {}", e.getMessage(), request.getRequestURI());
-
-        ErrorResponse errorResponse = ErrorResponse.of(
-                e.getErrorCode().getCode(),
-                e.getMessage(),
-                request.getRequestURI()
+        log.warn(
+            "Invalid token: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
         );
 
-        return ResponseEntity
-                .status(e.getErrorCode().getHttpStatus())
-                .body(errorResponse);
+        ErrorResponse errorResponse = ErrorResponse.of(
+            e.getErrorCode().getCode(),
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(
+            errorResponse
+        );
+    }
+
+    /**
+     * 리소스를 찾을 수 없는 예외 처리
+     * HTTP Status: 404 Not Found
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+        ResourceNotFoundException e,
+        HttpServletRequest request
+    ) {
+        log.warn(
+            "Resource not found: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        ErrorResponse errorResponse = ErrorResponse.of(
+            e.getErrorCode().getCode(),
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(
+            errorResponse
+        );
     }
 
     /**
@@ -133,20 +179,24 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
-            IllegalArgumentException e,
-            HttpServletRequest request
+        IllegalArgumentException e,
+        HttpServletRequest request
     ) {
-        log.warn("Invalid argument: {} - Path: {}", e.getMessage(), request.getRequestURI());
-
-        ErrorResponse errorResponse = ErrorResponse.of(
-                "INVALID_ARGUMENT",
-                e.getMessage(),
-                request.getRequestURI()
+        log.warn(
+            "Invalid argument: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
         );
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(errorResponse);
+        ErrorResponse errorResponse = ErrorResponse.of(
+            "INVALID_ARGUMENT",
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+            errorResponse
+        );
     }
 
     /**
@@ -155,20 +205,24 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalStateException(
-            IllegalStateException e,
-            HttpServletRequest request
+        IllegalStateException e,
+        HttpServletRequest request
     ) {
-        log.warn("Illegal state: {} - Path: {}", e.getMessage(), request.getRequestURI());
-
-        ErrorResponse errorResponse = ErrorResponse.of(
-                "ILLEGAL_STATE",
-                e.getMessage(),
-                request.getRequestURI()
+        log.warn(
+            "Illegal state: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI()
         );
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(errorResponse);
+        ErrorResponse errorResponse = ErrorResponse.of(
+            "ILLEGAL_STATE",
+            e.getMessage(),
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+            errorResponse
+        );
     }
 
     /**
@@ -177,19 +231,24 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(
-            Exception e,
-            HttpServletRequest request
+        Exception e,
+        HttpServletRequest request
     ) {
-        log.error("Unexpected error occurred: {} - Path: {}", e.getMessage(), request.getRequestURI(), e);
-
-        ErrorResponse errorResponse = ErrorResponse.of(
-                "INTERNAL_SERVER_ERROR",
-                "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-                request.getRequestURI()
+        log.error(
+            "Unexpected error occurred: {} - Path: {}",
+            e.getMessage(),
+            request.getRequestURI(),
+            e
         );
 
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(errorResponse);
+        ErrorResponse errorResponse = ErrorResponse.of(
+            "INTERNAL_SERVER_ERROR",
+            "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+            request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+            errorResponse
+        );
     }
 }

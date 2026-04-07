@@ -10,11 +10,10 @@ import com.mapo.palantier.subutai.faq.dto.SubutaiFaqSectionRequest;
 import com.mapo.palantier.subutai.faq.infrastructure.SubutaiFaqBlockMapper;
 import com.mapo.palantier.subutai.faq.infrastructure.SubutaiFaqCategoryMapper;
 import com.mapo.palantier.subutai.faq.infrastructure.SubutaiFaqSectionMapper;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -36,25 +35,37 @@ public class SubutaiFaqService {
     @Transactional
     public void createCategory(SubutaiFaqCategoryRequest req) {
         SubutaiFaqCategory category = SubutaiFaqCategory.builder()
-                .name(req.getName())
-                .icon(req.getIcon())
-                .emoji(req.getEmoji())
-                .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
-                .isActive(true)
-                .build();
+            .name(req.getName())
+            .icon(req.getIcon())
+            .emoji(req.getEmoji())
+            .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
+            .isActive(true)
+            .build();
         categoryMapper.insert(category);
     }
 
     @Transactional
     public void updateCategory(Long id, SubutaiFaqCategoryRequest req) {
-        SubutaiFaqCategory category = categoryMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다: " + id));
-        category.setName(req.getName());
-        category.setIcon(req.getIcon());
-        category.setEmoji(req.getEmoji());
-        if (req.getOrderNum() != null) {
-            category.setOrderNum(req.getOrderNum());
-        }
+        SubutaiFaqCategory existing = categoryMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException(
+                    "카테고리를 찾을 수 없습니다: " + id
+                )
+            );
+        SubutaiFaqCategory category = SubutaiFaqCategory.builder()
+            .id(existing.getId())
+            .name(req.getName())
+            .icon(req.getIcon())
+            .emoji(req.getEmoji())
+            .orderNum(
+                req.getOrderNum() != null
+                    ? req.getOrderNum()
+                    : existing.getOrderNum()
+            )
+            .isActive(existing.getIsActive())
+            .createdAt(existing.getCreatedAt())
+            .build();
         categoryMapper.update(category);
     }
 
@@ -81,25 +92,37 @@ public class SubutaiFaqService {
     @Transactional
     public void createSection(SubutaiFaqSectionRequest req) {
         SubutaiFaqSection section = SubutaiFaqSection.builder()
-                .categoryId(req.getCategoryId())
-                .title(req.getTitle())
-                .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
-                .isActive(true)
-                .build();
+            .categoryId(req.getCategoryId())
+            .title(req.getTitle())
+            .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
+            .isActive(true)
+            .build();
         sectionMapper.insert(section);
     }
 
     @Transactional
     public void updateSection(Long id, SubutaiFaqSectionRequest req) {
-        SubutaiFaqSection section = sectionMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id));
-        section.setTitle(req.getTitle());
-        if (req.getCategoryId() != null) {
-            section.setCategoryId(req.getCategoryId());
-        }
-        if (req.getOrderNum() != null) {
-            section.setOrderNum(req.getOrderNum());
-        }
+        SubutaiFaqSection existing = sectionMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+            );
+        SubutaiFaqSection section = SubutaiFaqSection.builder()
+            .id(existing.getId())
+            .categoryId(
+                req.getCategoryId() != null
+                    ? req.getCategoryId()
+                    : existing.getCategoryId()
+            )
+            .title(req.getTitle())
+            .orderNum(
+                req.getOrderNum() != null
+                    ? req.getOrderNum()
+                    : existing.getOrderNum()
+            )
+            .isActive(existing.getIsActive())
+            .createdAt(existing.getCreatedAt())
+            .build();
         sectionMapper.update(section);
     }
 
@@ -124,7 +147,11 @@ public class SubutaiFaqService {
     }
 
     @Transactional
-    public void saveBlocks(Long sectionId, List<SubutaiFaqBlockDto> blocks, Long userId) {
+    public void saveBlocks(
+        Long sectionId,
+        List<SubutaiFaqBlockDto> blocks,
+        Long userId
+    ) {
         // 기존 블록 전체 삭제 후 재삽입
         blockMapper.deleteBySectionId(sectionId);
         if (blocks == null || blocks.isEmpty()) {
@@ -132,12 +159,13 @@ public class SubutaiFaqService {
         }
         for (int i = 0; i < blocks.size(); i++) {
             SubutaiFaqBlockDto dto = blocks.get(i);
-            SubutaiFaqBlock block = new SubutaiFaqBlock();
-            block.setSectionId(sectionId);
-            block.setBlockType(dto.getBlockType());
-            block.setContent(dto.getContent());
-            block.setSortOrder(i);
-            block.setUpdatedBy(userId);
+            SubutaiFaqBlock block = SubutaiFaqBlock.builder()
+                .sectionId(sectionId)
+                .blockType(dto.getBlockType())
+                .content(dto.getContent())
+                .sortOrder(i)
+                .updatedBy(userId)
+                .build();
             blockMapper.insert(block);
         }
     }

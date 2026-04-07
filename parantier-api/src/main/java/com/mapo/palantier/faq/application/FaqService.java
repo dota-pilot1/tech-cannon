@@ -10,11 +10,10 @@ import com.mapo.palantier.faq.dto.FaqSectionRequest;
 import com.mapo.palantier.faq.infrastructure.FaqBlockMapper;
 import com.mapo.palantier.faq.infrastructure.FaqCategoryMapper;
 import com.mapo.palantier.faq.infrastructure.FaqSectionMapper;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -36,25 +35,37 @@ public class FaqService {
     @Transactional
     public void createCategory(FaqCategoryRequest req) {
         FaqCategory category = FaqCategory.builder()
-                .name(req.getName())
-                .icon(req.getIcon())
-                .emoji(req.getEmoji())
-                .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
-                .isActive(true)
-                .build();
+            .name(req.getName())
+            .icon(req.getIcon())
+            .emoji(req.getEmoji())
+            .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
+            .isActive(true)
+            .build();
         categoryMapper.insert(category);
     }
 
     @Transactional
     public void updateCategory(Long id, FaqCategoryRequest req) {
-        FaqCategory category = categoryMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다: " + id));
-        category.setName(req.getName());
-        category.setIcon(req.getIcon());
-        category.setEmoji(req.getEmoji());
-        if (req.getOrderNum() != null) {
-            category.setOrderNum(req.getOrderNum());
-        }
+        FaqCategory existing = categoryMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException(
+                    "카테고리를 찾을 수 없습니다: " + id
+                )
+            );
+        FaqCategory category = FaqCategory.builder()
+            .id(existing.getId())
+            .name(req.getName())
+            .icon(req.getIcon())
+            .emoji(req.getEmoji())
+            .orderNum(
+                req.getOrderNum() != null
+                    ? req.getOrderNum()
+                    : existing.getOrderNum()
+            )
+            .isActive(existing.getIsActive())
+            .createdAt(existing.getCreatedAt())
+            .build();
         categoryMapper.update(category);
     }
 
@@ -81,25 +92,37 @@ public class FaqService {
     @Transactional
     public void createSection(FaqSectionRequest req) {
         FaqSection section = FaqSection.builder()
-                .categoryId(req.getCategoryId())
-                .title(req.getTitle())
-                .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
-                .isActive(true)
-                .build();
+            .categoryId(req.getCategoryId())
+            .title(req.getTitle())
+            .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
+            .isActive(true)
+            .build();
         sectionMapper.insert(section);
     }
 
     @Transactional
     public void updateSection(Long id, FaqSectionRequest req) {
-        FaqSection section = sectionMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id));
-        section.setTitle(req.getTitle());
-        if (req.getCategoryId() != null) {
-            section.setCategoryId(req.getCategoryId());
-        }
-        if (req.getOrderNum() != null) {
-            section.setOrderNum(req.getOrderNum());
-        }
+        FaqSection existing = sectionMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+            );
+        FaqSection section = FaqSection.builder()
+            .id(existing.getId())
+            .categoryId(
+                req.getCategoryId() != null
+                    ? req.getCategoryId()
+                    : existing.getCategoryId()
+            )
+            .title(req.getTitle())
+            .orderNum(
+                req.getOrderNum() != null
+                    ? req.getOrderNum()
+                    : existing.getOrderNum()
+            )
+            .isActive(existing.getIsActive())
+            .createdAt(existing.getCreatedAt())
+            .build();
         sectionMapper.update(section);
     }
 
@@ -124,7 +147,11 @@ public class FaqService {
     }
 
     @Transactional
-    public void saveBlocks(Long sectionId, List<FaqBlockDto> blocks, Long userId) {
+    public void saveBlocks(
+        Long sectionId,
+        List<FaqBlockDto> blocks,
+        Long userId
+    ) {
         // 기존 블록 전체 삭제 후 재삽입
         blockMapper.deleteBySectionId(sectionId);
         if (blocks == null || blocks.isEmpty()) {
@@ -132,12 +159,13 @@ public class FaqService {
         }
         for (int i = 0; i < blocks.size(); i++) {
             FaqBlockDto dto = blocks.get(i);
-            FaqBlock block = new FaqBlock();
-            block.setSectionId(sectionId);
-            block.setBlockType(dto.getBlockType());
-            block.setContent(dto.getContent());
-            block.setSortOrder(i);
-            block.setUpdatedBy(userId);
+            FaqBlock block = FaqBlock.builder()
+                .sectionId(sectionId)
+                .blockType(dto.getBlockType())
+                .content(dto.getContent())
+                .sortOrder(i)
+                .updatedBy(userId)
+                .build();
             blockMapper.insert(block);
         }
     }

@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.mapo.palantier.wiki.folder.WikiFolderMapper">
+<mapper namespace="com.mapo.palantier.wiki.infrastructure.WikiFolderMapper">
 
-    <resultMap id="WikiFolderResultMap" type="com.mapo.palantier.wiki.folder.WikiFolder">
+    <resultMap id="WikiFolderResultMap" type="com.mapo.palantier.wiki.domain.WikiFolder">
         <id property="id" column="id"/>
         <result property="parentId" column="parent_id"/>
         <result property="name" column="name"/>

@@ -34,10 +34,11 @@ public class HackathonDocService {
     @Transactional
     public Long createCategory(Long teamId, String name) {
         int count = categoryMapper.countByTeamId(teamId);
-        HackathonDocCategory category = new HackathonDocCategory();
-        category.setTeamId(teamId);
-        category.setName(name);
-        category.setOrderNum(count);
+        HackathonDocCategory category = HackathonDocCategory.builder()
+            .teamId(teamId)
+            .name(name)
+            .orderNum(count)
+            .build();
         categoryMapper.insert(category);
         return category.getId();
     }
@@ -70,11 +71,12 @@ public class HackathonDocService {
     @Transactional
     public Long createSection(Long categoryId, Long teamId, String title) {
         int count = sectionMapper.countByCategoryId(categoryId);
-        HackathonDocSection section = new HackathonDocSection();
-        section.setCategoryId(categoryId);
-        section.setTeamId(teamId);
-        section.setTitle(title);
-        section.setOrderNum(count);
+        HackathonDocSection section = HackathonDocSection.builder()
+            .categoryId(categoryId)
+            .teamId(teamId)
+            .title(title)
+            .orderNum(count)
+            .build();
         sectionMapper.insert(section);
         return section.getId();
     }
@@ -116,14 +118,15 @@ public class HackathonDocService {
         List<HackathonDocBlock> blocks = new ArrayList<>();
         for (int i = 0; i < blockDtos.size(); i++) {
             HackathonDocBlockDto dto = blockDtos.get(i);
-            HackathonDocBlock block = new HackathonDocBlock();
-            block.setSectionId(sectionId);
-            block.setBlockType(
-                dto.getBlockType() != null ? dto.getBlockType() : "NOTE"
-            );
-            block.setTitle(dto.getTitle() != null ? dto.getTitle() : "");
-            block.setContent(dto.getContent() != null ? dto.getContent() : "");
-            block.setSortOrder(i);
+            HackathonDocBlock block = HackathonDocBlock.builder()
+                .sectionId(sectionId)
+                .blockType(
+                    dto.getBlockType() != null ? dto.getBlockType() : "NOTE"
+                )
+                .title(dto.getTitle() != null ? dto.getTitle() : "")
+                .content(dto.getContent() != null ? dto.getContent() : "")
+                .sortOrder(i)
+                .build();
             blocks.add(block);
         }
         blockMapper.insertBatch(blocks);

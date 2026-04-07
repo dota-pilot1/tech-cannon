@@ -3,8 +3,11 @@ package com.mapo.palantier.menu.application;
 import com.mapo.palantier.menu.domain.Menu;
 import com.mapo.palantier.menu.domain.MenuRepository;
 import com.mapo.palantier.menu.presentation.dto.MenuReorderRequest;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,22 +25,34 @@ public class MenuService {
 
     public List<Menu> getMenuTreeByRole(String role) {
         List<Menu> flatList = menuRepository.findMenuTreeByRole(role);
-        // 각 메뉴에 allowedRoles 설정
-        populateAllowedRoles(flatList);
+        flatList = populateAllowedRoles(flatList);
         return buildMenuTree(flatList);
     }
 
     private List<Menu> buildMenuTree(List<Menu> flatList) {
-        // 1단계: 모든 메뉴를 Map에 저장 (children 초기화)
+        // children 초기화: 각 메뉴를 children=new ArrayList() 로 재생성
         Map<Long, Menu> menuMap = new HashMap<>();
         for (Menu menu : flatList) {
-            menu.setChildren(new ArrayList<>());
-            menuMap.put(menu.getId(), menu);
+            Menu withChildren = Menu.builder()
+                .id(menu.getId())
+                .name(menu.getName())
+                .path(menu.getPath())
+                .parentId(menu.getParentId())
+                .menuType(menu.getMenuType())
+                .orderNum(menu.getOrderNum())
+                .requiredRole(menu.getRequiredRole())
+                .icon(menu.getIcon())
+                .isActive(menu.getIsActive())
+                .createdAt(menu.getCreatedAt())
+                .updatedAt(menu.getUpdatedAt())
+                .allowedRoles(menu.getAllowedRoles())
+                .children(new ArrayList<>())
+                .build();
+            menuMap.put(withChildren.getId(), withChildren);
         }
 
-        // 2단계: 부모-자식 관계 설정
         List<Menu> rootMenus = new ArrayList<>();
-        for (Menu menu : flatList) {
+        for (Menu menu : menuMap.values()) {
             if (menu.getParentId() == null) {
                 rootMenus.add(menu);
             } else {
@@ -48,9 +63,7 @@ public class MenuService {
             }
         }
 
-        // 3단계: 각 레벨에서 orderNum으로 정렬
         sortMenusByOrderNum(rootMenus);
-
         return rootMenus;
     }
 
@@ -68,8 +81,7 @@ public class MenuService {
     }
 
     public Menu getMenuById(Long id) {
-        return menuRepository
-            .findById(id)
+        return menuRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Menu not found: " + id));
     }
 
@@ -97,21 +109,28 @@ public class MenuService {
         }
     }
 
-    /**
-     * 각 메뉴에 접근 가능한 역할 목록 설정
-     */
-    private void populateAllowedRoles(List<Menu> menus) {
+    private List<Menu> populateAllowedRoles(List<Menu> menus) {
+        List<Menu> result = new ArrayList<>();
         for (Menu menu : menus) {
+            List<String> allowedRoles = null;
             if (menu.getRequiredRole() != null) {
-                // requiredRole이 있는 경우, 해당 역할과 상위 역할들을 조회
-                List<String> allowedRoles = menuRepository.findAllowedRoles(
-                    menu.getRequiredRole()
-                );
-                menu.setAllowedRoles(allowedRoles);
-            } else {
-                // requiredRole이 null이면 모든 역할이 접근 가능 (빈 리스트로 표시하거나 null)
-                menu.setAllowedRoles(null);
+                allowedRoles = menuRepository.findAllowedRoles(menu.getRequiredRole());
             }
+            result.add(Menu.builder()
+                .id(menu.getId())
+                .name(menu.getName())
+                .path(menu.getPath())
+                .parentId(menu.getParentId())
+                .menuType(menu.getMenuType())
+                .orderNum(menu.getOrderNum())
+                .requiredRole(menu.getRequiredRole())
+                .icon(menu.getIcon())
+                .isActive(menu.getIsActive())
+                .createdAt(menu.getCreatedAt())
+                .updatedAt(menu.getUpdatedAt())
+                .allowedRoles(allowedRoles)
+                .build());
         }
+        return result;
     }
 }

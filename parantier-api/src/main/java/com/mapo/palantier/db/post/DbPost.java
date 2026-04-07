@@ -1,11 +1,18 @@
 package com.mapo.palantier.db.post;
 
+import lombok.Getter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+
 import com.mapo.palantier.db.block.DbBlock;
-import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Data
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class DbPost {
     private Long id;
     private Long folderId;

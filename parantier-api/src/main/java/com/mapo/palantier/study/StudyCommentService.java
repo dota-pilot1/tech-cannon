@@ -22,10 +22,11 @@ public class StudyCommentService {
         StudyCommentRequest req,
         Long authorId
     ) {
-        StudyComment comment = new StudyComment();
-        comment.setPostId(postId);
-        comment.setAuthorId(authorId);
-        comment.setContent(req.getContent());
+        StudyComment comment = StudyComment.builder()
+            .postId(postId)
+            .authorId(authorId)
+            .content(req.getContent())
+            .build();
         studyCommentMapper.insert(comment);
         return comment.getId();
     }

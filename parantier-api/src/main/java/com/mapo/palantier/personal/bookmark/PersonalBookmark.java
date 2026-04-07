@@ -1,9 +1,15 @@
 package com.mapo.palantier.personal.bookmark;
 
 import java.time.LocalDateTime;
-import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-@Data
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PersonalBookmark {
 
     private Long id;

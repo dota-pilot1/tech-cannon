@@ -2,23 +2,21 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.mapo.palantier.task.comment.TaskCommentMapper">
+<mapper namespace="com.mapo.palantier.task.infrastructure.TaskCommentMapper">
 
-    <resultMap id="TaskCommentResultMap" type="com.mapo.palantier.task.comment.TaskComment">
+    <resultMap id="TaskCommentResponseResultMap" type="com.mapo.palantier.task.presentation.dto.TaskCommentResponse">
         <id property="id" column="id"/>
         <result property="postId" column="post_id"/>
         <result property="authorId" column="author_id"/>
         <result property="authorName" column="author_name"/>
         <result property="content" column="content"/>
         <result property="createdAt" column="created_at"/>
-        <result property="updatedAt" column="updated_at"/>
-        <result property="deletedAt" column="deleted_at"/>
     </resultMap>
 
-    <select id="findByPostId" resultMap="TaskCommentResultMap">
+    <select id="findByPostId" resultMap="TaskCommentResponseResultMap">
         SELECT c.id, c.post_id, c.author_id,
                u.username as author_name,
-               c.content, c.created_at, c.updated_at
+               c.content, c.created_at
         FROM task_comments c
         JOIN users u ON c.author_id = u.id
         WHERE c.post_id = #{postId}

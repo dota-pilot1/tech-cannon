@@ -10,11 +10,10 @@ import com.mapo.palantier.apidoc.dto.ApiDocSectionRequest;
 import com.mapo.palantier.apidoc.infrastructure.ApiDocBlockMapper;
 import com.mapo.palantier.apidoc.infrastructure.ApiDocCategoryMapper;
 import com.mapo.palantier.apidoc.infrastructure.ApiDocSectionMapper;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -36,25 +35,37 @@ public class ApiDocService {
     @Transactional
     public void createCategory(ApiDocCategoryRequest req) {
         ApiDocCategory category = ApiDocCategory.builder()
-                .name(req.getName())
-                .icon(req.getIcon())
-                .emoji(req.getEmoji())
-                .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
-                .isActive(true)
-                .build();
+            .name(req.getName())
+            .icon(req.getIcon())
+            .emoji(req.getEmoji())
+            .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
+            .isActive(true)
+            .build();
         categoryMapper.insert(category);
     }
 
     @Transactional
     public void updateCategory(Long id, ApiDocCategoryRequest req) {
-        ApiDocCategory category = categoryMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다: " + id));
-        category.setName(req.getName());
-        category.setIcon(req.getIcon());
-        category.setEmoji(req.getEmoji());
-        if (req.getOrderNum() != null) {
-            category.setOrderNum(req.getOrderNum());
-        }
+        ApiDocCategory existing = categoryMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException(
+                    "카테고리를 찾을 수 없습니다: " + id
+                )
+            );
+        ApiDocCategory category = ApiDocCategory.builder()
+            .id(existing.getId())
+            .name(req.getName())
+            .icon(req.getIcon())
+            .emoji(req.getEmoji())
+            .orderNum(
+                req.getOrderNum() != null
+                    ? req.getOrderNum()
+                    : existing.getOrderNum()
+            )
+            .isActive(existing.getIsActive())
+            .createdAt(existing.getCreatedAt())
+            .build();
         categoryMapper.update(category);
     }
 
@@ -81,25 +92,37 @@ public class ApiDocService {
     @Transactional
     public void createSection(ApiDocSectionRequest req) {
         ApiDocSection section = ApiDocSection.builder()
-                .categoryId(req.getCategoryId())
-                .title(req.getTitle())
-                .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
-                .isActive(true)
-                .build();
+            .categoryId(req.getCategoryId())
+            .title(req.getTitle())
+            .orderNum(req.getOrderNum() != null ? req.getOrderNum() : 0)
+            .isActive(true)
+            .build();
         sectionMapper.insert(section);
     }
 
     @Transactional
     public void updateSection(Long id, ApiDocSectionRequest req) {
-        ApiDocSection section = sectionMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id));
-        section.setTitle(req.getTitle());
-        if (req.getCategoryId() != null) {
-            section.setCategoryId(req.getCategoryId());
-        }
-        if (req.getOrderNum() != null) {
-            section.setOrderNum(req.getOrderNum());
-        }
+        ApiDocSection existing = sectionMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException("섹션을 찾을 수 없습니다: " + id)
+            );
+        ApiDocSection section = ApiDocSection.builder()
+            .id(existing.getId())
+            .categoryId(
+                req.getCategoryId() != null
+                    ? req.getCategoryId()
+                    : existing.getCategoryId()
+            )
+            .title(req.getTitle())
+            .orderNum(
+                req.getOrderNum() != null
+                    ? req.getOrderNum()
+                    : existing.getOrderNum()
+            )
+            .isActive(existing.getIsActive())
+            .createdAt(existing.getCreatedAt())
+            .build();
         sectionMapper.update(section);
     }
 
@@ -124,7 +147,11 @@ public class ApiDocService {
     }
 
     @Transactional
-    public void saveBlocks(Long sectionId, List<ApiDocBlockDto> blocks, Long userId) {
+    public void saveBlocks(
+        Long sectionId,
+        List<ApiDocBlockDto> blocks,
+        Long userId
+    ) {
         // 기존 블록 전체 삭제 후 재삽입 (task 패턴 동일)
         blockMapper.deleteBySectionId(sectionId);
         if (blocks == null || blocks.isEmpty()) {
@@ -132,12 +159,13 @@ public class ApiDocService {
         }
         for (int i = 0; i < blocks.size(); i++) {
             ApiDocBlockDto dto = blocks.get(i);
-            ApiDocBlock block = new ApiDocBlock();
-            block.setSectionId(sectionId);
-            block.setBlockType(dto.getBlockType());
-            block.setContent(dto.getContent());
-            block.setSortOrder(i);
-            block.setUpdatedBy(userId);
+            ApiDocBlock block = ApiDocBlock.builder()
+                .sectionId(sectionId)
+                .blockType(dto.getBlockType())
+                .content(dto.getContent())
+                .sortOrder(i)
+                .updatedBy(userId)
+                .build();
             blockMapper.insert(block);
         }
     }

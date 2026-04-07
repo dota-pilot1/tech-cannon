@@ -1,12 +1,17 @@
 package com.mapo.palantier.hackathon.domain;
 
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.NoArgsConstructor;
 
-@Getter @Setter @NoArgsConstructor
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class HackathonDocSection {
+
     private Long id;
     private Long categoryId;
     private Long teamId;

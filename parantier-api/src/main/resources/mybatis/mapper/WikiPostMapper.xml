@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.mapo.palantier.wiki.post.WikiPostMapper">
+<mapper namespace="com.mapo.palantier.wiki.infrastructure.WikiPostMapper">
 
-    <resultMap id="WikiPostResultMap" type="com.mapo.palantier.wiki.post.WikiPost">
+    <resultMap id="WikiPostSummaryResultMap" type="com.mapo.palantier.wiki.presentation.dto.WikiPostSummary">
         <id property="id" column="id"/>
         <result property="folderId" column="folder_id"/>
         <result property="title" column="title"/>
@@ -14,10 +14,9 @@
         <result property="tags" column="tags"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
-        <result property="deletedAt" column="deleted_at"/>
     </resultMap>
 
-    <resultMap id="WikiPostWithBlocksResultMap" type="com.mapo.palantier.wiki.post.WikiPost">
+    <resultMap id="WikiPostDetailResultMap" type="com.mapo.palantier.wiki.presentation.dto.WikiPostDetail">
         <id property="id" column="id"/>
         <result property="folderId" column="folder_id"/>
         <result property="title" column="title"/>
@@ -27,7 +26,7 @@
         <result property="tags" column="tags"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
-        <collection property="blocks" ofType="com.mapo.palantier.wiki.block.WikiBlock">
+        <collection property="blocks" ofType="com.mapo.palantier.wiki.domain.WikiBlock">
             <id property="id" column="block_id"/>
             <result property="postId" column="post_id"/>
             <result property="blockType" column="block_type"/>
@@ -36,7 +35,7 @@
         </collection>
     </resultMap>
 
-    <select id="findAll" resultMap="WikiPostResultMap">
+    <select id="findAll" resultMap="WikiPostSummaryResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
                p.is_pinned, p.tags,
@@ -47,7 +46,7 @@
         ORDER BY p.is_pinned DESC, p.updated_at DESC
     </select>
 
-    <select id="findByFolderId" resultMap="WikiPostResultMap">
+    <select id="findByFolderId" resultMap="WikiPostSummaryResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
                p.is_pinned, p.tags,
@@ -59,7 +58,7 @@
         ORDER BY p.is_pinned DESC, p.updated_at DESC
     </select>
 
-    <select id="findById" resultMap="WikiPostResultMap">
+    <select id="findById" resultMap="WikiPostSummaryResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
                p.is_pinned, p.tags,
@@ -69,7 +68,7 @@
         WHERE p.id = #{id} AND p.deleted_at IS NULL
     </select>
 
-    <select id="findByIdWithBlocks" resultMap="WikiPostWithBlocksResultMap">
+    <select id="findByIdWithBlocks" resultMap="WikiPostDetailResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
                p.is_pinned, p.tags,
@@ -84,7 +83,7 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO wiki_posts (folder_id, title, author_id, is_pinned, tags)
-        VALUES (#{folderId}, #{title}, #{authorId}, #{isPinned}, #{tags})
+        VALUES (#{folderId}, #{title}, #{authorId}, #{isPinned}, #{tags.toCsv})
     </insert>
 
     <update id="update">
@@ -92,7 +91,7 @@
         SET title      = #{title},
             folder_id  = #{folderId},
             is_pinned  = #{isPinned},
-            tags       = #{tags},
+            tags       = #{tags.toCsv},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>

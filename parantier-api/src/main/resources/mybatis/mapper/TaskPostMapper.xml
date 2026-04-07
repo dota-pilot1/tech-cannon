@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.mapo.palantier.task.post.TaskPostMapper">
+<mapper namespace="com.mapo.palantier.task.infrastructure.TaskPostMapper">
 
-    <resultMap id="TaskPostResultMap" type="com.mapo.palantier.task.post.TaskPost">
+    <resultMap id="TaskPostSummaryResultMap" type="com.mapo.palantier.task.presentation.dto.TaskPostSummary">
         <id property="id" column="id"/>
         <result property="folderId" column="folder_id"/>
         <result property="title" column="title"/>
@@ -12,10 +12,9 @@
         <result property="authorName" column="author_name"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
-        <result property="deletedAt" column="deleted_at"/>
     </resultMap>
 
-    <resultMap id="TaskPostWithBlocksResultMap" type="com.mapo.palantier.task.post.TaskPost">
+    <resultMap id="TaskPostDetailResultMap" type="com.mapo.palantier.task.presentation.dto.TaskPostDetail">
         <id property="id" column="id"/>
         <result property="folderId" column="folder_id"/>
         <result property="title" column="title"/>
@@ -23,7 +22,7 @@
         <result property="authorName" column="author_name"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
-        <collection property="blocks" ofType="com.mapo.palantier.task.block.TaskBlock">
+        <collection property="blocks" ofType="com.mapo.palantier.task.domain.TaskBlock">
             <id property="id" column="block_id"/>
             <result property="postId" column="post_id"/>
             <result property="blockType" column="block_type"/>
@@ -32,7 +31,7 @@
         </collection>
     </resultMap>
 
-    <select id="findAll" resultMap="TaskPostResultMap">
+    <select id="findAll" resultMap="TaskPostSummaryResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
                p.created_at, p.updated_at
@@ -42,7 +41,7 @@
         ORDER BY p.updated_at DESC
     </select>
 
-    <select id="findByFolderId" resultMap="TaskPostResultMap">
+    <select id="findByFolderId" resultMap="TaskPostSummaryResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
                p.created_at, p.updated_at
@@ -53,7 +52,7 @@
         ORDER BY p.updated_at DESC
     </select>
 
-    <select id="findById" resultMap="TaskPostResultMap">
+    <select id="findById" resultMap="TaskPostSummaryResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
                p.created_at, p.updated_at
@@ -62,7 +61,7 @@
         WHERE p.id = #{id} AND p.deleted_at IS NULL
     </select>
 
-    <select id="findByIdWithBlocks" resultMap="TaskPostWithBlocksResultMap">
+    <select id="findByIdWithBlocks" resultMap="TaskPostDetailResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
                p.created_at, p.updated_at,

@@ -39,26 +39,38 @@ public class StudyPostService {
 
     @Transactional
     public Long createPost(StudyPostRequest req, Long authorId) {
-        StudyPost post = new StudyPost();
-        post.setCategoryId(req.getCategoryId());
-        post.setTitle(req.getTitle());
-        post.setContent(req.getContent());
-        post.setIsPublic(req.getIsPublic() != null ? req.getIsPublic() : true);
-        post.setAuthorId(authorId);
+        StudyPost post = StudyPost.builder()
+            .categoryId(req.getCategoryId())
+            .title(req.getTitle())
+            .content(req.getContent())
+            .isPublic(req.getIsPublic() != null ? req.getIsPublic() : true)
+            .authorId(authorId)
+            .build();
         studyPostMapper.insert(post);
         return post.getId();
     }
 
     @Transactional
     public void updatePost(Long id, StudyPostRequest req, Long currentUserId) {
-        StudyPost post = studyPostMapper
+        StudyPost existing = studyPostMapper
             .findById(id, currentUserId)
             .orElseThrow(() ->
                 new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id)
             );
-        post.setTitle(req.getTitle());
-        post.setContent(req.getContent());
-        if (req.getIsPublic() != null) post.setIsPublic(req.getIsPublic());
+        StudyPost post = StudyPost.builder()
+            .id(existing.getId())
+            .categoryId(existing.getCategoryId())
+            .title(req.getTitle())
+            .content(req.getContent())
+            .isPublic(
+                req.getIsPublic() != null
+                    ? req.getIsPublic()
+                    : existing.getIsPublic()
+            )
+            .authorId(existing.getAuthorId())
+            .viewCount(existing.getViewCount())
+            .isPinned(existing.getIsPinned())
+            .build();
         studyPostMapper.update(post);
     }
 

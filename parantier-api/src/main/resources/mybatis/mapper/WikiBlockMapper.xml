@@ -2,12 +2,12 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.mapo.palantier.wiki.block.WikiBlockMapper">
+<mapper namespace="com.mapo.palantier.wiki.infrastructure.WikiBlockMapper">
 
-    <resultMap id="WikiBlockResultMap" type="com.mapo.palantier.wiki.block.WikiBlock">
+    <resultMap id="WikiBlockResultMap" type="com.mapo.palantier.wiki.domain.WikiBlock">
         <id property="id" column="id"/>
         <result property="postId" column="post_id"/>
-        <result property="blockType" column="block_type" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="blockType" column="block_type" typeHandler="org.apache.ibatis.type.EnumTypeHandler" javaType="com.mapo.palantier.wiki.domain.WikiBlockType"/>
         <result property="content" column="content"/>
         <result property="sortOrder" column="sort_order"/>
         <result property="createdAt" column="created_at"/>

@@ -22,26 +22,28 @@ public class StudyCategoryService {
 
     @Transactional
     public Long createCategory(StudyCategoryRequest req, Long authorId) {
-        StudyCategory category = new StudyCategory();
-        category.setName(req.getName());
-        category.setParentId(req.getParentId());
-        category.setIcon(req.getIcon());
-        category.setDescription(req.getDescription());
-        category.setOrderNum(req.getOrderNum());
-        category.setAuthorId(authorId);
+        StudyCategory category = StudyCategory.builder()
+            .name(req.getName())
+            .parentId(req.getParentId())
+            .icon(req.getIcon())
+            .description(req.getDescription())
+            .orderNum(req.getOrderNum())
+            .authorId(authorId)
+            .build();
         studyCategoryMapper.insert(category);
         return category.getId();
     }
 
     @Transactional
     public void updateCategory(Long id, StudyCategoryRequest req) {
-        StudyCategory category = new StudyCategory();
-        category.setId(id);
-        category.setName(req.getName());
-        category.setParentId(req.getParentId());
-        category.setIcon(req.getIcon());
-        category.setDescription(req.getDescription());
-        category.setOrderNum(req.getOrderNum());
+        StudyCategory category = StudyCategory.builder()
+            .id(id)
+            .name(req.getName())
+            .parentId(req.getParentId())
+            .icon(req.getIcon())
+            .description(req.getDescription())
+            .orderNum(req.getOrderNum())
+            .build();
         studyCategoryMapper.update(category);
     }
 
@@ -55,10 +57,23 @@ public class StudyCategoryService {
         List<StudyCategory> roots = new ArrayList<>();
 
         for (StudyCategory cat : flat) {
-            cat.setChildren(new ArrayList<>());
-            map.put(cat.getId(), cat);
+            StudyCategory withChildren = StudyCategory.builder()
+                .id(cat.getId())
+                .name(cat.getName())
+                .parentId(cat.getParentId())
+                .icon(cat.getIcon())
+                .description(cat.getDescription())
+                .orderNum(cat.getOrderNum())
+                .isActive(cat.getIsActive())
+                .authorId(cat.getAuthorId())
+                .createdAt(cat.getCreatedAt())
+                .updatedAt(cat.getUpdatedAt())
+                .depth(cat.getDepth())
+                .children(new ArrayList<>())
+                .build();
+            map.put(withChildren.getId(), withChildren);
         }
-        for (StudyCategory cat : flat) {
+        for (StudyCategory cat : map.values()) {
             if (cat.getParentId() == null) {
                 roots.add(cat);
             } else {

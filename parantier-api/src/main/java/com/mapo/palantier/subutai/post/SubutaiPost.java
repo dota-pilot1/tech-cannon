@@ -1,12 +1,19 @@
 package com.mapo.palantier.subutai.post;
 
 import com.mapo.palantier.subutai.block.SubutaiBlock;
-import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-@Data
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SubutaiPost {
+
     private Long id;
     private Long folderId;
     private String title;

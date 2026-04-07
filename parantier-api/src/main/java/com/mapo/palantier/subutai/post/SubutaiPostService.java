@@ -4,16 +4,16 @@ import com.mapo.palantier.subutai.block.SubutaiBlock;
 import com.mapo.palantier.subutai.block.SubutaiBlockMapper;
 import com.mapo.palantier.subutai.dto.SubutaiBlockDto;
 import com.mapo.palantier.subutai.dto.SubutaiPostDto;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SubutaiPostService {
+
     private final SubutaiPostMapper subutaiPostMapper;
     private final SubutaiBlockMapper subutaiBlockMapper;
 
@@ -26,47 +26,76 @@ public class SubutaiPostService {
     }
 
     public SubutaiPost getPostById(Long id) {
-        return subutaiPostMapper.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id));
+        return subutaiPostMapper
+            .findById(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id)
+            );
     }
 
     public SubutaiPost getPostWithBlocks(Long id) {
-        return subutaiPostMapper.findByIdWithBlocks(id)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id));
+        return subutaiPostMapper
+            .findByIdWithBlocks(id)
+            .orElseThrow(() ->
+                new IllegalArgumentException("게시글을 찾을 수 없습니다: " + id)
+            );
     }
 
     @Transactional
     public Long savePost(SubutaiPostDto dto, Long currentUserId) {
-        SubutaiPost post = new SubutaiPost();
-        post.setFolderId(dto.getFolderId());
-        post.setTitle(dto.getTitle());
-        post.setAuthorId(currentUserId);
-
         if (dto.getId() == null) {
             // 신규 생성
+            SubutaiPost post = SubutaiPost.builder()
+                .folderId(dto.getFolderId())
+                .title(dto.getTitle())
+                .authorId(currentUserId)
+                .build();
             subutaiPostMapper.insert(post);
+
+            // 블록 저장
+            if (dto.getBlocks() != null && !dto.getBlocks().isEmpty()) {
+                for (int i = 0; i < dto.getBlocks().size(); i++) {
+                    SubutaiBlockDto blockDto = dto.getBlocks().get(i);
+                    SubutaiBlock block = SubutaiBlock.builder()
+                        .postId(post.getId())
+                        .blockType(blockDto.getBlockType())
+                        .content(blockDto.getContent())
+                        .sortOrder(i)
+                        .build();
+                    subutaiBlockMapper.insert(block);
+                }
+            }
+
+            return post.getId();
         } else {
             // 수정
-            post.setId(dto.getId());
+            SubutaiPost post = SubutaiPost.builder()
+                .id(dto.getId())
+                .folderId(dto.getFolderId())
+                .title(dto.getTitle())
+                .authorId(currentUserId)
+                .build();
             subutaiPostMapper.update(post);
+
             // 기존 블록 삭제
             subutaiBlockMapper.deleteByPostId(post.getId());
-        }
 
-        // 블록 저장
-        if (dto.getBlocks() != null && !dto.getBlocks().isEmpty()) {
-            for (int i = 0; i < dto.getBlocks().size(); i++) {
-                SubutaiBlockDto blockDto = dto.getBlocks().get(i);
-                SubutaiBlock block = new SubutaiBlock();
-                block.setPostId(post.getId());
-                block.setBlockType(blockDto.getBlockType());
-                block.setContent(blockDto.getContent());
-                block.setSortOrder(i);
-                subutaiBlockMapper.insert(block);
+            // 블록 저장
+            if (dto.getBlocks() != null && !dto.getBlocks().isEmpty()) {
+                for (int i = 0; i < dto.getBlocks().size(); i++) {
+                    SubutaiBlockDto blockDto = dto.getBlocks().get(i);
+                    SubutaiBlock block = SubutaiBlock.builder()
+                        .postId(post.getId())
+                        .blockType(blockDto.getBlockType())
+                        .content(blockDto.getContent())
+                        .sortOrder(i)
+                        .build();
+                    subutaiBlockMapper.insert(block);
+                }
             }
-        }
 
-        return post.getId();
+            return post.getId();
+        }
     }
 
     @Transactional

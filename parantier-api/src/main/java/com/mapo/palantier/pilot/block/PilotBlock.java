@@ -1,9 +1,16 @@
 package com.mapo.palantier.pilot.block;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PilotBlock {
     private Long id;
     private Long postId;

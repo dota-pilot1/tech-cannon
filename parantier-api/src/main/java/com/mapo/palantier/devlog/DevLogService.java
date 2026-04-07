@@ -18,15 +18,14 @@ public class DevLogService {
 
     @Transactional
     public Long createDevLog(DevLogDto dto, Long userId) {
-        DevLog devLog = new DevLog();
-        devLog.setUserId(userId);
-        devLog.setTitle(dto.getTitle() != null ? dto.getTitle() : "제목 없음");
-        devLog.setContent(dto.getContent());
-        devLog.setSortOrder(
-            dto.getSortOrder() != null ? dto.getSortOrder() : 0
-        );
-        devLog.setLogDate(dto.getLogDate());
-        devLog.setSummary(dto.getSummary());
+        DevLog devLog = DevLog.builder()
+            .userId(userId)
+            .title(dto.getTitle() != null ? dto.getTitle() : "제목 없음")
+            .content(dto.getContent())
+            .sortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0)
+            .logDate(dto.getLogDate())
+            .summary(dto.getSummary())
+            .build();
         devLogMapper.insert(devLog);
         return devLog.getId();
     }
@@ -43,20 +42,29 @@ public class DevLogService {
         if (!devLog.getUserId().equals(userId)) {
             throw new IllegalArgumentException("수정 권한이 없습니다");
         }
-        devLog.setTitle(
-            dto.getTitle() != null ? dto.getTitle() : devLog.getTitle()
-        );
-        devLog.setContent(dto.getContent());
-        if (dto.getSortOrder() != null) {
-            devLog.setSortOrder(dto.getSortOrder());
-        }
-        if (dto.getLogDate() != null) {
-            devLog.setLogDate(dto.getLogDate());
-        }
-        devLog.setSummary(
-            dto.getSummary() != null ? dto.getSummary() : devLog.getSummary()
-        );
-        devLogMapper.update(devLog);
+        DevLog updated = DevLog.builder()
+            .id(devLog.getId())
+            .userId(devLog.getUserId())
+            .title(dto.getTitle() != null ? dto.getTitle() : devLog.getTitle())
+            .content(dto.getContent())
+            .sortOrder(
+                dto.getSortOrder() != null
+                    ? dto.getSortOrder()
+                    : devLog.getSortOrder()
+            )
+            .logDate(
+                dto.getLogDate() != null
+                    ? dto.getLogDate()
+                    : devLog.getLogDate()
+            )
+            .summary(
+                dto.getSummary() != null
+                    ? dto.getSummary()
+                    : devLog.getSummary()
+            )
+            .createdAt(devLog.getCreatedAt())
+            .build();
+        devLogMapper.update(updated);
     }
 
     @Transactional

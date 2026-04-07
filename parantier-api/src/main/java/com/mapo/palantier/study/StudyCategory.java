@@ -2,9 +2,15 @@ package com.mapo.palantier.study;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-@Data
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class StudyCategory {
 
     private Long id;

@@ -1,10 +1,17 @@
 package com.mapo.palantier.prototype.block;
 
-import lombok.Data;
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-@Data
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProtoBlock {
+
     private Long id;
     private Long postId;
     private ProtoBlockType blockType;

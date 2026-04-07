@@ -1,8 +1,17 @@
 package com.mapo.palantier.subutai.ai.domain;
-import lombok.Data;
+
 import java.time.LocalDateTime;
-@Data
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SubutaiDocFolder {
+
     private Long id;
     private String name;
     private Integer orderNum;

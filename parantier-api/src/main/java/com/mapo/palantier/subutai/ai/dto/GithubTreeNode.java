@@ -1,12 +1,12 @@
 package com.mapo.palantier.subutai.ai.dto;
 
-import lombok.Data;
+import lombok.Getter;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import java.util.List;
 
-@Data
+@Getter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor

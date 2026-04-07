@@ -1,8 +1,9 @@
 package com.mapo.palantier.study;
 
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+
+@Getter
 public class StudyLike {
 
     private Long id;

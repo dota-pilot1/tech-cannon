@@ -1,9 +1,15 @@
 package com.mapo.palantier.prompt.folder;
 
-import lombok.Data;
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-@Data
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PromptFolder {
     private Long id;
     private Long parentId;
