@@ -58,6 +58,13 @@
     }
 }
 
+/* ── Lexical 뷰어 코드블록 줄간격 제거 ── */
+.lexical-viewer pre p,
+.lexical-viewer code p {
+    margin-bottom: 0 !important;
+    line-height: 1.5;
+}
+
 /* AG-Grid 헤더 중앙 정렬 */
 .ag-header-cell-center .ag-header-cell-label {
     justify-content: center;

@@ -27,6 +27,7 @@
             <id property="id" column="block_id"/>
             <result property="postId" column="post_id"/>
             <result property="blockType" column="block_type" typeHandler="com.mapo.palantier.subutai.block.SubutaiBlockTypeHandler"/>
+            <result property="blockTitle" column="block_title"/>
             <result property="content" column="content"/>
             <result property="sortOrder" column="sort_order"/>
         </collection>
@@ -66,7 +67,7 @@
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
                p.created_at, p.updated_at,
-               b.id as block_id, b.post_id, b.block_type, b.content, b.sort_order
+               b.id as block_id, b.post_id, b.block_type, b.block_title, b.content, b.sort_order
         FROM subutai_posts p
         JOIN users u ON p.author_id = u.id
         LEFT JOIN subutai_blocks b ON p.id = b.post_id

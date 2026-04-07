@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import { toast } from "sonner";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { subutaiDocuApi } from "@/features/subutai-docu/api/subutaiDocuApi";
 import type {
@@ -247,6 +248,7 @@ export default function SubutaiAiPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingBlocks, setEditingBlocks] = useState<SubutaiDocuBlock[]>([]);
+  const editingBlocksRef = useRef<SubutaiDocuBlock[]>([]);
   const [isSavingPost, setIsSavingPost] = useState(false);
 
   // 태그 state
@@ -445,7 +447,9 @@ export default function SubutaiAiPage() {
       const full = await subutaiDocuApi.getPost(post.id);
       setViewPost(full);
       setEditingTitle(full.title);
-      setEditingBlocks(full.blocks ?? []);
+      const blocks = full.blocks ?? [];
+      setEditingBlocks(blocks);
+      editingBlocksRef.current = blocks;
       // 태그 로드
       const tags = await subutaiDocuApi.getTags(post.id).catch(() => []);
       setEditingTags(tags);
@@ -464,14 +468,15 @@ export default function SubutaiAiPage() {
         id: viewPost.id,
         folderId: viewPost.folderId,
         title: editingTitle,
-        blocks: editingBlocks,
+        blocks: editingBlocksRef.current,
       });
       // 태그 저장
       await subutaiDocuApi.saveTags(viewPost.id, editingTags).catch(() => {});
+      toast.success("저장되었습니다");
       setIsViewDialogOpen(false);
       await loadDocFolders();
-    } catch {
-      // 무시
+    } catch (e) {
+      toast.error("저장 실패: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setIsSavingPost(false);
     }
@@ -860,7 +865,10 @@ export default function SubutaiAiPage() {
               title={editingTitle}
               setTitle={setEditingTitle}
               blocks={editingBlocks}
-              setBlocks={setEditingBlocks}
+              setBlocks={(blocks) => {
+                setEditingBlocks(blocks);
+                editingBlocksRef.current = blocks;
+              }}
               hideTitle
             />
           </div>
