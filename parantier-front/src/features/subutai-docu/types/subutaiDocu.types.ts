@@ -55,6 +55,7 @@ export interface SubutaiDocuFolderDto {
 
 export interface SubutaiDocuBlockDto {
   blockType: BlockType;
+  blockTitle?: string;
   content: string;
 }
 
