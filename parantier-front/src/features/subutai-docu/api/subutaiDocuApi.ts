@@ -83,16 +83,16 @@ export const subutaiDocuApi = {
 
   // Tags
   getTags: async (postId: number): Promise<string[]> => {
-    const { data } = await apiClient.get(`/subutai/doc/posts/${postId}/tags`);
+    const { data } = await apiClient.get(`/subutai/posts/${postId}/tags`);
     return data;
   },
 
   saveTags: async (postId: number, tags: string[]): Promise<void> => {
-    await apiClient.put(`/subutai/doc/posts/${postId}/tags`, { tags });
+    await apiClient.put(`/subutai/posts/${postId}/tags`, { tags });
   },
 
   searchByTag: async (keyword: string): Promise<SubutaiTagSearchResult[]> => {
-    const { data } = await apiClient.get("/subutai/doc/tags/search", {
+    const { data } = await apiClient.get("/subutai/posts/tags/search", {
       params: { keyword },
     });
     return data;
