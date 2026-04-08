@@ -103,16 +103,30 @@ function TopicBlockViewer({ block }: { block: ChallengeTopic }) {
 // ─────────────────────────────────────────────
 // 아바타 컴포넌트
 // ─────────────────────────────────────────────
-function UserAvatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
+function UserAvatar({
+  name,
+  size = "md",
+}: {
+  name: string;
+  size?: "sm" | "md";
+}) {
   const initial = name?.charAt(0)?.toUpperCase() ?? "?";
   const colors = [
-    "bg-blue-500", "bg-green-500", "bg-purple-500", "bg-amber-500",
-    "bg-pink-500", "bg-teal-500", "bg-indigo-500", "bg-rose-500",
+    "bg-blue-500",
+    "bg-green-500",
+    "bg-purple-500",
+    "bg-amber-500",
+    "bg-pink-500",
+    "bg-teal-500",
+    "bg-indigo-500",
+    "bg-rose-500",
   ];
   const colorIdx = name ? name.charCodeAt(0) % colors.length : 0;
   const sizeClass = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
   return (
-    <div className={`${sizeClass} ${colors[colorIdx]} rounded-full flex items-center justify-center text-white font-bold shrink-0`}>
+    <div
+      className={`${sizeClass} ${colors[colorIdx]} rounded-full flex items-center justify-center text-white font-bold shrink-0`}
+    >
       {initial}
     </div>
   );
@@ -211,6 +225,7 @@ export function ChallengePage() {
   const [editingSectionTitle, setEditingSectionTitle] = useState("");
 
   // ── 풀이 제출 상태
+  const [isSubmitFormOpen, setIsSubmitFormOpen] = useState(false);
   const [submissionGithubUrl, setSubmissionGithubUrl] = useState("");
   const [submissionContent, setSubmissionContent] = useState("");
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(
@@ -402,6 +417,7 @@ export function ChallengePage() {
       });
       setSubmissionGithubUrl("");
       setSubmissionContent("");
+      setIsSubmitFormOpen(false);
       toast.success("풀이가 제출되었습니다");
     },
     onError: () => toast.error("제출 실패"),
@@ -1098,48 +1114,75 @@ export function ChallengePage() {
 
               {/* ── 풀이 제출 영역 ── */}
               <section className="flex-1 p-6 overflow-y-auto">
-                <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
-                  <Send className="w-4 h-4 text-primary" />
-                  Submit Solution
-                </h3>
+                {/* 제출 폼 토글 버튼 */}
+                <button
+                  onClick={() => setIsSubmitFormOpen((v) => !v)}
+                  className="w-full flex items-center justify-between mb-4 group"
+                >
+                  <h3 className="text-base font-semibold flex items-center gap-2">
+                    <Send className="w-4 h-4 text-primary" />
+                    제출
+                  </h3>
+                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
+                    {isSubmitFormOpen ? (
+                      <>접기 <ChevronDown className="w-3.5 h-3.5" /></>
+                    ) : (
+                      <>작성하기 <Plus className="w-3.5 h-3.5" /></>
+                    )}
+                  </span>
+                </button>
 
-                {/* 내 풀이 작성 */}
-                <div className="mb-6 space-y-3 bg-muted/30 rounded-lg p-4 border border-border">
-                  <div className="flex items-start gap-3">
-                    <UserAvatar name={user?.username ?? "?"} />
-                    <div className="flex-1 space-y-3">
-                      <input
-                        type="url"
-                        value={submissionGithubUrl}
-                        onChange={(e) => setSubmissionGithubUrl(e.target.value)}
-                        placeholder="GitHub URL (repo, gist, PR...)"
-                        className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                      />
-                      <textarea
-                        value={submissionContent}
-                        onChange={(e) => setSubmissionContent(e.target.value)}
-                        rows={3}
-                        placeholder="Description..."
-                        className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
-                      />
-                      <div className="flex justify-end">
-                        <Button
-                          onClick={() => createSubmissionMutation.mutate()}
-                          disabled={
-                            (!submissionContent.trim() && !submissionGithubUrl.trim()) ||
-                            createSubmissionMutation.isPending
-                          }
-                          className="flex items-center gap-1.5"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          {createSubmissionMutation.isPending
-                            ? "Submitting..."
-                            : "Submit"}
-                        </Button>
+                {/* 내 풀이 작성 (토글) */}
+                {isSubmitFormOpen && (
+                  <div className="mb-6 space-y-3 bg-muted/30 rounded-lg p-4 border border-border animate-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-start gap-3">
+                      <UserAvatar name={user?.username ?? "?"} />
+                      <div className="flex-1 space-y-3">
+                        <input
+                          type="url"
+                          value={submissionGithubUrl}
+                          onChange={(e) => setSubmissionGithubUrl(e.target.value)}
+                          placeholder="GitHub URL (repo, gist, PR...)"
+                          className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                        <textarea
+                          value={submissionContent}
+                          onChange={(e) => setSubmissionContent(e.target.value)}
+                          rows={3}
+                          placeholder="Description..."
+                          className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setIsSubmitFormOpen(false);
+                              setSubmissionGithubUrl("");
+                              setSubmissionContent("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={() => createSubmissionMutation.mutate()}
+                            disabled={
+                              (!submissionContent.trim() &&
+                                !submissionGithubUrl.trim()) ||
+                              createSubmissionMutation.isPending
+                            }
+                            className="flex items-center gap-1.5"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            {createSubmissionMutation.isPending
+                              ? "Submitting..."
+                              : "Submit"}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* 팀원 제출 목록 */}
                 {submissions.length > 0 && (
@@ -1253,7 +1296,13 @@ export function ChallengePage() {
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline mb-2"
                                       >
-                                        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                                        <svg
+                                          className="w-4 h-4"
+                                          viewBox="0 0 16 16"
+                                          fill="currentColor"
+                                        >
+                                          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                                        </svg>
                                         {sub.githubUrl}
                                       </a>
                                     )}
@@ -1269,7 +1318,9 @@ export function ChallengePage() {
                                           variant="outline"
                                           onClick={() => {
                                             setEditingSubmissionId(sub.id);
-                                            setEditSubGithubUrl(sub.githubUrl ?? "");
+                                            setEditSubGithubUrl(
+                                              sub.githubUrl ?? "",
+                                            );
                                             setEditSubContent(sub.content);
                                           }}
                                         >
@@ -1284,9 +1335,7 @@ export function ChallengePage() {
                                           className="text-destructive hover:text-destructive"
                                           onClick={() => {
                                             if (
-                                              confirm(
-                                                "Delete this submission?",
-                                              )
+                                              confirm("Delete this submission?")
                                             ) {
                                               deleteSubmissionMutation.mutate(
                                                 sub.id,
