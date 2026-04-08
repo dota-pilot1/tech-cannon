@@ -57,7 +57,10 @@ export default function SubutaiDocuBlockEditor({
   const [addingBlockTitle, setAddingBlockTitle] = useState("");
 
   // 사이드바 리사이즈
-  const [sidebarWidth, setSidebarWidth] = useState(260);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem("blockEditorSidebarWidth");
+    return saved ? Number(saved) : 260;
+  });
   const isResizing = useRef(false);
 
   useEffect(() => {
@@ -69,6 +72,9 @@ export default function SubutaiDocuBlockEditor({
       setSidebarWidth(Math.max(150, Math.min(400, e.clientX - left)));
     };
     const onUp = () => {
+      if (isResizing.current) {
+        localStorage.setItem("blockEditorSidebarWidth", String(sidebarWidth));
+      }
       isResizing.current = false;
       document.body.style.cursor = "default";
     };
