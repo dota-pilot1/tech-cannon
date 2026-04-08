@@ -253,6 +253,9 @@ export function ChallengePage() {
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [editTopicBlocks, setEditTopicBlocks] = useState<ChallengeTopic[]>([]);
   const [editChecklistItems, setEditChecklistItems] = useState<ChecklistItem[]>([]);
+  const [isBulkInputOpen, setIsBulkInputOpen] = useState(false);
+  const [bulkInputText, setBulkInputText] = useState("");
+  const [bulkInputPoint, setBulkInputPoint] = useState(10);
 
   // ── 카테고리 CRUD 상태
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -1162,18 +1165,30 @@ export function ChallengePage() {
                           <Check className="w-4 h-4 text-emerald-500" />
                           Checklist (채점 항목)
                         </h4>
-                        <button
-                          onClick={() =>
-                            setEditChecklistItems((prev) => [
-                              ...prev,
-                              { label: "", point: 10 },
-                            ])
-                          }
-                          className="text-xs text-primary hover:text-primary/80 flex items-center gap-0.5"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          항목 추가
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setBulkInputText("");
+                              setBulkInputPoint(10);
+                              setIsBulkInputOpen(true);
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 border border-border rounded px-2 py-0.5"
+                          >
+                            대량 입력
+                          </button>
+                          <button
+                            onClick={() =>
+                              setEditChecklistItems((prev) => [
+                                ...prev,
+                                { label: "", point: 10 },
+                              ])
+                            }
+                            className="text-xs text-primary hover:text-primary/80 flex items-center gap-0.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            항목 추가
+                          </button>
+                        </div>
                       </div>
                       {editChecklistItems.length === 0 ? (
                         <p className="text-xs text-muted-foreground py-2">
@@ -1245,6 +1260,68 @@ export function ChallengePage() {
                         </div>
                       )}
                     </div>
+
+                    {/* 대량 입력 다이얼로그 */}
+                    {isBulkInputOpen && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                        <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg p-5 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold">대량 입력</h3>
+                            <button onClick={() => setIsBulkInputOpen(false)} className="text-muted-foreground hover:text-foreground">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            한 줄에 하나씩 입력하세요. 줄바꿈으로 구분됩니다.
+                          </p>
+                          <textarea
+                            autoFocus
+                            value={bulkInputText}
+                            onChange={(e) => setBulkInputText(e.target.value)}
+                            rows={10}
+                            placeholder={"JWT 로그인 구현 (Access/Refresh 발급, BCrypt)\nJwtAuthenticationFilter로 인증 처리\nRole 기반 인가 설정\n..."}
+                            className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y font-mono"
+                          />
+                          <div className="flex items-center gap-3">
+                            <label className="text-xs text-muted-foreground shrink-0">기본 배점</label>
+                            <input
+                              type="number"
+                              value={bulkInputPoint}
+                              onChange={(e) => setBulkInputPoint(Number(e.target.value) || 0)}
+                              className="w-20 text-sm text-center border border-input rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                              min={0}
+                            />
+                            <span className="text-xs text-muted-foreground">pt / 항목</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-border">
+                            <span className="text-xs text-muted-foreground">
+                              {bulkInputText.split("\n").filter((l) => l.trim()).length}개 항목 감지
+                            </span>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => setIsBulkInputOpen(false)}>
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const lines = bulkInputText.split("\n").filter((l) => l.trim());
+                                  const newItems = lines.map((label) => ({
+                                    label: label.trim(),
+                                    point: bulkInputPoint,
+                                  }));
+                                  setEditChecklistItems((prev) => [...prev, ...newItems]);
+                                  setIsBulkInputOpen(false);
+                                }}
+                                disabled={!bulkInputText.trim()}
+                              >
+                                <Plus className="w-3.5 h-3.5 mr-1" />
+                                추가 ({bulkInputText.split("\n").filter((l) => l.trim()).length}개)
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border">
                       <Button
