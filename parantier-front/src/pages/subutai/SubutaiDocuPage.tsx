@@ -240,8 +240,8 @@ function SortableFolderItem({
 }: {
   folder: SubutaiDocuFolder;
   children: (props: {
-    dragHandleProps: Record<string, unknown>;
-    dragHandleListeners: Record<string, unknown> | undefined;
+    dragHandleProps: Record<string, any>;
+    dragHandleListeners: Record<string, any> | undefined;
   }) => React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -619,8 +619,8 @@ export default function SubutaiDocuPage() {
   const renderFolder = (
     folder: SubutaiDocuFolder,
     depth = 0,
-    dragHandleProps?: Record<string, unknown>,
-    dragHandleListeners?: Record<string, unknown>,
+    dragHandleProps?: Record<string, any>,
+    dragHandleListeners?: Record<string, any>,
   ) => {
     const isSelected = selectedFolderId === folder.id;
     const isExpanded = expandedFolders.has(folder.id);
