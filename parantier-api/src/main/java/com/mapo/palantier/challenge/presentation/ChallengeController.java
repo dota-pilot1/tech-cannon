@@ -10,14 +10,14 @@ import com.mapo.palantier.challenge.dto.ChallengeReorderRequest.ReorderItem;
 import com.mapo.palantier.challenge.dto.ChallengeSectionRequest;
 import com.mapo.palantier.challenge.dto.ChallengeSubmissionRequest;
 import com.mapo.palantier.challenge.dto.ChallengeTopicDto;
-import com.mapo.palantier.user.domain.User;
-import com.mapo.palantier.user.domain.UserRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -123,10 +123,9 @@ public class ChallengeController {
     @PutMapping("/sections/{id}/topics")
     public ResponseEntity<Void> saveTopics(
             @PathVariable Long id,
-            @RequestBody List<ChallengeTopicDto> topics,
-            @AuthenticationPrincipal User user
+            @RequestBody List<ChallengeTopicDto> topics
     ) {
-        Long userId = (user != null) ? user.getId() : null;
+        Long userId = getCurrentUserId();
         challengeService.saveTopics(id, topics, userId);
         return ResponseEntity.ok().build();
     }
@@ -143,10 +142,9 @@ public class ChallengeController {
     @PostMapping("/sections/{id}/submissions")
     public ResponseEntity<Void> createSubmission(
             @PathVariable Long id,
-            @RequestBody ChallengeSubmissionRequest req,
-            @AuthenticationPrincipal User user
+            @RequestBody ChallengeSubmissionRequest req
     ) {
-        challengeService.createSubmission(id, req, user.getId());
+        challengeService.createSubmission(id, req, getCurrentUserId());
         return ResponseEntity.ok().build();
     }
 
@@ -154,21 +152,26 @@ public class ChallengeController {
     @PutMapping("/submissions/{id}")
     public ResponseEntity<Void> updateSubmission(
             @PathVariable Long id,
-            @RequestBody ChallengeSubmissionRequest req,
-            @AuthenticationPrincipal User user
+            @RequestBody ChallengeSubmissionRequest req
     ) {
-        challengeService.updateSubmission(id, req, user.getId());
+        challengeService.updateSubmission(id, req, getCurrentUserId());
         return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "챌린지 풀이 삭제")
     @DeleteMapping("/submissions/{id}")
-    public ResponseEntity<Void> deleteSubmission(
-            @PathVariable Long id,
-            @AuthenticationPrincipal User user
-    ) {
-        boolean isAdmin = user.getRole() == UserRole.ROLE_ADMIN;
-        challengeService.deleteSubmission(id, user.getId(), isAdmin);
+    public ResponseEntity<Void> deleteSubmission(@PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = getCurrentUserId();
+        boolean isAdmin = auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_ADMIN"::equals);
+        challengeService.deleteSubmission(id, userId, isAdmin);
         return ResponseEntity.ok().build();
+    }
+
+    private Long getCurrentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return (Long) auth.getPrincipal();
     }
 }
