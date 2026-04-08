@@ -1,6 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { LexicalEditor } from "@/shared/ui/lexical/LexicalEditor";
 import { Mermaid } from "@/shared/ui/mermaid";
+import { GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type {
   SubutaiDocuBlock,
   BlockType,
@@ -40,6 +56,55 @@ export default function SubutaiDocuBlockEditor({
   );
   const [addingBlockTitle, setAddingBlockTitle] = useState("");
 
+  // 사이드바 리사이즈
+  const [sidebarWidth, setSidebarWidth] = useState(208);
+  const isResizing = useRef(false);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      const parent = document.getElementById("block-editor-container");
+      if (!parent) return;
+      const left = parent.getBoundingClientRect().left;
+      setSidebarWidth(Math.max(150, Math.min(400, e.clientX - left)));
+    };
+    const onUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = "default";
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // 블록 드래그앤드롭
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  // 블록마다 고유 ID 부여 (index 기반)
+  const blockIds = blocks.map((_, i) => `block-${i}`);
+
+  const handleBlockDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = blockIds.indexOf(active.id as string);
+      const newIndex = blockIds.indexOf(over.id as string);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(blocks, oldIndex, newIndex);
+      setBlocks(reordered);
+      // 선택된 블록 인덱스도 따라가도록
+      if (selectedIdx === oldIndex) setSelectedIdx(newIndex);
+      else if (oldIndex < selectedIdx && newIndex >= selectedIdx) setSelectedIdx(selectedIdx - 1);
+      else if (oldIndex > selectedIdx && newIndex <= selectedIdx) setSelectedIdx(selectedIdx + 1);
+    },
+    [blocks, blockIds, selectedIdx, setBlocks],
+  );
+
   const updateBlock = (
     idx: number,
     prop: keyof SubutaiDocuBlock,
@@ -71,9 +136,9 @@ export default function SubutaiDocuBlockEditor({
     : null;
 
   return (
-    <div className="flex h-full min-h-0 text-sm overflow-hidden">
+    <div id="block-editor-container" className="flex h-full min-h-0 text-sm overflow-hidden">
       {/* 좌측: 블록 목록 사이드바 */}
-      <div className="w-52 shrink-0 border-r border-border flex flex-col bg-muted/20">
+      <div className="shrink-0 border-r border-border flex flex-col bg-muted/20" style={{ width: `${sidebarWidth}px` }}>
         {!hideTitle && (
           <div className="px-3 py-2.5 border-b border-border">
             <input
@@ -93,30 +158,20 @@ export default function SubutaiDocuBlockEditor({
               아래에서 본문을 추가하세요
             </p>
           ) : (
-            blocks.map((block, idx) => {
-              const meta = TYPE_META[block.blockType] ?? TYPE_META.NOTE;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedIdx(idx)}
-                  className={`w-full flex items-center gap-2 px-2 py-2 rounded text-left transition-colors ${
-                    selectedIdx === idx
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent text-foreground"
-                  }`}
-                >
-                  <span className="text-base shrink-0">{meta.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">
-                      {block.blockTitle?.trim() ? block.blockTitle : meta.label}
-                    </p>
-                    <p className="text-[10px] opacity-60">
-                      {idx + 1}번 · {meta.label}
-                    </p>
-                  </div>
-                </button>
-              );
-            })
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleBlockDragEnd}>
+              <SortableContext items={blockIds} strategy={verticalListSortingStrategy}>
+                {blocks.map((block, idx) => (
+                  <SortableBlockItem
+                    key={blockIds[idx]}
+                    id={blockIds[idx]}
+                    block={block}
+                    idx={idx}
+                    isSelected={selectedIdx === idx}
+                    onClick={() => setSelectedIdx(idx)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
 
           {/* 블록 추가 중 - 제목 입력 */}
@@ -205,6 +260,15 @@ export default function SubutaiDocuBlockEditor({
           </div>
         </div>
       </div>
+
+      {/* 리사이즈 핸들 */}
+      <div
+        className="w-1.5 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors shrink-0"
+        onMouseDown={() => {
+          isResizing.current = true;
+          document.body.style.cursor = "col-resize";
+        }}
+      />
 
       {/* 우측: 선택된 블록 편집 */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -300,6 +364,62 @@ export default function SubutaiDocuBlockEditor({
             <p className="text-sm">왼쪽에서 본문을 선택하거나 추가하세요</p>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── 드래그 가능한 블록 아이템 ──────────────────────────────────────────────────
+
+function SortableBlockItem({
+  id,
+  block,
+  idx,
+  isSelected,
+  onClick,
+}: {
+  id: string;
+  block: SubutaiDocuBlock;
+  idx: number;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
+  const meta = TYPE_META[block.blockType] ?? TYPE_META.NOTE;
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={onClick}
+      className={`w-full flex items-center gap-1 px-1 py-2 rounded text-left transition-colors cursor-pointer ${
+        isSelected
+          ? "bg-primary text-primary-foreground"
+          : "hover:bg-accent text-foreground"
+      }`}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className={`shrink-0 cursor-grab active:cursor-grabbing p-0.5 rounded ${
+          isSelected
+            ? "text-primary-foreground/50"
+            : "text-muted-foreground/30 hover:text-muted-foreground"
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="w-3 h-3" />
+      </button>
+      <span className="text-base shrink-0">{meta.icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium truncate">
+          {block.blockTitle?.trim() ? block.blockTitle : meta.label}
+        </p>
+        <p className="text-[10px] opacity-60">
+          {idx + 1}번 · {meta.label}
+        </p>
       </div>
     </div>
   );
