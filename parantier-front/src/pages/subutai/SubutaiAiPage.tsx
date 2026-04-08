@@ -20,7 +20,6 @@ import {
   History,
   Github,
   X,
-  RotateCcw,
   Loader2,
   Check,
   FileText,
@@ -411,14 +410,6 @@ export default function SubutaiAiPage() {
         }),
       );
       setDocPosts(postsMap);
-      const allPostIds = new Set(
-        Object.values(postsMap)
-          .flat()
-          .map((p) => p.id),
-      );
-      setSelectedPostIds(
-        (prev) => new Set([...prev].filter((id) => allPostIds.has(id))),
-      );
     } catch {
       // 무시
     } finally {
@@ -466,11 +457,6 @@ export default function SubutaiAiPage() {
     if (!ok) return;
     try {
       await subutaiDocuApi.deleteFolder(id);
-      setSelectedPostIds((prev) => {
-        const next = new Set(prev);
-        (docPosts[id] || []).forEach((p) => next.delete(p.id));
-        return next;
-      });
       await loadDocFolders();
     } catch {
       // 무시
@@ -504,11 +490,6 @@ export default function SubutaiAiPage() {
     if (!ok) return;
     try {
       await subutaiDocuApi.deletePost(id);
-      setSelectedPostIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
       await loadDocFolders();
     } catch {
       // 무시
