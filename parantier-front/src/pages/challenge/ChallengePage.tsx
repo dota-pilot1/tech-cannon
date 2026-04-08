@@ -26,7 +26,6 @@ import {
   ChevronDown,
   ChevronRight,
   Send,
-  Star,
   Trophy,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
@@ -104,23 +103,37 @@ function TopicBlockViewer({ block }: { block: ChallengeTopic }) {
     color: "bg-muted text-muted-foreground",
   };
 
+  const [clOpen, setClOpen] = useState(false);
+
   if (block.blockType === "CHECKLIST") {
     const items = parseChecklist(block.content);
     const totalPoints = items.reduce((s, i) => s + i.point, 0);
     return (
       <div className="mb-4">
-        <span className="text-xs px-2 py-0.5 rounded-full font-medium mb-2 inline-block bg-emerald-100 text-emerald-700">
-          Checklist ({totalPoints}pts)
-        </span>
-        <div className="space-y-1.5 mt-2">
-          {items.map((item, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <div className="w-4 h-4 border border-border rounded flex items-center justify-center bg-muted/50 shrink-0" />
-              <span className="flex-1">{item.label}</span>
-              <span className="text-xs text-muted-foreground font-medium shrink-0">{item.point}pt</span>
-            </div>
-          ))}
-        </div>
+        <button
+          onClick={() => setClOpen(v => !v)}
+          className="flex items-center gap-2 w-full text-left"
+        >
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">
+            Checklist ({items.length}items / {totalPoints}pts)
+          </span>
+          {clOpen ? (
+            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+          )}
+        </button>
+        {clOpen && (
+          <div className="space-y-1.5 mt-2 animate-in slide-in-from-top-1 duration-150">
+            {items.map((item, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <div className="w-4 h-4 border border-border rounded flex items-center justify-center bg-muted/50 shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                <span className="text-xs text-muted-foreground font-medium shrink-0">{item.point}pt</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -253,6 +266,8 @@ export function ChallengePage() {
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [editTopicBlocks, setEditTopicBlocks] = useState<ChallengeTopic[]>([]);
   const [editChecklistItems, setEditChecklistItems] = useState<ChecklistItem[]>([]);
+  const [gradingSubId, setGradingSubId] = useState<number | null>(null);
+  const [gradingChecks, setGradingChecks] = useState<boolean[]>([]);
   const [isBulkInputOpen, setIsBulkInputOpen] = useState(false);
   const [bulkInputText, setBulkInputText] = useState("");
   const [bulkInputPoint, setBulkInputPoint] = useState(10);
@@ -514,16 +529,6 @@ export function ChallengePage() {
     onError: () => toast.error("수정 실패"),
   });
 
-  const rateSubmissionMutation = useMutation({
-    mutationFn: ({ id, rating }: { id: number; rating: number }) =>
-      challengeApi.rateSubmission(id, rating),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["challenge", "submissions", selectedSectionId],
-      });
-    },
-    onError: () => toast.error("평가 실패"),
-  });
 
   const deleteSubmissionMutation = useMutation({
     mutationFn: (id: number) => challengeApi.deleteSubmission(id),
@@ -1525,17 +1530,6 @@ export function ChallengePage() {
                                     {sub.score}/{totalPoints}pt
                                   </span>
                                 )}
-                                {/* 별점 미리보기 (체크리스트 없을 때만) */}
-                                {checklistItems.length === 0 && (sub.rating ?? 0) > 0 && (
-                                  <span className="flex items-center gap-0.5">
-                                    {Array.from({ length: 5 }).map((_, i) => (
-                                      <Star
-                                        key={i}
-                                        className={`w-3 h-3 ${i < (sub.rating ?? 0) ? "text-amber-400 fill-amber-400" : "text-muted-foreground/30"}`}
-                                      />
-                                    ))}
-                                  </span>
-                                )}
                               </div>
                               <div className="flex items-center gap-2">
                                 {/* 수정/삭제 아이콘 (우상단) */}
@@ -1722,11 +1716,10 @@ export function ChallengePage() {
                                         </div>
                                       );
                                     })()}
-                                    {/* 체크리스트 채점 (ADMIN) or 별점 */}
-                                    {checklistItems.length > 0 ? (
-                                      <div className="pt-3 border-t border-border/50">
-                                        <div className="flex items-center justify-between mb-2">
-                                          <span className="text-xs font-semibold">채점</span>
+                                    {/* 점수 + 채점 버튼 */}
+                                    {checklistItems.length > 0 && (
+                                      <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                                        <div className="flex items-center gap-2">
                                           <span className="text-xs font-bold text-emerald-600">
                                             {(() => {
                                               const results = parseChecklistResult(sub.checklistResult);
@@ -1735,78 +1728,30 @@ export function ChallengePage() {
                                                   ? s + checklistItems[r.index].point : s, 0);
                                             })()}/{totalPoints}pt
                                           </span>
+                                          <span className="text-xs text-muted-foreground">
+                                            ({(() => {
+                                              const results = parseChecklistResult(sub.checklistResult);
+                                              return results.filter(r => r.checked).length;
+                                            })()}/{checklistItems.length} items)
+                                          </span>
                                         </div>
-                                        <div className="space-y-1">
-                                          {checklistItems.map((item, i) => {
-                                            const results = parseChecklistResult(sub.checklistResult);
-                                            const checked = results.find(r => r.index === i)?.checked ?? false;
-                                            return (
-                                              <label
-                                                key={i}
-                                                className={`flex items-center gap-2 text-sm ${isAdmin ? "cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5" : ""}`}
-                                              >
-                                                <input
-                                                  type="checkbox"
-                                                  checked={checked}
-                                                  disabled={!isAdmin}
-                                                  onChange={() => {
-                                                    if (!isAdmin) return;
-                                                    const prevResults = parseChecklistResult(sub.checklistResult);
-                                                    const newResults = checklistItems.map((_, idx) => ({
-                                                      index: idx,
-                                                      checked: idx === i
-                                                        ? !checked
-                                                        : (prevResults.find(r => r.index === idx)?.checked ?? false),
-                                                    }));
-                                                    // 서버에 업데이트
-                                                    challengeApi.updateSubmission(sub.id, {
-                                                      githubUrl: sub.githubUrl,
-                                                      content: sub.content,
-                                                      checklistResult: JSON.stringify(newResults),
-                                                    }).then(() => {
-                                                      queryClient.invalidateQueries({
-                                                        queryKey: ["challenge", "submissions", selectedSectionId],
-                                                      });
-                                                    });
-                                                  }}
-                                                  className="w-4 h-4 rounded border-border accent-emerald-500"
-                                                />
-                                                <span className={`flex-1 ${checked ? "" : "text-muted-foreground"}`}>{item.label}</span>
-                                                <span className="text-xs text-muted-foreground">{item.point}pt</span>
-                                              </label>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs text-muted-foreground">Rating</span>
-                                          <div className="flex items-center gap-0.5">
-                                            {Array.from({ length: 5 }).map((_, i) => (
-                                              <button
-                                                key={i}
-                                                onClick={() => {
-                                                  if (isAdmin) {
-                                                    const newRating = i + 1 === sub.rating ? 0 : i + 1;
-                                                    rateSubmissionMutation.mutate({ id: sub.id, rating: newRating });
-                                                  }
-                                                }}
-                                                className={`transition-colors ${isAdmin ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
-                                                disabled={!isAdmin}
-                                              >
-                                                <Star
-                                                  className={`w-4 h-4 ${i < (sub.rating ?? 0) ? "text-amber-400 fill-amber-400" : "text-muted-foreground/30 hover:text-amber-300"}`}
-                                                />
-                                              </button>
-                                            ))}
-                                          </div>
-                                          {(sub.rating ?? 0) > 0 && (
-                                            <span className="text-xs font-medium text-amber-600">
-                                              {sub.rating}/5
-                                            </span>
-                                          )}
-                                        </div>
+                                        {isAdmin && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              const results = parseChecklistResult(sub.checklistResult);
+                                              setGradingChecks(checklistItems.map((_, i) =>
+                                                results.find(r => r.index === i)?.checked ?? false
+                                              ));
+                                              setGradingSubId(sub.id);
+                                            }}
+                                            className="text-xs"
+                                          >
+                                            <Check className="w-3.5 h-3.5 mr-1" />
+                                            채점
+                                          </Button>
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -1823,6 +1768,93 @@ export function ChallengePage() {
             </div>
           )}
         </main>
+
+        {/* ── 채점 다이얼로그 ── */}
+        {gradingSubId !== null && checklistItems.length > 0 && (() => {
+          const sub = submissions.find(s => s.id === gradingSubId);
+          if (!sub) return null;
+          const gradingScore = gradingChecks.reduce((s, checked, i) =>
+            checked && i < checklistItems.length ? s + checklistItems[i].point : s, 0);
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      채점 — {sub.userName}
+                    </h3>
+                  </div>
+                  <button onClick={() => setGradingSubId(null)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {checklistItems.map((item, i) => (
+                    <label key={i} className="flex items-center gap-3 text-sm cursor-pointer hover:bg-muted/50 rounded-lg px-3 py-2 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={gradingChecks[i] ?? false}
+                        onChange={(e) => {
+                          setGradingChecks(prev => {
+                            const next = [...prev];
+                            next[i] = e.target.checked;
+                            return next;
+                          });
+                        }}
+                        className="w-5 h-5 rounded border-border accent-emerald-500"
+                      />
+                      <span className={`flex-1 ${gradingChecks[i] ? "text-foreground" : "text-muted-foreground"}`}>
+                        {item.label}
+                      </span>
+                      <span className={`text-xs font-medium shrink-0 ${gradingChecks[i] ? "text-emerald-600" : "text-muted-foreground"}`}>
+                        {item.point}pt
+                      </span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-border">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-emerald-600">{gradingScore}</span>
+                    <span className="text-sm text-muted-foreground">/ {totalPoints}pt</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({gradingChecks.filter(Boolean).length}/{checklistItems.length})
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setGradingSubId(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const checklistResult = JSON.stringify(
+                          gradingChecks.map((checked, index) => ({ index, checked }))
+                        );
+                        challengeApi.updateSubmission(sub.id, {
+                          githubUrl: sub.githubUrl,
+                          content: sub.content,
+                          checklistResult,
+                        }).then(() => {
+                          queryClient.invalidateQueries({
+                            queryKey: ["challenge", "submissions", selectedSectionId],
+                          });
+                          setGradingSubId(null);
+                          toast.success(`채점 완료: ${gradingScore}/${totalPoints}pt`);
+                        });
+                      }}
+                    >
+                      <Save className="w-3.5 h-3.5 mr-1" />
+                      저장
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
