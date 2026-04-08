@@ -138,7 +138,7 @@ public class ChallengeService {
     public void createSubmission(Long sectionId, ChallengeSubmissionRequest req, Long userId) {
         ChallengeSubmission submission = ChallengeSubmission.builder()
                 .sectionId(sectionId).userId(userId)
-                .language(req.getLanguage()).content(req.getContent()).build();
+                .githubUrl(req.getGithubUrl()).content(req.getContent()).build();
         submissionMapper.insert(submission);
     }
 
@@ -149,7 +149,7 @@ public class ChallengeService {
         if (!existing.getUserId().equals(userId)) {
             throw new ResourceNotFoundException(ErrorCode.FORBIDDEN_UPDATE);
         }
-        submissionMapper.update(id, req.getLanguage(), req.getContent());
+        submissionMapper.update(id, req.getGithubUrl(), req.getContent());
     }
 
     @Transactional

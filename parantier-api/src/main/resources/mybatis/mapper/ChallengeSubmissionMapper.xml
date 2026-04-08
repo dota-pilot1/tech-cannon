@@ -6,14 +6,14 @@
         <result property="sectionId" column="section_id"/>
         <result property="userId" column="user_id"/>
         <result property="userName" column="user_name"/>
-        <result property="language" column="language"/>
+        <result property="githubUrl" column="github_url"/>
         <result property="content" column="content"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
     <select id="findBySectionId" resultMap="ChallengeSubmissionResultMap">
         SELECT s.id, s.section_id, s.user_id, u.username as user_name,
-               s.language, s.content, s.created_at, s.updated_at
+               s.github_url, s.content, s.created_at, s.updated_at
         FROM challenge_submissions s
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.section_id = #{sectionId}
@@ -21,17 +21,17 @@
     </select>
     <select id="findById" resultMap="ChallengeSubmissionResultMap">
         SELECT s.id, s.section_id, s.user_id, u.username as user_name,
-               s.language, s.content, s.created_at, s.updated_at
+               s.github_url, s.content, s.created_at, s.updated_at
         FROM challenge_submissions s
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.id = #{id}
     </select>
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO challenge_submissions (section_id, user_id, language, content)
-        VALUES (#{sectionId}, #{userId}, #{language}, #{content})
+        INSERT INTO challenge_submissions (section_id, user_id, github_url, content)
+        VALUES (#{sectionId}, #{userId}, #{githubUrl}, #{content})
     </insert>
     <update id="update">
-        UPDATE challenge_submissions SET language=#{language}, content=#{content},
+        UPDATE challenge_submissions SET github_url=#{githubUrl}, content=#{content},
         updated_at=CURRENT_TIMESTAMP WHERE id=#{id}
     </update>
     <delete id="delete">DELETE FROM challenge_submissions WHERE id=#{id}</delete>

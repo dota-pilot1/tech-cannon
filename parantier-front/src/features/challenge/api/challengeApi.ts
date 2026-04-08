@@ -34,7 +34,7 @@ export interface ChallengeSubmission {
   sectionId: number;
   userId: number;
   userName: string;
-  language: string;
+  githubUrl: string;
   content: string;
   createdAt: string;
   updatedAt: string;
@@ -169,7 +169,7 @@ export const challengeApi = {
 
   createSubmission: (
     sectionId: number,
-    data: { language: string; content: string },
+    data: { githubUrl: string; content: string },
   ): Promise<void> =>
     fetch(`${BASE}/challenge/sections/${sectionId}/submissions`, {
       method: "POST",
@@ -181,7 +181,7 @@ export const challengeApi = {
 
   updateSubmission: (
     id: number,
-    data: { language: string; content: string },
+    data: { githubUrl: string; content: string },
   ): Promise<void> =>
     fetch(`${BASE}/challenge/submissions/${id}`, {
       method: "PUT",

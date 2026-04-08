@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class ChallengeSubmissionRequest {
-    private String language;
+    private String githubUrl;
     private String content;
 }

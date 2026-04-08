@@ -11,6 +11,6 @@ public interface ChallengeSubmissionMapper {
     List<ChallengeSubmission> findBySectionId(@Param("sectionId") Long sectionId);
     Optional<ChallengeSubmission> findById(Long id);
     void insert(ChallengeSubmission submission);
-    void update(@Param("id") Long id, @Param("language") String language, @Param("content") String content);
+    void update(@Param("id") Long id, @Param("githubUrl") String githubUrl, @Param("content") String content);
     void delete(Long id);
 }

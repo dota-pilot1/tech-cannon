@@ -101,17 +101,22 @@ function TopicBlockViewer({ block }: { block: ChallengeTopic }) {
 }
 
 // ─────────────────────────────────────────────
-// 언어 옵션
+// 아바타 컴포넌트
 // ─────────────────────────────────────────────
-const LANGUAGE_OPTIONS = [
-  { value: "JAVA", label: "Java" },
-  { value: "PYTHON", label: "Python" },
-  { value: "JAVASCRIPT", label: "JavaScript" },
-  { value: "TYPESCRIPT", label: "TypeScript" },
-  { value: "SQL", label: "SQL" },
-  { value: "GO", label: "Go" },
-  { value: "TEXT", label: "Text" },
-];
+function UserAvatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
+  const initial = name?.charAt(0)?.toUpperCase() ?? "?";
+  const colors = [
+    "bg-blue-500", "bg-green-500", "bg-purple-500", "bg-amber-500",
+    "bg-pink-500", "bg-teal-500", "bg-indigo-500", "bg-rose-500",
+  ];
+  const colorIdx = name ? name.charCodeAt(0) % colors.length : 0;
+  const sizeClass = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
+  return (
+    <div className={`${sizeClass} ${colors[colorIdx]} rounded-full flex items-center justify-center text-white font-bold shrink-0`}>
+      {initial}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────
 // 메인 페이지
@@ -124,11 +129,11 @@ export function ChallengePage() {
   // ── 사이드바 넓이
   const [cat1Width, setCat1Width] = useState(() => {
     const saved = localStorage.getItem("challenge-cat1-width");
-    return saved ? Number(saved) : 180;
+    return saved ? Number(saved) : 220;
   });
   const [cat2Width, setCat2Width] = useState(() => {
     const saved = localStorage.getItem("challenge-cat2-width");
-    return saved ? Number(saved) : 200;
+    return saved ? Number(saved) : 260;
   });
   const isResizing1 = useRef(false);
   const isResizing2 = useRef(false);
@@ -206,7 +211,7 @@ export function ChallengePage() {
   const [editingSectionTitle, setEditingSectionTitle] = useState("");
 
   // ── 풀이 제출 상태
-  const [submissionLanguage, setSubmissionLanguage] = useState("JAVA");
+  const [submissionGithubUrl, setSubmissionGithubUrl] = useState("");
   const [submissionContent, setSubmissionContent] = useState("");
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(
     new Set(),
@@ -215,7 +220,7 @@ export function ChallengePage() {
   const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(
     null,
   );
-  const [editSubLanguage, setEditSubLanguage] = useState("");
+  const [editSubGithubUrl, setEditSubGithubUrl] = useState("");
   const [editSubContent, setEditSubContent] = useState("");
 
   // ─────────────────────────────────────────────
@@ -388,13 +393,14 @@ export function ChallengePage() {
   const createSubmissionMutation = useMutation({
     mutationFn: () =>
       challengeApi.createSubmission(selectedSectionId!, {
-        language: submissionLanguage,
+        githubUrl: submissionGithubUrl,
         content: submissionContent,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["challenge", "submissions", selectedSectionId],
       });
+      setSubmissionGithubUrl("");
       setSubmissionContent("");
       toast.success("풀이가 제출되었습니다");
     },
@@ -404,7 +410,7 @@ export function ChallengePage() {
   const updateSubmissionMutation = useMutation({
     mutationFn: ({ id }: { id: number }) =>
       challengeApi.updateSubmission(id, {
-        language: editSubLanguage,
+        githubUrl: editSubGithubUrl,
         content: editSubContent,
       }),
     onSuccess: () => {
@@ -543,7 +549,7 @@ export function ChallengePage() {
   // ─────────────────────────────────────────────
   return (
     <div className="h-[calc(100vh-64px)] overflow-y-auto bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-5xl h-[720px] flex rounded-2xl border border-border shadow-lg overflow-hidden bg-card">
+      <div className="w-full max-w-7xl h-[780px] flex rounded-2xl border border-border shadow-lg overflow-hidden bg-card">
         {/* ───────────────────────────────────────────
             1차 사이드바: 카테고리
         ─────────────────────────────────────────── */}
@@ -1099,43 +1105,39 @@ export function ChallengePage() {
 
                 {/* 내 풀이 작성 */}
                 <div className="mb-6 space-y-3 bg-muted/30 rounded-lg p-4 border border-border">
-                  <div className="flex items-center gap-3">
-                    <label className="text-xs font-medium text-muted-foreground">
-                      Language
-                    </label>
-                    <select
-                      value={submissionLanguage}
-                      onChange={(e) => setSubmissionLanguage(e.target.value)}
-                      className="text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      {LANGUAGE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <textarea
-                    value={submissionContent}
-                    onChange={(e) => setSubmissionContent(e.target.value)}
-                    rows={6}
-                    placeholder="Paste your solution here..."
-                    className="w-full text-sm font-mono border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
-                  />
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() => createSubmissionMutation.mutate()}
-                      disabled={
-                        !submissionContent.trim() ||
-                        createSubmissionMutation.isPending
-                      }
-                      className="flex items-center gap-1.5"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      {createSubmissionMutation.isPending
-                        ? "Submitting..."
-                        : "Submit"}
-                    </Button>
+                  <div className="flex items-start gap-3">
+                    <UserAvatar name={user?.username ?? "?"} />
+                    <div className="flex-1 space-y-3">
+                      <input
+                        type="url"
+                        value={submissionGithubUrl}
+                        onChange={(e) => setSubmissionGithubUrl(e.target.value)}
+                        placeholder="GitHub URL (repo, gist, PR...)"
+                        className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <textarea
+                        value={submissionContent}
+                        onChange={(e) => setSubmissionContent(e.target.value)}
+                        rows={3}
+                        placeholder="Description..."
+                        className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={() => createSubmissionMutation.mutate()}
+                          disabled={
+                            (!submissionContent.trim() && !submissionGithubUrl.trim()) ||
+                            createSubmissionMutation.isPending
+                          }
+                          className="flex items-center gap-1.5"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          {createSubmissionMutation.isPending
+                            ? "Submitting..."
+                            : "Submit"}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1163,11 +1165,9 @@ export function ChallengePage() {
                               className="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors"
                             >
                               <div className="flex items-center gap-3">
+                                <UserAvatar name={sub.userName} size="sm" />
                                 <span className="font-medium text-foreground">
                                   {sub.userName}
-                                </span>
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                                  {sub.language}
                                 </span>
                                 {isMine && (
                                   <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
@@ -1200,34 +1200,23 @@ export function ChallengePage() {
                               <div className="border-t border-border">
                                 {isEditingSub ? (
                                   <div className="p-4 space-y-3">
-                                    <div className="flex items-center gap-3">
-                                      <label className="text-xs font-medium text-muted-foreground">
-                                        Language
-                                      </label>
-                                      <select
-                                        value={editSubLanguage}
-                                        onChange={(e) =>
-                                          setEditSubLanguage(e.target.value)
-                                        }
-                                        className="text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                                      >
-                                        {LANGUAGE_OPTIONS.map((opt) => (
-                                          <option
-                                            key={opt.value}
-                                            value={opt.value}
-                                          >
-                                            {opt.label}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
+                                    <input
+                                      type="url"
+                                      value={editSubGithubUrl}
+                                      onChange={(e) =>
+                                        setEditSubGithubUrl(e.target.value)
+                                      }
+                                      placeholder="GitHub URL"
+                                      className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                    />
                                     <textarea
                                       value={editSubContent}
                                       onChange={(e) =>
                                         setEditSubContent(e.target.value)
                                       }
-                                      rows={6}
-                                      className="w-full text-sm font-mono border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                                      rows={3}
+                                      placeholder="Description..."
+                                      className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                                     />
                                     <div className="flex items-center gap-2">
                                       <Button
@@ -1257,9 +1246,22 @@ export function ChallengePage() {
                                   </div>
                                 ) : (
                                   <div className="p-4">
-                                    <pre className="text-xs font-mono bg-muted p-3 rounded-lg border border-border overflow-x-auto whitespace-pre-wrap mb-3">
-                                      {sub.content}
-                                    </pre>
+                                    {sub.githubUrl && (
+                                      <a
+                                        href={sub.githubUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline mb-2"
+                                      >
+                                        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                                        {sub.githubUrl}
+                                      </a>
+                                    )}
+                                    {sub.content && (
+                                      <p className="text-sm text-foreground/80 whitespace-pre-wrap mb-3">
+                                        {sub.content}
+                                      </p>
+                                    )}
                                     <div className="flex items-center gap-2">
                                       {isMine && (
                                         <Button
@@ -1267,7 +1269,7 @@ export function ChallengePage() {
                                           variant="outline"
                                           onClick={() => {
                                             setEditingSubmissionId(sub.id);
-                                            setEditSubLanguage(sub.language);
+                                            setEditSubGithubUrl(sub.githubUrl ?? "");
                                             setEditSubContent(sub.content);
                                           }}
                                         >

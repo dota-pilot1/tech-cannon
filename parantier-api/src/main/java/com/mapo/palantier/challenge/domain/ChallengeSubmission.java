@@ -12,7 +12,7 @@ public class ChallengeSubmission {
     private Long sectionId;
     private Long userId;
     private String userName;
-    private String language;
+    private String githubUrl;
     private String content;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
