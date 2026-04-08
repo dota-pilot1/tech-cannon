@@ -49,4 +49,10 @@
         WHERE id = #{id}
     </update>
 
+    <update id="updateSortOrder">
+        UPDATE subutai_folders
+        SET sort_order = #{sortOrder}
+        WHERE id = #{id}
+    </update>
+
 </mapper>

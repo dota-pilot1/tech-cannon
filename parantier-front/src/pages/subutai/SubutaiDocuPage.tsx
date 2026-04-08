@@ -1,5 +1,28 @@
-import { useState, useMemo, useRef, useEffect } from "react";
-import { FolderOpen, FileText, Search, X, Link2, Tag } from "lucide-react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import {
+  FolderOpen,
+  FileText,
+  Search,
+  X,
+  Link2,
+  Tag,
+  GripVertical,
+} from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/shared/lib/utils";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
@@ -14,6 +37,8 @@ import {
   useDeleteSubutaiDocuFolderMutation,
   useSubutaiDocuTags,
   useSaveSubutaiDocuTagsMutation,
+  useReorderSubutaiDocuFoldersMutation,
+  useReorderSubutaiDocuPostsMutation,
 } from "@/features/subutai-docu/hooks/useSubutaiDocu";
 import { subutaiDocuApi } from "@/features/subutai-docu/api/subutaiDocuApi";
 import type {
@@ -155,6 +180,85 @@ function PostContextMenu({
   );
 }
 
+function SortablePostItem({
+  post,
+  isSelected,
+  onClick,
+  onContextMenu,
+}: {
+  post: SubutaiDocuPost;
+  isSelected: boolean;
+  onClick: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: post.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      className={cn(
+        "ml-4 flex items-center gap-1 py-2 px-2 rounded cursor-pointer text-sm transition-colors",
+        isSelected
+          ? "bg-primary text-primary-foreground font-medium"
+          : "hover:bg-accent text-foreground",
+      )}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className={cn(
+          "shrink-0 cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-black/10",
+          isSelected ? "text-primary-foreground/60" : "text-muted-foreground/40",
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="w-3 h-3" />
+      </button>
+      <FileText
+        className={cn(
+          "w-4 h-4 shrink-0",
+          isSelected ? "text-primary-foreground" : "text-muted-foreground",
+        )}
+      />
+      <span className="truncate min-w-0">{post.title}</span>
+    </div>
+  );
+}
+
+function SortableFolderItem({
+  folder,
+  children,
+}: {
+  folder: SubutaiDocuFolder;
+  children: (props: {
+    dragHandleProps: Record<string, unknown>;
+    dragHandleListeners: Record<string, unknown> | undefined;
+  }) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: folder.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ dragHandleProps: attributes, dragHandleListeners: listeners })}
+    </div>
+  );
+}
+
 export default function SubutaiDocuPage() {
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -267,6 +371,13 @@ export default function SubutaiDocuPage() {
     setSelectedPostId(null);
   });
 
+  const reorderFoldersMutation = useReorderSubutaiDocuFoldersMutation();
+  const reorderPostsMutation = useReorderSubutaiDocuPostsMutation();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
   const createDocMutation = useSaveSubutaiDocuMutation(
     inlineDocInput?.folderId ?? null,
     null,
@@ -298,6 +409,37 @@ export default function SubutaiDocuPage() {
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, []);
+
+  const handleFolderDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = roots.findIndex((f) => f.id === active.id);
+      const newIndex = roots.findIndex((f) => f.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(roots, oldIndex, newIndex);
+      reorderFoldersMutation.mutate(
+        reordered.map((f, i) => ({ id: f.id, sortOrder: i })),
+      );
+    },
+    [roots, reorderFoldersMutation],
+  );
+
+  const handlePostDragEnd = useCallback(
+    (folderId: number) => (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const posts = postsByFolder.get(folderId) ?? [];
+      const oldIndex = posts.findIndex((p) => p.id === active.id);
+      const newIndex = posts.findIndex((p) => p.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(posts, oldIndex, newIndex);
+      reorderPostsMutation.mutate(
+        reordered.map((p, i) => ({ id: p.id, sortOrder: i })),
+      );
+    },
+    [postsByFolder, reorderPostsMutation],
+  );
 
   const handleFolderClick = (id: number) => {
     setSelectedFolderId(id);
@@ -474,17 +616,23 @@ export default function SubutaiDocuPage() {
   );
 
   // 폴더 렌더링
-  const renderFolder = (folder: SubutaiDocuFolder, depth = 0) => {
+  const renderFolder = (
+    folder: SubutaiDocuFolder,
+    depth = 0,
+    dragHandleProps?: Record<string, unknown>,
+    dragHandleListeners?: Record<string, unknown>,
+  ) => {
     const isSelected = selectedFolderId === folder.id;
     const isExpanded = expandedFolders.has(folder.id);
     const subFolders = folderChildren[folder.id] ?? [];
     const isEditingThis = editingFolderId === folder.id;
+    const posts = postsByFolder.get(folder.id) ?? [];
 
     return (
       <div key={folder.id} className={depth > 0 ? "ml-4" : ""}>
         <div
           className={cn(
-            "group flex items-center gap-2 py-2 px-3 rounded cursor-pointer transition-colors",
+            "group flex items-center gap-1 py-2 px-2 rounded cursor-pointer transition-colors",
             isSelected
               ? "bg-primary text-primary-foreground font-medium"
               : "hover:bg-accent",
@@ -500,6 +648,21 @@ export default function SubutaiDocuPage() {
             });
           }}
         >
+          {dragHandleProps && (
+            <button
+              {...dragHandleProps}
+              {...dragHandleListeners}
+              className={cn(
+                "shrink-0 cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-black/10",
+                isSelected
+                  ? "text-primary-foreground/60"
+                  : "text-muted-foreground/40",
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="w-3 h-3" />
+            </button>
+          )}
           <span className="shrink-0 text-sm">{isExpanded ? "▼" : "▶"}</span>
           <FolderOpen
             className={cn(
@@ -588,40 +751,37 @@ export default function SubutaiDocuPage() {
               renderInlineFolderInput(depth + 1)}
             {inlineDocInput?.folderId === folder.id &&
               renderInlineDocInput(depth + 1)}
-            {(postsByFolder.get(folder.id) || []).map((post) => {
-              return (
-                <div
-                  key={post.id}
-                  onClick={() => handlePostClick(post)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setPostCtxMenu({
-                      x: Math.min(e.clientX, window.innerWidth - 180),
-                      y: Math.min(e.clientY, window.innerHeight - 80),
-                      postId: post.id,
-                      postTitle: post.title,
-                    });
-                  }}
-                  className={cn(
-                    "ml-4 flex items-center gap-2 py-2 px-3 rounded cursor-pointer text-sm transition-colors",
-                    selectedPostId === post.id
-                      ? "bg-primary text-primary-foreground font-medium"
-                      : "hover:bg-accent text-foreground",
-                  )}
+            {posts.length > 0 && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handlePostDragEnd(folder.id)}
+              >
+                <SortableContext
+                  items={posts.map((p) => p.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <FileText
-                    className={cn(
-                      "w-4 h-4 shrink-0",
-                      selectedPostId === post.id
-                        ? "text-primary-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                  <span className="truncate min-w-0">{post.title}</span>
-                </div>
-              );
-            })}
+                  {posts.map((post) => (
+                    <SortablePostItem
+                      key={post.id}
+                      post={post}
+                      isSelected={selectedPostId === post.id}
+                      onClick={() => handlePostClick(post)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setPostCtxMenu({
+                          x: Math.min(e.clientX, window.innerWidth - 180),
+                          y: Math.min(e.clientY, window.innerHeight - 80),
+                          postId: post.id,
+                          postTitle: post.title,
+                        });
+                      }}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            )}
           </>
         )}
       </div>
@@ -811,7 +971,26 @@ export default function SubutaiDocuPage() {
                 );
               })()
             ) : (
-              roots.map((f) => renderFolder(f))
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleFolderDragEnd}
+              >
+                <SortableContext
+                  items={roots.map((f) => f.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {roots.map((f) => (
+                    <SortableFolderItem key={f.id} folder={f}>
+                      {({ dragHandleProps, dragHandleListeners }) => (
+                        <div>
+                          {renderFolder(f, 0, dragHandleProps, dragHandleListeners)}
+                        </div>
+                      )}
+                    </SortableFolderItem>
+                  ))}
+                </SortableContext>
+              </DndContext>
             )}
             {!searchQuery.trim() &&
               inlineFolderInput?.parentId === null &&

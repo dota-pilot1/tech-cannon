@@ -31,6 +31,7 @@ export interface SubutaiDocuPost {
   title: string;
   authorId: number;
   authorName: string;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
   blocks?: SubutaiDocuBlock[];

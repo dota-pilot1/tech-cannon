@@ -13,6 +13,7 @@
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
         <result property="deletedAt" column="deleted_at"/>
+        <result property="sortOrder" column="sort_order"/>
     </resultMap>
 
     <resultMap id="SubutaiPostWithBlocksResultMap" type="com.mapo.palantier.subutai.post.SubutaiPost">
@@ -36,28 +37,28 @@
     <select id="findAll" resultMap="SubutaiPostResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
-               p.created_at, p.updated_at
+               p.created_at, p.updated_at, p.sort_order
         FROM subutai_posts p
         JOIN users u ON p.author_id = u.id
         WHERE p.deleted_at IS NULL
-        ORDER BY p.updated_at DESC
+        ORDER BY p.sort_order, p.updated_at DESC
     </select>
 
     <select id="findByFolderId" resultMap="SubutaiPostResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
-               p.created_at, p.updated_at
+               p.created_at, p.updated_at, p.sort_order
         FROM subutai_posts p
         JOIN users u ON p.author_id = u.id
         WHERE p.folder_id = #{folderId}
           AND p.deleted_at IS NULL
-        ORDER BY p.updated_at DESC
+        ORDER BY p.sort_order, p.updated_at DESC
     </select>
 
     <select id="findById" resultMap="SubutaiPostResultMap">
         SELECT p.id, p.folder_id, p.title, p.author_id,
                u.username as author_name,
-               p.created_at, p.updated_at
+               p.created_at, p.updated_at, p.sort_order
         FROM subutai_posts p
         JOIN users u ON p.author_id = u.id
         WHERE p.id = #{id} AND p.deleted_at IS NULL
@@ -92,6 +93,12 @@
         UPDATE subutai_posts
         SET deleted_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateSortOrder">
+        UPDATE subutai_posts
+        SET sort_order = #{sortOrder}
         WHERE id = #{id}
     </update>
 

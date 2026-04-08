@@ -113,6 +113,15 @@ public class SubutaiPostService {
         subutaiPostMapper.softDelete(id);
     }
 
+    @Transactional
+    public void reorderPosts(List<Map<String, Object>> items) {
+        for (Map<String, Object> item : items) {
+            Long id = ((Number) item.get("id")).longValue();
+            int sortOrder = ((Number) item.get("sortOrder")).intValue();
+            subutaiPostMapper.updateSortOrder(id, sortOrder);
+        }
+    }
+
     // ── 태그 관련 메서드 ──────────────────────────────────────────────────────
 
     public List<String> getTagsByPost(Long postId) {

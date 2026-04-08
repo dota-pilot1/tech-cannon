@@ -19,6 +19,7 @@ public class SubutaiPost {
     private String title;
     private Long authorId;
     private String authorName; // JOIN으로 가져옴
+    private Integer sortOrder;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;

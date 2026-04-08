@@ -14,4 +14,5 @@ public interface SubutaiFolderMapper {
     void insert(SubutaiFolder folder);
     void update(SubutaiFolder folder);
     void softDelete(@Param("id") Long id);
+    void updateSortOrder(@Param("id") Long id, @Param("sortOrder") int sortOrder);
 }

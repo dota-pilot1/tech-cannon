@@ -37,6 +37,12 @@ export const subutaiDocuApi = {
     await apiClient.delete(`/subutai/folders/${id}`);
   },
 
+  reorderFolders: async (
+    items: { id: number; sortOrder: number }[],
+  ): Promise<void> => {
+    await apiClient.patch("/subutai/folders/reorder", items);
+  },
+
   // Posts
   getAllPosts: async (): Promise<SubutaiDocuPost[]> => {
     const { data } = await apiClient.get("/subutai/posts");
@@ -62,6 +68,12 @@ export const subutaiDocuApi = {
 
   deletePost: async (id: number): Promise<void> => {
     await apiClient.delete(`/subutai/posts/${id}`);
+  },
+
+  reorderPosts: async (
+    items: { id: number; sortOrder: number }[],
+  ): Promise<void> => {
+    await apiClient.patch("/subutai/posts/reorder", items);
   },
 
   // Comments

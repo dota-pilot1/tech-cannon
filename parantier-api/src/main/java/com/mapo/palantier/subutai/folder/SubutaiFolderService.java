@@ -4,6 +4,7 @@ import com.mapo.palantier.common.exception.ErrorCode;
 import com.mapo.palantier.common.exception.ResourceNotFoundException;
 import com.mapo.palantier.subutai.dto.SubutaiFolderDto;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,5 +69,14 @@ public class SubutaiFolderService {
     @Transactional
     public void deleteFolder(Long id) {
         subutaiFolderMapper.softDelete(id);
+    }
+
+    @Transactional
+    public void reorderFolders(List<Map<String, Object>> items) {
+        for (Map<String, Object> item : items) {
+            Long id = ((Number) item.get("id")).longValue();
+            int sortOrder = ((Number) item.get("sortOrder")).intValue();
+            subutaiFolderMapper.updateSortOrder(id, sortOrder);
+        }
     }
 }

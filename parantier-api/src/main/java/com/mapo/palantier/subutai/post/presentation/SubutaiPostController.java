@@ -55,6 +55,15 @@ public class SubutaiPostController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "게시글 순서 변경")
+    @PatchMapping("/reorder")
+    public ResponseEntity<Void> reorderPosts(
+        @RequestBody List<Map<String, Object>> items
+    ) {
+        subutaiPostService.reorderPosts(items);
+        return ResponseEntity.ok().build();
+    }
+
     @Operation(summary = "게시글 태그 조회")
     @GetMapping("/{id}/tags")
     public ResponseEntity<List<String>> getTags(@PathVariable Long id) {
