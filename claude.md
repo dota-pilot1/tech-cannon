@@ -50,4 +50,5 @@
 | [WebSocket](/docs/websocket.md) | 구현 원칙, 메시지 포맷 |
 | [프론트 가이드](/docs/frontend-guide.md) | 컴포넌트, API 설정, TS 에러 패턴 |
 | [해커톤](/docs/hackathon.md) | 해커톤 기능 현황, API, DB 테이블 |
+| [Security 메뉴](/docs/security.md) | Security 페이지 구조, DB 테이블, 메뉴 등록, 새 문서 페이지 추가 패턴 |
 | [배포 가이드 상세](/배포 가이드/) | AWS 인프라, GitHub Secrets, 트러블슈팅 |

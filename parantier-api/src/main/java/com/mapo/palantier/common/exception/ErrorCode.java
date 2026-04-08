@@ -150,6 +150,17 @@ public enum ErrorCode {
         "섹션을 찾을 수 없습니다",
         HttpStatus.NOT_FOUND
     ),
+    // security
+    SECURITY_CATEGORY_NOT_FOUND(
+        "SECURITY_CATEGORY_NOT_FOUND",
+        "카테고리를 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
+    SECURITY_SECTION_NOT_FOUND(
+        "SECURITY_SECTION_NOT_FOUND",
+        "섹션을 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
     // db
     DB_FOLDER_NOT_FOUND(
         "DB_FOLDER_NOT_FOUND",

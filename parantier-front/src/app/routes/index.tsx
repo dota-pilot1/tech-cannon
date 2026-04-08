@@ -43,6 +43,7 @@ import DevLogPage from "@/pages/devlog/DevLogPage";
 import SubutaiAiPage from "@/pages/subutai/SubutaiAiPage";
 import SubutaiFaqPage from "@/pages/subutai/SubutaiFaqPage";
 import SubutaiDocuPage from "@/pages/subutai/SubutaiDocuPage";
+import SecurityPage from "@/pages/security/SecurityPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -376,6 +377,14 @@ const workStatusRoute = createRoute({
   component: WorkStatusPage,
 });
 
+// Security 페이지 (로그인 필요)
+const securityRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/security",
+  beforeLoad: () => requireAuth(),
+  component: SecurityPage,
+});
+
 // Subutai AI 페이지 (로그인 필요)
 const subutaiAiRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -446,6 +455,7 @@ const routeTree = rootRoute.addChildren([
   subutaiAiRoute,
   subutaiFaqRoute,
   subutaiDocuRoute,
+  securityRoute,
   notFoundRoute,
 ]);
 

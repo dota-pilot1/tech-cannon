@@ -6,7 +6,8 @@ import { authStore } from "@/entities/user/model/authStore";
 import { dashboardApi } from "@/api/dashboardApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Briefcase, AlertCircle } from "lucide-react";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 
 const STATUS_MAP: Record<string, string> = {
   완료: "DONE",
@@ -112,13 +113,71 @@ export function MainPage() {
   };
 
   if (!auth.isAuthenticated) {
+    const features = [
+      {
+        icon: "📋",
+        title: "업무 관리",
+        description: "태스크 생성, 진행상황 추적",
+      },
+      {
+        icon: "🚨",
+        title: "이슈 트래킹",
+        description: "버그, 개선사항 관리",
+      },
+      {
+        icon: "📚",
+        title: "기술 문서",
+        description: "Backend/Frontend/Security 지식 공유",
+      },
+      {
+        icon: "💬",
+        title: "팀 채팅",
+        description: "실시간 채팅룸",
+      },
+      {
+        icon: "🎨",
+        title: "Figma 연동",
+        description: "디자인 링크 관리",
+      },
+      {
+        icon: "📊",
+        title: "대시보드",
+        description: "팀 업무/이슈 현황 한눈에",
+      },
+    ];
+
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">로그인이 필요합니다</h2>
-          <p className="text-muted-foreground">
-            상단 헤더에서 로그인하여 서비스를 이용하세요.
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+        {/* 히어로 섹션 */}
+        <div className="py-16 sm:py-24 text-center">
+          <div className="text-5xl sm:text-6xl font-bold text-foreground mb-4 tracking-tight">
+            TechCannon
+          </div>
+          <p className="text-lg sm:text-xl text-muted-foreground mb-10">
+            개발팀을 위한 올인원 협업 플랫폼
           </p>
+          <div className="inline-flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-lg px-4 py-2.5 bg-card">
+            <span className="text-base">↑</span>
+            <span>상단에서 로그인하여 시작하세요</span>
+          </div>
+        </div>
+
+        {/* 기능 카드 그리드 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="bg-card border border-border rounded-xl p-5 sm:p-6"
+            >
+              <div className="text-3xl mb-3">{feature.icon}</div>
+              <div className="text-sm font-semibold text-foreground mb-1">
+                {feature.title}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {feature.description}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -210,8 +269,8 @@ export function MainPage() {
   );
 
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* 업무 현황 카드 */}
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-3">
@@ -297,120 +356,137 @@ export function MainPage() {
           </CardContent>
         </Card>
 
-        {/* 멤버별 완료 현황 카드 */}
-        <Card className="md:col-span-2 hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-foreground flex items-center justify-between">
-              <span>👥 멤버별 완료 현황</span>
-              {/* 탭 */}
-              <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-                {PERIOD_TABS.map((tab) => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setPeriodTab(tab.key)}
-                    className={[
-                      "px-3 py-1 text-xs font-medium rounded-md transition-all duration-150",
-                      periodTab === tab.key
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
-                    ].join(" ")}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isUserStatsLoading ? (
-              <div className="animate-pulse space-y-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-20 bg-muted rounded shrink-0" />
-                      <div className="flex-1 space-y-1">
-                        <div
-                          className="h-5 bg-muted rounded"
-                          style={{ width: "60%" }}
-                        />
-                        <div
-                          className="h-5 bg-muted rounded"
-                          style={{ width: "40%" }}
-                        />
+        {/* 멤버별 완료 현황 — 헤더 + 탭 */}
+        <div className="md:col-span-2 space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-base font-semibold text-foreground">
+              👥 멤버별 완료 현황
+            </span>
+            <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+              {PERIOD_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setPeriodTab(tab.key)}
+                  className={[
+                    "px-3 py-1 text-xs font-medium rounded-md transition-all duration-150",
+                    periodTab === tab.key
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  ].join(" ")}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 멤버 카드 그리드 */}
+          {isUserStatsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="pt-5 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-muted shrink-0" />
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-3.5 bg-muted rounded w-3/4" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {(userStats ?? []).map((user) => (
-                  <div key={user.userId} className="space-y-1">
-                    <div className="text-sm font-medium text-foreground mb-1">
-                      {user.username}
-                      <span className="text-xs text-muted-foreground font-normal ml-1">
-                        ({user.email})
-                      </span>
+                    <div className="space-y-2.5">
+                      <div className="h-5 bg-muted rounded" />
+                      <div className="h-5 bg-muted rounded" />
                     </div>
-                    {/* 업무 완료 행 */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 text-xs text-muted-foreground text-right shrink-0">
-                        업무 완료
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (userStats ?? []).length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-sm text-muted-foreground">
+                  완료된 항목이 없습니다.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {(userStats ?? []).map((user) => (
+                <Card
+                  key={user.userId}
+                  className="hover:shadow-md transition-shadow"
+                >
+                  <CardContent className="pt-5 space-y-4">
+                    {/* 유저 정보 */}
+                    <div className="flex items-center gap-3">
+                      <UserAvatar user={user} size="sm" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">
+                          {user.username}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {user.email}
+                        </p>
                       </div>
-                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <div className="flex-1 bg-muted/40 rounded-full h-5 overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{
-                              width:
-                                user.doneWorks > 0
-                                  ? `${(user.doneWorks / userCompletionMax) * 100}%`
-                                  : "0%",
-                              backgroundColor: "#22c55e",
-                              minWidth: user.doneWorks > 0 ? "1.25rem" : "0",
-                            }}
-                          />
-                        </div>
-                        <span className="text-sm font-semibold text-foreground w-6 text-right shrink-0">
+                    </div>
+
+                    {/* 업무 완료 */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Briefcase className="w-3 h-3" />
+                          업무 완료
+                        </span>
+                        <span className="font-semibold text-foreground text-sm">
                           {user.doneWorks}
                         </span>
                       </div>
-                    </div>
-                    {/* 이슈 완료 행 */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 text-xs text-muted-foreground text-right shrink-0">
-                        이슈 완료
+                      <div className="bg-muted/40 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width:
+                              user.doneWorks > 0
+                                ? `${(user.doneWorks / userCompletionMax) * 100}%`
+                                : "0%",
+                            backgroundColor: "#22c55e",
+                            minWidth: user.doneWorks > 0 ? "0.5rem" : "0",
+                          }}
+                        />
                       </div>
-                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <div className="flex-1 bg-muted/40 rounded-full h-5 overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{
-                              width:
-                                user.doneIssues > 0
-                                  ? `${(user.doneIssues / userCompletionMax) * 100}%`
-                                  : "0%",
-                              backgroundColor: "#3b82f6",
-                              minWidth: user.doneIssues > 0 ? "1.25rem" : "0",
-                            }}
-                          />
-                        </div>
-                        <span className="text-sm font-semibold text-foreground w-6 text-right shrink-0">
+                    </div>
+
+                    {/* 이슈 완료 */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          이슈 완료
+                        </span>
+                        <span className="font-semibold text-foreground text-sm">
                           {user.doneIssues}
                         </span>
                       </div>
+                      <div className="bg-muted/40 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width:
+                              user.doneIssues > 0
+                                ? `${(user.doneIssues / userCompletionMax) * 100}%`
+                                : "0%",
+                            backgroundColor: "#3b82f6",
+                            minWidth: user.doneIssues > 0 ? "0.5rem" : "0",
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {(userStats ?? []).length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    완료된 항목이 없습니다.
-                  </p>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
