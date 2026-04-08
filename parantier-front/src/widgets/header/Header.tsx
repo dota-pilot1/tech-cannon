@@ -89,17 +89,7 @@ export function Header() {
 
           {/* 드로어 패널 */}
           <div
-            style={{
-              position: "relative",
-              width: "280px",
-              maxWidth: "85vw",
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              background: "var(--background)",
-              borderRight: "1px solid var(--border)",
-              overflowY: "auto",
-            }}
+            className="relative w-[280px] max-w-[85vw] h-full flex flex-col bg-background border-r border-border overflow-y-auto"
           >
             {/* 상단: 로고 + 닫기 */}
             <div
@@ -148,13 +138,7 @@ export function Header() {
 
             {/* 유저 정보 (로그인 시) */}
             {auth.isAuthenticated && (
-              <div
-                style={{
-                  padding: "16px",
-                  borderBottom: "1px solid var(--border)",
-                  flexShrink: 0,
-                }}
-              >
+              <div className="p-4 border-b border-border shrink-0">
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "12px" }}
                 >
@@ -275,16 +259,7 @@ export function Header() {
             </nav>
 
             {/* 하단: 프로필/로그아웃 or 회원가입 */}
-            <div
-              style={{
-                borderTop: "1px solid var(--border)",
-                padding: "12px 16px",
-                flexShrink: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-              }}
-            >
+            <div className="border-t border-border px-4 py-3 shrink-0 flex flex-col gap-1">
               {auth.isAuthenticated ? (
                 <>
                   <Link
