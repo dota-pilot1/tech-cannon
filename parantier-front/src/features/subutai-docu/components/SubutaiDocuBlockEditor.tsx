@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { LexicalEditor } from "@/shared/ui/lexical/LexicalEditor";
+import { Mermaid } from "@/shared/ui/mermaid";
 import type {
   SubutaiDocuBlock,
   BlockType,
@@ -266,6 +267,12 @@ export default function SubutaiDocuBlockEditor({
                   placeholder="내용을 입력하세요..."
                   minHeight="300px"
                 />
+              ) : selectedBlock.blockType === "MMD" ? (
+                <MermaidBlockEditor
+                  key={selectedIdx}
+                  content={selectedBlock.content}
+                  onChange={(val) => updateBlock(selectedIdx, "content", val)}
+                />
               ) : (
                 <textarea
                   key={selectedIdx}
@@ -275,9 +282,7 @@ export default function SubutaiDocuBlockEditor({
                   }
                   className="w-full h-full px-4 py-3 text-sm font-mono border-0 resize-none focus:outline-none bg-background"
                   placeholder={
-                    selectedBlock.blockType === "MMD"
-                      ? "flowchart LR\n    A[시작] --> B[끝]"
-                      : selectedBlock.blockType === "FIGMA"
+                    selectedBlock.blockType === "FIGMA"
                         ? "https://www.figma.com/file/..."
                         : selectedBlock.blockType === "FILE"
                           ? '{"url": "", "filename": "", "description": ""}'
@@ -296,6 +301,68 @@ export default function SubutaiDocuBlockEditor({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Mermaid 블록 전용 에디터 ──────────────────────────────────────────────────
+
+function MermaidBlockEditor({
+  content,
+  onChange,
+}: {
+  content: string;
+  onChange: (val: string) => void;
+}) {
+  const [mode, setMode] = useState<"edit" | "preview">(
+    content.trim() ? "preview" : "edit",
+  );
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      {/* 탭 전환 */}
+      <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border bg-muted/20 shrink-0">
+        <button
+          onClick={() => setMode("edit")}
+          className={`px-2.5 py-1 text-xs rounded transition-colors ${
+            mode === "edit"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent"
+          }`}
+        >
+          코드 편집
+        </button>
+        <button
+          onClick={() => setMode("preview")}
+          className={`px-2.5 py-1 text-xs rounded transition-colors ${
+            mode === "preview"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent"
+          }`}
+        >
+          미리보기
+        </button>
+      </div>
+
+      {mode === "edit" ? (
+        <textarea
+          value={content}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full flex-1 px-4 py-3 text-sm font-mono border-0 resize-none focus:outline-none bg-background"
+          placeholder={"sequenceDiagram\n    A->>B: Hello"}
+          style={{ minHeight: "300px" }}
+        />
+      ) : (
+        <div className="flex-1 overflow-auto p-4 bg-white">
+          {content.trim() ? (
+            <Mermaid chart={content} className="mermaid-diagram" />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              코드 편집 탭에서 Mermaid 코드를 입력하세요
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
