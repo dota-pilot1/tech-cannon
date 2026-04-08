@@ -252,6 +252,7 @@ export function ChallengePage() {
   // ── 주제 편집 상태
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [editTopicBlocks, setEditTopicBlocks] = useState<ChallengeTopic[]>([]);
+  const [editChecklistItems, setEditChecklistItems] = useState<ChecklistItem[]>([]);
 
   // ── 카테고리 CRUD 상태
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -435,13 +436,23 @@ export function ChallengePage() {
   // Mutations — 주제 블록
   // ─────────────────────────────────────────────
   const saveTopicsMutation = useMutation({
-    mutationFn: () =>
-      challengeApi.saveTopics(selectedSectionId!, editTopicBlocks),
+    mutationFn: () => {
+      // 일반 블록 + CHECKLIST 블록 합쳐서 저장
+      const allBlocks = [...editTopicBlocks];
+      if (editChecklistItems.length > 0) {
+        allBlocks.push({
+          blockType: "CHECKLIST",
+          content: JSON.stringify(editChecklistItems),
+        });
+      }
+      return challengeApi.saveTopics(selectedSectionId!, allBlocks);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["challenge", "topics", selectedSectionId],
       });
       setIsEditingTopic(false);
+      setEditChecklistItems([]);
       toast.success("주제가 저장되었습니다");
     },
     onError: () => toast.error("주제 저장 실패"),
@@ -583,13 +594,18 @@ export function ChallengePage() {
   };
 
   const handleEditTopic = () => {
-    setEditTopicBlocks([...topics]);
+    // CHECKLIST 블록은 별도 편집기로 분리
+    const nonChecklist = topics.filter((t) => t.blockType !== "CHECKLIST");
+    const clBlock = topics.find((t) => t.blockType === "CHECKLIST");
+    setEditTopicBlocks([...nonChecklist]);
+    setEditChecklistItems(clBlock ? parseChecklist(clBlock.content) : []);
     setIsEditingTopic(true);
   };
 
   const handleCancelEditTopic = () => {
     setIsEditingTopic(false);
     setEditTopicBlocks([]);
+    setEditChecklistItems([]);
   };
 
   const toggleSubmission = (id: number) => {
@@ -1138,6 +1154,98 @@ export function ChallengePage() {
                         setEditTopicBlocks(b as ChallengeTopic[])
                       }
                     />
+
+                    {/* ── 체크리스트 편집기 ── */}
+                    <div className="mt-4 border border-border rounded-lg p-4 bg-muted/20">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                          <Check className="w-4 h-4 text-emerald-500" />
+                          Checklist (채점 항목)
+                        </h4>
+                        <button
+                          onClick={() =>
+                            setEditChecklistItems((prev) => [
+                              ...prev,
+                              { label: "", point: 10 },
+                            ])
+                          }
+                          className="text-xs text-primary hover:text-primary/80 flex items-center gap-0.5"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          항목 추가
+                        </button>
+                      </div>
+                      {editChecklistItems.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-2">
+                          채점 항목이 없습니다. "항목 추가"를 클릭하세요.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {editChecklistItems.map((item, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center gap-2"
+                            >
+                              <div className="w-4 h-4 border border-border rounded bg-muted/50 shrink-0" />
+                              <input
+                                type="text"
+                                value={item.label}
+                                onChange={(e) => {
+                                  setEditChecklistItems((prev) => {
+                                    const next = [...prev];
+                                    next[i] = {
+                                      ...next[i],
+                                      label: e.target.value,
+                                    };
+                                    return next;
+                                  });
+                                }}
+                                placeholder="항목명..."
+                                className="flex-1 text-sm border border-input rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                              <input
+                                type="number"
+                                value={item.point}
+                                onChange={(e) => {
+                                  setEditChecklistItems((prev) => {
+                                    const next = [...prev];
+                                    next[i] = {
+                                      ...next[i],
+                                      point: Number(e.target.value) || 0,
+                                    };
+                                    return next;
+                                  });
+                                }}
+                                className="w-16 text-sm text-center border border-input rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                                min={0}
+                              />
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                pt
+                              </span>
+                              <button
+                                onClick={() =>
+                                  setEditChecklistItems((prev) =>
+                                    prev.filter((_, j) => j !== i),
+                                  )
+                                }
+                                className="text-muted-foreground hover:text-destructive shrink-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                          <div className="text-right text-xs font-bold text-emerald-600 pt-1">
+                            Total:{" "}
+                            {editChecklistItems.reduce(
+                              (s, i) => s + i.point,
+                              0,
+                            )}
+                            pt
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border">
                       <Button
                         onClick={() => saveTopicsMutation.mutate()}
