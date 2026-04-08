@@ -36,6 +36,7 @@ export interface ChallengeSubmission {
   userName: string;
   githubUrl: string;
   content: string;
+  rating: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -197,5 +198,14 @@ export const challengeApi = {
       headers: getAuthHeaders(),
     }).then((r) => {
       if (!r.ok) throw new Error("삭제 실패");
+    }),
+
+  rateSubmission: (id: number, rating: number): Promise<void> =>
+    fetch(`${BASE}/challenge/submissions/${id}/rating`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ rating }),
+    }).then((r) => {
+      if (!r.ok) throw new Error("평가 실패");
     }),
 };

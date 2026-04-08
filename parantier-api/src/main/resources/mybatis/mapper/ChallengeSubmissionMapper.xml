@@ -8,12 +8,13 @@
         <result property="userName" column="user_name"/>
         <result property="githubUrl" column="github_url"/>
         <result property="content" column="content"/>
+        <result property="rating" column="rating"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
     <select id="findBySectionId" resultMap="ChallengeSubmissionResultMap">
         SELECT s.id, s.section_id, s.user_id, u.username as user_name,
-               s.github_url, s.content, s.created_at, s.updated_at
+               s.github_url, s.content, s.rating, s.created_at, s.updated_at
         FROM challenge_submissions s
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.section_id = #{sectionId}
@@ -21,7 +22,7 @@
     </select>
     <select id="findById" resultMap="ChallengeSubmissionResultMap">
         SELECT s.id, s.section_id, s.user_id, u.username as user_name,
-               s.github_url, s.content, s.created_at, s.updated_at
+               s.github_url, s.content, s.rating, s.created_at, s.updated_at
         FROM challenge_submissions s
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.id = #{id}
@@ -33,6 +34,9 @@
     <update id="update">
         UPDATE challenge_submissions SET github_url=#{githubUrl}, content=#{content},
         updated_at=CURRENT_TIMESTAMP WHERE id=#{id}
+    </update>
+    <update id="updateRating">
+        UPDATE challenge_submissions SET rating=#{rating}, updated_at=CURRENT_TIMESTAMP WHERE id=#{id}
     </update>
     <delete id="delete">DELETE FROM challenge_submissions WHERE id=#{id}</delete>
 </mapper>

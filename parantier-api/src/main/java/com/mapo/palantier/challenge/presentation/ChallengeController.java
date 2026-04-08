@@ -170,6 +170,17 @@ public class ChallengeController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "챌린지 풀이 별점 평가 [ADMIN]")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/submissions/{id}/rating")
+    public ResponseEntity<Void> rateSubmission(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, Integer> body
+    ) {
+        challengeService.rateSubmission(id, body.getOrDefault("rating", 0));
+        return ResponseEntity.ok().build();
+    }
+
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return (Long) auth.getPrincipal();

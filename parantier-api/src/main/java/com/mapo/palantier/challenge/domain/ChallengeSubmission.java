@@ -14,6 +14,7 @@ public class ChallengeSubmission {
     private String userName;
     private String githubUrl;
     private String content;
+    private Integer rating;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

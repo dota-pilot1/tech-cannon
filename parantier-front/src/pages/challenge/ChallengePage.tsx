@@ -26,6 +26,7 @@ import {
   ChevronDown,
   ChevronRight,
   Send,
+  Star,
   Trophy,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
@@ -437,6 +438,17 @@ export function ChallengePage() {
       toast.success("풀이가 수정되었습니다");
     },
     onError: () => toast.error("수정 실패"),
+  });
+
+  const rateSubmissionMutation = useMutation({
+    mutationFn: ({ id, rating }: { id: number; rating: number }) =>
+      challengeApi.rateSubmission(id, rating),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge", "submissions", selectedSectionId],
+      });
+    },
+    onError: () => toast.error("평가 실패"),
   });
 
   const deleteSubmissionMutation = useMutation({
@@ -1200,7 +1212,7 @@ export function ChallengePage() {
                         return (
                           <div
                             key={sub.id}
-                            className="border border-border rounded-lg overflow-hidden"
+                            className="border border-border rounded-lg overflow-hidden group"
                           >
                             {/* 제출 헤더 */}
                             <button
@@ -1217,8 +1229,50 @@ export function ChallengePage() {
                                     Me
                                   </span>
                                 )}
+                                {/* 별점 미리보기 */}
+                                {(sub.rating ?? 0) > 0 && (
+                                  <span className="flex items-center gap-0.5">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                      <Star
+                                        key={i}
+                                        className={`w-3 h-3 ${i < (sub.rating ?? 0) ? "text-amber-400 fill-amber-400" : "text-muted-foreground/30"}`}
+                                      />
+                                    ))}
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-2">
+                                {/* 수정/삭제 아이콘 (우상단) */}
+                                {(isMine || canDelete) && (
+                                  <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                    {isMine && (
+                                      <button
+                                        onClick={() => {
+                                          setEditingSubmissionId(sub.id);
+                                          setEditSubGithubUrl(sub.githubUrl ?? "");
+                                          setEditSubContent(sub.content);
+                                        }}
+                                        className="p-1 text-muted-foreground hover:text-foreground rounded"
+                                        title="Edit"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                    {canDelete && (
+                                      <button
+                                        onClick={() => {
+                                          if (confirm("Delete this submission?")) {
+                                            deleteSubmissionMutation.mutate(sub.id);
+                                          }
+                                        }}
+                                        className="p-1 text-muted-foreground hover:text-destructive rounded"
+                                        title="Delete"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </span>
+                                )}
                                 <span className="text-xs text-muted-foreground">
                                   {new Date(sub.createdAt).toLocaleString(
                                     "ko-KR",
@@ -1296,11 +1350,7 @@ export function ChallengePage() {
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline mb-2"
                                       >
-                                        <svg
-                                          className="w-4 h-4"
-                                          viewBox="0 0 16 16"
-                                          fill="currentColor"
-                                        >
+                                        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
                                           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
                                         </svg>
                                         {sub.githubUrl}
@@ -1311,42 +1361,35 @@ export function ChallengePage() {
                                         {sub.content}
                                       </p>
                                     )}
-                                    <div className="flex items-center gap-2">
-                                      {isMine && (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => {
-                                            setEditingSubmissionId(sub.id);
-                                            setEditSubGithubUrl(
-                                              sub.githubUrl ?? "",
-                                            );
-                                            setEditSubContent(sub.content);
-                                          }}
-                                        >
-                                          <Pencil className="w-3 h-3 mr-1" />
-                                          Edit
-                                        </Button>
-                                      )}
-                                      {canDelete && (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="text-destructive hover:text-destructive"
-                                          onClick={() => {
-                                            if (
-                                              confirm("Delete this submission?")
-                                            ) {
-                                              deleteSubmissionMutation.mutate(
-                                                sub.id,
-                                              );
-                                            }
-                                          }}
-                                        >
-                                          <Trash2 className="w-3 h-3 mr-1" />
-                                          Delete
-                                        </Button>
-                                      )}
+                                    {/* 별점 평가 */}
+                                    <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">Rating</span>
+                                        <div className="flex items-center gap-0.5">
+                                          {Array.from({ length: 5 }).map((_, i) => (
+                                            <button
+                                              key={i}
+                                              onClick={() => {
+                                                if (isAdmin) {
+                                                  const newRating = i + 1 === sub.rating ? 0 : i + 1;
+                                                  rateSubmissionMutation.mutate({ id: sub.id, rating: newRating });
+                                                }
+                                              }}
+                                              className={`transition-colors ${isAdmin ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
+                                              disabled={!isAdmin}
+                                            >
+                                              <Star
+                                                className={`w-4 h-4 ${i < (sub.rating ?? 0) ? "text-amber-400 fill-amber-400" : "text-muted-foreground/30 hover:text-amber-300"}`}
+                                              />
+                                            </button>
+                                          ))}
+                                        </div>
+                                        {(sub.rating ?? 0) > 0 && (
+                                          <span className="text-xs font-medium text-amber-600">
+                                            {sub.rating}/5
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 )}

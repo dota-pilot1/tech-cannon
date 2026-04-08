@@ -161,4 +161,11 @@ public class ChallengeService {
         }
         submissionMapper.delete(id);
     }
+
+    @Transactional
+    public void rateSubmission(Long id, int rating) {
+        submissionMapper.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.CHALLENGE_SUBMISSION_NOT_FOUND));
+        submissionMapper.updateRating(id, rating);
+    }
 }

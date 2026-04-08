@@ -39,6 +39,20 @@
 
 ---
 
+## 배포 환경 접속
+
+| 항목 | 주소 |
+|------|------|
+| Frontend | https://dxline-tallent.com |
+| Backend API | https://api.dxline-tallent.com |
+| EC2 SSH | `ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26` |
+| 배포 DB | EC2 SSH 접속 후 `PGPASSWORD=palantier_password psql -h localhost -p 5432 -U palantier_user -d palantier` |
+| Health Check | `curl https://api.dxline-tallent.com/actuator/health` |
+
+> **주의**: 배포 DB는 EC2 내부에서만 접근 가능 (SSH 터널 필요)
+
+---
+
 ## 상세 문서 (필요할 때 참조)
 
 | 문서 | 내용 |
@@ -51,4 +65,4 @@
 | [프론트 가이드](/docs/frontend-guide.md) | 컴포넌트, API 설정, TS 에러 패턴 |
 | [해커톤](/docs/hackathon.md) | 해커톤 기능 현황, API, DB 테이블 |
 | [Security 메뉴](/docs/security.md) | Security 페이지 구조, DB 테이블, 메뉴 등록, 새 문서 페이지 추가 패턴 |
-| [배포 가이드 상세](/배포 가이드/) | AWS 인프라, GitHub Secrets, 트러블슈팅 |
+| [배포 가이드 상세](/docs-hyun/배포 가이드/) | AWS 인프라, GitHub Secrets, 트러블슈팅 |
