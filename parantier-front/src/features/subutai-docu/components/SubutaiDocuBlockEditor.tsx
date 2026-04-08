@@ -57,7 +57,7 @@ export default function SubutaiDocuBlockEditor({
   const [addingBlockTitle, setAddingBlockTitle] = useState("");
 
   // 사이드바 리사이즈
-  const [sidebarWidth, setSidebarWidth] = useState(208);
+  const [sidebarWidth, setSidebarWidth] = useState(260);
   const isResizing = useRef(false);
 
   useEffect(() => {
