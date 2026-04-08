@@ -11,6 +11,7 @@ import com.mapo.palantier.challenge.dto.ChallengeSectionRequest;
 import com.mapo.palantier.challenge.dto.ChallengeSubmissionRequest;
 import com.mapo.palantier.challenge.dto.ChallengeTopicDto;
 import com.mapo.palantier.user.domain.User;
+import com.mapo.palantier.user.domain.UserRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -166,8 +167,7 @@ public class ChallengeController {
             @PathVariable Long id,
             @AuthenticationPrincipal User user
     ) {
-        boolean isAdmin = user.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isAdmin = user.getRole() == UserRole.ROLE_ADMIN;
         challengeService.deleteSubmission(id, user.getId(), isAdmin);
         return ResponseEntity.ok().build();
     }
