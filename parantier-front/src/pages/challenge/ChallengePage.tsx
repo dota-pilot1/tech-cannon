@@ -1525,8 +1525,8 @@ export function ChallengePage() {
                                     {sub.score}/{totalPoints}pt
                                   </span>
                                 )}
-                                {/* 별점 미리보기 */}
-                                {(sub.rating ?? 0) > 0 && (
+                                {/* 별점 미리보기 (체크리스트 없을 때만) */}
+                                {checklistItems.length === 0 && (sub.rating ?? 0) > 0 && (
                                   <span className="flex items-center gap-0.5">
                                     {Array.from({ length: 5 }).map((_, i) => (
                                       <Star
@@ -1722,36 +1722,93 @@ export function ChallengePage() {
                                         </div>
                                       );
                                     })()}
-                                    {/* 별점 평가 */}
-                                    <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground">Rating</span>
-                                        <div className="flex items-center gap-0.5">
-                                          {Array.from({ length: 5 }).map((_, i) => (
-                                            <button
-                                              key={i}
-                                              onClick={() => {
-                                                if (isAdmin) {
-                                                  const newRating = i + 1 === sub.rating ? 0 : i + 1;
-                                                  rateSubmissionMutation.mutate({ id: sub.id, rating: newRating });
-                                                }
-                                              }}
-                                              className={`transition-colors ${isAdmin ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
-                                              disabled={!isAdmin}
-                                            >
-                                              <Star
-                                                className={`w-4 h-4 ${i < (sub.rating ?? 0) ? "text-amber-400 fill-amber-400" : "text-muted-foreground/30 hover:text-amber-300"}`}
-                                              />
-                                            </button>
-                                          ))}
-                                        </div>
-                                        {(sub.rating ?? 0) > 0 && (
-                                          <span className="text-xs font-medium text-amber-600">
-                                            {sub.rating}/5
+                                    {/* 체크리스트 채점 (ADMIN) or 별점 */}
+                                    {checklistItems.length > 0 ? (
+                                      <div className="pt-3 border-t border-border/50">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-xs font-semibold">채점</span>
+                                          <span className="text-xs font-bold text-emerald-600">
+                                            {(() => {
+                                              const results = parseChecklistResult(sub.checklistResult);
+                                              return results.reduce((s, r) =>
+                                                r.checked && r.index < checklistItems.length
+                                                  ? s + checklistItems[r.index].point : s, 0);
+                                            })()}/{totalPoints}pt
                                           </span>
-                                        )}
+                                        </div>
+                                        <div className="space-y-1">
+                                          {checklistItems.map((item, i) => {
+                                            const results = parseChecklistResult(sub.checklistResult);
+                                            const checked = results.find(r => r.index === i)?.checked ?? false;
+                                            return (
+                                              <label
+                                                key={i}
+                                                className={`flex items-center gap-2 text-sm ${isAdmin ? "cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5" : ""}`}
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  checked={checked}
+                                                  disabled={!isAdmin}
+                                                  onChange={() => {
+                                                    if (!isAdmin) return;
+                                                    const prevResults = parseChecklistResult(sub.checklistResult);
+                                                    const newResults = checklistItems.map((_, idx) => ({
+                                                      index: idx,
+                                                      checked: idx === i
+                                                        ? !checked
+                                                        : (prevResults.find(r => r.index === idx)?.checked ?? false),
+                                                    }));
+                                                    // 서버에 업데이트
+                                                    challengeApi.updateSubmission(sub.id, {
+                                                      githubUrl: sub.githubUrl,
+                                                      content: sub.content,
+                                                      checklistResult: JSON.stringify(newResults),
+                                                    }).then(() => {
+                                                      queryClient.invalidateQueries({
+                                                        queryKey: ["challenge", "submissions", selectedSectionId],
+                                                      });
+                                                    });
+                                                  }}
+                                                  className="w-4 h-4 rounded border-border accent-emerald-500"
+                                                />
+                                                <span className={`flex-1 ${checked ? "" : "text-muted-foreground"}`}>{item.label}</span>
+                                                <span className="text-xs text-muted-foreground">{item.point}pt</span>
+                                              </label>
+                                            );
+                                          })}
+                                        </div>
                                       </div>
-                                    </div>
+                                    ) : (
+                                      <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs text-muted-foreground">Rating</span>
+                                          <div className="flex items-center gap-0.5">
+                                            {Array.from({ length: 5 }).map((_, i) => (
+                                              <button
+                                                key={i}
+                                                onClick={() => {
+                                                  if (isAdmin) {
+                                                    const newRating = i + 1 === sub.rating ? 0 : i + 1;
+                                                    rateSubmissionMutation.mutate({ id: sub.id, rating: newRating });
+                                                  }
+                                                }}
+                                                className={`transition-colors ${isAdmin ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
+                                                disabled={!isAdmin}
+                                              >
+                                                <Star
+                                                  className={`w-4 h-4 ${i < (sub.rating ?? 0) ? "text-amber-400 fill-amber-400" : "text-muted-foreground/30 hover:text-amber-300"}`}
+                                                />
+                                              </button>
+                                            ))}
+                                          </div>
+                                          {(sub.rating ?? 0) > 0 && (
+                                            <span className="text-xs font-medium text-amber-600">
+                                              {sub.rating}/5
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
