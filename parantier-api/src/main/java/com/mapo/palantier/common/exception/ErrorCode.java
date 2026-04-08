@@ -172,6 +172,17 @@ public enum ErrorCode {
         "섹션을 찾을 수 없습니다",
         HttpStatus.NOT_FOUND
     ),
+    // springai
+    SPRINGAI_CATEGORY_NOT_FOUND(
+        "SPRINGAI_CATEGORY_NOT_FOUND",
+        "카테고리를 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
+    SPRINGAI_SECTION_NOT_FOUND(
+        "SPRINGAI_SECTION_NOT_FOUND",
+        "섹션을 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
     // db
     DB_FOLDER_NOT_FOUND(
         "DB_FOLDER_NOT_FOUND",

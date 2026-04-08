@@ -45,6 +45,7 @@ import SubutaiFaqPage from "@/pages/subutai/SubutaiFaqPage";
 import SubutaiDocuPage from "@/pages/subutai/SubutaiDocuPage";
 import SecurityPage from "@/pages/security/SecurityPage";
 import DevOpsPage from "@/pages/devops/DevOpsPage";
+import SpringAiPage from "@/pages/springai/SpringAiPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -394,6 +395,14 @@ const devopsRoute = createRoute({
   component: DevOpsPage,
 });
 
+// Spring AI 페이지 (로그인 필요)
+const springaiRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/springai",
+  beforeLoad: () => requireAuth(),
+  component: SpringAiPage,
+});
+
 // Subutai AI 페이지 (로그인 필요)
 const subutaiAiRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -466,6 +475,7 @@ const routeTree = rootRoute.addChildren([
   subutaiDocuRoute,
   securityRoute,
   devopsRoute,
+  springaiRoute,
   notFoundRoute,
 ]);
 
