@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapo.palantier.challenge.infrastructure.ChallengeSubmissionMapper">
+    <resultMap id="ChallengeSubmissionResultMap" type="com.mapo.palantier.challenge.domain.ChallengeSubmission">
+        <id property="id" column="id"/>
+        <result property="sectionId" column="section_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="language" column="language"/>
+        <result property="content" column="content"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <select id="findBySectionId" resultMap="ChallengeSubmissionResultMap">
+        SELECT s.id, s.section_id, s.user_id, u.username as user_name,
+               s.language, s.content, s.created_at, s.updated_at
+        FROM challenge_submissions s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.section_id = #{sectionId}
+        ORDER BY s.created_at ASC
+    </select>
+    <select id="findById" resultMap="ChallengeSubmissionResultMap">
+        SELECT s.id, s.section_id, s.user_id, u.username as user_name,
+               s.language, s.content, s.created_at, s.updated_at
+        FROM challenge_submissions s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.id = #{id}
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO challenge_submissions (section_id, user_id, language, content)
+        VALUES (#{sectionId}, #{userId}, #{language}, #{content})
+    </insert>
+    <update id="update">
+        UPDATE challenge_submissions SET language=#{language}, content=#{content},
+        updated_at=CURRENT_TIMESTAMP WHERE id=#{id}
+    </update>
+    <delete id="delete">DELETE FROM challenge_submissions WHERE id=#{id}</delete>
+</mapper>

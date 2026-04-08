@@ -1,641 +1,1313 @@
-import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useState, useRef, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useStore } from "@tanstack/react-store";
+import { authStore } from "@/entities/user/model/authStore";
 import {
-  CalendarCheck,
-  Code2,
-  Database,
-  GitPullRequest,
-  Trophy,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Flame,
-  Star,
+  challengeApi,
+  type ChallengeCategory,
+  type ChallengeSection,
+  type ChallengeTopic,
+  type ChallengeSubmission,
+} from "@/features/challenge/api/challengeApi";
+import TaskBlockEditor from "@/features/task/components/TaskBlockEditor";
+import type { TaskBlock, BlockType } from "@/features/task/types/task.types";
+import { TYPE_META } from "@/features/task/types/task.types";
+import { LexicalViewer } from "@/shared/ui/lexical/LexicalViewer";
+import { Mermaid } from "@/shared/ui/mermaid";
+import { toast } from "sonner";
+import {
+  Plus,
+  Pencil,
+  Save,
+  X,
+  Trash2,
+  GripVertical,
+  Check,
+  ChevronDown,
   ChevronRight,
-  Lock,
+  Send,
+  Trophy,
 } from "lucide-react";
+import { Button } from "@/shared/ui/button";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
-type TabKey = "daily" | "algo" | "sql" | "review" | "rank";
+// ─────────────────────────────────────────────
+// SortableItem
+// ─────────────────────────────────────────────
+function SortableItem({
+  id,
+  children,
+  isDragging,
+}: {
+  id: number;
+  children: (dragHandleProps: Record<string, unknown>) => React.ReactNode;
+  isDragging: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
+    </div>
+  );
+}
 
-const menuItems: {
-  key: TabKey;
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  emoji: string;
-  comingSoon?: boolean;
-}[] = [
-  {
-    key: "daily",
-    icon: <CalendarCheck className="w-5 h-5" />,
-    label: "데일리 챌린지",
-    description: "매일 새로운 코딩 챌린지에 도전하세요.",
-    emoji: "📅",
-  },
-  {
-    key: "algo",
-    icon: <Code2 className="w-5 h-5" />,
-    label: "알고리즘",
-    description: "알고리즘 문제를 풀고 실력을 키우세요.",
-    emoji: "🧩",
-  },
-  {
-    key: "sql",
-    icon: <Database className="w-5 h-5" />,
-    label: "SQL 챌린지",
-    description: "SQL 쿼리 문제를 풀어보세요.",
-    emoji: "🗄️",
-  },
-  {
-    key: "review",
-    icon: <GitPullRequest className="w-5 h-5" />,
-    label: "코드 리뷰",
-    description: "팀원의 코드를 리뷰하고 피드백을 남기세요.",
-    emoji: "👀",
-  },
-  {
-    key: "rank",
-    icon: <Trophy className="w-5 h-5" />,
-    label: "랭킹",
-    description: "팀 내 챌린지 랭킹을 확인하세요.",
-    emoji: "🏆",
-  },
+// ─────────────────────────────────────────────
+// TopicBlockViewer
+// ─────────────────────────────────────────────
+function TopicBlockViewer({ block }: { block: ChallengeTopic }) {
+  const meta = TYPE_META[block.blockType as BlockType] ?? {
+    icon: "\u{1F4C4}",
+    label: block.blockType,
+    color: "bg-muted text-muted-foreground",
+  };
+
+  return (
+    <div className="mb-4">
+      <span
+        className={`text-xs px-2 py-0.5 rounded-full font-medium mb-2 inline-block ${meta.color}`}
+      >
+        {meta.icon} {meta.label}
+      </span>
+      {block.blockType === "NOTE" && <LexicalViewer content={block.content} />}
+      {block.blockType === "MMD" && <Mermaid chart={block.content} />}
+      {block.blockType !== "NOTE" && block.blockType !== "MMD" && (
+        <pre className="text-xs font-mono bg-muted p-3 rounded-lg border border-border overflow-x-auto whitespace-pre-wrap">
+          {block.content}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// 언어 옵션
+// ─────────────────────────────────────────────
+const LANGUAGE_OPTIONS = [
+  { value: "JAVA", label: "Java" },
+  { value: "PYTHON", label: "Python" },
+  { value: "JAVASCRIPT", label: "JavaScript" },
+  { value: "TYPESCRIPT", label: "TypeScript" },
+  { value: "SQL", label: "SQL" },
+  { value: "GO", label: "Go" },
+  { value: "TEXT", label: "Text" },
 ];
 
-const validTabs = new Set<TabKey>(["daily", "algo", "sql", "review", "rank"]);
-
-function getInitialTab(): TabKey | null {
-  const params = new URLSearchParams(window.location.search);
-  const tab = params.get("tab");
-  if (tab && validTabs.has(tab as TabKey)) return tab as TabKey;
-  return null;
-}
-
-/* ─────────────────── 데일리 챌린지 ─────────────────── */
-function DailyTab() {
-  return (
-    <div className="p-6 space-y-5">
-      {/* 오늘의 챌린지 */}
-      <div className="rounded-xl border border-border bg-primary/5 p-5">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
-            📅 오늘의 챌린지 · Day 42
-          </span>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock className="w-3.5 h-3.5" />
-            18:24:09 남음
-          </span>
-        </div>
-        <h2 className="text-base font-bold text-foreground mb-1">
-          FizzBuzz 변형 문제
-        </h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          1부터 N까지 숫자 중 3의 배수는 "Fizz", 5의 배수는 "Buzz", 15의 배수는
-          "FizzBuzz"를 출력하되, 7의 배수일 경우 "Lucky"를 추가 출력하세요.
-        </p>
-        <div className="flex items-center gap-2">
-          <span className="text-xs bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded-full">
-            난이도: 쉬움
-          </span>
-          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-            언어 자유
-          </span>
-        </div>
-      </div>
-
-      {/* 참여 현황 */}
-      <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">
-          오늘의 참여 현황
-        </h3>
-        <div className="space-y-2">
-          {[
-            {
-              name: "김민준",
-              time: "09:12",
-              status: "완료",
-              color: "text-green-500",
-            },
-            {
-              name: "이서연",
-              time: "10:45",
-              status: "완료",
-              color: "text-green-500",
-            },
-            {
-              name: "박지훈",
-              time: "11:30",
-              status: "도전 중",
-              color: "text-yellow-500",
-            },
-            {
-              name: "최수아",
-              time: "-",
-              status: "미참여",
-              color: "text-muted-foreground",
-            },
-            {
-              name: "정하은",
-              time: "-",
-              status: "미참여",
-              color: "text-muted-foreground",
-            },
-          ].map((user) => (
-            <div
-              key={user.name}
-              className="flex items-center justify-between px-4 py-2.5 rounded-lg border border-border bg-card text-sm"
-            >
-              <span className="font-medium text-foreground">{user.name}</span>
-              <div className="flex items-center gap-4">
-                <span className="text-xs text-muted-foreground">
-                  {user.time}
-                </span>
-                <span className={`text-xs font-medium ${user.color}`}>
-                  {user.status}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 연속 달성 */}
-      <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">
-          🔥 연속 달성 현황
-        </h3>
-        <div className="grid grid-cols-5 gap-2">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-10 rounded-lg flex items-center justify-center text-xs font-bold border ${
-                i < 7
-                  ? "bg-primary/15 border-primary/30 text-primary"
-                  : "bg-muted/30 border-border text-muted-foreground"
-              }`}
-            >
-              {i < 7 ? <Flame className="w-4 h-4" /> : i + 1}
-            </div>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          현재 7일 연속 달성 중 🔥
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────── 알고리즘 ─────────────────── */
-function AlgoTab() {
-  const problems = [
-    { id: 1, title: "두 수의 합", level: "쉬움", tag: "배열", solved: true },
-    { id: 2, title: "유효한 괄호", level: "쉬움", tag: "스택", solved: true },
-    {
-      id: 3,
-      title: "최장 공통 부분 수열",
-      level: "보통",
-      tag: "DP",
-      solved: false,
-    },
-    {
-      id: 4,
-      title: "이진 탐색 트리",
-      level: "보통",
-      tag: "트리",
-      solved: false,
-    },
-    {
-      id: 5,
-      title: "다익스트라 최단 경로",
-      level: "어려움",
-      tag: "그래프",
-      solved: false,
-      locked: true,
-    },
-    {
-      id: 6,
-      title: "N-Queen 문제",
-      level: "어려움",
-      tag: "백트래킹",
-      solved: false,
-      locked: true,
-    },
-  ];
-
-  const levelColor: Record<string, string> = {
-    쉬움: "text-green-600 dark:text-green-400 bg-green-500/10",
-    보통: "text-yellow-600 dark:text-yellow-400 bg-yellow-500/10",
-    어려움: "text-red-600 dark:text-red-400 bg-red-500/10",
-  };
-
-  return (
-    <div className="p-6 space-y-4">
-      {/* 진행률 */}
-      <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-6">
-        <div className="text-center">
-          <p className="text-2xl font-bold text-foreground">2</p>
-          <p className="text-xs text-muted-foreground">해결</p>
-        </div>
-        <div className="flex-1">
-          <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-            <span>전체 진행률</span>
-            <span>2 / 6</span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full"
-              style={{ width: "33%" }}
-            />
-          </div>
-        </div>
-        <div className="text-center">
-          <p className="text-2xl font-bold text-foreground">33%</p>
-          <p className="text-xs text-muted-foreground">달성률</p>
-        </div>
-      </div>
-
-      {/* 문제 목록 */}
-      <div className="space-y-2">
-        {problems.map((p) => (
-          <div
-            key={p.id}
-            className="flex items-center justify-between px-4 py-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              {p.solved ? (
-                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-              ) : p.locked ? (
-                <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
-              ) : (
-                <XCircle className="w-4 h-4 text-muted-foreground shrink-0" />
-              )}
-              <div>
-                <p
-                  className={`text-sm font-medium ${p.locked ? "text-muted-foreground" : "text-foreground"}`}
-                >
-                  {p.id}. {p.title}
-                </p>
-                <p className="text-xs text-muted-foreground">{p.tag}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${levelColor[p.level]}`}
-              >
-                {p.level}
-              </span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────── SQL 챌린지 ─────────────────── */
-function SqlTab() {
-  const problems = [
-    {
-      id: 1,
-      title: "활성 유저 조회",
-      desc: "is_active = true인 유저를 조회하세요.",
-      level: "쉬움",
-      solved: true,
-    },
-    {
-      id: 2,
-      title: "게시글 작성자 JOIN",
-      desc: "posts와 users를 JOIN해서 작성자 이름을 함께 조회하세요.",
-      level: "쉬움",
-      solved: true,
-    },
-    {
-      id: 3,
-      title: "댓글 수 집계",
-      desc: "각 게시글의 댓글 수를 GROUP BY로 집계하세요.",
-      level: "보통",
-      solved: false,
-    },
-    {
-      id: 4,
-      title: "좋아요 TOP 5",
-      desc: "좋아요가 가장 많은 게시글 5개를 구하세요.",
-      level: "보통",
-      solved: false,
-    },
-    {
-      id: 5,
-      title: "대댓글 재귀 조회",
-      desc: "parent_id를 활용해 계층형 댓글을 조회하세요.",
-      level: "어려움",
-      solved: false,
-    },
-  ];
-
-  const levelColor: Record<string, string> = {
-    쉬움: "text-green-600 dark:text-green-400 bg-green-500/10",
-    보통: "text-yellow-600 dark:text-yellow-400 bg-yellow-500/10",
-    어려움: "text-red-600 dark:text-red-400 bg-red-500/10",
-  };
-
-  return (
-    <div className="p-6 space-y-4">
-      {/* 안내 */}
-      <div className="rounded-xl bg-primary/5 border border-primary/20 px-4 py-3 text-sm text-primary">
-        💡 SQL 연습장의 실제 DB를 기반으로 한 챌린지예요. SQL 탭에서 직접 쿼리를
-        실행해보세요!
-      </div>
-
-      {/* 문제 목록 */}
-      <div className="space-y-2">
-        {problems.map((p) => (
-          <div
-            key={p.id}
-            className="flex items-start gap-3 px-4 py-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors cursor-pointer"
-          >
-            <div className="mt-0.5">
-              {p.solved ? (
-                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-              ) : (
-                <XCircle className="w-4 h-4 text-muted-foreground shrink-0" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <p className="text-sm font-medium text-foreground">
-                  {p.id}. {p.title}
-                </p>
-                <span
-                  className={`text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0 ${levelColor[p.level]}`}
-                >
-                  {p.level}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground truncate">{p.desc}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────── 코드 리뷰 ─────────────────── */
-function ReviewTab() {
-  const reviews = [
-    {
-      id: 1,
-      author: "박지훈",
-      title: "N+1 해결 코드 리뷰 요청",
-      desc: "fetch join으로 해결했는데 더 좋은 방법이 있을까요?",
-      comments: 3,
-      time: "2시간 전",
-      status: "리뷰 중",
-      statusColor: "text-yellow-500 bg-yellow-500/10",
-    },
-    {
-      id: 2,
-      author: "윤채원",
-      title: "React useCallback 최적화",
-      desc: "불필요한 리렌더링을 막기 위해 useCallback을 사용했습니다.",
-      comments: 5,
-      time: "어제",
-      status: "완료",
-      statusColor: "text-green-500 bg-green-500/10",
-    },
-    {
-      id: 3,
-      author: "임도현",
-      title: "Docker compose 설정 검토",
-      desc: "처음 작성한 docker-compose.yml 파일입니다. 피드백 부탁드려요.",
-      comments: 1,
-      time: "3일 전",
-      status: "완료",
-      statusColor: "text-green-500 bg-green-500/10",
-    },
-  ];
-
-  return (
-    <div className="p-6 space-y-4">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">
-          리뷰 요청 목록
-        </h3>
-        <button className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
-          + 리뷰 요청
-        </button>
-      </div>
-
-      {/* 목록 */}
-      <div className="space-y-2">
-        {reviews.map((r) => (
-          <div
-            key={r.id}
-            className="px-4 py-3.5 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors cursor-pointer"
-          >
-            <div className="flex items-start justify-between gap-2 mb-1.5">
-              <p className="text-sm font-medium text-foreground">{r.title}</p>
-              <span
-                className={`text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0 ${r.statusColor}`}
-              >
-                {r.status}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-2 line-clamp-1">
-              {r.desc}
-            </p>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{r.author}</span>
-              <span>💬 {r.comments}개</span>
-              <span>{r.time}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────── 랭킹 ─────────────────── */
-function RankTab() {
-  const ranks = [
-    {
-      rank: 1,
-      name: "김민준",
-      score: 1240,
-      solved: 42,
-      streak: 15,
-      badge: "🥇",
-    },
-    {
-      rank: 2,
-      name: "이서연",
-      score: 1105,
-      solved: 38,
-      streak: 10,
-      badge: "🥈",
-    },
-    { rank: 3, name: "강태양", score: 980, solved: 33, streak: 7, badge: "🥉" },
-    { rank: 4, name: "한소희", score: 870, solved: 29, streak: 5, badge: "" },
-    { rank: 5, name: "박지훈", score: 740, solved: 24, streak: 3, badge: "" },
-    { rank: 6, name: "오준서", score: 610, solved: 20, streak: 2, badge: "" },
-    { rank: 7, name: "정하은", score: 480, solved: 16, streak: 1, badge: "" },
-  ];
-
-  return (
-    <div className="p-6 space-y-4">
-      {/* 내 순위 */}
-      <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 flex items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-lg">
-          5
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-foreground">
-            나의 현재 순위
-          </p>
-          <p className="text-xs text-muted-foreground">
-            박지훈 · 740점 · 24문제 해결
-          </p>
-        </div>
-        <div className="flex items-center gap-1 text-xs text-primary font-medium">
-          <Flame className="w-3.5 h-3.5" />
-          3일 연속
-        </div>
-      </div>
-
-      {/* 랭킹 테이블 */}
-      <div className="space-y-1.5">
-        {ranks.map((r) => (
-          <div
-            key={r.rank}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors ${
-              r.name === "박지훈"
-                ? "border-primary/30 bg-primary/5"
-                : "border-border bg-card hover:bg-muted/30"
-            }`}
-          >
-            <div className="w-6 text-center">
-              {r.badge ? (
-                <span className="text-base">{r.badge}</span>
-              ) : (
-                <span className="text-sm text-muted-foreground font-medium">
-                  {r.rank}
-                </span>
-              )}
-            </div>
-            <p className="flex-1 text-sm font-medium text-foreground">
-              {r.name}
-            </p>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                {r.solved}
-              </span>
-              <span className="flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 text-orange-400" />
-                {r.streak}일
-              </span>
-              <span className="flex items-center gap-1 font-semibold text-foreground">
-                <Star className="w-3.5 h-3.5 text-yellow-400" />
-                {r.score.toLocaleString()}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────── renderTab ─────────────────── */
-function renderTab(tab: TabKey) {
-  switch (tab) {
-    case "daily":
-      return <DailyTab />;
-    case "algo":
-      return <AlgoTab />;
-    case "sql":
-      return <SqlTab />;
-    case "review":
-      return <ReviewTab />;
-    case "rank":
-      return <RankTab />;
-  }
-}
-
-/* ─────────────────── ChallengePage ─────────────────── */
+// ─────────────────────────────────────────────
+// 메인 페이지
+// ─────────────────────────────────────────────
 export function ChallengePage() {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabKey | null>(getInitialTab);
+  const queryClient = useQueryClient();
+  const { user } = useStore(authStore, (s) => s);
+  const isAdmin = user?.role === "ROLE_ADMIN";
 
-  const handleTabChange = (tab: TabKey) => {
-    setActiveTab(tab);
-    navigate({ to: "/challenge", search: { tab } });
+  // ── 사이드바 넓이
+  const [cat1Width, setCat1Width] = useState(() => {
+    const saved = localStorage.getItem("challenge-cat1-width");
+    return saved ? Number(saved) : 180;
+  });
+  const [cat2Width, setCat2Width] = useState(() => {
+    const saved = localStorage.getItem("challenge-cat2-width");
+    return saved ? Number(saved) : 200;
+  });
+  const isResizing1 = useRef(false);
+  const isResizing2 = useRef(false);
+
+  const startResize1 = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing1.current = true;
+      const startX = e.clientX;
+      const startW = cat1Width;
+      const onMove = (ev: MouseEvent) => {
+        if (!isResizing1.current) return;
+        const next = Math.min(320, Math.max(120, startW + ev.clientX - startX));
+        setCat1Width(next);
+        localStorage.setItem("challenge-cat1-width", String(next));
+      };
+      const onUp = () => {
+        isResizing1.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [cat1Width],
+  );
+
+  const startResize2 = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing2.current = true;
+      const startX = e.clientX;
+      const startW = cat2Width;
+      const onMove = (ev: MouseEvent) => {
+        if (!isResizing2.current) return;
+        const next = Math.min(400, Math.max(140, startW + ev.clientX - startX));
+        setCat2Width(next);
+        localStorage.setItem("challenge-cat2-width", String(next));
+      };
+      const onUp = () => {
+        isResizing2.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [cat2Width],
+  );
+
+  // ── 선택 상태
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
+    null,
+  );
+
+  // ── 주제 편집 상태
+  const [isEditingTopic, setIsEditingTopic] = useState(false);
+  const [editTopicBlocks, setEditTopicBlocks] = useState<ChallengeTopic[]>([]);
+
+  // ── 카테고리 CRUD 상태
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(
+    null,
+  );
+  const [editingCategoryName, setEditingCategoryName] = useState("");
+
+  // ── 섹션 CRUD 상태
+  const [isAddingSection, setIsAddingSection] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+  const [editingSectionTitle, setEditingSectionTitle] = useState("");
+
+  // ── 풀이 제출 상태
+  const [submissionLanguage, setSubmissionLanguage] = useState("JAVA");
+  const [submissionContent, setSubmissionContent] = useState("");
+  const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(
+    new Set(),
+  );
+  // ── 풀이 수정 상태
+  const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(
+    null,
+  );
+  const [editSubLanguage, setEditSubLanguage] = useState("");
+  const [editSubContent, setEditSubContent] = useState("");
+
+  // ─────────────────────────────────────────────
+  // Queries
+  // ─────────────────────────────────────────────
+  const { data: categories = [] } = useQuery<ChallengeCategory[]>({
+    queryKey: ["challenge", "categories"],
+    queryFn: challengeApi.getCategories,
+  });
+
+  const { data: sections = [] } = useQuery<ChallengeSection[]>({
+    queryKey: ["challenge", "sections", selectedCategoryId],
+    queryFn: () => challengeApi.getSections(selectedCategoryId!),
+    enabled: !!selectedCategoryId,
+  });
+
+  const { data: topics = [] } = useQuery<ChallengeTopic[]>({
+    queryKey: ["challenge", "topics", selectedSectionId],
+    queryFn: () => challengeApi.getTopics(selectedSectionId!),
+    enabled: !!selectedSectionId,
+  });
+
+  const { data: submissions = [] } = useQuery<ChallengeSubmission[]>({
+    queryKey: ["challenge", "submissions", selectedSectionId],
+    queryFn: () => challengeApi.getSubmissions(selectedSectionId!),
+    enabled: !!selectedSectionId,
+  });
+
+  // ─────────────────────────────────────────────
+  // Mutations — 카테고리
+  // ─────────────────────────────────────────────
+  const addCategoryMutation = useMutation({
+    mutationFn: (name: string) =>
+      challengeApi.createCategory({
+        name,
+        icon: "Folder",
+        emoji: "",
+        orderNum: categories.length,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["challenge", "categories"] });
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+      toast.success("카테고리가 추가되었습니다");
+    },
+    onError: () => toast.error("카테고리 추가 실패"),
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) => {
+      const cat = categories.find((c) => c.id === id);
+      return challengeApi.updateCategory(id, {
+        name,
+        icon: cat?.icon ?? "Folder",
+        emoji: cat?.emoji ?? "",
+        orderNum: cat?.orderNum ?? 0,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["challenge", "categories"] });
+      setEditingCategoryId(null);
+      setEditingCategoryName("");
+      toast.success("카테고리가 수정되었습니다");
+    },
+    onError: () => toast.error("카테고리 수정 실패"),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: number) => challengeApi.deleteCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["challenge", "categories"] });
+      setSelectedCategoryId(null);
+      setSelectedSectionId(null);
+      toast.success("카테고리가 삭제되었습니다");
+    },
+    onError: () => toast.error("카테고리 삭제 실패"),
+  });
+
+  const reorderCategoryMutation = useMutation({
+    mutationFn: (items: { id: number; orderNum: number }[]) =>
+      challengeApi.reorderCategories(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["challenge", "categories"] });
+    },
+    onError: () => toast.error("순서 변경 실패"),
+  });
+
+  // ─────────────────────────────────────────────
+  // Mutations — 섹션
+  // ─────────────────────────────────────────────
+  const addSectionMutation = useMutation({
+    mutationFn: (title: string) =>
+      challengeApi.createSection({
+        categoryId: selectedCategoryId!,
+        title,
+        orderNum: sections.length,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge", "sections", selectedCategoryId],
+      });
+      setIsAddingSection(false);
+      setNewSectionTitle("");
+      toast.success("섹션이 추가되었습니다");
+    },
+    onError: () => toast.error("섹션 추가 실패"),
+  });
+
+  const renameSectionMutation = useMutation({
+    mutationFn: ({ id, title }: { id: number; title: string }) => {
+      const sec = sections.find((s) => s.id === id);
+      return challengeApi.updateSection(id, {
+        title,
+        orderNum: sec?.orderNum ?? 0,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge", "sections", selectedCategoryId],
+      });
+      setEditingSectionId(null);
+      setEditingSectionTitle("");
+      toast.success("섹션이 수정되었습니다");
+    },
+    onError: () => toast.error("섹션 수정 실패"),
+  });
+
+  const deleteSectionMutation = useMutation({
+    mutationFn: (id: number) => challengeApi.deleteSection(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge", "sections", selectedCategoryId],
+      });
+      setSelectedSectionId(null);
+      toast.success("섹션이 삭제되었습니다");
+    },
+    onError: () => toast.error("섹션 삭제 실패"),
+  });
+
+  const reorderSectionMutation = useMutation({
+    mutationFn: (items: { id: number; orderNum: number }[]) =>
+      challengeApi.reorderSections(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge", "sections", selectedCategoryId],
+      });
+    },
+    onError: () => toast.error("순서 변경 실패"),
+  });
+
+  // ─────────────────────────────────────────────
+  // Mutations — 주제 블록
+  // ─────────────────────────────────────────────
+  const saveTopicsMutation = useMutation({
+    mutationFn: () =>
+      challengeApi.saveTopics(selectedSectionId!, editTopicBlocks),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge", "topics", selectedSectionId],
+      });
+      setIsEditingTopic(false);
+      toast.success("주제가 저장되었습니다");
+    },
+    onError: () => toast.error("주제 저장 실패"),
+  });
+
+  // ─────────────────────────────────────────────
+  // Mutations — 풀이 제출
+  // ─────────────────────────────────────────────
+  const createSubmissionMutation = useMutation({
+    mutationFn: () =>
+      challengeApi.createSubmission(selectedSectionId!, {
+        language: submissionLanguage,
+        content: submissionContent,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge", "submissions", selectedSectionId],
+      });
+      setSubmissionContent("");
+      toast.success("풀이가 제출되었습니다");
+    },
+    onError: () => toast.error("제출 실패"),
+  });
+
+  const updateSubmissionMutation = useMutation({
+    mutationFn: ({ id }: { id: number }) =>
+      challengeApi.updateSubmission(id, {
+        language: editSubLanguage,
+        content: editSubContent,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge", "submissions", selectedSectionId],
+      });
+      setEditingSubmissionId(null);
+      toast.success("풀이가 수정되었습니다");
+    },
+    onError: () => toast.error("수정 실패"),
+  });
+
+  const deleteSubmissionMutation = useMutation({
+    mutationFn: (id: number) => challengeApi.deleteSubmission(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge", "submissions", selectedSectionId],
+      });
+      toast.success("풀이가 삭제되었습니다");
+    },
+    onError: () => toast.error("삭제 실패"),
+  });
+
+  // ─────────────────────────────────────────────
+  // DnD
+  // ─────────────────────────────────────────────
+  const [activeCatId, setActiveCatId] = useState<number | null>(null);
+  const [activeSecId, setActiveSecId] = useState<number | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleCatDragStart = (e: DragStartEvent) =>
+    setActiveCatId(e.active.id as number);
+  const handleCatDragEnd = (e: DragEndEvent) => {
+    setActiveCatId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = categories.findIndex((c) => c.id === active.id);
+    const newIdx = categories.findIndex((c) => c.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(categories, oldIdx, newIdx);
+    reorderCategoryMutation.mutate(
+      reordered.map((c, i) => ({ id: c.id, orderNum: i })),
+    );
   };
 
-  const handleHome = () => {
-    setActiveTab(null);
-    navigate({ to: "/challenge" });
+  const handleSecDragStart = (e: DragStartEvent) =>
+    setActiveSecId(e.active.id as number);
+  const handleSecDragEnd = (e: DragEndEvent) => {
+    setActiveSecId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = sections.findIndex((s) => s.id === active.id);
+    const newIdx = sections.findIndex((s) => s.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(sections, oldIdx, newIdx);
+    reorderSectionMutation.mutate(
+      reordered.map((s, i) => ({ id: s.id, orderNum: i })),
+    );
   };
 
+  // ─────────────────────────────────────────────
+  // Handlers
+  // ─────────────────────────────────────────────
+  const handleCategoryClick = (id: number) => {
+    setSelectedCategoryId(id);
+    setSelectedSectionId(null);
+    setIsEditingTopic(false);
+    setIsAddingSection(false);
+    setNewSectionTitle("");
+  };
+
+  const handleSectionClick = (id: number) => {
+    setSelectedSectionId(id);
+    setIsEditingTopic(false);
+    setEditingSubmissionId(null);
+    setExpandedSubmissions(new Set());
+  };
+
+  const handleEditTopic = () => {
+    setEditTopicBlocks([...topics]);
+    setIsEditingTopic(true);
+  };
+
+  const handleCancelEditTopic = () => {
+    setIsEditingTopic(false);
+    setEditTopicBlocks([]);
+  };
+
+  const toggleSubmission = (id: number) => {
+    setExpandedSubmissions((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleAddCategoryKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      const name = newCategoryName.trim();
+      if (name && !addCategoryMutation.isPending)
+        addCategoryMutation.mutate(name);
+    }
+    if (e.key === "Escape") {
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+    }
+  };
+
+  const handleAddSectionKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      const title = newSectionTitle.trim();
+      if (title && !addSectionMutation.isPending)
+        addSectionMutation.mutate(title);
+    }
+    if (e.key === "Escape") {
+      setIsAddingSection(false);
+      setNewSectionTitle("");
+    }
+  };
+
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const selectedSection = sections.find((s) => s.id === selectedSectionId);
+
+  // ─────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────
   return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-background flex items-center justify-center p-8">
-      <div className="w-full max-w-4xl h-[680px] flex rounded-2xl border border-border shadow-lg overflow-hidden bg-card">
-        {/* ── 왼쪽 사이드바 ── */}
-        <aside className="w-52 border-r border-border bg-muted/30 flex flex-col shrink-0">
-          <button
-            onClick={handleHome}
-            className="px-4 pt-5 pb-4 border-b border-border text-left hover:bg-muted/50 transition-colors"
+    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-background flex items-center justify-center p-6">
+      <div className="w-full max-w-5xl h-[720px] flex rounded-2xl border border-border shadow-lg overflow-hidden bg-card">
+        {/* ───────────────────────────────────────────
+            1차 사이드바: 카테고리
+        ─────────────────────────────────────────── */}
+        <aside
+          className="shrink-0 border-r border-border bg-muted/30 flex flex-col relative"
+          style={{ width: cat1Width }}
+        >
+          <div
+            className="px-4 border-b border-border flex items-center justify-between"
+            style={{ minHeight: "49px" }}
           >
-            <div className="flex items-center gap-2">
-              <span className="text-base">🏆</span>
-              <h2 className="text-sm font-semibold text-foreground">챌린지</h2>
+            <div>
+              <p className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1.5">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                Challenge
+              </p>
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Coding Challenge
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              코딩 챌린지 모음
-            </p>
-          </button>
+            {isAdmin && (
+              <button
+                onClick={() => setIsAddingCategory(true)}
+                className="shrink-0 flex items-center text-xs text-primary hover:text-primary/80 transition-colors"
+                title="Add category"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
           <nav className="flex-1 overflow-y-auto py-2">
-            <ul className="space-y-0.5 px-2">
-              {menuItems.map(({ key, icon, label }) => (
-                <li key={key}>
-                  <button
-                    onClick={() => handleTabChange(key)}
-                    className={[
-                      "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
-                      activeTab === key
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    ].join(" ")}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleCatDragStart}
+              onDragEnd={handleCatDragEnd}
+            >
+              <SortableContext
+                items={categories.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {categories.map((cat) => (
+                  <SortableItem
+                    key={cat.id}
+                    id={cat.id}
+                    isDragging={activeCatId === cat.id}
                   >
-                    {icon}
-                    <span>{label}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                    {(dragHandleProps) => (
+                      <div className="relative group">
+                        {editingCategoryId === cat.id ? (
+                          <div className="px-3 py-1.5 flex items-center gap-1 border-l-[3px] border-l-primary bg-primary/5">
+                            <input
+                              autoFocus
+                              type="text"
+                              value={editingCategoryName}
+                              onChange={(e) =>
+                                setEditingCategoryName(e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (
+                                  e.key === "Enter" &&
+                                  !e.nativeEvent.isComposing
+                                ) {
+                                  const n = editingCategoryName.trim();
+                                  if (n)
+                                    updateCategoryMutation.mutate({
+                                      id: cat.id,
+                                      name: n,
+                                    });
+                                }
+                                if (e.key === "Escape") {
+                                  setEditingCategoryId(null);
+                                  setEditingCategoryName("");
+                                }
+                              }}
+                              className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                            <button
+                              onClick={() => {
+                                const n = editingCategoryName.trim();
+                                if (n)
+                                  updateCategoryMutation.mutate({
+                                    id: cat.id,
+                                    name: n,
+                                  });
+                              }}
+                              disabled={updateCategoryMutation.isPending}
+                              className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingCategoryId(null);
+                                setEditingCategoryName("");
+                              }}
+                              className="text-muted-foreground hover:text-foreground shrink-0"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleCategoryClick(cat.id)}
+                              className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors rounded-none border-l-[3px] pr-16 ${
+                                selectedCategoryId === cat.id
+                                  ? "border-l-primary bg-background text-primary font-bold shadow-sm"
+                                  : "border-l-transparent text-foreground/60 hover:bg-background/60 hover:text-foreground"
+                              }`}
+                            >
+                              {isAdmin && (
+                                <span
+                                  {...dragHandleProps}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                                >
+                                  <GripVertical className="w-3 h-3" />
+                                </span>
+                              )}
+                              <span className="truncate">{cat.name}</span>
+                            </button>
+                            {isAdmin && (
+                              <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingCategoryId(cat.id);
+                                    setEditingCategoryName(cat.name);
+                                  }}
+                                  className="text-muted-foreground hover:text-foreground p-1 rounded"
+                                  title="Rename"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (
+                                      confirm(
+                                        `"${cat.name}" 카테고리를 삭제할까요?`,
+                                      )
+                                    ) {
+                                      deleteCategoryMutation.mutate(cat.id);
+                                    }
+                                  }}
+                                  className="text-muted-foreground hover:text-destructive p-1 rounded"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </SortableItem>
+                ))}
+              </SortableContext>
+              <DragOverlay>
+                {activeCatId && (
+                  <div className="bg-card border border-border rounded px-3 py-2 text-sm shadow-lg opacity-90">
+                    {categories.find((c) => c.id === activeCatId)?.name}
+                  </div>
+                )}
+              </DragOverlay>
+            </DndContext>
+
+            {isAddingCategory && (
+              <div className="px-3 py-2 flex items-center gap-1">
+                <input
+                  autoFocus
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={handleAddCategoryKeyDown}
+                  placeholder="Category name..."
+                  className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <button
+                  onClick={() => {
+                    const name = newCategoryName.trim();
+                    if (name) addCategoryMutation.mutate(name);
+                  }}
+                  disabled={addCategoryMutation.isPending}
+                  className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setIsAddingCategory(false);
+                    setNewCategoryName("");
+                  }}
+                  className="text-muted-foreground hover:text-foreground shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {categories.length === 0 && !isAddingCategory && (
+              <p className="text-xs text-muted-foreground px-4 py-3">
+                No categories
+              </p>
+            )}
           </nav>
+
+          <div
+            onMouseDown={startResize1}
+            className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-10"
+          />
         </aside>
 
-        {/* ── 오른쪽 본문 ── */}
-        <main className="flex-1 overflow-y-auto bg-background">
-          {activeTab ? (
-            renderTab(activeTab)
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center px-8">
-              <span className="text-4xl mb-4">🏆</span>
-              <h2 className="text-lg font-semibold text-foreground mb-2">
-                챌린지
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                왼쪽 메뉴에서 챌린지를 선택하면
-                <br />
-                여기에 내용이 표시됩니다.
+        {/* ───────────────────────────────────────────
+            2차 사이드바: 섹션 (회차)
+        ─────────────────────────────────────────── */}
+        <aside
+          className="shrink-0 border-r border-border bg-card flex flex-col relative"
+          style={{ width: cat2Width }}
+        >
+          <div
+            className="px-3 border-b border-border flex items-center justify-between gap-2"
+            style={{ minHeight: "49px" }}
+          >
+            <p className="text-sm font-semibold text-foreground truncate">
+              {selectedCategory ? selectedCategory.name : "Section"}
+            </p>
+            {isAdmin && selectedCategoryId && (
+              <button
+                onClick={() => setIsAddingSection(true)}
+                className="shrink-0 flex items-center gap-0.5 text-xs text-primary hover:text-primary/80 transition-colors"
+                title="Add section"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add</span>
+              </button>
+            )}
+          </div>
+
+          <nav className="flex-1 overflow-y-auto py-2">
+            {!selectedCategoryId ? (
+              <p className="text-xs text-muted-foreground px-4 py-3">
+                Select a category
               </p>
+            ) : (
+              <>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleSecDragStart}
+                  onDragEnd={handleSecDragEnd}
+                >
+                  <SortableContext
+                    items={sections.map((s) => s.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {sections.map((sec) => (
+                      <SortableItem
+                        key={sec.id}
+                        id={sec.id}
+                        isDragging={activeSecId === sec.id}
+                      >
+                        {(dragHandleProps) => (
+                          <div className="relative group">
+                            {editingSectionId === sec.id ? (
+                              <div className="px-3 py-1.5 flex items-center gap-1">
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={editingSectionTitle}
+                                  onChange={(e) =>
+                                    setEditingSectionTitle(e.target.value)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (
+                                      e.key === "Enter" &&
+                                      !e.nativeEvent.isComposing
+                                    ) {
+                                      const t = editingSectionTitle.trim();
+                                      if (t)
+                                        renameSectionMutation.mutate({
+                                          id: sec.id,
+                                          title: t,
+                                        });
+                                    }
+                                    if (e.key === "Escape") {
+                                      setEditingSectionId(null);
+                                      setEditingSectionTitle("");
+                                    }
+                                  }}
+                                  className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                />
+                                <button
+                                  onClick={() => {
+                                    const t = editingSectionTitle.trim();
+                                    if (t)
+                                      renameSectionMutation.mutate({
+                                        id: sec.id,
+                                        title: t,
+                                      });
+                                  }}
+                                  disabled={renameSectionMutation.isPending}
+                                  className="text-primary hover:text-primary/80 disabled:opacity-50 shrink-0"
+                                >
+                                  <Save className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingSectionId(null);
+                                    setEditingSectionTitle("");
+                                  }}
+                                  className="text-muted-foreground hover:text-foreground shrink-0"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => handleSectionClick(sec.id)}
+                                  className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-l-[3px] pr-16 ${
+                                    selectedSectionId === sec.id
+                                      ? "border-l-primary bg-primary/10 text-primary font-bold"
+                                      : "border-l-transparent text-foreground/60 hover:bg-muted hover:text-foreground"
+                                  }`}
+                                >
+                                  {isAdmin && (
+                                    <span
+                                      {...dragHandleProps}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                                    >
+                                      <GripVertical className="w-3 h-3" />
+                                    </span>
+                                  )}
+                                  <span className="truncate">{sec.title}</span>
+                                </button>
+                                {isAdmin && (
+                                  <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingSectionId(sec.id);
+                                        setEditingSectionTitle(sec.title);
+                                      }}
+                                      className="text-muted-foreground hover:text-foreground p-1 rounded"
+                                      title="Rename"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (
+                                          confirm(
+                                            `"${sec.title}" section will be deleted.`,
+                                          )
+                                        ) {
+                                          deleteSectionMutation.mutate(sec.id);
+                                        }
+                                      }}
+                                      className="text-muted-foreground hover:text-destructive p-1 rounded"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </SortableItem>
+                    ))}
+                  </SortableContext>
+                  <DragOverlay>
+                    {activeSecId && (
+                      <div className="bg-card border border-border rounded px-3 py-2 text-sm shadow-lg opacity-90">
+                        {sections.find((s) => s.id === activeSecId)?.title}
+                      </div>
+                    )}
+                  </DragOverlay>
+                </DndContext>
+
+                {isAddingSection && (
+                  <div className="px-3 py-2 flex items-center gap-1">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newSectionTitle}
+                      onChange={(e) => setNewSectionTitle(e.target.value)}
+                      onKeyDown={handleAddSectionKeyDown}
+                      placeholder="Section title..."
+                      className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    <button
+                      onClick={() => {
+                        const title = newSectionTitle.trim();
+                        if (title) addSectionMutation.mutate(title);
+                      }}
+                      disabled={addSectionMutation.isPending}
+                      className="text-primary hover:text-primary/80 disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsAddingSection(false);
+                        setNewSectionTitle("");
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {sections.length === 0 && !isAddingSection && (
+                  <p className="text-xs text-muted-foreground px-4 py-3">
+                    No sections
+                  </p>
+                )}
+              </>
+            )}
+          </nav>
+
+          <div
+            onMouseDown={startResize2}
+            className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-10"
+          />
+        </aside>
+
+        {/* ───────────────────────────────────────────
+            본문 영역
+        ─────────────────────────────────────────── */}
+        <main className="flex-1 overflow-y-auto bg-background">
+          {/* 카테고리 미선택 */}
+          {!selectedCategoryId && (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+              <Trophy className="w-12 h-12 text-amber-400" />
+              <p className="text-base font-medium">Challenge</p>
+              <p className="text-sm">
+                Select a category from the left sidebar.
+              </p>
+            </div>
+          )}
+
+          {/* 섹션 미선택 */}
+          {selectedCategoryId && !selectedSectionId && (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+              <p className="text-base font-medium">Select a section</p>
+              <p className="text-sm">
+                Choose a section to view the challenge topic.
+              </p>
+            </div>
+          )}
+
+          {/* 섹션 선택됨 — 본문 */}
+          {selectedSectionId && (
+            <div className="flex flex-col h-full">
+              {/* ── 챌린지 주제 영역 ── */}
+              <section className="border-b border-border p-6 shrink-0">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">
+                      {selectedCategory?.name}
+                    </p>
+                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                      <Trophy className="w-5 h-5 text-amber-500" />
+                      {selectedSection?.title ?? ""}
+                    </h2>
+                  </div>
+                  {isAdmin && !isEditingTopic && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleEditTopic}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+
+                {isEditingTopic ? (
+                  <div>
+                    <TaskBlockEditor
+                      title={selectedSection?.title ?? ""}
+                      setTitle={() => {}}
+                      blocks={editTopicBlocks as TaskBlock[]}
+                      setBlocks={(b) =>
+                        setEditTopicBlocks(b as ChallengeTopic[])
+                      }
+                    />
+                    <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border">
+                      <Button
+                        onClick={() => saveTopicsMutation.mutate()}
+                        disabled={saveTopicsMutation.isPending}
+                        className="flex items-center gap-1.5"
+                      >
+                        <Save className="w-4 h-4" />
+                        {saveTopicsMutation.isPending ? "Saving..." : "Save"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleCancelEditTopic}
+                        disabled={saveTopicsMutation.isPending}
+                        className="flex items-center gap-1.5"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {topics.length === 0 ? (
+                      <div className="flex flex-col items-center py-8 gap-2 text-muted-foreground">
+                        <span className="text-3xl">
+                          <Trophy className="w-8 h-8 text-amber-300" />
+                        </span>
+                        <p className="text-sm">No topic yet.</p>
+                        {isAdmin && (
+                          <p className="text-xs">
+                            Click "Edit" to add the challenge topic.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        {topics.map((block, idx) => (
+                          <TopicBlockViewer
+                            key={block.id ?? idx}
+                            block={block}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              {/* ── 풀이 제출 영역 ── */}
+              <section className="flex-1 p-6 overflow-y-auto">
+                <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
+                  <Send className="w-4 h-4 text-primary" />
+                  Submit Solution
+                </h3>
+
+                {/* 내 풀이 작성 */}
+                <div className="mb-6 space-y-3 bg-muted/30 rounded-lg p-4 border border-border">
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Language
+                    </label>
+                    <select
+                      value={submissionLanguage}
+                      onChange={(e) => setSubmissionLanguage(e.target.value)}
+                      className="text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      {LANGUAGE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <textarea
+                    value={submissionContent}
+                    onChange={(e) => setSubmissionContent(e.target.value)}
+                    rows={6}
+                    placeholder="Paste your solution here..."
+                    className="w-full text-sm font-mono border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => createSubmissionMutation.mutate()}
+                      disabled={
+                        !submissionContent.trim() ||
+                        createSubmissionMutation.isPending
+                      }
+                      className="flex items-center gap-1.5"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      {createSubmissionMutation.isPending
+                        ? "Submitting..."
+                        : "Submit"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 팀원 제출 목록 */}
+                {submissions.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3 text-muted-foreground">
+                      Team Submissions ({submissions.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {submissions.map((sub) => {
+                        const isExpanded = expandedSubmissions.has(sub.id);
+                        const isMine = sub.userId === user?.id;
+                        const canDelete = isMine || isAdmin;
+                        const isEditingSub = editingSubmissionId === sub.id;
+
+                        return (
+                          <div
+                            key={sub.id}
+                            className="border border-border rounded-lg overflow-hidden"
+                          >
+                            {/* 제출 헤더 */}
+                            <button
+                              onClick={() => toggleSubmission(sub.id)}
+                              className="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium text-foreground">
+                                  {sub.userName}
+                                </span>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                                  {sub.language}
+                                </span>
+                                {isMine && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
+                                    Me
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(sub.createdAt).toLocaleString(
+                                    "ko-KR",
+                                    {
+                                      month: "2-digit",
+                                      day: "2-digit",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </span>
+                                {isExpanded ? (
+                                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                )}
+                              </div>
+                            </button>
+
+                            {/* 제출 내용 (펼침) */}
+                            {isExpanded && (
+                              <div className="border-t border-border">
+                                {isEditingSub ? (
+                                  <div className="p-4 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                      <label className="text-xs font-medium text-muted-foreground">
+                                        Language
+                                      </label>
+                                      <select
+                                        value={editSubLanguage}
+                                        onChange={(e) =>
+                                          setEditSubLanguage(e.target.value)
+                                        }
+                                        className="text-xs border border-input rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                      >
+                                        {LANGUAGE_OPTIONS.map((opt) => (
+                                          <option
+                                            key={opt.value}
+                                            value={opt.value}
+                                          >
+                                            {opt.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <textarea
+                                      value={editSubContent}
+                                      onChange={(e) =>
+                                        setEditSubContent(e.target.value)
+                                      }
+                                      rows={6}
+                                      className="w-full text-sm font-mono border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          updateSubmissionMutation.mutate({
+                                            id: sub.id,
+                                          })
+                                        }
+                                        disabled={
+                                          updateSubmissionMutation.isPending
+                                        }
+                                      >
+                                        <Save className="w-3.5 h-3.5 mr-1" />
+                                        Save
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          setEditingSubmissionId(null)
+                                        }
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="p-4">
+                                    <pre className="text-xs font-mono bg-muted p-3 rounded-lg border border-border overflow-x-auto whitespace-pre-wrap mb-3">
+                                      {sub.content}
+                                    </pre>
+                                    <div className="flex items-center gap-2">
+                                      {isMine && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setEditingSubmissionId(sub.id);
+                                            setEditSubLanguage(sub.language);
+                                            setEditSubContent(sub.content);
+                                          }}
+                                        >
+                                          <Pencil className="w-3 h-3 mr-1" />
+                                          Edit
+                                        </Button>
+                                      )}
+                                      {canDelete && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-destructive hover:text-destructive"
+                                          onClick={() => {
+                                            if (
+                                              confirm(
+                                                "Delete this submission?",
+                                              )
+                                            ) {
+                                              deleteSubmissionMutation.mutate(
+                                                sub.id,
+                                              );
+                                            }
+                                          }}
+                                        >
+                                          <Trash2 className="w-3 h-3 mr-1" />
+                                          Delete
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </section>
             </div>
           )}
         </main>
@@ -643,3 +1315,5 @@ export function ChallengePage() {
     </div>
   );
 }
+
+export default ChallengePage;

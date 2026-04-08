@@ -332,6 +332,22 @@ public enum ErrorCode {
         "프리셋을 찾을 수 없습니다",
         HttpStatus.NOT_FOUND
     ),
+    // challenge
+    CHALLENGE_CATEGORY_NOT_FOUND(
+        "CHALLENGE_CATEGORY_NOT_FOUND",
+        "카테고리를 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
+    CHALLENGE_SECTION_NOT_FOUND(
+        "CHALLENGE_SECTION_NOT_FOUND",
+        "섹션을 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
+    CHALLENGE_SUBMISSION_NOT_FOUND(
+        "CHALLENGE_SUBMISSION_NOT_FOUND",
+        "제출을 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
     // textbook
     TEXTBOOK_CATEGORY_NOT_FOUND(
         "TEXTBOOK_CATEGORY_NOT_FOUND",
