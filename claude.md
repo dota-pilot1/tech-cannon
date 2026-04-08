@@ -39,6 +39,35 @@
 
 ---
 
+## CI/CD 자동 배포
+
+`main` 브랜치에 push하면 GitHub Actions가 자동으로 배포합니다.
+
+| 변경 경로 | 트리거되는 워크플로우 | 배포 대상 | 소요 시간 |
+|-----------|----------------------|----------|----------|
+| `parantier-front/**` | Deploy Frontend | S3 + CloudFront | ~2-3분 |
+| `parantier-api/**` | Deploy Backend | EC2 (JAR 교체 + 재시작) | ~3-5분 |
+
+- **경로 기반 트리거**: 해당 경로 변경이 없으면 워크플로우가 실행되지 않음
+- **수동 트리거**: GitHub Actions 탭 > Run workflow 버튼으로 수동 실행 가능
+- **배포 상태 확인**: https://github.com/dota-pilot1/tech-cannon/actions
+- **워크플로우 파일**: `.github/workflows/deploy-frontend.yml`, `.github/workflows/deploy-backend.yml`
+
+### 배포 후 확인
+
+```bash
+# 백엔드 헬스체크
+curl https://api.dxline-tallent.com/actuator/health
+
+# 프론트엔드 확인
+curl -I https://dxline-tallent.com
+
+# 백엔드 로그 (문제 발생 시)
+ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26 "tail -50 /home/ubuntu/app.log"
+```
+
+---
+
 ## 배포 환경 접속
 
 | 항목 | 주소 |
