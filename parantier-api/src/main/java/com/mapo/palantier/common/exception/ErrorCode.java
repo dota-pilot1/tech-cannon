@@ -161,6 +161,17 @@ public enum ErrorCode {
         "섹션을 찾을 수 없습니다",
         HttpStatus.NOT_FOUND
     ),
+    // devops
+    DEVOPS_CATEGORY_NOT_FOUND(
+        "DEVOPS_CATEGORY_NOT_FOUND",
+        "카테고리를 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
+    DEVOPS_SECTION_NOT_FOUND(
+        "DEVOPS_SECTION_NOT_FOUND",
+        "섹션을 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
     // db
     DB_FOLDER_NOT_FOUND(
         "DB_FOLDER_NOT_FOUND",
