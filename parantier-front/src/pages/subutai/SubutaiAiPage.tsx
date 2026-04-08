@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { subutaiDocuApi } from "@/features/subutai-docu/api/subutaiDocuApi";
@@ -276,10 +276,16 @@ export default function SubutaiAiPage() {
   const [expandedDocFolders, setExpandedDocFolders] = useState<Set<number>>(
     new Set(),
   );
-  const [selectedPostIds, setSelectedPostIds] = useState<Set<number>>(
-    new Set(),
-  );
   const [docLoading, setDocLoading] = useState(false);
+
+  // 전체 문서 ID (모든 폴더의 문서를 자동 참조)
+  const allPostIds = useMemo(() => {
+    const ids: number[] = [];
+    for (const posts of Object.values(docPosts)) {
+      for (const p of posts) ids.push(p.id);
+    }
+    return ids;
+  }, [docPosts]);
 
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -511,15 +517,6 @@ export default function SubutaiAiPage() {
 
   const toggleDocFolder = (id: number) => {
     setExpandedDocFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const togglePostSelection = (id: number) => {
-    setSelectedPostIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -786,7 +783,7 @@ export default function SubutaiAiPage() {
     try {
       const res = await subutaiAiApi.chat({
         question: text,
-        postIds: Array.from(selectedPostIds),
+        postIds: allPostIds,
       });
       const aiMsg: Message = {
         id: `msg-${Date.now()}-a`,
@@ -1145,9 +1142,7 @@ export default function SubutaiAiPage() {
                 {docFolders.map((folder) => {
                   const isOpen = expandedDocFolders.has(folder.id);
                   const posts = docPosts[folder.id] ?? [];
-                  const selectedCount = posts.filter((p) =>
-                    selectedPostIds.has(p.id),
-                  ).length;
+                  const postCount = posts.length;
 
                   return (
                     <SortableFolderRow key={folder.id} id={folder.id}>
@@ -1215,9 +1210,9 @@ export default function SubutaiAiPage() {
                               <span className="flex-1 truncate text-sm font-medium">
                                 {folder.name}
                               </span>
-                              {selectedCount > 0 && (
-                                <span className="text-xs text-primary font-semibold mr-1">
-                                  {selectedCount}
+                              {postCount > 0 && (
+                                <span className="text-xs text-muted-foreground mr-1">
+                                  {postCount}
                                 </span>
                               )}
                             </button>
@@ -1250,17 +1245,11 @@ export default function SubutaiAiPage() {
                           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handlePostDragEnd(folder.id)}>
                           <SortableContext items={posts.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                           {posts.map((post) => {
-                            const isSelected = selectedPostIds.has(post.id);
                             return (
                               <SortablePostRow key={post.id} id={post.id}>
                                 {(postDragProps) => (
                               <div
-                                onClick={() => togglePostSelection(post.id)}
-                                className={`group/post flex items-center gap-1 px-1 py-2 rounded-md cursor-pointer transition-colors ${
-                                  isSelected
-                                    ? "bg-primary/10 text-primary"
-                                    : "hover:bg-muted/50 text-foreground"
-                                }`}
+                                className="group/post flex items-center gap-1 px-1 py-2 rounded-md hover:bg-muted/50 text-foreground transition-colors"
                               >
                                 <button
                                   {...postDragProps}
@@ -1270,11 +1259,7 @@ export default function SubutaiAiPage() {
                                   <GripVertical className="w-3 h-3" />
                                 </button>
                                 <FileText
-                                  className={`w-3.5 h-3.5 shrink-0 ${
-                                    isSelected
-                                      ? "text-primary"
-                                      : "text-muted-foreground"
-                                  }`}
+                                  className="w-3.5 h-3.5 shrink-0 text-muted-foreground"
                                 />
                                 <span className="flex-1 text-sm truncate">
                                   {post.title}
@@ -1371,19 +1356,13 @@ export default function SubutaiAiPage() {
               )}
             </div>
 
-            {/* 하단: 선택 상태 */}
-            {selectedPostIds.size > 0 && (
-              <div className="px-3 py-2 border-t border-border shrink-0 flex items-center justify-between bg-primary/5">
-                <span className="text-xs text-primary font-medium flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  {selectedPostIds.size}개 문서 선택됨
+            {/* 하단: 전체 문서 참조 상태 */}
+            {allPostIds.length > 0 && (
+              <div className="px-3 py-2 border-t border-border shrink-0 flex items-center bg-muted/30">
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  {allPostIds.length}개 문서 자동 참조
                 </span>
-                <button
-                  onClick={() => setSelectedPostIds(new Set())}
-                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <RotateCcw className="w-3 h-3" /> 초기화
-                </button>
               </div>
             )}
           </div>
@@ -1526,9 +1505,9 @@ export default function SubutaiAiPage() {
           <span className="text-[10px] bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-px rounded-md font-medium border border-amber-500/20 leading-tight">
             Beta
           </span>
-          {selectedPostIds.size > 0 && (
+          {allPostIds.length > 0 && (
             <span className="ml-auto text-xs text-primary/80 bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/10 font-medium">
-              {selectedPostIds.size}개 문서 참조 중
+              {allPostIds.length}개 문서 참조 중
             </span>
           )}
         </div>
@@ -1543,9 +1522,9 @@ export default function SubutaiAiPage() {
               <div className="space-y-1.5">
                 <h2 className="text-lg font-semibold">Subutai AI</h2>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  {selectedPostIds.size > 0
-                    ? `${selectedPostIds.size}개 문서를 참고하여 답변합니다`
-                    : "문서를 선택하고 질문하면, AI가 내용을 분석하여 답변합니다"}
+                  {allPostIds.length > 0
+                    ? `${allPostIds.length}개 문서를 참고하여 답변합니다`
+                    : "문서를 등록하고 질문하면, AI가 내용을 분석하여 답변합니다"}
                 </p>
               </div>
               {messages.length === 0 && (
@@ -1670,8 +1649,8 @@ export default function SubutaiAiPage() {
                 onChange={handleTextareaChange}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  selectedPostIds.size > 0
-                    ? `${selectedPostIds.size}개 문서를 참고하여 질문하세요...`
+                  allPostIds.length > 0
+                    ? `${allPostIds.length}개 문서를 참고하여 질문하세요...`
                     : "질문을 입력하세요..."
                 }
                 rows={1}
