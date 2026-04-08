@@ -74,6 +74,27 @@ function SortableItem({
 }
 
 // ─────────────────────────────────────────────
+// 체크리스트 타입
+// ─────────────────────────────────────────────
+interface ChecklistItem {
+  label: string;
+  point: number;
+}
+
+interface ChecklistResult {
+  index: number;
+  checked: boolean;
+}
+
+function parseChecklist(content: string): ChecklistItem[] {
+  try { return JSON.parse(content); } catch { return []; }
+}
+
+function parseChecklistResult(json: string | null | undefined): ChecklistResult[] {
+  try { return json ? JSON.parse(json) : []; } catch { return []; }
+}
+
+// ─────────────────────────────────────────────
 // TopicBlockViewer
 // ─────────────────────────────────────────────
 function TopicBlockViewer({ block }: { block: ChallengeTopic }) {
@@ -82,6 +103,27 @@ function TopicBlockViewer({ block }: { block: ChallengeTopic }) {
     label: block.blockType,
     color: "bg-muted text-muted-foreground",
   };
+
+  if (block.blockType === "CHECKLIST") {
+    const items = parseChecklist(block.content);
+    const totalPoints = items.reduce((s, i) => s + i.point, 0);
+    return (
+      <div className="mb-4">
+        <span className="text-xs px-2 py-0.5 rounded-full font-medium mb-2 inline-block bg-emerald-100 text-emerald-700">
+          Checklist ({totalPoints}pts)
+        </span>
+        <div className="space-y-1.5 mt-2">
+          {items.map((item, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm">
+              <div className="w-4 h-4 border border-border rounded flex items-center justify-center bg-muted/50 shrink-0" />
+              <span className="flex-1">{item.label}</span>
+              <span className="text-xs text-muted-foreground font-medium shrink-0">{item.point}pt</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-4">
@@ -229,6 +271,7 @@ export function ChallengePage() {
   const [isSubmitFormOpen, setIsSubmitFormOpen] = useState(false);
   const [submissionGithubUrl, setSubmissionGithubUrl] = useState("");
   const [submissionContent, setSubmissionContent] = useState("");
+  const [submissionChecks, setSubmissionChecks] = useState<boolean[]>([]);
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(
     new Set(),
   );
@@ -238,6 +281,7 @@ export function ChallengePage() {
   );
   const [editSubGithubUrl, setEditSubGithubUrl] = useState("");
   const [editSubContent, setEditSubContent] = useState("");
+  const [editSubChecks, setEditSubChecks] = useState<boolean[]>([]);
 
   // ─────────────────────────────────────────────
   // Queries
@@ -406,18 +450,29 @@ export function ChallengePage() {
   // ─────────────────────────────────────────────
   // Mutations — 풀이 제출
   // ─────────────────────────────────────────────
+  // 현재 섹션의 CHECKLIST 블록 파싱
+  const checklistBlock = topics.find((t) => t.blockType === "CHECKLIST");
+  const checklistItems: ChecklistItem[] = checklistBlock ? parseChecklist(checklistBlock.content) : [];
+  const totalPoints = checklistItems.reduce((s, i) => s + i.point, 0);
+
   const createSubmissionMutation = useMutation({
-    mutationFn: () =>
-      challengeApi.createSubmission(selectedSectionId!, {
+    mutationFn: () => {
+      const checklistResult = checklistItems.length > 0
+        ? JSON.stringify(submissionChecks.map((checked, index) => ({ index, checked })))
+        : undefined;
+      return challengeApi.createSubmission(selectedSectionId!, {
         githubUrl: submissionGithubUrl,
         content: submissionContent,
-      }),
+        checklistResult,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["challenge", "submissions", selectedSectionId],
       });
       setSubmissionGithubUrl("");
       setSubmissionContent("");
+      setSubmissionChecks([]);
       setIsSubmitFormOpen(false);
       toast.success("풀이가 제출되었습니다");
     },
@@ -425,11 +480,16 @@ export function ChallengePage() {
   });
 
   const updateSubmissionMutation = useMutation({
-    mutationFn: ({ id }: { id: number }) =>
-      challengeApi.updateSubmission(id, {
+    mutationFn: ({ id }: { id: number }) => {
+      const checklistResult = checklistItems.length > 0
+        ? JSON.stringify(editSubChecks.map((checked, index) => ({ index, checked })))
+        : undefined;
+      return challengeApi.updateSubmission(id, {
         githubUrl: editSubGithubUrl,
         content: editSubContent,
-      }),
+        checklistResult,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["challenge", "submissions", selectedSectionId],
@@ -518,6 +578,8 @@ export function ChallengePage() {
     setIsEditingTopic(false);
     setEditingSubmissionId(null);
     setExpandedSubmissions(new Set());
+    setSubmissionChecks([]);
+    setIsSubmitFormOpen(false);
   };
 
   const handleEditTopic = () => {
@@ -1150,6 +1212,47 @@ export function ChallengePage() {
                     <div className="flex items-start gap-3">
                       <UserAvatar name={user?.username ?? "?"} />
                       <div className="flex-1 space-y-3">
+                        {/* 체크리스트 항목 */}
+                        {checklistItems.length > 0 && (
+                          <div className="border border-border rounded-lg p-3 bg-background">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-semibold text-foreground">Checklist</span>
+                              <span className="text-xs font-bold text-primary">
+                                {submissionChecks.filter(Boolean).reduce((s, _, i) => s + (checklistItems[i]?.point ?? 0), 0)}/{totalPoints}pt
+                              </span>
+                            </div>
+                            <div className="space-y-1.5">
+                              {checklistItems.map((item, i) => {
+                                if (submissionChecks.length <= i) {
+                                  setSubmissionChecks((prev) => {
+                                    const next = [...prev];
+                                    while (next.length <= i) next.push(false);
+                                    return next;
+                                  });
+                                }
+                                return (
+                                  <label key={i} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={submissionChecks[i] ?? false}
+                                      onChange={(e) => {
+                                        setSubmissionChecks((prev) => {
+                                          const next = [...prev];
+                                          while (next.length <= i) next.push(false);
+                                          next[i] = e.target.checked;
+                                          return next;
+                                        });
+                                      }}
+                                      className="w-4 h-4 rounded border-border accent-primary"
+                                    />
+                                    <span className="flex-1">{item.label}</span>
+                                    <span className="text-xs text-muted-foreground font-medium">{item.point}pt</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                         <input
                           type="url"
                           value={submissionGithubUrl}
@@ -1172,6 +1275,7 @@ export function ChallengePage() {
                               setIsSubmitFormOpen(false);
                               setSubmissionGithubUrl("");
                               setSubmissionContent("");
+                              setSubmissionChecks([]);
                             }}
                           >
                             Cancel
@@ -1180,7 +1284,8 @@ export function ChallengePage() {
                             onClick={() => createSubmissionMutation.mutate()}
                             disabled={
                               (!submissionContent.trim() &&
-                                !submissionGithubUrl.trim()) ||
+                                !submissionGithubUrl.trim() &&
+                                !submissionChecks.some(Boolean)) ||
                               createSubmissionMutation.isPending
                             }
                             className="flex items-center gap-1.5"
@@ -1229,6 +1334,12 @@ export function ChallengePage() {
                                     Me
                                   </span>
                                 )}
+                                {/* 점수 배지 */}
+                                {checklistItems.length > 0 && (sub.score ?? 0) > 0 && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">
+                                    {sub.score}/{totalPoints}pt
+                                  </span>
+                                )}
                                 {/* 별점 미리보기 */}
                                 {(sub.rating ?? 0) > 0 && (
                                   <span className="flex items-center gap-0.5">
@@ -1251,6 +1362,10 @@ export function ChallengePage() {
                                           setEditingSubmissionId(sub.id);
                                           setEditSubGithubUrl(sub.githubUrl ?? "");
                                           setEditSubContent(sub.content);
+                                          const existingResults = parseChecklistResult(sub.checklistResult);
+                                          setEditSubChecks(checklistItems.map((_, i) =>
+                                            existingResults.find(r => r.index === i)?.checked ?? false
+                                          ));
                                         }}
                                         className="p-1 text-muted-foreground hover:text-foreground rounded"
                                         title="Edit"
@@ -1297,6 +1412,38 @@ export function ChallengePage() {
                               <div className="border-t border-border">
                                 {isEditingSub ? (
                                   <div className="p-4 space-y-3">
+                                    {/* 수정 시 체크리스트 */}
+                                    {checklistItems.length > 0 && (
+                                      <div className="border border-border rounded-lg p-3 bg-background">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-xs font-semibold">Checklist</span>
+                                          <span className="text-xs font-bold text-primary">
+                                            {editSubChecks.filter(Boolean).reduce((s, _, i) => s + (checklistItems[i]?.point ?? 0), 0)}/{totalPoints}pt
+                                          </span>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                          {checklistItems.map((item, i) => (
+                                            <label key={i} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                                              <input
+                                                type="checkbox"
+                                                checked={editSubChecks[i] ?? false}
+                                                onChange={(e) => {
+                                                  setEditSubChecks((prev) => {
+                                                    const next = [...prev];
+                                                    while (next.length <= i) next.push(false);
+                                                    next[i] = e.target.checked;
+                                                    return next;
+                                                  });
+                                                }}
+                                                className="w-4 h-4 rounded border-border accent-primary"
+                                              />
+                                              <span className="flex-1">{item.label}</span>
+                                              <span className="text-xs text-muted-foreground">{item.point}pt</span>
+                                            </label>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
                                     <input
                                       type="url"
                                       value={editSubGithubUrl}
@@ -1361,6 +1508,35 @@ export function ChallengePage() {
                                         {sub.content}
                                       </p>
                                     )}
+                                    {/* 체크리스트 결과 */}
+                                    {checklistItems.length > 0 && sub.checklistResult && (() => {
+                                      const results = parseChecklistResult(sub.checklistResult);
+                                      const checkedScore = results.reduce((s, r) =>
+                                        r.checked && r.index < checklistItems.length
+                                          ? s + checklistItems[r.index].point : s, 0);
+                                      return (
+                                        <div className="mb-3 border border-border rounded-lg p-3 bg-muted/20">
+                                          <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-semibold">Checklist</span>
+                                            <span className="text-xs font-bold text-emerald-600">{checkedScore}/{totalPoints}pt</span>
+                                          </div>
+                                          <div className="space-y-1">
+                                            {checklistItems.map((item, i) => {
+                                              const checked = results.find(r => r.index === i)?.checked ?? false;
+                                              return (
+                                                <div key={i} className="flex items-center gap-2 text-sm">
+                                                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-emerald-500 border-emerald-500 text-white" : "border-border bg-muted/50"}`}>
+                                                    {checked && <Check className="w-3 h-3" />}
+                                                  </div>
+                                                  <span className={`flex-1 ${checked ? "" : "text-muted-foreground"}`}>{item.label}</span>
+                                                  <span className="text-xs text-muted-foreground">{item.point}pt</span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                     {/* 별점 평가 */}
                                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
                                       <div className="flex items-center gap-2">

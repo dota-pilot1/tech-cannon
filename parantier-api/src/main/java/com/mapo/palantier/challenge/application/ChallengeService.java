@@ -19,7 +19,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -136,9 +139,11 @@ public class ChallengeService {
 
     @Transactional
     public void createSubmission(Long sectionId, ChallengeSubmissionRequest req, Long userId) {
+        int score = calculateScore(sectionId, req.getChecklistResult());
         ChallengeSubmission submission = ChallengeSubmission.builder()
                 .sectionId(sectionId).userId(userId)
-                .githubUrl(req.getGithubUrl()).content(req.getContent()).build();
+                .githubUrl(req.getGithubUrl()).content(req.getContent())
+                .checklistResult(req.getChecklistResult()).score(score).build();
         submissionMapper.insert(submission);
     }
 
@@ -149,7 +154,41 @@ public class ChallengeService {
         if (!existing.getUserId().equals(userId)) {
             throw new ResourceNotFoundException(ErrorCode.FORBIDDEN_UPDATE);
         }
-        submissionMapper.update(id, req.getGithubUrl(), req.getContent());
+        int score = calculateScore(existing.getSectionId(), req.getChecklistResult());
+        submissionMapper.update(id, req.getGithubUrl(), req.getContent(), req.getChecklistResult(), score);
+    }
+
+    private int calculateScore(Long sectionId, String checklistResultJson) {
+        if (checklistResultJson == null || checklistResultJson.isBlank()) return 0;
+        try {
+            ObjectMapper om = new ObjectMapper();
+            List<Map<String, Object>> results = om.readValue(checklistResultJson,
+                    new TypeReference<List<Map<String, Object>>>() {});
+
+            // CHECKLIST 블록에서 배점 정보 조회
+            List<ChallengeTopic> topics = topicMapper.findBySectionId(sectionId);
+            List<Map<String, Object>> checklistItems = null;
+            for (ChallengeTopic t : topics) {
+                if ("CHECKLIST".equals(t.getBlockType())) {
+                    checklistItems = om.readValue(t.getContent(),
+                            new TypeReference<List<Map<String, Object>>>() {});
+                    break;
+                }
+            }
+            if (checklistItems == null) return 0;
+
+            int total = 0;
+            for (Map<String, Object> r : results) {
+                int idx = ((Number) r.getOrDefault("index", -1)).intValue();
+                boolean checked = Boolean.TRUE.equals(r.get("checked"));
+                if (checked && idx >= 0 && idx < checklistItems.size()) {
+                    total += ((Number) checklistItems.get(idx).getOrDefault("point", 0)).intValue();
+                }
+            }
+            return total;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     @Transactional

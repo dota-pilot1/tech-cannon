@@ -6,4 +6,5 @@ import lombok.Data;
 public class ChallengeSubmissionRequest {
     private String githubUrl;
     private String content;
+    private String checklistResult;
 }

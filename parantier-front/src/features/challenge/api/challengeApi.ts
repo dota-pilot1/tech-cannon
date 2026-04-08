@@ -36,6 +36,8 @@ export interface ChallengeSubmission {
   userName: string;
   githubUrl: string;
   content: string;
+  checklistResult: string;
+  score: number;
   rating: number;
   createdAt: string;
   updatedAt: string;
@@ -170,7 +172,7 @@ export const challengeApi = {
 
   createSubmission: (
     sectionId: number,
-    data: { githubUrl: string; content: string },
+    data: { githubUrl: string; content: string; checklistResult?: string },
   ): Promise<void> =>
     fetch(`${BASE}/challenge/sections/${sectionId}/submissions`, {
       method: "POST",
@@ -182,7 +184,7 @@ export const challengeApi = {
 
   updateSubmission: (
     id: number,
-    data: { githubUrl: string; content: string },
+    data: { githubUrl: string; content: string; checklistResult?: string },
   ): Promise<void> =>
     fetch(`${BASE}/challenge/submissions/${id}`, {
       method: "PUT",
