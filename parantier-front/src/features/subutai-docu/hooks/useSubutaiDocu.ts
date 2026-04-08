@@ -59,6 +59,17 @@ export function useDeleteSubutaiDocuFolderMutation(onSuccess?: () => void) {
   });
 }
 
+export function useReorderSubutaiDocuFoldersMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (items: { id: number; sortOrder: number }[]) =>
+      subutaiDocuApi.reorderFolders(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subutaiDocuFolders"] });
+    },
+  });
+}
+
 // Post hooks
 export function useAllSubutaiDocuPosts() {
   return useQuery({
@@ -72,6 +83,17 @@ export function useSubutaiDocuPosts(folderId: number | null) {
     queryKey: ["subutaiDocuPosts", folderId],
     queryFn: () => subutaiDocuApi.getPostsByFolder(folderId!),
     enabled: !!folderId,
+  });
+}
+
+export function useReorderSubutaiDocuPostsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (items: { id: number; sortOrder: number }[]) =>
+      subutaiDocuApi.reorderPosts(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subutaiDocuPosts"] });
+    },
   });
 }
 

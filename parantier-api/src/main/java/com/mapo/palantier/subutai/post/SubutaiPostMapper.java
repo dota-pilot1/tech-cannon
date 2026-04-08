@@ -16,4 +16,5 @@ public interface SubutaiPostMapper {
     void insert(SubutaiPost post);
     void update(SubutaiPost post);
     void softDelete(@Param("id") Long id);
+    void updateSortOrder(@Param("id") Long id, @Param("sortOrder") int sortOrder);
 }

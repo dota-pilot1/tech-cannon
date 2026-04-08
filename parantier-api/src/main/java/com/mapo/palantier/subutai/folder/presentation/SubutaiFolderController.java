@@ -6,6 +6,7 @@ import com.mapo.palantier.subutai.folder.SubutaiFolderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -47,6 +48,15 @@ public class SubutaiFolderController {
         @RequestBody SubutaiFolderDto dto
     ) {
         subutaiFolderService.updateFolder(id, dto);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "폴더 순서 변경")
+    @PatchMapping("/reorder")
+    public ResponseEntity<Void> reorderFolders(
+        @RequestBody List<Map<String, Object>> items
+    ) {
+        subutaiFolderService.reorderFolders(items);
         return ResponseEntity.ok().build();
     }
 

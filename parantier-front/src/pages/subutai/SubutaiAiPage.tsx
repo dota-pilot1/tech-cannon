@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { subutaiDocuApi } from "@/features/subutai-docu/api/subutaiDocuApi";
@@ -26,7 +26,23 @@ import {
   FileText,
   FolderOpen,
   Pencil,
+  GripVertical,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // ─── 타입 정의 ─────────────────────────────────────────────────────────────────
 interface TreeNode {
@@ -212,6 +228,40 @@ function parseInline(text: string, keyPrefix: string): React.ReactNode[] {
 }
 
 // ─── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
+function SortableFolderRow({
+  id,
+  children,
+}: {
+  id: number;
+  children: (dragHandleProps: Record<string, unknown>) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
+    </div>
+  );
+}
+
+function SortablePostRow({
+  id,
+  children,
+}: {
+  id: number;
+  children: (dragHandleProps: Record<string, unknown>) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
+    </div>
+  );
+}
+
 export default function SubutaiAiPage() {
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -230,6 +280,43 @@ export default function SubutaiAiPage() {
     new Set(),
   );
   const [docLoading, setDocLoading] = useState(false);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleFolderDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = docFolders.findIndex((f) => f.id === active.id);
+      const newIndex = docFolders.findIndex((f) => f.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(docFolders, oldIndex, newIndex);
+      setDocFolders(reordered);
+      subutaiDocuApi
+        .reorderFolders(reordered.map((f, i) => ({ id: f.id, sortOrder: i })))
+        .catch(() => toast.error("폴더 순서 변경 실패"));
+    },
+    [docFolders],
+  );
+
+  const handlePostDragEnd = useCallback(
+    (folderId: number) => (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const posts = docPosts[folderId] ?? [];
+      const oldIndex = posts.findIndex((p) => p.id === active.id);
+      const newIndex = posts.findIndex((p) => p.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(posts, oldIndex, newIndex);
+      setDocPosts((prev) => ({ ...prev, [folderId]: reordered }));
+      subutaiDocuApi
+        .reorderPosts(reordered.map((p, i) => ({ id: p.id, sortOrder: i })))
+        .catch(() => toast.error("문서 순서 변경 실패"));
+    },
+    [docPosts],
+  );
 
   const [addingDocFolder, setAddingDocFolder] = useState(false);
   const [newDocFolderName, setNewDocFolderName] = useState("");
@@ -1053,7 +1140,9 @@ export default function SubutaiAiPage() {
                   <p className="text-sm">폴더를 추가해주세요</p>
                 </div>
               ) : (
-                docFolders.map((folder) => {
+                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleFolderDragEnd}>
+                <SortableContext items={docFolders.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                {docFolders.map((folder) => {
                   const isOpen = expandedDocFolders.has(folder.id);
                   const posts = docPosts[folder.id] ?? [];
                   const selectedCount = posts.filter((p) =>
@@ -1061,7 +1150,10 @@ export default function SubutaiAiPage() {
                   ).length;
 
                   return (
-                    <div key={folder.id} className="mb-1">
+                    <SortableFolderRow key={folder.id} id={folder.id}>
+                      {(dragHandleProps) => (
+                    <>
+                    <div className="mb-1">
                       {/* 폴더 헤더 */}
                       <div className="group flex items-center rounded-md hover:bg-muted/60 transition-colors">
                         {renamingFolderId === folder.id ? (
@@ -1104,8 +1196,15 @@ export default function SubutaiAiPage() {
                         ) : (
                           <>
                             <button
+                              {...dragHandleProps}
+                              className="shrink-0 cursor-grab active:cursor-grabbing p-1 rounded text-muted-foreground/40 hover:bg-black/10"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <GripVertical className="w-3 h-3" />
+                            </button>
+                            <button
                               onClick={() => toggleDocFolder(folder.id)}
-                              className="flex-1 flex items-center gap-1.5 px-2 py-2 text-left min-w-0"
+                              className="flex-1 flex items-center gap-1.5 px-1 py-2 text-left min-w-0"
                             >
                               {isOpen ? (
                                 <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -1148,18 +1247,28 @@ export default function SubutaiAiPage() {
                       {/* 문서 목록 */}
                       {isOpen && (
                         <div className="ml-4 border-l border-border pl-2 mt-0.5 space-y-0.5">
+                          <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handlePostDragEnd(folder.id)}>
+                          <SortableContext items={posts.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                           {posts.map((post) => {
                             const isSelected = selectedPostIds.has(post.id);
                             return (
+                              <SortablePostRow key={post.id} id={post.id}>
+                                {(postDragProps) => (
                               <div
-                                key={post.id}
                                 onClick={() => togglePostSelection(post.id)}
-                                className={`group/post flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer transition-colors ${
+                                className={`group/post flex items-center gap-1 px-1 py-2 rounded-md cursor-pointer transition-colors ${
                                   isSelected
                                     ? "bg-primary/10 text-primary"
                                     : "hover:bg-muted/50 text-foreground"
                                 }`}
                               >
+                                <button
+                                  {...postDragProps}
+                                  className="shrink-0 cursor-grab active:cursor-grabbing p-0.5 rounded text-muted-foreground/40 hover:bg-black/10"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <GripVertical className="w-3 h-3" />
+                                </button>
                                 <FileText
                                   className={`w-3.5 h-3.5 shrink-0 ${
                                     isSelected
@@ -1191,8 +1300,12 @@ export default function SubutaiAiPage() {
                                   </button>
                                 </div>
                               </div>
+                                )}
+                              </SortablePostRow>
                             );
                           })}
+                          </SortableContext>
+                          </DndContext>
 
                           {/* 문서 추가 */}
                           {addingPostFolderId === folder.id ? (
@@ -1248,8 +1361,13 @@ export default function SubutaiAiPage() {
                         </div>
                       )}
                     </div>
+                    </>
+                      )}
+                    </SortableFolderRow>
                   );
-                })
+                })}
+                </SortableContext>
+                </DndContext>
               )}
             </div>
 
