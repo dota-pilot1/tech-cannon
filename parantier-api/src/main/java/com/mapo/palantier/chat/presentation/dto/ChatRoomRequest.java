@@ -12,4 +12,7 @@ public class ChatRoomRequest {
     private String name;
 
     private String roomType;
+
+    // DIRECT 방 생성 시 상대방 userId
+    private Long targetUserId;
 }
