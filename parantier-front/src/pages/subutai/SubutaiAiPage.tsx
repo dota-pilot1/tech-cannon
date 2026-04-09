@@ -1251,16 +1251,17 @@ export default function SubutaiAiPage() {
                                 >
                                   <button
                                     onClick={() => openViewDialog(post)}
-                                    className="flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                    className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                    title="보기"
                                   >
-                                    <Pencil className="w-3 h-3" />
-                                    편집
+                                    <ExternalLink className="w-3 h-3" />
                                   </button>
                                   <button
                                     onClick={() =>
                                       handleDeleteDocPost(post.id, post.title)
                                     }
                                     className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                    title="삭제"
                                   >
                                     <Trash2 className="w-3 h-3" />
                                   </button>
