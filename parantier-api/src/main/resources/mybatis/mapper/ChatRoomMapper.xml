@@ -110,4 +110,10 @@
         WHERE room_id = #{roomId} AND user_id = #{userId}
     </delete>
 
+    <!-- 채팅방 멤버 전체 삭제 -->
+    <delete id="deleteAllMembers">
+        DELETE FROM room_members
+        WHERE room_id = #{roomId}
+    </delete>
+
 </mapper>

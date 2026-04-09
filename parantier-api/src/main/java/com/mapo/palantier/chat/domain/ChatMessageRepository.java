@@ -8,4 +8,5 @@ public interface ChatMessageRepository {
     List<ChatMessageHistory> findByRoomId(Long roomId, int limit, Long beforeId);
     int deleteOldMessages(LocalDateTime before);
     int countByRoomId(Long roomId);
+    void deleteByRoomId(Long roomId);
 }

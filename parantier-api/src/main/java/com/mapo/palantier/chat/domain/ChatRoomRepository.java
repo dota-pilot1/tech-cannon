@@ -14,4 +14,5 @@ public interface ChatRoomRepository {
     void deleteAll();
     void joinRoom(Long roomId, Long userId);
     void leaveRoom(Long roomId, Long userId);
+    void deleteAllMembers(Long roomId);
 }

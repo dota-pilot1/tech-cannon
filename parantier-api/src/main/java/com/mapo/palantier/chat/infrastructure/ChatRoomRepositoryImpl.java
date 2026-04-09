@@ -63,4 +63,9 @@ public class ChatRoomRepositoryImpl implements ChatRoomRepository {
     public void leaveRoom(Long roomId, Long userId) {
         chatRoomMapper.leaveRoom(roomId, userId);
     }
+
+    @Override
+    public void deleteAllMembers(Long roomId) {
+        chatRoomMapper.deleteAllMembers(roomId);
+    }
 }

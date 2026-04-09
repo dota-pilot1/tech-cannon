@@ -16,4 +16,5 @@ public interface ChatMessageMapper {
     );
     int deleteOldMessages(@Param("before") LocalDateTime before);
     int countByRoomId(@Param("roomId") Long roomId);
+    void deleteByRoomId(@Param("roomId") Long roomId);
 }

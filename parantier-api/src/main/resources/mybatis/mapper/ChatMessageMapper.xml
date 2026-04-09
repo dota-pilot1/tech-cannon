@@ -45,4 +45,10 @@
         WHERE room_id = #{roomId}
     </select>
 
+    <!-- 채팅방 메시지 전체 삭제 -->
+    <delete id="deleteByRoomId">
+        DELETE FROM chat_messages
+        WHERE room_id = #{roomId}
+    </delete>
+
 </mapper>

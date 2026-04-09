@@ -20,6 +20,11 @@ public class ChatMessageService {
     }
 
     @Transactional
+    public void deleteByRoomId(Long roomId) {
+        chatMessageRepository.deleteByRoomId(roomId);
+    }
+
+    @Transactional
     public void saveMessage(
         Long roomId, Long senderId, String senderName,
         String content, String messageType, LocalDateTime createdAt

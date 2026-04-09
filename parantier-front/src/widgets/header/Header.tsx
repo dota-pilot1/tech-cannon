@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 // pathname 변경 시 드로어는 각 Link의 onClick에서 닫음
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -28,6 +28,7 @@ import { navThemeStore } from "@/entities/ui/model/navThemeStore";
 import { NavThemePicker } from "./NavThemePicker";
 import { UserAvatar } from "@/shared/ui/UserAvatar";
 import { DirectChatDrawer } from "@/features/chat/components/DirectChatDrawer";
+import { chatApi } from "@/api/chatApi";
 
 export function Header() {
   const auth = useStore(authStore, (state) => state);
@@ -37,6 +38,22 @@ export function Header() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [directRoomCount, setDirectRoomCount] = useState(0);
+
+  // DIRECT 방 개수 조회
+  const loadDirectRoomCount = useCallback(async () => {
+    if (!auth.isAuthenticated || !auth.isRestored) return;
+    try {
+      const rooms = await chatApi.getMyRooms();
+      setDirectRoomCount(rooms.filter((r: { roomType: string; isActive: boolean }) => r.roomType === "DIRECT" && r.isActive).length);
+    } catch {
+      // ignore
+    }
+  }, [auth.isAuthenticated, auth.isRestored]);
+
+  useEffect(() => {
+    loadDirectRoomCount();
+  }, [loadDirectRoomCount]);
 
   const userRole = auth.user?.role || null;
 
@@ -427,6 +444,11 @@ export function Header() {
                     title="메시지"
                   >
                     <MessageSquare className="w-4.5 h-4.5" />
+                    {directRoomCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 leading-none">
+                        {directRoomCount}
+                      </span>
+                    )}
                   </button>
                 )}
                 <NavThemePicker />
@@ -522,7 +544,7 @@ export function Header() {
       {mobileDrawer}
 
       {/* 1:1 채팅 드로워 */}
-      <DirectChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
+      <DirectChatDrawer open={chatOpen} onClose={() => { setChatOpen(false); loadDirectRoomCount(); }} onRoomCountChange={setDirectRoomCount} />
     </>
   );
 }

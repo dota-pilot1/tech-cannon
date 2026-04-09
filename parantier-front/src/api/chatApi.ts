@@ -57,6 +57,11 @@ export const chatApi = {
     await apiClient.post(`/chat/rooms/${roomId}/leave`)
   },
 
+  // 채팅방 메시지 전체 삭제
+  clearMessages: async (roomId: number): Promise<void> => {
+    await apiClient.delete(`/chat/rooms/${roomId}/messages`)
+  },
+
   // 메시지 전송 (REST)
   sendMessage: async (
     roomId: number,

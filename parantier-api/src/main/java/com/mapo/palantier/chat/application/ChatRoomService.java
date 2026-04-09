@@ -1,5 +1,6 @@
 package com.mapo.palantier.chat.application;
 
+import com.mapo.palantier.chat.domain.ChatMessageRepository;
 import com.mapo.palantier.chat.domain.ChatRoom;
 import com.mapo.palantier.chat.domain.ChatRoomRepository;
 import com.mapo.palantier.chat.domain.RoomMember;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChatRoomService {
 
     private final ChatRoomRepository chatRoomRepository;
+    private final ChatMessageRepository chatMessageRepository;
 
     public List<ChatRoom> getAllRooms() {
         return chatRoomRepository.findAll();
@@ -38,9 +40,18 @@ public class ChatRoomService {
 
     @Transactional
     public Long createRoom(String name, String roomType, Long createdBy) {
+        return createRoom(name, roomType, createdBy, null);
+    }
+
+    @Transactional
+    public Long createRoom(String name, String roomType, Long createdBy, Long targetUserId) {
         ChatRoom room = ChatRoom.create(name, roomType, createdBy);
         chatRoomRepository.insert(room);
         chatRoomRepository.joinRoom(room.getId(), createdBy);
+        // DIRECT 방이면 상대방도 같은 트랜잭션 내에서 자동 참가
+        if ("DIRECT".equals(roomType) && targetUserId != null) {
+            chatRoomRepository.joinRoom(room.getId(), targetUserId);
+        }
         return room.getId();
     }
 
@@ -75,6 +86,22 @@ public class ChatRoomService {
 
     @Transactional
     public void leaveRoom(Long roomId, Long userId) {
-        chatRoomRepository.leaveRoom(roomId, userId);
+        ChatRoom room = getRoomById(roomId);
+        // DIRECT 방은 나가면 방 전체 삭제 (폭파)
+        if ("DIRECT".equals(room.getRoomType())) {
+            destroyRoom(roomId);
+        } else {
+            chatRoomRepository.leaveRoom(roomId, userId);
+        }
+    }
+
+    /**
+     * 방을 완전히 삭제: 메시지 → 멤버 → 방 순서로 hard delete
+     */
+    @Transactional
+    public void destroyRoom(Long roomId) {
+        chatMessageRepository.deleteByRoomId(roomId);
+        chatRoomRepository.deleteAllMembers(roomId);
+        chatRoomRepository.delete(roomId);
     }
 }

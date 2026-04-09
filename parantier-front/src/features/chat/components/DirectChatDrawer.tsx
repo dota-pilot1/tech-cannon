@@ -5,6 +5,8 @@ import {
   Plus,
   Send,
   ChevronLeft,
+  LogOut,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { chatApi } from "@/api/chatApi";
@@ -17,9 +19,10 @@ import type { ChatRoom, ChatMessage, RoomMember } from "@/types/chat";
 interface DirectChatDrawerProps {
   open: boolean;
   onClose: () => void;
+  onRoomCountChange?: (count: number) => void;
 }
 
-export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
+export function DirectChatDrawer({ open, onClose, onRoomCountChange }: DirectChatDrawerProps) {
   const auth = useStore(authStore, (s) => s);
   const currentUserId = auth.user?.id;
 
@@ -42,6 +45,7 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
 
   // WebSocket
   const { send, subscribe, unsubscribe } = usePureWebSocket();
+  const sendingRef = useRef(false);
 
   // 방 목록 로드
   const loadRooms = useCallback(async () => {
@@ -59,6 +63,51 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
   useEffect(() => {
     if (open) loadRooms();
   }, [open, loadRooms]);
+
+  // 내 유저 토픽 구독 (새 방 생성 알림 수신)
+  useEffect(() => {
+    if (!currentUserId) return;
+    const topic = `user/${currentUserId}`;
+    const handler = (data: unknown) => {
+      const msg = data as ChatMessage;
+      if (msg.messageType === "ROOM_CREATED") {
+        loadRooms();
+      }
+    };
+    subscribe(topic, handler);
+    return () => unsubscribe(topic, handler);
+  }, [currentUserId, subscribe, unsubscribe, loadRooms]);
+
+  // 방 개수 변경 시 헤더 카운트 갱신
+  useEffect(() => {
+    onRoomCountChange?.(rooms.length);
+  }, [rooms.length, onRoomCountChange]);
+
+  // 모든 방의 ROOM_DELETED 구독 (방 목록 + 채팅 화면 모두 대응)
+  const roomIds = rooms.map((r) => r.id).join(",");
+  useEffect(() => {
+    if (!open || !roomIds) return;
+    const ids = roomIds.split(",").map(Number);
+    const handlers: { topic: string; handler: (data: unknown) => void }[] = [];
+    for (const id of ids) {
+      const topic = `chat/${id}`;
+      const handler = (data: unknown) => {
+        const msg = data as ChatMessage;
+        if (msg.messageType === "ROOM_DELETED") {
+          setSelectedRoom(null);
+          setMessages([]);
+          loadRooms();
+        }
+      };
+      subscribe(topic, handler);
+      handlers.push({ topic, handler });
+    }
+    return () => {
+      for (const { topic, handler } of handlers) {
+        unsubscribe(topic, handler);
+      }
+    };
+  }, [open, roomIds, subscribe, unsubscribe, loadRooms]);
 
   // 사용자 목록 로드
   const loadUsers = useCallback(async () => {
@@ -96,6 +145,13 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
     const topic = `chat/${selectedRoom.id}`;
     const handler = (data: unknown) => {
       const msg = data as ChatMessage;
+      // 방 삭제 알림 → 방 목록으로 돌아가기
+      if (msg.messageType === "ROOM_DELETED") {
+        setSelectedRoom(null);
+        setMessages([]);
+        loadRooms();
+        return;
+      }
       // 자신이 보낸 메시지는 낙관적 UI로 이미 표시했으므로 무시
       if (msg.senderId === currentUserId) return;
       setMessages((prev) => [...prev, msg]);
@@ -103,7 +159,7 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
 
     subscribe(topic, handler);
     return () => unsubscribe(topic, handler);
-  }, [selectedRoom, subscribe, unsubscribe]);
+  }, [selectedRoom, subscribe, unsubscribe, loadRooms]);
 
   // 메시지 스크롤
   useEffect(() => {
@@ -112,7 +168,8 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
 
   // 메시지 전송 (REST + WebSocket 병행)
   const handleSend = async () => {
-    if (!inputValue.trim() || !selectedRoom) return;
+    if (!inputValue.trim() || !selectedRoom || sendingRef.current) return;
+    sendingRef.current = true;
     const content = inputValue.trim();
     const senderName = auth.user?.username ?? "";
     setInputValue("");
@@ -138,6 +195,8 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
         topic: `chat/${selectedRoom.id}`,
         data: optimisticMsg,
       });
+    } finally {
+      sendingRef.current = false;
     }
     inputRef.current?.focus();
   };
@@ -175,6 +234,35 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
     }
   };
 
+  // 메시지 비우기
+  const handleClearMessages = async () => {
+    if (!selectedRoom) return;
+    if (!confirm("모든 메시지를 삭제하시겠습니까?")) return;
+    try {
+      await chatApi.clearMessages(selectedRoom.id);
+      setMessages([]);
+    } catch {
+      // ignore
+    }
+  };
+
+  // 채팅방 나가기 (DIRECT 방은 폭파)
+  const handleLeaveRoom = async (roomId?: number) => {
+    const targetRoomId = roomId ?? selectedRoom?.id;
+    if (!targetRoomId) return;
+    if (!confirm("대화방을 나가시겠습니까? 모든 메시지가 삭제됩니다.")) return;
+    try {
+      await chatApi.leaveRoom(targetRoomId);
+      if (selectedRoom?.id === targetRoomId) {
+        setSelectedRoom(null);
+        setMessages([]);
+      }
+      await loadRooms();
+    } catch {
+      // ignore
+    }
+  };
+
   // 상대방 이름 가져오기
   const getPartnerName = (room: ChatRoom) => {
     const names = room.name.split(",").map((n) => n.trim());
@@ -206,12 +294,28 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
               <h3 className="text-sm font-semibold flex-1 text-center truncate px-2">
                 {getPartnerName(selectedRoom)}
               </h3>
-              <button
-                onClick={onClose}
-                className="p-1 rounded hover:bg-muted transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleClearMessages}
+                  className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground"
+                  title="메시지 비우기"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleLeaveRoom()}
+                  className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors"
+                  title="대화방 나가기"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={onClose}
+                  className="p-1 rounded hover:bg-muted transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </>
           ) : (
             <>
@@ -310,7 +414,7 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       handleSend();
                     }
@@ -378,23 +482,37 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
               </div>
             ) : (
               rooms.map((room) => (
-                <button
+                <div
                   key={room.id}
-                  onClick={() => setSelectedRoom(room)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left border-b border-border/50"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 group"
                 >
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
-                    {getPartnerName(room)[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {getPartnerName(room)}과의 대화
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      멤버 {room.memberCount}명
-                    </p>
-                  </div>
-                </button>
+                  <button
+                    onClick={() => setSelectedRoom(room)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                      {getPartnerName(room)[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {getPartnerName(room)}과의 대화
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        멤버 {room.memberCount}명
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLeaveRoom(room.id);
+                    }}
+                    className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-destructive transition-all shrink-0"
+                    title="대화방 삭제"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               ))
             )}
           </div>

@@ -141,9 +141,12 @@ public class PureWebSocketHandler extends TextWebSocketHandler {
     // -----------------------------------------------------------------------
 
     private void handleSubscribe(WebSocketSession session, String topic) {
-        topicSessions
-            .computeIfAbsent(topic, k -> new CopyOnWriteArrayList<>())
-            .add(session);
+        CopyOnWriteArrayList<WebSocketSession> sessions =
+            topicSessions.computeIfAbsent(topic, k -> new CopyOnWriteArrayList<>());
+        // 동일 세션 중복 구독 방지
+        if (!sessions.contains(session)) {
+            sessions.add(session);
+        }
         log.info("Session {} subscribed to '{}'", session.getId(), topic);
     }
 

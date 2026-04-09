@@ -32,4 +32,9 @@ public class ChatMessageRepositoryImpl implements ChatMessageRepository {
     public int countByRoomId(Long roomId) {
         return chatMessageMapper.countByRoomId(roomId);
     }
+
+    @Override
+    public void deleteByRoomId(Long roomId) {
+        chatMessageMapper.deleteByRoomId(roomId);
+    }
 }

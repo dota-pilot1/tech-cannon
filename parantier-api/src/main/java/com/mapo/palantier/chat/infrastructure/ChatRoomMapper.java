@@ -19,4 +19,5 @@ public interface ChatRoomMapper {
     void deleteAll();
     void joinRoom(@Param("roomId") Long roomId, @Param("userId") Long userId);
     void leaveRoom(@Param("roomId") Long roomId, @Param("userId") Long userId);
+    void deleteAllMembers(@Param("roomId") Long roomId);
 }

@@ -58,10 +58,20 @@ public class ChatRoomController {
         @RequestBody @Valid ChatRoomRequest request,
         @RequestAttribute("userId") Long userId
     ) {
-        Long roomId = chatRoomService.createRoom(request.getName(), request.getRoomType(), userId);
-        // DIRECT 방이면 targetUserId로 상대방도 자동 참가
+        Long roomId = chatRoomService.createRoom(request.getName(), request.getRoomType(), userId, request.getTargetUserId());
+        // DIRECT 방 생성 시 상대방에게 새 방 알림
         if ("DIRECT".equals(request.getRoomType()) && request.getTargetUserId() != null) {
-            chatRoomService.joinRoom(roomId, request.getTargetUserId());
+            try {
+                java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+                data.put("messageType", "ROOM_CREATED");
+                data.put("roomId", roomId);
+                pureWebSocketHandler.broadcast(
+                    "user/" + request.getTargetUserId(),
+                    new com.mapo.palantier.websocket.WsMessage("CHAT", "user/" + request.getTargetUserId(), data)
+                );
+            } catch (Exception e) {
+                log.debug("WebSocket notify failed: {}", e.getMessage());
+            }
         }
         return ResponseEntity.ok(roomId);
     }
@@ -106,6 +116,18 @@ public class ChatRoomController {
         @PathVariable Long id,
         @RequestAttribute("userId") Long userId
     ) {
+        // 삭제 전에 상대방에게 방 삭제 알림 브로드캐스트
+        try {
+            java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+            data.put("messageType", "ROOM_DELETED");
+            data.put("roomId", id);
+            pureWebSocketHandler.broadcast(
+                "chat/" + id,
+                new com.mapo.palantier.websocket.WsMessage("CHAT", "chat/" + id, data)
+            );
+        } catch (Exception e) {
+            log.debug("WebSocket broadcast failed: {}", e.getMessage());
+        }
         chatRoomService.leaveRoom(id, userId);
         return ResponseEntity.ok().build();
     }
@@ -153,5 +175,12 @@ public class ChatRoomController {
         @RequestParam(required = false) Long beforeId
     ) {
         return ResponseEntity.ok(chatMessageService.getMessages(id, limit, beforeId));
+    }
+
+    @Operation(summary = "채팅방 메시지 전체 삭제")
+    @DeleteMapping("/{id}/messages")
+    public ResponseEntity<Void> clearMessages(@PathVariable Long id) {
+        chatMessageService.deleteByRoomId(id);
+        return ResponseEntity.ok().build();
     }
 }
