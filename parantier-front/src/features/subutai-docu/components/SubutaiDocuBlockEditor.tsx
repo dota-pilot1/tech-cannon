@@ -287,32 +287,27 @@ export default function SubutaiDocuBlockEditor({
         ) : (
           <>
             {/* 블록 헤더 */}
-            <div className="flex flex-col border-b border-border bg-muted/30 shrink-0">
-              <div className="flex items-center justify-between px-4 py-2">
-                <span
-                  className={`px-2 py-0.5 text-xs rounded font-medium ${selectedMeta!.color}`}
-                >
-                  {selectedMeta!.icon} {selectedMeta!.label}
-                </span>
-                <button
-                  onClick={() => removeBlock(selectedIdx)}
-                  className="text-xs px-2 py-1 text-destructive hover:bg-destructive/10 rounded transition-colors"
-                >
-                  삭제
-                </button>
-              </div>
-              {/* 블록 제목 입력 */}
-              <div className="px-4 pb-2">
-                <input
-                  type="text"
-                  value={selectedBlock.blockTitle ?? ""}
-                  onChange={(e) =>
-                    updateBlock(selectedIdx, "blockTitle", e.target.value)
-                  }
-                  placeholder="블록 제목 (선택)"
-                  className="w-full text-sm font-medium bg-background border border-border rounded px-2.5 py-1.5 outline-none focus:border-primary/60 placeholder:text-muted-foreground/50"
-                />
-              </div>
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/20 shrink-0">
+              <span
+                className={`px-2 py-0.5 text-xs rounded-md font-medium shrink-0 ${selectedMeta!.color}`}
+              >
+                {selectedMeta!.icon} {selectedMeta!.label}
+              </span>
+              <input
+                type="text"
+                value={selectedBlock.blockTitle ?? ""}
+                onChange={(e) =>
+                  updateBlock(selectedIdx, "blockTitle", e.target.value)
+                }
+                placeholder={selectedBlock.blockTitle ? "" : "블록 제목"}
+                className="flex-1 text-sm font-medium bg-transparent outline-none placeholder:text-muted-foreground/40"
+              />
+              <button
+                onClick={() => removeBlock(selectedIdx)}
+                className="text-xs px-2 py-1 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded transition-colors shrink-0"
+              >
+                삭제
+              </button>
             </div>
 
             {/* 블록 편집 영역 */}
