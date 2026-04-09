@@ -36,7 +36,7 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
+  const [_roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
