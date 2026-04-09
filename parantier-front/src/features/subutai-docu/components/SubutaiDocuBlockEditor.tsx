@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { LexicalEditor } from "@/shared/ui/lexical/LexicalEditor";
 import { Mermaid } from "@/shared/ui/mermaid";
-import { GripVertical, X } from "lucide-react";
+import { GripVertical, Pencil, Trash2 } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -175,6 +175,7 @@ export default function SubutaiDocuBlockEditor({
                     isSelected={selectedIdx === idx}
                     onClick={() => setSelectedIdx(idx)}
                     onDelete={() => removeBlock(idx)}
+                    onRename={(title) => updateBlock(idx, "blockTitle", title)}
                   />
                 ))}
               </SortableContext>
@@ -385,6 +386,7 @@ function SortableBlockItem({
   isSelected,
   onClick,
   onDelete,
+  onRename,
 }: {
   id: string;
   block: SubutaiDocuBlock;
@@ -392,20 +394,34 @@ function SortableBlockItem({
   isSelected: boolean;
   onClick: () => void;
   onDelete: () => void;
+  onRename: (title: string) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
   const meta = TYPE_META[block.blockType] ?? TYPE_META.NOTE;
   const style = { transform: CSS.Transform.toString(transform), transition };
+
+  const startEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditTitle(block.blockTitle ?? "");
+    setIsEditing(true);
+  };
+
+  const commitEdit = () => {
+    onRename(editTitle);
+    setIsEditing(false);
+  };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       onClick={onClick}
-      className={`group/block w-full flex items-center gap-1 px-1 py-2 rounded text-left transition-colors cursor-pointer ${
+      className={`group/block w-full flex items-center gap-1.5 px-1.5 py-2 rounded-lg text-left transition-colors cursor-pointer ${
         isSelected
-          ? "bg-primary text-primary-foreground"
+          ? "bg-primary text-primary-foreground shadow-sm"
           : "hover:bg-accent text-foreground"
       }`}
     >
@@ -414,36 +430,81 @@ function SortableBlockItem({
         {...listeners}
         className={`shrink-0 cursor-grab active:cursor-grabbing p-0.5 rounded ${
           isSelected
-            ? "text-primary-foreground/50"
-            : "text-muted-foreground/30 hover:text-muted-foreground"
+            ? "text-primary-foreground/40"
+            : "text-muted-foreground/20 hover:text-muted-foreground/60"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <GripVertical className="w-3 h-3" />
+        <GripVertical className="w-3.5 h-3.5" />
       </button>
-      <span className="text-base shrink-0">{meta.icon}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium truncate">
-          {block.blockTitle?.trim() ? block.blockTitle : meta.label}
-        </p>
-        <p className="text-[10px] opacity-60">
-          {idx + 1}번 · {meta.label}
-        </p>
-      </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className={`shrink-0 p-0.5 rounded opacity-0 group-hover/block:opacity-100 transition-opacity ${
-          isSelected
-            ? "text-primary-foreground/60 hover:text-primary-foreground"
-            : "text-muted-foreground/40 hover:text-destructive"
+
+      <div
+        className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 text-sm ${
+          isSelected ? "bg-primary-foreground/15" : "bg-muted"
         }`}
-        title="삭제"
       >
-        <X className="w-3 h-3" />
-      </button>
+        {meta.icon}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        {isEditing ? (
+          <input
+            autoFocus
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Enter") commitEdit();
+              if (e.key === "Escape") setIsEditing(false);
+            }}
+            onBlur={commitEdit}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full text-xs font-medium bg-background text-foreground border border-border rounded px-1.5 py-0.5 outline-none focus:border-primary/60"
+            placeholder={meta.label}
+          />
+        ) : (
+          <>
+            <p className="text-xs font-medium truncate leading-tight">
+              {block.blockTitle?.trim() ? block.blockTitle : meta.label}
+            </p>
+            <p className="text-[10px] opacity-50 leading-tight mt-0.5">
+              {idx + 1}번 · {meta.label}
+            </p>
+          </>
+        )}
+      </div>
+
+      {!isEditing && (
+        <div
+          className={`flex items-center gap-0.5 shrink-0 opacity-0 group-hover/block:opacity-100 transition-opacity`}
+        >
+          <button
+            onClick={startEdit}
+            className={`p-1 rounded transition-colors ${
+              isSelected
+                ? "text-primary-foreground/50 hover:text-primary-foreground hover:bg-primary-foreground/10"
+                : "text-muted-foreground/40 hover:text-foreground hover:bg-muted"
+            }`}
+            title="이름 변경"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className={`p-1 rounded transition-colors ${
+              isSelected
+                ? "text-primary-foreground/50 hover:text-primary-foreground hover:bg-primary-foreground/10"
+                : "text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
+            }`}
+            title="삭제"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
