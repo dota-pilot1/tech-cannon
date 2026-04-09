@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { LexicalEditor } from "@/shared/ui/lexical/LexicalEditor";
 import { Mermaid } from "@/shared/ui/mermaid";
-import { GripVertical } from "lucide-react";
+import { GripVertical, X } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -174,6 +174,7 @@ export default function SubutaiDocuBlockEditor({
                     idx={idx}
                     isSelected={selectedIdx === idx}
                     onClick={() => setSelectedIdx(idx)}
+                    onDelete={() => removeBlock(idx)}
                   />
                 ))}
               </SortableContext>
@@ -383,12 +384,14 @@ function SortableBlockItem({
   idx,
   isSelected,
   onClick,
+  onDelete,
 }: {
   id: string;
   block: SubutaiDocuBlock;
   idx: number;
   isSelected: boolean;
   onClick: () => void;
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
@@ -400,7 +403,7 @@ function SortableBlockItem({
       ref={setNodeRef}
       style={style}
       onClick={onClick}
-      className={`w-full flex items-center gap-1 px-1 py-2 rounded text-left transition-colors cursor-pointer ${
+      className={`group/block w-full flex items-center gap-1 px-1 py-2 rounded text-left transition-colors cursor-pointer ${
         isSelected
           ? "bg-primary text-primary-foreground"
           : "hover:bg-accent text-foreground"
@@ -427,6 +430,20 @@ function SortableBlockItem({
           {idx + 1}번 · {meta.label}
         </p>
       </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className={`shrink-0 p-0.5 rounded opacity-0 group-hover/block:opacity-100 transition-opacity ${
+          isSelected
+            ? "text-primary-foreground/60 hover:text-primary-foreground"
+            : "text-muted-foreground/40 hover:text-destructive"
+        }`}
+        title="삭제"
+      >
+        <X className="w-3 h-3" />
+      </button>
     </div>
   );
 }
