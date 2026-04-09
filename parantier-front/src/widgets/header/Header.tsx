@@ -15,11 +15,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { ChevronDown, User, LogOut, Menu as MenuIcon, X } from "lucide-react";
+import {
+  ChevronDown,
+  User,
+  LogOut,
+  Menu as MenuIcon,
+  X,
+  MessageSquare,
+} from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { navThemeStore } from "@/entities/ui/model/navThemeStore";
 import { NavThemePicker } from "./NavThemePicker";
 import { UserAvatar } from "@/shared/ui/UserAvatar";
+import { DirectChatDrawer } from "@/features/chat/components/DirectChatDrawer";
 
 export function Header() {
   const auth = useStore(authStore, (state) => state);
@@ -28,6 +36,7 @@ export function Header() {
   const { data: menus = [] } = useMenuTree();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const userRole = auth.user?.role || null;
 
@@ -411,6 +420,15 @@ export function Header() {
             <div className="flex items-center gap-2 h-full">
               {/* 데스크탑 우측 (md 이상) */}
               <div className="hidden md:flex items-center gap-2 h-full">
+                {auth.isAuthenticated && (
+                  <button
+                    onClick={() => setChatOpen(true)}
+                    className="relative p-2 rounded-lg text-[var(--nav-text)] hover:bg-[var(--nav-item-hover-bg)] transition-colors"
+                    title="메시지"
+                  >
+                    <MessageSquare className="w-4.5 h-4.5" />
+                  </button>
+                )}
                 <NavThemePicker />
                 {auth.isAuthenticated ? (
                   <div className="flex items-center gap-0 h-9 rounded-lg border border-[var(--nav-border)] bg-[var(--nav-item-active-bg)]/20 overflow-hidden shadow-sm transition-all hover:border-[var(--nav-border)]/80">
@@ -502,6 +520,9 @@ export function Header() {
 
       {/* 모바일 드로어 (portal) */}
       {mobileDrawer}
+
+      {/* 1:1 채팅 드로워 */}
+      <DirectChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
     </>
   );
 }
