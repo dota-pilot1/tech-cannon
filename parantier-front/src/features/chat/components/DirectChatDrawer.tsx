@@ -96,6 +96,8 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
     const topic = `chat/${selectedRoom.id}`;
     const handler = (data: unknown) => {
       const msg = data as ChatMessage;
+      // 자신이 보낸 메시지는 낙관적 UI로 이미 표시했으므로 무시
+      if (msg.senderId === currentUserId) return;
       setMessages((prev) => [...prev, msg]);
     };
 
@@ -108,21 +110,35 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 메시지 전송
-  const handleSend = () => {
+  // 메시지 전송 (REST + WebSocket 병행)
+  const handleSend = async () => {
     if (!inputValue.trim() || !selectedRoom) return;
-    send({
-      type: "CHAT",
-      topic: `chat/${selectedRoom.id}`,
-      data: {
-        roomId: selectedRoom.id,
-        senderId: currentUserId,
-        senderName: auth.user?.username ?? "",
-        content: inputValue.trim(),
-        messageType: "TALK",
-      },
-    });
+    const content = inputValue.trim();
+    const senderName = auth.user?.username ?? "";
     setInputValue("");
+
+    // 낙관적 UI - 즉시 표시
+    const optimisticMsg: ChatMessage = {
+      roomId: selectedRoom.id,
+      senderId: currentUserId,
+      senderName,
+      content,
+      messageType: "TALK",
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    // REST로 전송 (DB 저장 + WebSocket 브로드캐스트)
+    try {
+      await chatApi.sendMessage(selectedRoom.id, content, senderName);
+    } catch {
+      // REST 실패 시 WebSocket으로 시도
+      send({
+        type: "CHAT",
+        topic: `chat/${selectedRoom.id}`,
+        data: optimisticMsg,
+      });
+    }
     inputRef.current?.focus();
   };
 
@@ -142,15 +158,13 @@ export function DirectChatDrawer({ open, onClose }: DirectChatDrawerProps) {
       return;
     }
 
-    // 새 방 생성
+    // 새 방 생성 (targetUserId 전달 → 백엔드가 양쪽 다 자동 참가)
     try {
       const roomId = await chatApi.createRoom({
         name: `${auth.user?.username}, ${targetUser.username}`,
         roomType: "DIRECT",
-      });
-      // 상대방 초대
-      await chatApi.joinRoom(roomId);
-      // TODO: 상대방 자동 참가 로직 필요 (백엔드에서 처리)
+        targetUserId: targetUser.id,
+      } as any);
       await loadRooms();
       const newRooms = await chatApi.getMyRooms();
       const newRoom = newRooms.find((r) => r.id === roomId);

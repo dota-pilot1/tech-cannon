@@ -57,6 +57,20 @@ export const chatApi = {
     await apiClient.post(`/chat/rooms/${roomId}/leave`)
   },
 
+  // 메시지 전송 (REST)
+  sendMessage: async (
+    roomId: number,
+    content: string,
+    senderName: string,
+    messageType: string = 'TALK'
+  ): Promise<void> => {
+    await apiClient.post(`/chat/rooms/${roomId}/messages`, {
+      content,
+      senderName,
+      messageType,
+    })
+  },
+
   // 채팅방 메시지 히스토리 조회
   getRoomMessages: async (
     roomId: number,

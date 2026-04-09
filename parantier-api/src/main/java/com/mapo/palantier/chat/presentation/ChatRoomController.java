@@ -24,6 +24,7 @@ public class ChatRoomController {
 
     private final ChatRoomService chatRoomService;
     private final ChatMessageService chatMessageService;
+    private final com.mapo.palantier.websocket.PureWebSocketHandler pureWebSocketHandler;
 
     @Operation(summary = "모든 활성 채팅방 목록 조회")
     @GetMapping
@@ -57,9 +58,12 @@ public class ChatRoomController {
         @RequestBody @Valid ChatRoomRequest request,
         @RequestAttribute("userId") Long userId
     ) {
-        return ResponseEntity.ok(
-            chatRoomService.createRoom(request.getName(), request.getRoomType(), userId)
-        );
+        Long roomId = chatRoomService.createRoom(request.getName(), request.getRoomType(), userId);
+        // DIRECT 방이면 targetUserId로 상대방도 자동 참가
+        if ("DIRECT".equals(request.getRoomType()) && request.getTargetUserId() != null) {
+            chatRoomService.joinRoom(roomId, request.getTargetUserId());
+        }
+        return ResponseEntity.ok(roomId);
     }
 
     @Operation(summary = "채팅방 수정")
@@ -103,6 +107,41 @@ public class ChatRoomController {
         @RequestAttribute("userId") Long userId
     ) {
         chatRoomService.leaveRoom(id, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "메시지 전송 (REST)")
+    @PostMapping("/{id}/messages")
+    public ResponseEntity<Void> sendMessage(
+        @PathVariable Long id,
+        @RequestBody java.util.Map<String, Object> body,
+        @RequestAttribute("userId") Long userId
+    ) {
+        String content = (String) body.get("content");
+        String senderName = (String) body.get("senderName");
+        String messageType = (String) body.getOrDefault("messageType", "TALK");
+
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        chatMessageService.saveMessage(id, userId, senderName, content, messageType, now);
+
+        // WebSocket 브로드캐스트 (온라인 유저에게)
+        try {
+            java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+            data.put("roomId", id);
+            data.put("senderId", userId);
+            data.put("senderName", senderName);
+            data.put("content", content);
+            data.put("messageType", messageType);
+            data.put("createdAt", now.toString());
+
+            pureWebSocketHandler.broadcast(
+                "chat/" + id,
+                new com.mapo.palantier.websocket.WsMessage("CHAT", "chat/" + id, data)
+            );
+        } catch (Exception e) {
+            log.debug("WebSocket broadcast failed (no subscribers?): {}", e.getMessage());
+        }
+
         return ResponseEntity.ok().build();
     }
 
