@@ -347,7 +347,7 @@ export default function SubutaiDocuBlockEditor({
                   onChange={(e) =>
                     updateBlock(selectedIdx, "content", e.target.value)
                   }
-                  className="w-full h-full px-4 py-3 text-sm font-mono border-0 resize-none focus:outline-none bg-background"
+                  className="w-full h-full px-5 py-4 text-sm font-mono border-0 resize-none focus:outline-none bg-background leading-relaxed"
                   placeholder={
                     selectedBlock.blockType === "FIGMA"
                         ? "https://www.figma.com/file/..."
@@ -547,7 +547,7 @@ function MermaidBlockEditor({
         <textarea
           value={content}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full flex-1 px-4 py-3 text-sm font-mono border-0 resize-none focus:outline-none bg-background"
+          className="w-full flex-1 px-5 py-4 text-sm font-mono border-0 resize-none focus:outline-none bg-background leading-relaxed"
           placeholder={"sequenceDiagram\n    A->>B: Hello"}
           style={{ minHeight: "300px" }}
         />
