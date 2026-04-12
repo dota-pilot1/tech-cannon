@@ -221,13 +221,10 @@ function WorkCard({
         {work.title}
       </h3>
 
-      {/* 진행 상태: 유형 배지 + 프로그레스 바 */}
+      {/* 진행 상태: 프로그레스 바 + 유형 배지 */}
       <div className="mb-3">
-        <div className="flex items-center gap-2 mb-1">
-          <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", WORK_TYPE_COLORS[work.workType])}>
-            {WORK_TYPE_LABELS[work.workType] || work.workType}
-          </Badge>
-          <div className="flex-1 flex items-center gap-1.5">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5">
             <span className={cn("text-[11px] font-medium shrink-0", statusCfg.color)}>
               {STATUS_LABELS[work.status]}
             </span>
@@ -237,6 +234,9 @@ function WorkCard({
               onStatusChange={onStatusChange}
             />
           </div>
+          <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", WORK_TYPE_COLORS[work.workType])}>
+            {WORK_TYPE_LABELS[work.workType] || work.workType}
+          </Badge>
         </div>
         <div className="w-full h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
           <div
