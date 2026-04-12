@@ -11,7 +11,6 @@ import {
   Kanban,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
@@ -40,7 +39,6 @@ import {
   useWork,
   useCreateWork,
   useUpdateWorkStatus,
-  useUpdateWorkSilent,
 } from "@/features/work/hooks/useWorks";
 import { WorkKanbanView } from "@/features/work/components/WorkKanbanView";
 import { SubWorkSection } from "@/features/work/components/SubWorkSection";
@@ -92,7 +90,6 @@ const PRIORITY_COLORS: Record<WorkPriority, string> = {
 // ─── Page Component ──────────────────────────────────────────────────────
 
 export function WorkKanbanPage() {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   // 필터

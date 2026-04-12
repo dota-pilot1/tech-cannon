@@ -12,7 +12,7 @@ import {
 import { useDroppable } from "@dnd-kit/core";
 import { Badge } from "@/shared/ui/badge";
 import { cn } from "@/shared/lib/utils";
-import { Eye, Clock, AlertTriangle, GripVertical } from "lucide-react";
+import { Eye, Clock, AlertTriangle } from "lucide-react";
 import type { Work, WorkStatus, WorkPriority } from "@/entities/work/types/work";
 
 // ─── 상수 ─────────────────────────────────────────────────────────────────
