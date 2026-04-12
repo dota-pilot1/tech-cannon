@@ -110,3 +110,43 @@ FROM users;
 -- 권한 목록
 SELECT * FROM authorities ORDER BY category, name;
 ```
+
+## 메뉴 추가 시 주의사항 (로컬 vs 배포 DB)
+
+**⚠️ 중요: menus 테이블의 parent_id가 로컬 DB와 배포 DB에서 다름!**
+
+| 메뉴 | 로컬 DB parent_id | 배포 DB parent_id |
+|------|-------------------|-------------------|
+| Task | 48 | 49 |
+
+### 메뉴 추가 절차
+1. **로컬 DB**: `parent_id = 48` (Task)
+2. **배포 DB**: `parent_id = 49` (Task) — SSH 접속 후 실행
+3. **반드시 양쪽 DB 모두 실행**해야 함
+
+```sql
+-- 로컬 DB 메뉴 추가 예시
+INSERT INTO menus (name, path, parent_id, menu_type, order_num, is_active)
+VALUES ('새 메뉴', '/new-path', 48, 'SUB', 0, true);
+
+-- 배포 DB 메뉴 추가 (SSH 경유)
+ssh -i "KEY_PATH" ubuntu@43.200.241.26 "PGPASSWORD=palantier_password psql -h localhost -p 5432 -U palantier_user -d palantier -c \"
+INSERT INTO menus (name, path, parent_id, menu_type, order_num, is_active)
+VALUES ('새 메뉴', '/new-path', 49, 'SUB', 0, true);
+\""
+```
+
+## 새 페이지 추가 체크리스트
+
+프론트엔드에 새 페이지를 추가할 때 빠뜨리기 쉬운 항목:
+
+1. **페이지 컴포넌트 생성**: `src/pages/{domain}/{Page}.tsx`
+2. **라우트 등록**: `src/app/routes/index.tsx`에 createRoute + routeTree에 추가
+3. **메뉴 DB 등록**: 로컬 DB + 배포 DB 양쪽 모두
+4. **TypeScript 빌드 체크**: `npx tsc --noEmit` — 미사용 import 주의!
+5. **pre-push hook**: 이 프로젝트는 push 전에 `tsc -b && vite build`를 자동 실행함. 빌드 실패 시 push 차단됨
+
+### 자주 발생하는 빌드 에러
+- `TS6133: 'X' is declared but its value is never read` → 미사용 import/변수 제거
+- `TS6196: 'X' is declared but never used` → 미사용 타입 import 제거
+- 타입 확장 시 관련 파일 모두 동기화 필요 (예: WorkType 추가 시 workStatusApi.ts, WorkStatusPage.tsx 등)
