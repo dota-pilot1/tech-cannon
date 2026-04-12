@@ -16,6 +16,7 @@ import { RolesPage } from "@/pages/admin/roles/RolesPage";
 import TasksPage from "@/features/task/components/TasksPage";
 import { WorkPage } from "@/pages/work/WorkPage";
 import { WorkCardPage } from "@/pages/work/WorkCardPage";
+import { WorkKanbanPage } from "@/pages/work/WorkKanbanPage";
 import { ChatRoomsPage } from "@/routes/chat/index";
 import { ChatRoomPage } from "@/routes/chat/$roomId";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
@@ -173,6 +174,14 @@ const workCardRoute = createRoute({
   path: "/work/card",
   beforeLoad: () => requireAuth(),
   component: WorkCardPage,
+});
+
+// 업무 관리 - 칸반 (로그인 필요)
+const workKanbanRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/work/kanban",
+  beforeLoad: () => requireAuth(),
+  component: WorkKanbanPage,
 });
 
 // 인증 체크 (로그인 필요)
@@ -453,6 +462,7 @@ const routeTree = rootRoute.addChildren([
   adminOrganizationsRoute,
   adminRolesRoute,
   tasksRoute,
+  workKanbanRoute,
   workCardRoute,
   workRoute,
   workStatusRoute,

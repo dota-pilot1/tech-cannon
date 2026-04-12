@@ -8,6 +8,7 @@ import {
   ExternalLink,
   LayoutGrid,
   List,
+  Kanban,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -234,6 +235,13 @@ export function WorkCardPage() {
               title="카드 보기"
             >
               <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => navigate({ to: "/work/kanban" })}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+              title="칸반 보기"
+            >
+              <Kanban className="w-4 h-4" />
             </button>
           </div>
 
