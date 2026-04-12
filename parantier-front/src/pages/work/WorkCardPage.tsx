@@ -6,6 +6,8 @@ import {
   Plus,
   Edit2,
   ExternalLink,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -218,7 +220,22 @@ export function WorkCardPage() {
       {/* ── 헤더 ── */}
       <div className="border-b border-border bg-card px-6 py-3">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold mr-2">업무 관리</h1>
+          <h1 className="text-xl font-bold mr-1">업무 관리</h1>
+          <div className="flex items-center bg-muted rounded-lg p-0.5 mr-1">
+            <button
+              onClick={() => navigate({ to: "/work" })}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+              title="목록 보기"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              className="p-1.5 rounded-md bg-background text-foreground shadow-sm transition-colors"
+              title="카드 보기"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
 
           {/* 상태 탭 */}
           <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
