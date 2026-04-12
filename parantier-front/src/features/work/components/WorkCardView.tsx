@@ -192,7 +192,7 @@ function WorkCard({
       className={cn(
         "group relative rounded-xl border p-4 transition-all duration-200 cursor-pointer",
         "hover:shadow-md hover:-translate-y-0.5",
-        isDone ? "opacity-60 bg-muted/30 border-muted" : statusCfg.bgColor,
+        statusCfg.bgColor,
       )}
       onClick={() => onWorkClick(work.id)}
     >
