@@ -4,6 +4,8 @@ import {
   ChevronDown,
   Search,
   Plus,
+  Edit2,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,10 +19,12 @@ import {
 import {
   Dialog,
   DialogContent,
+  FullscreenDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/shared/ui/dialog";
+import { Badge } from "@/shared/ui/badge";
 import {
   Select,
   SelectContent,
@@ -30,11 +34,14 @@ import {
 } from "@/shared/ui/select";
 import {
   useWorks,
+  useWork,
   useCreateWork,
   useUpdateWorkStatus,
+  useUpdateWorkSilent,
 } from "@/features/work/hooks/useWorks";
-import { useUpdateWorkSilent } from "@/features/work/hooks/useWorks";
 import { WorkCardView } from "@/features/work/components/WorkCardView";
+import { SubWorkSection } from "@/features/work/components/SubWorkSection";
+import { WorkChatPanel } from "@/features/work/components/WorkChatPanel";
 import { useAllUsers } from "@/features/user/hooks/useAllUsers";
 import type {
   WorkStatus,
@@ -56,6 +63,37 @@ const WORK_TYPE_LABELS: Record<string, string> = {
   SPEAR: "🔫 작살",
   SHIP: "⛵ 배",
   BOOK: "📚 책",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  TODO: "진행 전",
+  IN_PROGRESS: "진행 중",
+  TEST: "테스트",
+  DONE: "완료",
+  HOLD: "보류",
+  BLOCKED: "막힘",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  TODO: "bg-gray-100 text-gray-600",
+  IN_PROGRESS: "bg-blue-100 text-blue-700",
+  TEST: "bg-purple-100 text-purple-700",
+  DONE: "bg-green-100 text-green-700",
+  HOLD: "bg-yellow-100 text-yellow-700",
+  BLOCKED: "bg-red-100 text-red-700",
+};
+
+const WORK_TYPE_COLORS: Record<string, string> = {
+  APACHE: "bg-amber-100 text-amber-800",
+  DRONE: "bg-sky-100 text-sky-700",
+  SNIPER: "bg-red-100 text-red-700",
+  HAMMER: "bg-slate-100 text-slate-700",
+  ROCKET: "bg-violet-100 text-violet-700",
+  MISSILE: "bg-rose-100 text-rose-800",
+  CANNON: "bg-orange-100 text-orange-700",
+  SPEAR: "bg-red-100 text-red-700",
+  SHIP: "bg-green-100 text-green-700",
+  BOOK: "bg-emerald-100 text-emerald-700",
 };
 
 const PRIORITY_LABELS: Record<WorkPriority, string> = {
@@ -83,6 +121,11 @@ export function WorkCardPage() {
   const [filterWorkType, setFilterWorkType] = useState<string>("ALL");
   const [filterPriority, setFilterPriority] = useState<string>("ALL");
   const [searchKeyword, setSearchKeyword] = useState("");
+
+  // 상세 다이얼로그
+  const [selectedWorkId, setSelectedWorkId] = useState<number | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const { data: workDetail } = useWork(selectedWorkId!, { enabled: !!selectedWorkId });
 
   // 새 업무 다이얼로그
   const [isNewWorkOpen, setIsNewWorkOpen] = useState(false);
@@ -294,7 +337,8 @@ export function WorkCardPage() {
           works={works}
           users={users}
           onWorkClick={(workId) => {
-            navigate({ to: "/work", search: { workId: String(workId) } });
+            setSelectedWorkId(workId);
+            setIsDetailOpen(true);
           }}
           onStatusChange={(workId, newStatus) => {
             updateStatus({ id: workId, status: newStatus });
@@ -395,6 +439,116 @@ export function WorkCardPage() {
             <Button onClick={handleCreateWork}>생성</Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+      {/* ── 상세 다이얼로그 ── */}
+      <Dialog open={isDetailOpen} onOpenChange={(open) => { setIsDetailOpen(open); if (!open) setSelectedWorkId(null); }}>
+        <FullscreenDialogContent>
+          {workDetail ? (
+            <div className="flex h-full">
+              {/* 왼쪽: 메인 업무 정보 */}
+              <div className="flex-1 min-w-0 overflow-y-auto border-r border-border">
+                {/* 헤더 */}
+                <div className="flex justify-between items-center px-7 py-5 border-b border-border">
+                  <div>
+                    <h2 className="text-xl font-bold mb-1">{workDetail.title}</h2>
+                    <div className="flex gap-2 items-center text-sm text-muted-foreground">
+                      <span>#{workDetail.id}</span>
+                      <span>·</span>
+                      <span>{workDetail.reporterName}</span>
+                      <span>·</span>
+                      <span>{new Date(workDetail.createdAt).toLocaleDateString("ko-KR")}</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsDetailOpen(false);
+                      navigate({ to: "/work", search: { workId: String(workDetail.id) } });
+                    }}
+                  >
+                    <Edit2 className="w-4 h-4 mr-1" />
+                    수정 / 상세
+                    <ExternalLink className="w-3 h-3 ml-1" />
+                  </Button>
+                </div>
+
+                {/* 기본 정보 테이블 */}
+                <div className="px-7 py-7">
+                  <div className="border rounded-lg overflow-hidden mb-7">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        <tr className="border-b">
+                          <td className="bg-muted px-4 py-2 font-medium w-28">유형</td>
+                          <td className="px-4 py-2">
+                            <Badge className={WORK_TYPE_COLORS[workDetail.workType] || ""}>
+                              {WORK_TYPE_LABELS[workDetail.workType] || workDetail.workType}
+                            </Badge>
+                          </td>
+                          <td className="bg-muted px-4 py-2 font-medium w-28">요청자</td>
+                          <td className="px-4 py-2">{workDetail.reporterName}</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="bg-muted px-4 py-2 font-medium">상태</td>
+                          <td className="px-4 py-2">
+                            <Badge className={STATUS_COLORS[workDetail.status] || ""}>
+                              {STATUS_LABELS[workDetail.status] || workDetail.status}
+                            </Badge>
+                          </td>
+                          <td className="bg-muted px-4 py-2 font-medium">우선순위</td>
+                          <td className="px-4 py-2">
+                            <Badge className={PRIORITY_COLORS[workDetail.priority] || ""}>
+                              {PRIORITY_LABELS[workDetail.priority]}
+                            </Badge>
+                          </td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="bg-muted px-4 py-2 font-medium">담당자</td>
+                          <td className="px-4 py-2">{workDetail.assigneeName || "미지정"}</td>
+                          <td className="bg-muted px-4 py-2 font-medium">마감 일시</td>
+                          <td className={cn("px-4 py-2", workDetail.dueDate && new Date(workDetail.dueDate) < new Date() ? "text-red-500 font-medium" : "")}>
+                            {workDetail.dueDate
+                              ? new Date(workDetail.dueDate).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+                              : "-"
+                            }
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="bg-muted px-4 py-2 font-medium">작성일</td>
+                          <td className="px-4 py-2">{new Date(workDetail.createdAt).toLocaleString("ko-KR")}</td>
+                          <td className="bg-muted px-4 py-2 font-medium">수정일</td>
+                          <td className="px-4 py-2">{new Date(workDetail.updatedAt).toLocaleString("ko-KR")}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* 내용 */}
+                  <div className="border rounded-lg p-5 mb-7">
+                    <h3 className="text-sm font-semibold mb-3">내용</h3>
+                    <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {workDetail.content || "내용이 없습니다."}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 오른쪽: 부가 업무 + 채팅 */}
+              <div className="w-[400px] shrink-0 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto border-b border-border p-5">
+                  <SubWorkSection workId={workDetail.id} />
+                </div>
+                <div className="h-[45%] flex flex-col">
+                  <WorkChatPanel workId={workDetail.id} />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-20 text-muted-foreground">
+              <p>로딩 중...</p>
+            </div>
+          )}
+        </FullscreenDialogContent>
       </Dialog>
     </div>
   );
