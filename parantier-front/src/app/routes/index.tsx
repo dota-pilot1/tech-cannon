@@ -15,6 +15,7 @@ import { OrganizationsPage } from "@/pages/admin/organizations/OrganizationsPage
 import { RolesPage } from "@/pages/admin/roles/RolesPage";
 import TasksPage from "@/features/task/components/TasksPage";
 import { WorkPage } from "@/pages/work/WorkPage";
+import { WorkCardPage } from "@/pages/work/WorkCardPage";
 import { ChatRoomsPage } from "@/routes/chat/index";
 import { ChatRoomPage } from "@/routes/chat/$roomId";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
@@ -164,6 +165,14 @@ const workRoute = createRoute({
   path: "/work",
   beforeLoad: () => requireAuth(),
   component: WorkPage,
+});
+
+// 업무 관리 - 카드형 (로그인 필요)
+const workCardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/work/card",
+  beforeLoad: () => requireAuth(),
+  component: WorkCardPage,
 });
 
 // 인증 체크 (로그인 필요)
@@ -444,6 +453,7 @@ const routeTree = rootRoute.addChildren([
   adminOrganizationsRoute,
   adminRolesRoute,
   tasksRoute,
+  workCardRoute,
   workRoute,
   workStatusRoute,
   chatRoute,

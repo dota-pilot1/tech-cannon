@@ -190,6 +190,12 @@ function FormTimeInput({
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 
 const WORK_TYPE_LABELS: Record<WorkType, string> = {
+  APACHE: "🚁 아파치",
+  DRONE: "🛸 드론",
+  SNIPER: "🎯 저격총",
+  HAMMER: "🔨 망치",
+  ROCKET: "🚀 로켓",
+  MISSILE: "💥 미사일",
   CANNON: "💣 캐논",
   SPEAR: "🔫 작살",
   HOCKEY: "🏒 하키",
@@ -197,13 +203,36 @@ const WORK_TYPE_LABELS: Record<WorkType, string> = {
   STAIRS: "🪜 계단",
 };
 
+const WORK_TYPE_DESCRIPTIONS: Record<WorkType, string> = {
+  APACHE: "풀스택 CRUD",
+  DRONE: "가벼운 작업",
+  SNIPER: "디버깅",
+  HAMMER: "아키텍처",
+  ROCKET: "중요 UI/UX",
+  MISSILE: "중요 디버깅",
+  CANNON: "캐논",
+  SPEAR: "작살",
+  HOCKEY: "하키",
+  SHIP: "배",
+  STAIRS: "계단",
+};
+
 const WORK_TYPE_COLORS: Record<WorkType, string> = {
+  APACHE: "bg-amber-100 text-amber-800 hover:bg-amber-100",
+  DRONE: "bg-sky-100 text-sky-700 hover:bg-sky-100",
+  SNIPER: "bg-red-100 text-red-700 hover:bg-red-100",
+  HAMMER: "bg-slate-100 text-slate-700 hover:bg-slate-100",
+  ROCKET: "bg-violet-100 text-violet-700 hover:bg-violet-100",
+  MISSILE: "bg-rose-100 text-rose-800 hover:bg-rose-100",
   CANNON: "bg-orange-100 text-orange-700 hover:bg-orange-100",
   SPEAR: "bg-red-100 text-red-700 hover:bg-red-100",
   HOCKEY: "bg-blue-100 text-blue-700 hover:bg-blue-100",
   SHIP: "bg-green-100 text-green-700 hover:bg-green-100",
   STAIRS: "bg-purple-100 text-purple-700 hover:bg-purple-100",
 };
+
+// 주요 유형만 표시 (카드형 / 그리드 선택용)
+const PRIMARY_WORK_TYPES: WorkType[] = ["APACHE", "DRONE", "SNIPER", "HAMMER", "ROCKET", "MISSILE"];
 
 const STATUS_LABELS: Record<WorkStatus, string> = {
   TODO: "진행 전",
@@ -280,7 +309,7 @@ export function WorkPage() {
   // 폼 데이터
   const [formTitle, setFormTitle] = useState("");
   const [formContent, setFormContent] = useState("");
-  const [formWorkType, setFormWorkType] = useState<WorkType>("CANNON");
+  const [formWorkType, setFormWorkType] = useState<WorkType>("APACHE");
   const [formStatus, setFormStatus] = useState<WorkStatus>("TODO");
   const [formPriority, setFormPriority] = useState<WorkPriority>("MEDIUM");
   const [formAssigneeId, setFormAssigneeId] = useState<number | null>(null);
@@ -602,7 +631,7 @@ export function WorkPage() {
         await createWorkSilent({
           title: row.title || "제목 없음",
           content: row.content || "",
-          workType: row.workType || "CANNON",
+          workType: row.workType || "APACHE",
           status: row.status || "TODO",
           priority: row.priority || "MEDIUM",
           assigneeId: row.assigneeId ?? null,
@@ -738,15 +767,7 @@ export function WorkPage() {
                 </PopoverTrigger>
                 <PopoverContent className="w-36 p-2" align="center">
                   <div className="flex flex-col gap-1">
-                    {(
-                      [
-                        "CANNON",
-                        "SPEAR",
-                        "HOCKEY",
-                        "SHIP",
-                        "STAIRS",
-                      ] as WorkType[]
-                    ).map((t) => (
+                    {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((t) => (
                       <Button
                         key={t}
                         variant={t === workType ? "default" : "ghost"}
@@ -1273,7 +1294,7 @@ export function WorkPage() {
   const handleNew = () => {
     setFormTitle("");
     setFormContent("");
-    setFormWorkType("CANNON");
+    setFormWorkType("APACHE");
     setFormStatus("TODO");
     setFormPriority("MEDIUM");
     setFormAssigneeId(null);
@@ -1885,9 +1906,7 @@ export function WorkPage() {
               >
                 전체
               </DropdownMenuItem>
-              {(
-                ["CANNON", "SPEAR", "HOCKEY", "SHIP", "STAIRS"] as WorkType[]
-              ).map((type) => (
+              {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((type) => (
                 <DropdownMenuItem
                   key={type}
                   onClick={() => setFilterWorkType(type)}
@@ -2030,7 +2049,6 @@ export function WorkPage() {
 
       {/* 메인 컨텐츠: 그리드 전체 너비 */}
       <div className="flex-1 flex overflow-hidden">
-        {/* 그리드 영역 */}
         <div className="flex-1 px-3 pt-2 pb-2 overflow-hidden flex flex-col">
           <div className="flex-1" style={{ height: "100%" }}>
             <AgGridReact<Work>
@@ -2095,11 +2113,9 @@ export function WorkPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CANNON">💣 캐논</SelectItem>
-                    <SelectItem value="SPEAR">🔫 작살</SelectItem>
-                    <SelectItem value="HOCKEY">🏒 하키</SelectItem>
-                    <SelectItem value="SHIP">⛵ 배</SelectItem>
-                    <SelectItem value="STAIRS">🪜 계단</SelectItem>
+                    {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((t) => (
+                      <SelectItem key={t} value={t}>{WORK_TYPE_LABELS[t]}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -2338,11 +2354,9 @@ export function WorkPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="CANNON">💣 캐논</SelectItem>
-                        <SelectItem value="SPEAR">🔫 작살</SelectItem>
-                        <SelectItem value="HOCKEY">🏒 하키</SelectItem>
-                        <SelectItem value="SHIP">⛵ 배</SelectItem>
-                        <SelectItem value="STAIRS">🪜 계단</SelectItem>
+                        {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((t) => (
+                          <SelectItem key={t} value={t}>{WORK_TYPE_LABELS[t]}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -2657,15 +2671,7 @@ export function WorkPage() {
                               </PopoverTrigger>
                               <PopoverContent className="w-40 p-2">
                                 <div className="space-y-1">
-                                  {(
-                                    [
-                                      "CANNON",
-                                      "SPEAR",
-                                      "HOCKEY",
-                                      "SHIP",
-                                      "STAIRS",
-                                    ] as WorkType[]
-                                  ).map((type) => (
+                                  {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((type) => (
                                     <div
                                       key={type}
                                       className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
