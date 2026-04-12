@@ -27,13 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
-import { Calendar } from "@/shared/ui/calendar";
-import { format, isValid } from "date-fns";
-import { ko } from "date-fns/locale";
 import {
   useWorks,
-  useWork,
   useCreateWork,
   useUpdateWorkStatus,
 } from "@/features/work/hooks/useWorks";
@@ -41,7 +36,6 @@ import { useUpdateWorkSilent } from "@/features/work/hooks/useWorks";
 import { WorkCardView } from "@/features/work/components/WorkCardView";
 import { useAllUsers } from "@/features/user/hooks/useAllUsers";
 import type {
-  Work,
   WorkStatus,
   WorkPriority,
   WorkType,
@@ -62,15 +56,6 @@ const WORK_TYPE_LABELS: Record<string, string> = {
   HOCKEY: "🏒 하키",
   SHIP: "⛵ 배",
   STAIRS: "🪜 계단",
-};
-
-const STATUS_LABELS: Record<WorkStatus, string> = {
-  TODO: "진행 전",
-  IN_PROGRESS: "진행 중",
-  TEST: "테스트",
-  DONE: "완료",
-  HOLD: "보류",
-  BLOCKED: "막힘",
 };
 
 const PRIORITY_LABELS: Record<WorkPriority, string> = {
@@ -107,7 +92,6 @@ export function WorkCardPage() {
   const [formPriority, setFormPriority] = useState<WorkPriority>("MEDIUM");
   const [formAssigneeId, setFormAssigneeId] = useState<number | null>(null);
   const [formDueDate, setFormDueDate] = useState<string>("");
-  const [dueDateOpen, setDueDateOpen] = useState(false);
 
   // API
   const { data: worksData } = useWorks({

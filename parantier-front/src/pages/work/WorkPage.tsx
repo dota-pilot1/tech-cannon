@@ -203,20 +203,6 @@ const WORK_TYPE_LABELS: Record<WorkType, string> = {
   STAIRS: "🪜 계단",
 };
 
-const WORK_TYPE_DESCRIPTIONS: Record<WorkType, string> = {
-  APACHE: "풀스택 CRUD",
-  DRONE: "가벼운 작업",
-  SNIPER: "디버깅",
-  HAMMER: "아키텍처",
-  ROCKET: "중요 UI/UX",
-  MISSILE: "중요 디버깅",
-  CANNON: "캐논",
-  SPEAR: "작살",
-  HOCKEY: "하키",
-  SHIP: "배",
-  STAIRS: "계단",
-};
-
 const WORK_TYPE_COLORS: Record<WorkType, string> = {
   APACHE: "bg-amber-100 text-amber-800 hover:bg-amber-100",
   DRONE: "bg-sky-100 text-sky-700 hover:bg-sky-100",
@@ -231,8 +217,6 @@ const WORK_TYPE_COLORS: Record<WorkType, string> = {
   STAIRS: "bg-purple-100 text-purple-700 hover:bg-purple-100",
 };
 
-// 주요 유형만 표시 (카드형 / 그리드 선택용)
-const PRIMARY_WORK_TYPES: WorkType[] = ["APACHE", "DRONE", "SNIPER", "HAMMER", "ROCKET", "MISSILE"];
 
 const STATUS_LABELS: Record<WorkStatus, string> = {
   TODO: "진행 전",

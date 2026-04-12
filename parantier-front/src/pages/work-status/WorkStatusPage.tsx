@@ -778,6 +778,12 @@ function WorkDetailSheet({
     LOW: "bg-muted text-muted-foreground",
   };
   const workTypeLabel: Record<string, string> = {
+    APACHE: "🚁 아파치",
+    DRONE: "🛸 드론",
+    SNIPER: "🎯 저격총",
+    HAMMER: "🔨 망치",
+    ROCKET: "🚀 로켓",
+    MISSILE: "💥 미사일",
     CANNON: "💣 캐논",
     SPEAR: "🔫 작살",
     HOCKEY: "🏒 하키",

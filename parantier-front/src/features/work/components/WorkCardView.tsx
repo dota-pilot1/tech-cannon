@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Badge } from "@/shared/ui/badge";
-import { Button } from "@/shared/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -10,7 +9,6 @@ import { cn } from "@/shared/lib/utils";
 import { ChevronLeft, ChevronRight, Eye, Clock, AlertTriangle } from "lucide-react";
 import type {
   Work,
-  WorkType,
   WorkStatus,
   WorkPriority,
 } from "@/entities/work/types/work";
@@ -29,20 +27,6 @@ const WORK_TYPE_LABELS: Record<string, string> = {
   HOCKEY: "🏒 하키",
   SHIP: "⛵ 배",
   STAIRS: "🪜 계단",
-};
-
-const WORK_TYPE_DESCRIPTIONS: Record<string, string> = {
-  APACHE: "풀스택 CRUD",
-  DRONE: "가벼운 작업",
-  SNIPER: "디버깅",
-  HAMMER: "아키텍처",
-  ROCKET: "중요 UI/UX",
-  MISSILE: "중요 디버깅",
-  CANNON: "캐논",
-  SPEAR: "작살",
-  HOCKEY: "하키",
-  SHIP: "배",
-  STAIRS: "계단",
 };
 
 const WORK_TYPE_COLORS: Record<string, string> = {
