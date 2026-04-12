@@ -53,9 +53,8 @@ const WORK_TYPE_LABELS: Record<string, string> = {
   MISSILE: "💥 미사일",
   CANNON: "💣 캐논",
   SPEAR: "🔫 작살",
-  HOCKEY: "🏒 하키",
   SHIP: "⛵ 배",
-  STAIRS: "🪜 계단",
+  BOOK: "📚 책",
 };
 
 const PRIORITY_LABELS: Record<WorkPriority, string> = {

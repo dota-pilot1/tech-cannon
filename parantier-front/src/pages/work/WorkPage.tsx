@@ -198,9 +198,8 @@ const WORK_TYPE_LABELS: Record<WorkType, string> = {
   MISSILE: "💥 미사일",
   CANNON: "💣 캐논",
   SPEAR: "🔫 작살",
-  HOCKEY: "🏒 하키",
   SHIP: "⛵ 배",
-  STAIRS: "🪜 계단",
+  BOOK: "📚 책",
 };
 
 const WORK_TYPE_COLORS: Record<WorkType, string> = {
@@ -212,9 +211,8 @@ const WORK_TYPE_COLORS: Record<WorkType, string> = {
   MISSILE: "bg-rose-100 text-rose-800 hover:bg-rose-100",
   CANNON: "bg-orange-100 text-orange-700 hover:bg-orange-100",
   SPEAR: "bg-red-100 text-red-700 hover:bg-red-100",
-  HOCKEY: "bg-blue-100 text-blue-700 hover:bg-blue-100",
   SHIP: "bg-green-100 text-green-700 hover:bg-green-100",
-  STAIRS: "bg-purple-100 text-purple-700 hover:bg-purple-100",
+  BOOK: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
 };
 
 

@@ -24,9 +24,8 @@ const WORK_TYPE_LABELS: Record<string, string> = {
   MISSILE: "💥 미사일",
   CANNON: "💣 캐논",
   SPEAR: "🔫 작살",
-  HOCKEY: "🏒 하키",
   SHIP: "⛵ 배",
-  STAIRS: "🪜 계단",
+  BOOK: "📚 책",
 };
 
 const WORK_TYPE_COLORS: Record<string, string> = {
@@ -38,9 +37,8 @@ const WORK_TYPE_COLORS: Record<string, string> = {
   MISSILE: "bg-rose-100 text-rose-800",
   CANNON: "bg-orange-100 text-orange-700",
   SPEAR: "bg-red-100 text-red-700",
-  HOCKEY: "bg-blue-100 text-blue-700",
   SHIP: "bg-green-100 text-green-700",
-  STAIRS: "bg-purple-100 text-purple-700",
+  BOOK: "bg-emerald-100 text-emerald-700",
 };
 
 const STATUS_LABELS: Record<WorkStatus, string> = {

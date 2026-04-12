@@ -451,7 +451,6 @@ export function Header() {
                     )}
                   </button>
                 )}
-                <NavThemePicker />
                 {auth.isAuthenticated ? (
                   <div className="flex items-center gap-0 h-9 rounded-lg border border-[var(--nav-border)] bg-[var(--nav-item-active-bg)]/20 overflow-hidden shadow-sm transition-all hover:border-[var(--nav-border)]/80">
                     <Link
@@ -513,6 +512,7 @@ export function Header() {
                     <SignupDialog />
                   </>
                 )}
+                <NavThemePicker />
               </div>
 
               {/* 모바일 우측 (md 미만) */}

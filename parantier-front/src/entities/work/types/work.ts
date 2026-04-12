@@ -1,4 +1,4 @@
-export type WorkType = "CANNON" | "SPEAR" | "HOCKEY" | "SHIP" | "STAIRS" | "APACHE" | "DRONE" | "SNIPER" | "HAMMER" | "ROCKET" | "MISSILE";
+export type WorkType = "CANNON" | "SPEAR" | "SHIP" | "APACHE" | "DRONE" | "SNIPER" | "HAMMER" | "ROCKET" | "MISSILE" | "BOOK";
 export type WorkStatus =
   | "TODO"
   | "IN_PROGRESS"
