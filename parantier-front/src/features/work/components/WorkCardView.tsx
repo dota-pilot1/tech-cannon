@@ -196,38 +196,47 @@ function WorkCard({
       )}
       onClick={() => onWorkClick(work.id)}
     >
-      {/* 상단: 유형 배지 + 우선순위 + 번호 */}
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-1.5">
-          <Badge className={cn("text-[10px] px-1.5 py-0", WORK_TYPE_COLORS[work.workType])}>
-            {WORK_TYPE_LABELS[work.workType] || work.workType}
-          </Badge>
-          <span className={cn("text-xs", priorityCfg.color)}>
-            {priorityCfg.icon} {PRIORITY_LABELS[work.priority]}
-          </span>
-        </div>
-        <span className="text-[10px] text-muted-foreground">#{work.id}</span>
+      {/* 상단: 우선순위 + 상세 버튼 */}
+      <div className="flex items-center justify-between mb-2">
+        <span className={cn("text-xs", priorityCfg.color)}>
+          {priorityCfg.icon} {PRIORITY_LABELS[work.priority]}
+        </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onWorkClick(work.id);
+          }}
+          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded hover:bg-background/80 transition-colors"
+        >
+          <Eye className="w-3 h-3" />
+          상세
+        </button>
       </div>
 
       {/* 제목 */}
       <h3 className={cn(
-        "font-semibold text-sm mb-2 line-clamp-2 leading-tight",
+        "font-semibold text-sm mb-3 line-clamp-2 leading-tight",
         isDone && "line-through text-muted-foreground",
       )}>
         {work.title}
       </h3>
 
-      {/* 진행 상태 프로그레스 바 */}
+      {/* 진행 상태: 유형 배지 + 프로그레스 바 */}
       <div className="mb-3">
-        <div className="flex items-center justify-between mb-1">
-          <span className={cn("text-xs font-medium", statusCfg.color)}>
-            {STATUS_LABELS[work.status]}
-          </span>
-          <StatusSwitcher
-            workId={work.id}
-            currentStatus={work.status}
-            onStatusChange={onStatusChange}
-          />
+        <div className="flex items-center gap-2 mb-1">
+          <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", WORK_TYPE_COLORS[work.workType])}>
+            {WORK_TYPE_LABELS[work.workType] || work.workType}
+          </Badge>
+          <div className="flex-1 flex items-center gap-1.5">
+            <span className={cn("text-[11px] font-medium shrink-0", statusCfg.color)}>
+              {STATUS_LABELS[work.status]}
+            </span>
+            <StatusSwitcher
+              workId={work.id}
+              currentStatus={work.status}
+              onStatusChange={onStatusChange}
+            />
+          </div>
         </div>
         <div className="w-full h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
           <div
@@ -263,17 +272,6 @@ function WorkCard({
           </div>
         )}
       </div>
-
-      {/* 호버 시 상세보기 아이콘 */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onWorkClick(work.id);
-        }}
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-background/80"
-      >
-        <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-      </button>
     </div>
   );
 }
