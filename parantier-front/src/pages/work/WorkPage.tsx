@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { Calendar } from "@/shared/ui/calendar";
 import { format, isValid } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -280,8 +280,23 @@ export function WorkPage() {
 
   // 필터 상태
   const search = useSearch({ strict: false });
+  const searchParams = search as Record<string, string>;
+
+  // URL 쿼리 파라미터로 상세 다이얼로그 자동 오픈
+  useEffect(() => {
+    const workIdParam = searchParams?.workId;
+    if (workIdParam) {
+      const id = Number(workIdParam);
+      if (!isNaN(id) && id > 0) {
+        setSelectedWorkId(id);
+        setIsEditing(false);
+        setIsDetailOpen(true);
+      }
+    }
+  }, []);
+
   const [filterStatus, setFilterStatus] = useState<string>(
-    (search as Record<string, string>)?.status ?? "ALL",
+    searchParams?.status ?? "ALL",
   );
   const [filterWorkType, setFilterWorkType] = useState<string>("ALL");
   const [filterPriority, setFilterPriority] = useState<string>("ALL");

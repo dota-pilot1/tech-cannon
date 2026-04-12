@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   ChevronDown,
   Search,
@@ -75,6 +76,7 @@ const PRIORITY_COLORS: Record<WorkPriority, string> = {
 
 export function WorkCardPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // 필터 상태
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
@@ -292,8 +294,7 @@ export function WorkCardPage() {
           works={works}
           users={users}
           onWorkClick={(workId) => {
-            // 카드 클릭 시 테이블 페이지의 상세뷰로 이동
-            window.location.href = `/work?workId=${workId}`;
+            navigate({ to: "/work", search: { workId: String(workId) } });
           }}
           onStatusChange={(workId, newStatus) => {
             updateStatus({ id: workId, status: newStatus });
