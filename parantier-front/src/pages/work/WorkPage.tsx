@@ -634,6 +634,7 @@ export function WorkPage() {
           priority: row.priority || "MEDIUM",
           assigneeId: row.assigneeId ?? null,
           dueDate: row.dueDate ?? null,
+          prize: row.prize ?? 0,
         });
       }
 
@@ -648,6 +649,7 @@ export function WorkPage() {
             priority: row.priority,
             assigneeId: row.assigneeId ?? null,
             dueDate: row.dueDate ?? null,
+            prize: row.prize ?? 0,
           },
         });
       }
