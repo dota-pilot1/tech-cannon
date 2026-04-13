@@ -1,17 +1,8 @@
-import { useMemo, useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import { Calendar } from "@/shared/ui/calendar";
 import { format, isValid } from "date-fns";
 import { ko } from "date-fns/locale";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu";
-import {
-  ChevronDown,
-  Search,
-  FileText,
   Plus,
   Trash2,
   Edit2,
@@ -19,31 +10,15 @@ import {
   Upload,
   Image as ImageIcon,
   Database,
+  FileText,
   Eye,
   ExternalLink,
+  Link,
   Unlink,
   ChevronRight,
-  Link,
 } from "lucide-react";
 import { WorkChatPanel } from "@/features/work/components/WorkChatPanel";
 import { SubWorkSection } from "@/features/work/components/SubWorkSection";
-import { cn } from "@/shared/lib/utils";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { AgGridReact } from "ag-grid-react";
-import type {
-  ColDef,
-  CellStyle,
-  RowDragEndEvent,
-  IRowNode,
-  CellValueChangedEvent,
-  ICellRendererParams,
-  RowClickedEvent,
-} from "ag-grid-community";
-import {
-  ModuleRegistry,
-  AllCommunityModule,
-  themeQuartz,
-} from "ag-grid-community";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import {
@@ -65,14 +40,10 @@ import {
 import { Checkbox } from "@/shared/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
-  useWorks,
   useWork,
-  useCreateWork,
   useUpdateWork,
   useDeleteWork,
   useUpdateWorkStatus,
-  useCreateWorkSilent,
-  useUpdateWorkSilent,
 } from "@/features/work/hooks/useWorks";
 import {
   useWorkImages,
@@ -108,10 +79,8 @@ import {
   useLinkIssue,
   useUnlinkIssue,
 } from "@/features/work/hooks/useWorkLinkedIssues";
-import { workApi } from "@/entities/work/api/workApi";
 import { issueApi } from "@/entities/issue/api/issueApi";
 import type {
-  Work,
   WorkStatus,
   WorkPriority,
   WorkType,
@@ -127,12 +96,7 @@ import { Mermaid } from "@/shared/ui/mermaid";
 import { useAllUsers } from "@/features/user/hooks/useAllUsers";
 import mermaid from "mermaid";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
-// AG-Grid 모듈 등록
-ModuleRegistry.registerModules([AllCommunityModule]);
-
-// ─── FormTimeInput 컴포넌트 ───────────────────────────────────────────────────
+// ─── FormTimeInput ─────────────────────────────────────────────────────────────
 function FormTimeInput({
   value,
   onCommit,
@@ -187,7 +151,7 @@ function FormTimeInput({
   );
 }
 
-// ─── 상수 ────────────────────────────────────────────────────────────────────
+// ─── 상수 ──────────────────────────────────────────────────────────────────────
 
 const WORK_TYPE_LABELS: Record<WorkType, string> = {
   APACHE: "🚁 아파치",
@@ -214,7 +178,6 @@ const WORK_TYPE_COLORS: Record<WorkType, string> = {
   SHIP: "bg-green-100 text-green-700 hover:bg-green-100",
   BOOK: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
 };
-
 
 const STATUS_LABELS: Record<WorkStatus, string> = {
   TODO: "진행 전",
@@ -262,46 +225,24 @@ const ISSUE_STATUS_COLORS: Record<string, string> = {
   CLOSED: "bg-gray-100 text-gray-600",
 };
 
-// ─── Page Component ───────────────────────────────────────────────────────────
+// ─── Props ─────────────────────────────────────────────────────────────────────
 
-export function WorkPage() {
-  const gridRef = useRef<AgGridReact>(null);
-  const navigate = useNavigate();
+interface WorkDetailDialogProps {
+  workId: number | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
-  // 상태 관리
-  const [selectedWorkId, setSelectedWorkId] = useState<number | null>(null);
+// ─── Component ─────────────────────────────────────────────────────────────────
+
+export function WorkDetailDialog({
+  workId,
+  open,
+  onOpenChange,
+}: WorkDetailDialogProps) {
+  // 편집 상태
   const [isEditing, setIsEditing] = useState(false);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isNewWorkOpen, setIsNewWorkOpen] = useState(false);
   const editPanelRef = useRef<HTMLDivElement>(null);
-
-  // 수정된 행 추적
-  const [modifiedRowIds, setModifiedRowIds] = useState<Set<number>>(new Set());
-
-  // 필터 상태
-  const search = useSearch({ strict: false });
-  const searchParams = search as Record<string, string>;
-
-  // URL 쿼리 파라미터로 상세 다이얼로그 자동 오픈
-  useEffect(() => {
-    const workIdParam = searchParams?.workId;
-    if (workIdParam) {
-      const id = Number(workIdParam);
-      if (!isNaN(id) && id > 0) {
-        setSelectedWorkId(id);
-        setIsEditing(false);
-        setIsDetailOpen(true);
-      }
-    }
-  }, []);
-
-  const [filterStatus, setFilterStatus] = useState<string>(
-    searchParams?.status ?? "ALL",
-  );
-  const [filterWorkType, setFilterWorkType] = useState<string>("ALL");
-  const [filterPriority, setFilterPriority] = useState<string>("ALL");
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [isBackupTab, setIsBackupTab] = useState(false);
 
   // 폼 데이터
   const [formTitle, setFormTitle] = useState("");
@@ -314,58 +255,13 @@ export function WorkPage() {
   const [formPrize, setFormPrize] = useState<number>(0);
 
   // API 호출
-  const { data: worksData } = useWorks({
-    workType:
-      filterWorkType === "ALL" ? undefined : (filterWorkType as WorkType),
-    keyword: searchKeyword || undefined,
-    sortBy: "created",
-    isArchived: isBackupTab ? true : false,
+  const { data: workDetail } = useWork(workId!, {
+    enabled: !!workId && !isEditing,
   });
 
-  const { data: workDetail } = useWork(selectedWorkId!, {
-    enabled: !!selectedWorkId && !isEditing,
-  });
-
-  const queryClient = useQueryClient();
-
-  const reorderMutation = useMutation({
-    mutationFn: (items: { id: number; orderNum: number }[]) =>
-      workApi.reorderWorks(items),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["works"] });
-      toast.success("순서가 저장되었습니다", { position: "bottom-right" });
-    },
-    onError: () =>
-      toast.error("순서 변경에 실패했습니다", { position: "bottom-right" }),
-  });
-
-  const archiveMutation = useMutation({
-    mutationFn: (ids: number[]) => workApi.archiveWorks(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["works"] });
-      toast.success("백업 완료", { position: "bottom-right" });
-      setSelectedWorkId(null);
-    },
-    onError: () => toast.error("백업 실패", { position: "bottom-right" }),
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: (ids: number[]) => workApi.restoreWorks(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["works"] });
-      toast.success("복원 완료", { position: "bottom-right" });
-      setSelectedWorkId(null);
-    },
-    onError: () => toast.error("복원 실패", { position: "bottom-right" }),
-  });
-
-  const { mutate: createWork } = useCreateWork();
   const { mutate: updateWork } = useUpdateWork();
   const { mutate: deleteWork } = useDeleteWork();
   const { mutate: updateStatus } = useUpdateWorkStatus();
-
-  const { mutateAsync: createWorkSilent } = useCreateWorkSilent();
-  const { mutateAsync: updateWorkSilent } = useUpdateWorkSilent();
   const { confirm, ConfirmDialog } = useConfirm();
 
   // 사용자 목록
@@ -373,28 +269,28 @@ export function WorkPage() {
   const users = usersData || [];
 
   // 이미지 관련
-  const { data: workImages } = useWorkImages(selectedWorkId);
+  const { data: workImages } = useWorkImages(workId);
   const { mutate: uploadImage, isPending: isUploading } = useUploadWorkImage(
-    selectedWorkId!,
+    workId!,
   );
-  const { mutate: deleteImage } = useDeleteWorkImage(selectedWorkId!);
+  const { mutate: deleteImage } = useDeleteWorkImage(workId!);
   const [isDragging, setIsDragging] = useState(false);
   const [isPasteMode, setIsPasteMode] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const uploadAreaRef = useRef<HTMLDivElement>(null);
 
   // 체크리스트 관련
-  const { data: checklists } = useWorkChecklists(selectedWorkId);
-  const { mutate: createChecklist } = useCreateWorkChecklist(selectedWorkId!);
-  const { mutate: toggleChecklist } = useToggleWorkChecklist(selectedWorkId!);
-  const { mutate: deleteChecklist } = useDeleteWorkChecklist(selectedWorkId!);
+  const { data: checklists } = useWorkChecklists(workId);
+  const { mutate: createChecklist } = useCreateWorkChecklist(workId!);
+  const { mutate: toggleChecklist } = useToggleWorkChecklist(workId!);
+  const { mutate: deleteChecklist } = useDeleteWorkChecklist(workId!);
   const [newChecklistContent, setNewChecklistContent] = useState("");
 
   // 마인드맵 관련
-  const { data: mindmaps } = useWorkMindmaps(selectedWorkId);
-  const { mutate: createMindmap } = useCreateWorkMindmap(selectedWorkId!);
-  const { mutate: updateMindmap } = useUpdateWorkMindmap(selectedWorkId!);
-  const { mutate: deleteMindmap } = useDeleteWorkMindmap(selectedWorkId!);
+  const { data: mindmaps } = useWorkMindmaps(workId);
+  const { mutate: createMindmap } = useCreateWorkMindmap(workId!);
+  const { mutate: updateMindmap } = useUpdateWorkMindmap(workId!);
+  const { mutate: deleteMindmap } = useDeleteWorkMindmap(workId!);
   const [selectedMindmapId, setSelectedMindmapId] = useState<number | null>(
     null,
   );
@@ -412,10 +308,10 @@ export function WorkPage() {
   } | null>(null);
 
   // DB 테이블 관련
-  const { data: dbTables } = useWorkDbTables(selectedWorkId);
-  const { mutate: createDbTable } = useCreateWorkDbTable(selectedWorkId!);
-  const { mutate: updateDbTable } = useUpdateWorkDbTable(selectedWorkId!);
-  const { mutate: deleteDbTable } = useDeleteWorkDbTable(selectedWorkId!);
+  const { data: dbTables } = useWorkDbTables(workId);
+  const { mutate: createDbTable } = useCreateWorkDbTable(workId!);
+  const { mutate: updateDbTable } = useUpdateWorkDbTable(workId!);
+  const { mutate: deleteDbTable } = useDeleteWorkDbTable(workId!);
   const [selectedDbTableId, setSelectedDbTableId] = useState<number | null>(
     null,
   );
@@ -430,10 +326,10 @@ export function WorkPage() {
   const [isDbTableDialogOpen, setIsDbTableDialogOpen] = useState(false);
 
   // 피그마 관련
-  const { data: figmas } = useWorkFigmas(selectedWorkId);
-  const { mutate: createFigma } = useCreateWorkFigma(selectedWorkId!);
-  const { mutate: updateFigma } = useUpdateWorkFigma(selectedWorkId!);
-  const { mutate: deleteFigma } = useDeleteWorkFigma(selectedWorkId!);
+  const { data: figmas } = useWorkFigmas(workId);
+  const { mutate: createFigma } = useCreateWorkFigma(workId!);
+  const { mutate: updateFigma } = useUpdateWorkFigma(workId!);
+  const { mutate: deleteFigma } = useDeleteWorkFigma(workId!);
   const [isFigmaDialogOpen, setIsFigmaDialogOpen] = useState(false);
   const [selectedFigmaId, setSelectedFigmaId] = useState<number | null>(null);
   const [figmaTitle, setFigmaTitle] = useState("");
@@ -441,907 +337,18 @@ export function WorkPage() {
   const [figmaDescription, setFigmaDescription] = useState("");
 
   // 연결 이슈 관련
-  const { data: linkedIssues } = useWorkLinkedIssues(selectedWorkId);
-  const { mutate: linkIssue } = useLinkIssue(selectedWorkId!);
-  const { mutate: unlinkIssue } = useUnlinkIssue(selectedWorkId!);
+  const { data: linkedIssues } = useWorkLinkedIssues(workId);
+  const { mutate: linkIssue } = useLinkIssue(workId!);
+  const { mutate: unlinkIssue } = useUnlinkIssue(workId!);
   const [issueSearchKeyword, setIssueSearchKeyword] = useState("");
   const [issueSearchResults, setIssueSearchResults] = useState<
     { id: number; title: string; status: string }[]
   >([]);
   const [isSearchingIssue, setIsSearchingIssue] = useState(false);
 
-  // 필터링된 업무 목록
-  const works = useMemo(() => {
-    let allWorks = worksData?.items || [];
-    if (filterStatus !== "ALL") {
-      allWorks = allWorks.filter((work) => work.status === filterStatus);
-    }
-    if (filterPriority !== "ALL") {
-      allWorks = allWorks.filter((work) => work.priority === filterPriority);
-    }
-    return allWorks;
-  }, [worksData, filterStatus, filterPriority]);
+  // ── 핸들러 ──────────────────────────────────────────────────────────────────
 
-  // 우선순위별 카운트 (필터 적용 전 전체 기준)
-  const priorityCounts = useMemo(() => {
-    const allWorks = worksData?.items || [];
-    return {
-      CRITICAL: allWorks.filter((w) => w.priority === "CRITICAL").length,
-      HIGH: allWorks.filter((w) => w.priority === "HIGH").length,
-      MEDIUM: allWorks.filter((w) => w.priority === "MEDIUM").length,
-      LOW: allWorks.filter((w) => w.priority === "LOW").length,
-      ALL: allWorks.length,
-    };
-  }, [worksData]);
-
-  // AG-Grid 한국어 로케일
-  const localeText = useMemo(
-    () => ({
-      page: "페이지",
-      of: "/",
-      to: "-",
-      pageSizeSelectorLabel: "페이지당",
-      pageSizeSelectorLabelText: "행",
-    }),
-    [],
-  );
-
-  // 셀 값 변경 핸들러
-  const onCellValueChanged = (params: CellValueChangedEvent<Work>) => {
-    const { data, newValue, oldValue, colDef } = params;
-    if (newValue === oldValue) return;
-
-    setModifiedRowIds((prev) => new Set(prev).add(data.id));
-
-    if (
-      colDef.field === "status" ||
-      colDef.field === "priority" ||
-      colDef.field === "workType"
-    ) {
-      const allRowData: Work[] = [];
-      params.api.forEachNode((node: IRowNode<Work>) => {
-        if (node.data) allRowData.push(node.data);
-      });
-      const sortedData = allRowData.sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
-        return dateB - dateA;
-      });
-      params.api.setGridOption("rowData", sortedData);
-    } else {
-      params.api.refreshCells({ rowNodes: [params.node], force: true });
-    }
-  };
-
-  // 새 행 추가
-
-  // 선택된 행 삭제
-  const handleDeleteSelected = async () => {
-    const selectedRows = gridRef.current?.api.getSelectedRows() || [];
-
-    if (selectedRows.length === 0) {
-      toast.info("삭제할 행을 선택하세요.");
-      return;
-    }
-
-    const confirmed = await confirm({
-      title: "행 삭제",
-      description: `선택한 ${selectedRows.length}개 행을 삭제하시겠습니까?`,
-      confirmText: "삭제",
-      cancelText: "취소",
-      variant: "destructive",
-    });
-
-    if (!confirmed) return;
-
-    const existingWorks = selectedRows.filter((r) => r.id > 0);
-    for (const row of existingWorks) {
-      await deleteWork(row.id);
-    }
-
-    gridRef.current?.api.applyTransaction({ remove: selectedRows });
-
-    const idsToRemove = selectedRows.map((r) => r.id);
-    setModifiedRowIds((prev) => {
-      const newSet = new Set(prev);
-      idsToRemove.forEach((id) => newSet.delete(id));
-      return newSet;
-    });
-
-    toast.success(`${selectedRows.length}개 항목이 삭제되었습니다.`);
-  };
-
-  const handleArchive = () => {
-    const selectedNodes = gridRef.current?.api?.getSelectedNodes() ?? [];
-    const ids = selectedNodes.map((n: IRowNode<Work>) => n.data!.id);
-    if (ids.length === 0) {
-      toast.error("선택된 업무가 없습니다");
-      return;
-    }
-    archiveMutation.mutate(ids);
-  };
-
-  const handleRestore = () => {
-    const selectedNodes = gridRef.current?.api?.getSelectedNodes() ?? [];
-    const ids = selectedNodes.map((n: IRowNode<Work>) => n.data!.id);
-    if (ids.length === 0) {
-      toast.error("선택된 업무가 없습니다");
-      return;
-    }
-    restoreMutation.mutate(ids);
-  };
-
-  // 수정/신규 행 일괄 저장
-  const handleSaveModified = async () => {
-    if (modifiedRowIds.size === 0) {
-      toast.info("수정된 항목이 없습니다.");
-      return;
-    }
-
-    const modifiedRows: Work[] = [];
-    gridRef.current?.api.forEachNode((node) => {
-      if (modifiedRowIds.has(node.data.id)) {
-        modifiedRows.push(node.data);
-      }
-    });
-
-    const newRows = modifiedRows.filter((r) => r.id < 0);
-    const updatedRows = modifiedRows.filter((r) => r.id > 0);
-
-    const invalidRows: string[] = [];
-    modifiedRows.forEach((row) => {
-      const missing: string[] = [];
-      if (!row.title || row.title.trim() === "") missing.push("제목");
-      if (!row.workType) missing.push("유형");
-      if (!row.status) missing.push("상태");
-      if (!row.priority) missing.push("우선순위");
-      if (!row.reporterName || row.reporterName.trim() === "")
-        missing.push("요청자");
-
-      if (missing.length > 0) {
-        const rowLabel =
-          row.id < 0 ? "신규 행" : `"${row.title || "(제목 없음)"}"`;
-        invalidRows.push(`${rowLabel}: ${missing.join(", ")} 필요`);
-      }
-    });
-
-    if (invalidRows.length > 0) {
-      const message = [
-        "다음 항목에 필수 값이 누락되었습니다:",
-        "",
-        ...invalidRows.map((msg) => `• ${msg}`),
-        "",
-        "계속 진행하시겠습니까?",
-      ].join("\n");
-
-      const confirmed = await confirm({
-        title: "필수 항목 누락",
-        description: message,
-        confirmText: "계속",
-        cancelText: "취소",
-      });
-
-      if (!confirmed) return;
-    }
-
-    try {
-      for (const row of newRows) {
-        await createWorkSilent({
-          title: row.title || "제목 없음",
-          content: row.content || "",
-          workType: row.workType || "APACHE",
-          status: row.status || "TODO",
-          priority: row.priority || "MEDIUM",
-          assigneeId: row.assigneeId ?? null,
-          dueDate: row.dueDate ?? null,
-        });
-      }
-
-      for (const row of updatedRows) {
-        await updateWorkSilent({
-          id: row.id,
-          request: {
-            title: row.title,
-            content: row.content,
-            workType: row.workType,
-            status: row.status,
-            priority: row.priority,
-            assigneeId: row.assigneeId ?? null,
-            dueDate: row.dueDate ?? null,
-          },
-        });
-      }
-
-      if (newRows.length > 0) {
-        gridRef.current?.api.applyTransaction({ remove: newRows });
-      }
-
-      setModifiedRowIds(new Set());
-      await queryClient.invalidateQueries({ queryKey: ["works"] });
-
-      toast.success(
-        `신규 ${newRows.length}개, 수정 ${updatedRows.length}개 항목이 저장되었습니다.`,
-      );
-    } catch (error) {
-      toast.error("저장 중 오류가 발생했습니다.");
-      console.error(error);
-    }
-  };
-
-  const onRowDragEnd = useCallback(
-    (event: RowDragEndEvent<Work>) => {
-      const { api } = event;
-      const reorderItems: { id: number; orderNum: number }[] = [];
-      api.forEachNodeAfterFilterAndSort(
-        (node: IRowNode<Work>, index: number) => {
-          if (node.data) {
-            reorderItems.push({ id: node.data.id, orderNum: index });
-          }
-        },
-      );
-      reorderMutation.mutate(reorderItems);
-    },
-    [reorderMutation],
-  );
-
-  // 컬럼 정의
-  const columnDefs = useMemo<ColDef<Work>[]>(
-    () => [
-      {
-        headerName: "",
-        width: 52,
-        maxWidth: 52,
-        minWidth: 52,
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        suppressMovable: true,
-        suppressSizeToFit: true,
-        resizable: false,
-        cellStyle: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          paddingLeft: "8px",
-          paddingRight: "4px",
-        } as CellStyle,
-      },
-      {
-        headerName: "No.",
-        field: "id",
-        width: 60,
-        headerClass: "ag-header-cell-center",
-        cellStyle: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "12px",
-          color: "#888",
-        } as CellStyle,
-        valueFormatter: (params) =>
-          params.value > 0 ? `#${params.value}` : "NEW",
-      },
-      {
-        headerName: "제목",
-        field: "title",
-        flex: 1,
-        minWidth: 180,
-        editable: true,
-        rowDrag: true,
-        cellStyle: {
-          display: "flex",
-          alignItems: "center",
-          paddingLeft: "8px",
-        } as CellStyle,
-      },
-      {
-        headerName: "유형",
-        field: "workType",
-        width: 85,
-        headerClass: "ag-header-cell-center",
-        editable: false,
-        cellRenderer: (params: ICellRendererParams<Work>) => {
-          const WorkTypeCell = () => {
-            const [open, setOpen] = useState(false);
-            const workType = params.value as WorkType;
-            const label = WORK_TYPE_LABELS[workType] || workType;
-
-            const handleWorkTypeChange = (newType: WorkType) => {
-              if (!params.data) return;
-              params.data.workType = newType;
-              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
-              params.node?.setSelected(true);
-              params.api.refreshCells({ rowNodes: [params.node], force: true });
-              setOpen(false);
-            };
-
-            return (
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <div className="w-full h-full flex items-center justify-center cursor-pointer">
-                    <Badge className={WORK_TYPE_COLORS[workType]}>
-                      {label}
-                    </Badge>
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-36 p-2" align="center">
-                  <div className="flex flex-col gap-1">
-                    {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((t) => (
-                      <Button
-                        key={t}
-                        variant={t === workType ? "default" : "ghost"}
-                        size="sm"
-                        className="justify-start h-8"
-                        onClick={() => handleWorkTypeChange(t)}
-                      >
-                        {WORK_TYPE_LABELS[t]}
-                      </Button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            );
-          };
-          return <WorkTypeCell />;
-        },
-      },
-      {
-        headerName: "상태",
-        field: "status",
-        width: 85,
-        headerClass: "ag-header-cell-center",
-        editable: false,
-        cellRenderer: (params: ICellRendererParams<Work>) => {
-          const StatusCell = () => {
-            const [open, setOpen] = useState(false);
-            const status = params.value as WorkStatus;
-            const label = STATUS_LABELS[status] || status;
-
-            const handleStatusChange = (newStatus: WorkStatus) => {
-              if (!params.data) return;
-              params.data.status = newStatus;
-              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
-              params.node?.setSelected(true);
-              params.api.refreshCells({ rowNodes: [params.node], force: true });
-              setOpen(false);
-            };
-
-            return (
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <div className="w-full h-full flex items-center justify-center cursor-pointer">
-                    <Badge className={STATUS_COLORS[status]}>{label}</Badge>
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-36 p-2" align="center">
-                  <div className="flex flex-col gap-1">
-                    {(
-                      [
-                        "TODO",
-                        "IN_PROGRESS",
-                        "TEST",
-                        "DONE",
-                        "HOLD",
-                        "BLOCKED",
-                      ] as WorkStatus[]
-                    ).map((s) => (
-                      <Button
-                        key={s}
-                        variant={s === status ? "default" : "ghost"}
-                        size="sm"
-                        className="justify-start h-8"
-                        onClick={() => handleStatusChange(s)}
-                      >
-                        {STATUS_LABELS[s]}
-                      </Button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            );
-          };
-          return <StatusCell />;
-        },
-      },
-      {
-        headerName: "우선순위",
-        field: "priority",
-        width: 80,
-        headerClass: "ag-header-cell-center",
-        editable: false,
-        cellRenderer: (params: ICellRendererParams<Work>) => {
-          const PriorityCell = () => {
-            const [open, setOpen] = useState(false);
-            const priority = params.value as WorkPriority;
-            const label = PRIORITY_LABELS[priority] || priority;
-
-            const handlePriorityChange = (newPriority: WorkPriority) => {
-              if (!params.data) return;
-              params.data.priority = newPriority;
-              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
-              params.node?.setSelected(true);
-              params.api.refreshCells({ rowNodes: [params.node], force: true });
-              setOpen(false);
-            };
-
-            return (
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <div className="w-full h-full flex items-center justify-center cursor-pointer">
-                    <Badge className={PRIORITY_COLORS[priority]}>{label}</Badge>
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-32 p-2" align="center">
-                  <div className="flex flex-col gap-1">
-                    {(
-                      ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as WorkPriority[]
-                    ).map((p) => (
-                      <Button
-                        key={p}
-                        variant={p === priority ? "default" : "ghost"}
-                        size="sm"
-                        className="justify-start h-8"
-                        onClick={() => handlePriorityChange(p)}
-                      >
-                        {PRIORITY_LABELS[p]}
-                      </Button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            );
-          };
-          return <PriorityCell />;
-        },
-      },
-      {
-        headerName: "담당자",
-        field: "assigneeName",
-        width: 90,
-        headerClass: "ag-header-cell-center",
-        editable: false,
-        cellRenderer: (params: ICellRendererParams<Work>) => {
-          const AssigneeCell = () => {
-            const [open, setOpen] = useState(false);
-            const [keyword, setKeyword] = useState("");
-            const currentAssigneeName = params.data?.assigneeName || "";
-            const currentAssigneeId = params.data?.assigneeId ?? undefined;
-
-            const filtered = users.filter((u) => {
-              if (!keyword) return true;
-              return (
-                u.username.toLowerCase().includes(keyword.toLowerCase()) ||
-                u.email.toLowerCase().includes(keyword.toLowerCase())
-              );
-            });
-
-            const handleSelect = (
-              userId: number | undefined,
-              username: string | undefined,
-            ) => {
-              if (!params.data) return;
-              params.data.assigneeId = userId ?? undefined;
-              params.data.assigneeName = username ?? "";
-              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
-              params.node?.setSelected(true);
-              params.api.refreshCells({ rowNodes: [params.node], force: true });
-              setOpen(false);
-              setKeyword("");
-            };
-
-            return (
-              <Popover
-                open={open}
-                onOpenChange={(v) => {
-                  setOpen(v);
-                  if (!v) setKeyword("");
-                }}
-              >
-                <PopoverTrigger asChild>
-                  <div className="w-full h-full flex items-center justify-center cursor-pointer hover:text-primary">
-                    <span
-                      className={
-                        currentAssigneeName ? "" : "text-muted-foreground"
-                      }
-                    >
-                      {currentAssigneeName || "미지정"}
-                    </span>
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-52 p-2" align="center">
-                  <input
-                    type="text"
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    placeholder="이름 검색..."
-                    className="w-full px-2 py-1 mb-2 border border-input rounded text-sm"
-                    autoFocus
-                  />
-                  <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
-                    <Button
-                      variant={
-                        currentAssigneeId === undefined ? "default" : "ghost"
-                      }
-                      size="sm"
-                      className="justify-start h-8 text-muted-foreground"
-                      onClick={() => handleSelect(undefined, undefined)}
-                    >
-                      미지정
-                    </Button>
-                    {filtered.map((u) => (
-                      <Button
-                        key={u.id}
-                        variant={
-                          currentAssigneeId === u.id ? "default" : "ghost"
-                        }
-                        size="sm"
-                        className="justify-start h-auto py-1.5 flex-col items-start"
-                        onClick={() => handleSelect(u.id, u.username)}
-                      >
-                        <span className="text-sm">{u.username}</span>
-                        <span className="text-xs text-muted-foreground font-normal">
-                          {u.email}
-                        </span>
-                      </Button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            );
-          };
-          return <AssigneeCell />;
-        },
-      },
-      {
-        headerName: "마감일",
-        field: "dueDate",
-        width: 145,
-        headerClass: "ag-header-cell-center",
-        editable: false,
-        cellRenderer: (params: ICellRendererParams<Work>) => {
-          const DueDateCell = () => {
-            const [open, setOpen] = useState(false);
-            const currentDueDate = params.data?.dueDate || "";
-            const isOverdue = currentDueDate
-              ? new Date(currentDueDate) < new Date()
-              : false;
-
-            // 현재 저장된 값에서 날짜/시간 분리
-            const parsedDate = currentDueDate
-              ? (() => {
-                  const d = new Date(currentDueDate);
-                  return isValid(d) ? d : undefined;
-                })()
-              : undefined;
-
-            // 팝업 내 임시 상태 (확인 전까지 적용 안 함)
-            const [tempDate, setTempDate] = useState<Date | undefined>(
-              parsedDate,
-            );
-            const [tempTime, setTempTime] = useState<string>(
-              parsedDate
-                ? `${String(parsedDate.getHours()).padStart(2, "0")}:${String(parsedDate.getMinutes()).padStart(2, "0")}`
-                : "09:00",
-            );
-            const [timeError, setTimeError] = useState<string>("");
-
-            const validateTime = (val: string): boolean => {
-              const match = val.match(/^(\d{1,2}):(\d{2})$/);
-              if (!match) {
-                setTimeError("HH:MM 형식으로 입력하세요");
-                return false;
-              }
-              const h = Number(match[1]),
-                m = Number(match[2]);
-              if (h < 0 || h > 23) {
-                setTimeError("시는 0~23 사이여야 합니다");
-                return false;
-              }
-              if (m < 0 || m > 59) {
-                setTimeError("분은 0~59 사이여야 합니다");
-                return false;
-              }
-              setTimeError("");
-              return true;
-            };
-
-            const handleOpenChange = (next: boolean) => {
-              if (next) {
-                // 열릴 때 현재 저장값으로 초기화
-                setTempDate(parsedDate);
-                setTempTime(
-                  parsedDate
-                    ? `${String(parsedDate.getHours()).padStart(2, "0")}:${String(parsedDate.getMinutes()).padStart(2, "0")}`
-                    : "09:00",
-                );
-              }
-              setOpen(next);
-            };
-
-            const handleConfirm = () => {
-              if (!params.data || !tempDate) return;
-              const [hh, mm] = tempTime.split(":").map(Number);
-              const result = new Date(tempDate);
-              result.setHours(hh ?? 0, mm ?? 0, 0, 0);
-              const pad = (n: number) => String(n).padStart(2, "0");
-              const val = `${result.getFullYear()}-${pad(result.getMonth() + 1)}-${pad(result.getDate())}T${pad(result.getHours())}:${pad(result.getMinutes())}`;
-              params.data.dueDate = val;
-              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
-              params.node?.setSelected(true);
-              params.api.refreshCells({ rowNodes: [params.node], force: true });
-              setOpen(false);
-            };
-
-            const handleClear = (e: React.MouseEvent) => {
-              e.stopPropagation();
-              if (!params.data) return;
-              params.data.dueDate = undefined;
-              setModifiedRowIds((prev) => new Set(prev).add(params.data!.id));
-              params.node?.setSelected(true);
-              params.api.refreshCells({ rowNodes: [params.node], force: true });
-            };
-
-            const formatDisplay = (val: string) => {
-              if (!val) return "-";
-              const d = new Date(val);
-              if (isNaN(d.getTime())) return val;
-              const mm = String(d.getMonth() + 1).padStart(2, "0");
-              const dd = String(d.getDate()).padStart(2, "0");
-              const hh = String(d.getHours()).padStart(2, "0");
-              const min = String(d.getMinutes()).padStart(2, "0");
-              return `${mm}/${dd} ${hh}:${min}`;
-            };
-
-            return (
-              <Popover open={open} onOpenChange={handleOpenChange}>
-                <PopoverTrigger asChild>
-                  <div className="w-full h-full flex items-center justify-center cursor-pointer gap-1">
-                    {currentDueDate ? (
-                      <>
-                        <span
-                          className={`text-xs ${isOverdue ? "text-red-600 font-medium" : ""}`}
-                        >
-                          {formatDisplay(currentDueDate)}
-                        </span>
-                        <button
-                          onClick={handleClear}
-                          className="text-muted-foreground hover:text-destructive text-[10px] leading-none"
-                          title="마감일 제거"
-                        >
-                          ✕
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">-</span>
-                    )}
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto p-0"
-                  align="center"
-                  onOpenAutoFocus={(e) => e.preventDefault()}
-                >
-                  {/* 퀵 버튼 +1~+5시간 */}
-                  <div className="border-b px-3 py-2 flex items-center gap-1">
-                    <span className="text-xs text-muted-foreground mr-1">
-                      지금부터
-                    </span>
-                    {[1, 2, 3, 4, 5].map((h) => (
-                      <button
-                        key={h}
-                        onClick={() => {
-                          const now = new Date();
-                          now.setHours(now.getHours() + h, 0, 0, 0);
-                          setTempDate(now);
-                          setTempTime(
-                            `${String(now.getHours()).padStart(2, "0")}:00`,
-                          );
-                        }}
-                        className="px-2 py-1 text-xs rounded border border-input hover:bg-primary hover:text-primary-foreground transition-colors"
-                      >
-                        +{h}h
-                      </button>
-                    ))}
-                  </div>
-                  {/* 달력 */}
-                  <Calendar
-                    mode="single"
-                    selected={tempDate}
-                    onSelect={(day) => day && setTempDate(day)}
-                    locale={ko}
-                    initialFocus={false}
-                  />
-                  {/* 시간 직접 입력 */}
-                  <div className="border-t px-3 py-2">
-                    <input
-                      type="text"
-                      value={tempTime}
-                      onChange={(e) => {
-                        setTempTime(e.target.value);
-                        if (timeError) validateTime(e.target.value);
-                      }}
-                      onBlur={(e) => validateTime(e.target.value)}
-                      onKeyDown={(e) => e.stopPropagation()}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      placeholder="09:00"
-                      maxLength={5}
-                      className={`w-full px-3 py-1.5 border rounded text-sm text-center font-mono tracking-widest ${
-                        timeError
-                          ? "border-destructive focus:ring-destructive"
-                          : "border-input"
-                      } focus:outline-none focus:ring-1 focus:ring-ring`}
-                    />
-                    {timeError && (
-                      <p className="text-xs text-destructive mt-1">
-                        {timeError}
-                      </p>
-                    )}
-                  </div>
-                  {/* 확인 / 제거 버튼 */}
-                  <div className="border-t px-3 py-2 flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 h-8 text-xs"
-                      onClick={() => {
-                        if (validateTime(tempTime)) handleConfirm();
-                      }}
-                      disabled={!tempDate}
-                    >
-                      확인
-                    </Button>
-                    {currentDueDate && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-3 text-xs text-muted-foreground hover:text-destructive"
-                        onClick={handleClear}
-                      >
-                        제거
-                      </Button>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            );
-          };
-          return <DueDateCell />;
-        },
-      },
-      {
-        headerName: "보상금",
-        field: "prize",
-        width: 100,
-        headerClass: "ag-header-cell-center",
-        cellStyle: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "12px",
-        } as CellStyle,
-        valueFormatter: (params) => {
-          const v = params.value ?? 0;
-          return v > 0 ? `${v.toLocaleString()}원` : "-";
-        },
-      },
-      {
-        headerName: "작성일",
-        field: "createdAt",
-        width: 90,
-        headerClass: "ag-header-cell-center",
-        cellStyle: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "12px",
-          color: "#888",
-        } as CellStyle,
-        valueFormatter: (params) => {
-          if (!params.value) return "-";
-          return new Date(params.value).toLocaleDateString("ko-KR", {
-            month: "2-digit",
-            day: "2-digit",
-          });
-        },
-      },
-      {
-        headerName: "상세",
-        field: "id",
-        width: 70,
-        minWidth: 70,
-        maxWidth: 70,
-        headerClass: "ag-header-cell-center",
-        sortable: false,
-        resizable: false,
-        suppressMovable: true,
-        cellStyle: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "0",
-        } as CellStyle,
-        cellRenderer: (params: ICellRendererParams<Work>) => {
-          const DetailButtonCell = () => (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!params.data) return;
-                setSelectedWorkId(params.data.id);
-                setIsEditing(false);
-                setIsDetailOpen(true);
-              }}
-              className="flex items-center justify-center w-7 h-7 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-              title="상세 보기"
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-          );
-          return <DetailButtonCell />;
-        },
-      },
-    ],
-    [users],
-  );
-
-  const defaultColDef = useMemo<ColDef>(
-    () => ({
-      sortable: true,
-      resizable: true,
-    }),
-    [],
-  );
-
-  const rowClassRules = useMemo(
-    () => ({
-      "bg-yellow-50": (params: { data?: Work }) =>
-        modifiedRowIds.has(params.data?.id ?? -1),
-      "bg-blue-50": (params: { data?: Work }) =>
-        params.data?.id === selectedWorkId,
-    }),
-    [modifiedRowIds, selectedWorkId],
-  );
-
-  const onRowClicked = (event: RowClickedEvent<Work>) => {
-    if (!event.data) return;
-    setSelectedWorkId(event.data.id);
-  };
-
-  // 신규 작성
-  const handleNew = () => {
-    setFormTitle("");
-    setFormContent("");
-    setFormWorkType("APACHE");
-    setFormStatus("TODO");
-    setFormPriority("MEDIUM");
-    setFormAssigneeId(null);
-    setFormDueDate("");
-    setIsNewWorkOpen(true);
-  };
-
-  // 신규 저장
-  const handleNewSave = () => {
-    if (!formTitle.trim()) {
-      toast.error("제목을 입력하세요.");
-      return;
-    }
-    const data = {
-      title: formTitle,
-      content: "",
-      workType: formWorkType,
-      status: formStatus,
-      priority: formPriority,
-      assigneeId: formAssigneeId,
-      dueDate: formDueDate || null,
-      prize: formPrize,
-    };
-    createWork(data, {
-      onSuccess: () => {
-        setIsNewWorkOpen(false);
-      },
-    });
-  };
-
-  // 수정 모드로 전환
   const handleEdit = () => {
-    setIsDetailOpen(true);
     if (!workDetail) return;
     setFormTitle(workDetail.title);
     setFormContent(workDetail.content);
@@ -1354,7 +361,6 @@ export function WorkPage() {
     setIsEditing(true);
   };
 
-  // 저장
   const handleSave = () => {
     if (!formTitle.trim()) {
       toast.error("제목을 입력하세요");
@@ -1376,38 +382,24 @@ export function WorkPage() {
       prize: formPrize,
     };
 
-    if (selectedWorkId) {
+    if (workId) {
       updateWork(
-        { id: selectedWorkId, request: data },
+        { id: workId, request: data },
         {
           onSuccess: () => {
-            setIsDetailOpen(false);
             setIsEditing(false);
           },
         },
       );
-    } else {
-      createWork(data, {
-        onSuccess: () => {
-          setIsDetailOpen(false);
-          setIsEditing(false);
-          setSelectedWorkId(null);
-        },
-      });
     }
   };
 
-  // 취소
   const handleCancel = () => {
     setIsEditing(false);
-    if (!selectedWorkId) {
-      setIsDetailOpen(false);
-    }
   };
 
-  // 삭제
   const handleDelete = async () => {
-    if (!selectedWorkId) return;
+    if (!workId) return;
 
     const confirmed = await confirm({
       title: "업무 삭제",
@@ -1419,27 +411,24 @@ export function WorkPage() {
     });
 
     if (confirmed) {
-      deleteWork(selectedWorkId, {
+      deleteWork(workId, {
         onSuccess: () => {
-          setIsDetailOpen(false);
-          setSelectedWorkId(null);
+          onOpenChange(false);
           setIsEditing(false);
         },
       });
     }
   };
 
-  // 상태 변경 (상세 뷰에서)
   const handleStatusChange = (newStatus: WorkStatus) => {
-    if (!selectedWorkId) return;
-    updateStatus({ id: selectedWorkId, status: newStatus });
+    if (!workId) return;
+    updateStatus({ id: workId, status: newStatus });
   };
 
-  // 우선순위 변경 (상세 뷰에서)
   const handlePriorityChange = (newPriority: WorkPriority) => {
-    if (!selectedWorkId || !workDetail) return;
+    if (!workId || !workDetail) return;
     updateWork({
-      id: selectedWorkId,
+      id: workId,
       request: {
         title: workDetail.title,
         content: workDetail.content,
@@ -1452,11 +441,10 @@ export function WorkPage() {
     });
   };
 
-  // 유형 변경 (상세 뷰에서)
   const handleWorkTypeChange = (newType: WorkType) => {
-    if (!selectedWorkId || !workDetail) return;
+    if (!workId || !workDetail) return;
     updateWork({
-      id: selectedWorkId,
+      id: workId,
       request: {
         title: workDetail.title,
         content: workDetail.content,
@@ -1469,7 +457,6 @@ export function WorkPage() {
     });
   };
 
-  // 체크리스트 추가
   const handleAddChecklist = () => {
     if (!newChecklistContent.trim()) {
       toast.error("체크리스트 내용을 입력하세요");
@@ -1480,7 +467,6 @@ export function WorkPage() {
     setNewChecklistContent("");
   };
 
-  // 체크리스트 삭제
   const handleDeleteChecklistItem = async (checklistId: number) => {
     const confirmed = await confirm({
       title: "체크리스트 삭제",
@@ -1495,21 +481,24 @@ export function WorkPage() {
   };
 
   // 이미지 업로드 핸들러
-  const handleImageUpload = (files: FileList | File[]) => {
-    const fileArray = Array.from(files);
-    const imageFiles = fileArray.filter((file) =>
-      file.type.startsWith("image/"),
-    );
+  const handleImageUpload = useCallback(
+    (files: FileList | File[]) => {
+      const fileArray = Array.from(files);
+      const imageFiles = fileArray.filter((file) =>
+        file.type.startsWith("image/"),
+      );
 
-    if (imageFiles.length === 0) {
-      toast.error("이미지 파일만 업로드 가능합니다.");
-      return;
-    }
+      if (imageFiles.length === 0) {
+        toast.error("이미지 파일만 업로드 가능합니다.");
+        return;
+      }
 
-    imageFiles.forEach((file) => {
-      uploadImage({ file, fileType: "image" });
-    });
-  };
+      imageFiles.forEach((file) => {
+        uploadImage({ file, fileType: "image" });
+      });
+    },
+    [uploadImage],
+  );
 
   // 마인드맵 관련 핸들러
   const handleViewMindmap = (mindmapId: number) => {
@@ -1594,12 +583,12 @@ export function WorkPage() {
     try {
       await mermaid.parse(mindmapContent, { suppressErrors: false });
       setValidationResult({ isValid: true });
-      toast.success("✅ Mermaid 문법이 올바릅니다");
+      toast.success("Mermaid 문법이 올바릅니다");
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       setValidationResult({ isValid: false, error: errorMessage });
-      toast.error("❌ Mermaid 문법 오류가 있습니다");
+      toast.error("Mermaid 문법 오류가 있습니다");
     }
   };
 
@@ -1831,548 +820,15 @@ export function WorkPage() {
     }
   };
 
-  // 상태별 카운트
-  const statusCounts = useMemo(() => {
-    const allWorks = worksData?.items || [];
-    return {
-      TODO: allWorks.filter((w) => w.status === "TODO").length,
-      IN_PROGRESS: allWorks.filter((w) => w.status === "IN_PROGRESS").length,
-      TEST: allWorks.filter((w) => w.status === "TEST").length,
-      DONE: allWorks.filter((w) => w.status === "DONE").length,
-      HOLD: allWorks.filter((w) => w.status === "HOLD").length,
-      BLOCKED: allWorks.filter((w) => w.status === "BLOCKED").length,
-      ALL: allWorks.length,
-    };
-  }, [worksData]);
+  // ── 렌더링 ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* ── 헤더 영역 ── */}
-      <div className="border-b border-border bg-card px-6 py-3">
-        {/* 단일행: 타이틀 + 필터 + 액션 버튼 */}
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold mr-1">업무 관리</h1>
-          <div className="flex items-center bg-muted rounded-lg p-0.5 mr-1 text-xs">
-            <button
-              className="px-2.5 py-1 rounded-md bg-foreground text-background font-semibold transition-colors"
-            >
-              목록
-            </button>
-            <button
-              onClick={() => navigate({ to: "/work/card" })}
-              className="px-2.5 py-1 rounded-md text-muted-foreground hover:text-foreground font-medium transition-colors"
-            >
-              카드
-            </button>
-            <button
-              onClick={() => navigate({ to: "/work/kanban" })}
-              className="px-2.5 py-1 rounded-md text-muted-foreground hover:text-foreground font-medium transition-colors"
-            >
-              칸반
-            </button>
-          </div>
-
-          {/* 상태 탭 (카운트 포함) */}
-          <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
-            {(
-              [
-                { key: "ALL", label: "전체", count: statusCounts.ALL },
-                { key: "TODO", label: "진행 전", count: statusCounts.TODO },
-                {
-                  key: "IN_PROGRESS",
-                  label: "진행 중",
-                  count: statusCounts.IN_PROGRESS,
-                },
-                { key: "TEST", label: "테스트", count: statusCounts.TEST },
-                { key: "DONE", label: "완료", count: statusCounts.DONE },
-                { key: "HOLD", label: "보류", count: statusCounts.HOLD },
-                { key: "BLOCKED", label: "막힘", count: statusCounts.BLOCKED },
-              ] as { key: string; label: string; count: number }[]
-            ).map(({ key, label, count }) => (
-              <button
-                key={key}
-                onClick={() => {
-                  setFilterStatus(key as typeof filterStatus);
-                  setIsBackupTab(false);
-                }}
-                disabled={isBackupTab}
-                className={cn(
-                  "px-3 py-1 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
-                  filterStatus === key && !isBackupTab
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground disabled:opacity-40",
-                )}
-              >
-                {label}
-                <span
-                  className={cn(
-                    "ml-1.5 text-xs font-bold",
-                    filterStatus === key && !isBackupTab
-                      ? "text-primary"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="w-px h-5 bg-border" />
-
-          {/* 유형 드롭다운 */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-1 text-xs">
-                유형
-                {filterWorkType !== "ALL" && (
-                  <span className="ml-0.5 font-bold text-primary">
-                    · {WORK_TYPE_LABELS[filterWorkType as WorkType]}
-                  </span>
-                )}
-                <ChevronDown className="w-3 h-3 ml-0.5 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-32">
-              <DropdownMenuItem
-                onClick={() => setFilterWorkType("ALL")}
-                className={
-                  filterWorkType === "ALL" ? "font-bold text-primary" : ""
-                }
-              >
-                전체
-              </DropdownMenuItem>
-              {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((type) => (
-                <DropdownMenuItem
-                  key={type}
-                  onClick={() => setFilterWorkType(type)}
-                  className={
-                    filterWorkType === type ? "font-bold text-primary" : ""
-                  }
-                >
-                  {WORK_TYPE_LABELS[type]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* 우선순위 드롭다운 */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-1 text-xs">
-                우선순위
-                {filterPriority !== "ALL" && (
-                  <span
-                    className={cn(
-                      "ml-0.5 font-bold",
-                      PRIORITY_COLORS[filterPriority as WorkPriority],
-                    )}
-                  >
-                    · {PRIORITY_LABELS[filterPriority as WorkPriority]}
-                    {priorityCounts[filterPriority as WorkPriority] > 0 && (
-                      <span className="ml-1">
-                        ({priorityCounts[filterPriority as WorkPriority]})
-                      </span>
-                    )}
-                  </span>
-                )}
-                <ChevronDown className="w-3 h-3 ml-0.5 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-36">
-              <DropdownMenuItem
-                onClick={() => setFilterPriority("ALL")}
-                className={
-                  filterPriority === "ALL" ? "font-bold text-primary" : ""
-                }
-              >
-                전체
-              </DropdownMenuItem>
-              {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as WorkPriority[]).map(
-                (p) => (
-                  <DropdownMenuItem
-                    key={p}
-                    onClick={() => setFilterPriority(p)}
-                    className={cn(
-                      filterPriority === p ? "font-bold" : "",
-                      PRIORITY_COLORS[p],
-                    )}
-                  >
-                    {PRIORITY_LABELS[p]}
-                    {priorityCounts[p] > 0 && (
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {priorityCounts[p]}
-                      </span>
-                    )}
-                  </DropdownMenuItem>
-                ),
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <div className="w-px h-5 bg-border" />
-
-          {/* 검색 */}
-          <div className="relative group">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-            <input
-              type="text"
-              placeholder="제목 검색..."
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              className="pl-8 pr-3 py-1.5 border border-input rounded-md text-sm h-9 w-48 focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary transition-all bg-background/50 hover:bg-background"
-            />
-          </div>
-
-          <div className="flex-1" />
-
-          <div className="w-px h-5 bg-border" />
-
-          {/* 액션 버튼 그룹 */}
-          {!isBackupTab && (
-            <>
-              {modifiedRowIds.size > 0 && (
-                <Button
-                  onClick={handleSaveModified}
-                  size="sm"
-                  variant="default"
-                >
-                  저장 ({modifiedRowIds.size})
-                </Button>
-              )}
-              <Button
-                onClick={handleDeleteSelected}
-                size="sm"
-                variant="destructive"
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                삭제
-              </Button>
-              <Button onClick={handleArchive} size="sm" variant="outline">
-                🗄️ 백업
-              </Button>
-            </>
-          )}
-          {isBackupTab && (
-            <Button onClick={handleRestore} size="sm" variant="outline">
-              ↩️ 복원
-            </Button>
-          )}
-          <Button
-            variant={isBackupTab ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setIsBackupTab(!isBackupTab);
-              setSelectedWorkId(null);
-            }}
-            className={cn(
-              isBackupTab
-                ? "bg-amber-500 text-white border-amber-500 hover:bg-amber-600"
-                : "text-muted-foreground",
-            )}
-          >
-            🗄️ 백업(조회)
-          </Button>
-          <Button
-            onClick={handleNew}
-            size="sm"
-            className="bg-[#0f172a] hover:bg-[#1e293b]"
-          >
-            <Plus className="w-4 h-4 mr-1" />새 업무
-          </Button>
-        </div>
-      </div>
-
-      {/* 메인 컨텐츠: 그리드 전체 너비 */}
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 px-3 pt-2 pb-2 overflow-hidden flex flex-col">
-          <div className="flex-1" style={{ height: "100%" }}>
-            <AgGridReact<Work>
-              ref={gridRef}
-              rowData={works}
-              columnDefs={columnDefs}
-              defaultColDef={defaultColDef}
-              rowSelection="multiple"
-              suppressRowClickSelection={true}
-              onRowClicked={onRowClicked}
-              onCellValueChanged={onCellValueChanged}
-              rowClassRules={rowClassRules}
-              rowDragManaged={true}
-              onRowDragEnd={onRowDragEnd}
-              animateRows={true}
-              theme={themeQuartz.withParams({
-                headerHeight: 40,
-                rowHeight: 40,
-                fontSize: 13,
-                headerFontSize: 13,
-                fontFamily:
-                  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
-              })}
-              localeText={localeText}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 새 업무 작성 Dialog — 필수 항목만 */}
-      <Dialog open={isNewWorkOpen} onOpenChange={setIsNewWorkOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>새 업무 작성</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            {/* 제목 */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                제목 <span className="text-destructive">*</span>
-              </label>
-              <input
-                type="text"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleNewSave()}
-                className="w-full px-3 py-2 border border-input rounded-md text-sm"
-                placeholder="업무 제목을 입력하세요"
-                autoFocus
-              />
-            </div>
-
-            {/* 유형 / 상태 */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium mb-1.5">유형</label>
-                <Select
-                  value={formWorkType}
-                  onValueChange={(v) => setFormWorkType(v as WorkType)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((t) => (
-                      <SelectItem key={t} value={t}>{WORK_TYPE_LABELS[t]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">상태</label>
-                <Select
-                  value={formStatus}
-                  onValueChange={(v) => setFormStatus(v as WorkStatus)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="TODO">진행 전</SelectItem>
-                    <SelectItem value="IN_PROGRESS">진행 중</SelectItem>
-                    <SelectItem value="DONE">완료</SelectItem>
-                    <SelectItem value="HOLD">보류</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* 우선순위 / 담당자 */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium mb-1.5">
-                  우선순위
-                </label>
-                <Select
-                  value={formPriority}
-                  onValueChange={(v) => setFormPriority(v as WorkPriority)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">낮음</SelectItem>
-                    <SelectItem value="MEDIUM">보통</SelectItem>
-                    <SelectItem value="HIGH">높음</SelectItem>
-                    <SelectItem value="CRITICAL">긴급</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">
-                  담당자
-                </label>
-                <Select
-                  value={formAssigneeId?.toString() ?? "none"}
-                  onValueChange={(v) =>
-                    setFormAssigneeId(v === "none" ? null : Number(v))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="미지정" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">미지정</SelectItem>
-                    {users.map((u) => (
-                      <SelectItem key={u.id} value={u.id.toString()}>
-                        <span className="flex flex-col">
-                          <span>{u.username}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {u.email}
-                          </span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* 마감 일시 */}
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <label className="text-sm font-medium">마감 일시</label>
-                <div className="flex gap-1 ml-auto">
-                  {[1, 2, 3, 4, 5].map((h) => (
-                    <button
-                      key={h}
-                      type="button"
-                      onClick={() => {
-                        const now = new Date();
-                        now.setHours(now.getHours() + h, 0, 0, 0);
-                        const pad = (n: number) => String(n).padStart(2, "0");
-                        setFormDueDate(
-                          `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:00`,
-                        );
-                      }}
-                      className="px-1.5 py-0.5 text-xs rounded border border-input hover:bg-primary hover:text-primary-foreground transition-colors"
-                    >
-                      +{h}h
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm text-left flex items-center hover:bg-accent transition-colors"
-                  >
-                    <span
-                      className={formDueDate ? "" : "text-muted-foreground"}
-                    >
-                      {formDueDate
-                        ? (() => {
-                            const d = new Date(formDueDate);
-                            return isValid(d)
-                              ? format(d, "yyyy. MM. dd. HH:mm", { locale: ko })
-                              : "날짜 선택";
-                          })()
-                        : "날짜 선택"}
-                    </span>
-                    {formDueDate && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFormDueDate("");
-                        }}
-                        className="ml-auto text-muted-foreground hover:text-destructive text-xs"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto p-0"
-                  align="start"
-                  onOpenAutoFocus={(e) => e.preventDefault()}
-                >
-                  <Calendar
-                    mode="single"
-                    selected={
-                      formDueDate
-                        ? (() => {
-                            const d = new Date(formDueDate);
-                            return isValid(d) ? d : undefined;
-                          })()
-                        : undefined
-                    }
-                    onSelect={(day: Date | undefined) => {
-                      if (!day) return;
-                      const existing = formDueDate
-                        ? new Date(formDueDate)
-                        : null;
-                      const hh =
-                        existing && isValid(existing) ? existing.getHours() : 9;
-                      const mm =
-                        existing && isValid(existing)
-                          ? existing.getMinutes()
-                          : 0;
-                      const pad = (n: number) => String(n).padStart(2, "0");
-                      setFormDueDate(
-                        `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T${pad(hh)}:${pad(mm)}`,
-                      );
-                    }}
-                    locale={ko}
-                    initialFocus={false}
-                  />
-                  {(() => {
-                    const d = formDueDate ? new Date(formDueDate) : null;
-                    const curTime =
-                      d && isValid(d)
-                        ? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
-                        : "09:00";
-                    return (
-                      <FormTimeInput
-                        value={curTime}
-                        onCommit={(time) => {
-                          const base = formDueDate
-                            ? new Date(formDueDate)
-                            : new Date();
-                          if (!isValid(base)) return;
-                          const [hh, mm] = time.split(":").map(Number);
-                          base.setHours(hh ?? 0, mm ?? 0, 0, 0);
-                          const pad = (n: number) => String(n).padStart(2, "0");
-                          setFormDueDate(
-                            `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`,
-                          );
-                        }}
-                      />
-                    );
-                  })()}
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* 보상금 */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">보상금 (원)</label>
-              <input
-                type="number"
-                min={0}
-                step={1000}
-                value={formPrize}
-                onChange={(e) => setFormPrize(Number(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-input rounded-md text-sm"
-                placeholder="0"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setIsNewWorkOpen(false)}>
-              취소
-            </Button>
-            <Button onClick={handleNewSave}>저장</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* 상세 / 편집 Dialog 모달 */}
+    <>
       <Dialog
-        open={isDetailOpen}
-        onOpenChange={(open) => {
-          setIsDetailOpen(open);
-          if (!open) {
+        open={open}
+        onOpenChange={(o) => {
+          onOpenChange(o);
+          if (!o) {
             setIsEditing(false);
           }
         }}
@@ -2404,9 +860,13 @@ export function WorkPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((t) => (
-                          <SelectItem key={t} value={t}>{WORK_TYPE_LABELS[t]}</SelectItem>
-                        ))}
+                        {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map(
+                          (t) => (
+                            <SelectItem key={t} value={t}>
+                              {WORK_TYPE_LABELS[t]}
+                            </SelectItem>
+                          ),
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -2439,7 +899,9 @@ export function WorkPage() {
                     </label>
                     <Select
                       value={formPriority}
-                      onValueChange={(v) => setFormPriority(v as WorkPriority)}
+                      onValueChange={(v) =>
+                        setFormPriority(v as WorkPriority)
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -2514,7 +976,9 @@ export function WorkPage() {
                         className="w-full px-3 py-2 border border-input rounded-md text-sm text-left flex items-center gap-2 hover:bg-accent transition-colors"
                       >
                         <span
-                          className={formDueDate ? "" : "text-muted-foreground"}
+                          className={
+                            formDueDate ? "" : "text-muted-foreground"
+                          }
                         >
                           {formDueDate
                             ? (() => {
@@ -2558,7 +1022,6 @@ export function WorkPage() {
                         }
                         onSelect={(day: Date | undefined) => {
                           if (!day) return;
-                          // 임시 상태는 IIFE 내부에서 관리되므로 여기선 날짜만 반영
                           const existing = formDueDate
                             ? new Date(formDueDate)
                             : null;
@@ -2570,7 +1033,8 @@ export function WorkPage() {
                             existing && isValid(existing)
                               ? existing.getMinutes()
                               : 0;
-                          const pad = (n: number) => String(n).padStart(2, "0");
+                          const pad = (n: number) =>
+                            String(n).padStart(2, "0");
                           setFormDueDate(
                             `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T${pad(hh)}:${pad(mm)}`,
                           );
@@ -2578,9 +1042,10 @@ export function WorkPage() {
                         locale={ko}
                         initialFocus={false}
                       />
-                      {/* 시간 직접 입력 */}
                       {(() => {
-                        const d = formDueDate ? new Date(formDueDate) : null;
+                        const d = formDueDate
+                          ? new Date(formDueDate)
+                          : null;
                         const curTime =
                           d && isValid(d)
                             ? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
@@ -2634,13 +1099,17 @@ export function WorkPage() {
 
                 {/* 보상금 */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">보상금 (원)</label>
+                  <label className="block text-sm font-medium mb-2">
+                    보상금 (원)
+                  </label>
                   <input
                     type="number"
                     min={0}
                     step={1000}
                     value={formPrize}
-                    onChange={(e) => setFormPrize(Number(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setFormPrize(Number(e.target.value) || 0)
+                    }
                     className="w-full px-3 py-2 border border-input rounded-md text-sm"
                     placeholder="0"
                   />
@@ -2699,7 +1168,11 @@ export function WorkPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0 ml-4">
-                    <Button variant="outline" size="sm" onClick={handleEdit}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleEdit}
+                    >
                       <Edit2 className="w-4 h-4 mr-1" />
                       수정
                     </Button>
@@ -2735,7 +1208,11 @@ export function WorkPage() {
                               </PopoverTrigger>
                               <PopoverContent className="w-40 p-2">
                                 <div className="space-y-1">
-                                  {(Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((type) => (
+                                  {(
+                                    Object.keys(
+                                      WORK_TYPE_LABELS,
+                                    ) as WorkType[]
+                                  ).map((type) => (
                                     <div
                                       key={type}
                                       className={`px-3 py-2 rounded cursor-pointer hover:bg-accent ${
@@ -2743,7 +1220,9 @@ export function WorkPage() {
                                           ? "bg-accent"
                                           : ""
                                       }`}
-                                      onClick={() => handleWorkTypeChange(type)}
+                                      onClick={() =>
+                                        handleWorkTypeChange(type)
+                                      }
                                     >
                                       {WORK_TYPE_LABELS[type]}
                                     </div>
@@ -2789,7 +1268,9 @@ export function WorkPage() {
                                           ? "bg-accent"
                                           : ""
                                       }`}
-                                      onClick={() => handleStatusChange(status)}
+                                      onClick={() =>
+                                        handleStatusChange(status)
+                                      }
                                     >
                                       {STATUS_LABELS[status]}
                                     </div>
@@ -2862,20 +1343,21 @@ export function WorkPage() {
                                     : ""
                                 }
                               >
-                                {new Date(workDetail.dueDate).toLocaleString(
-                                  "ko-KR",
-                                  {
-                                    year: "numeric",
-                                    month: "2-digit",
-                                    day: "2-digit",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                    hour12: false,
-                                  },
-                                )}
+                                {new Date(
+                                  workDetail.dueDate,
+                                ).toLocaleString("ko-KR", {
+                                  year: "numeric",
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: false,
+                                })}
                               </span>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="text-muted-foreground">
+                                -
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -2884,43 +1366,39 @@ export function WorkPage() {
                             작성일
                           </td>
                           <td className="px-4 py-2">
-                            {new Date(workDetail.createdAt).toLocaleDateString(
-                              "ko-KR",
-                              {
-                                year: "numeric",
-                                month: "2-digit",
-                                day: "2-digit",
-                              },
-                            )}{" "}
-                            {new Date(workDetail.createdAt).toLocaleTimeString(
-                              "ko-KR",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: false,
-                              },
-                            )}
+                            {new Date(
+                              workDetail.createdAt,
+                            ).toLocaleDateString("ko-KR", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                            })}{" "}
+                            {new Date(
+                              workDetail.createdAt,
+                            ).toLocaleTimeString("ko-KR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: false,
+                            })}
                           </td>
                           <td className="bg-muted px-4 py-2 font-medium">
                             수정일
                           </td>
                           <td className="px-4 py-2">
-                            {new Date(workDetail.updatedAt).toLocaleDateString(
-                              "ko-KR",
-                              {
-                                year: "numeric",
-                                month: "2-digit",
-                                day: "2-digit",
-                              },
-                            )}{" "}
-                            {new Date(workDetail.updatedAt).toLocaleTimeString(
-                              "ko-KR",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: false,
-                              },
-                            )}
+                            {new Date(
+                              workDetail.updatedAt,
+                            ).toLocaleDateString("ko-KR", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                            })}{" "}
+                            {new Date(
+                              workDetail.updatedAt,
+                            ).toLocaleTimeString("ko-KR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: false,
+                            })}
                           </td>
                         </tr>
                       </tbody>
@@ -2991,7 +1469,9 @@ export function WorkPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => imageInputRef.current?.click()}
+                              onClick={() =>
+                                imageInputRef.current?.click()
+                              }
                               disabled={isUploading}
                             >
                               <Upload className="w-4 h-4 mr-2" />
@@ -3035,7 +1515,8 @@ export function WorkPage() {
                                 {workImages
                                   .filter(
                                     (img) =>
-                                      img.fileType === "image" || !img.fileType,
+                                      img.fileType === "image" ||
+                                      !img.fileType,
                                   )
                                   .map((image) => (
                                     <div
@@ -3051,7 +1532,9 @@ export function WorkPage() {
                                         }
                                       />
                                       <button
-                                        onClick={() => deleteImage(image.id)}
+                                        onClick={() =>
+                                          deleteImage(image.id)
+                                        }
                                         className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity leading-none"
                                       >
                                         ✕
@@ -3071,8 +1554,8 @@ export function WorkPage() {
                                   </p>
                                 ) : (
                                   <p className="text-sm">
-                                    이미지를 드래그하여 놓거나, 클릭하여 활성화
-                                    후 Ctrl+V로 붙여넣으세요
+                                    이미지를 드래그하여 놓거나, 클릭하여
+                                    활성화 후 Ctrl+V로 붙여넣으세요
                                   </p>
                                 )}
                               </div>
@@ -3148,7 +1631,9 @@ export function WorkPage() {
                             ) : (
                               <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
                                 <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                <p className="text-sm">마인드맵을 추가하세요</p>
+                                <p className="text-sm">
+                                  마인드맵을 추가하세요
+                                </p>
                               </div>
                             )}
                           </div>
@@ -3207,7 +1692,9 @@ export function WorkPage() {
                                           size="sm"
                                           variant="ghost"
                                           onClick={() =>
-                                            handleOpenDbTableDialog(dbTable.id)
+                                            handleOpenDbTableDialog(
+                                              dbTable.id,
+                                            )
                                           }
                                         >
                                           <Edit2 className="w-4 h-4" />
@@ -3226,7 +1713,7 @@ export function WorkPage() {
 
                                     {content.description && (
                                       <div className="px-4 py-2 bg-blue-50 border-b text-sm text-blue-900">
-                                        💬 {content.description}
+                                        {content.description}
                                       </div>
                                     )}
 
@@ -3257,43 +1744,46 @@ export function WorkPage() {
                                             </tr>
                                           </thead>
                                           <tbody>
-                                            {content.columns.map((col, idx) => (
-                                              <tr
-                                                key={idx}
-                                                className={`border-t hover:bg-blue-50 ${col.pk === "PK" ? "bg-amber-50" : ""}`}
-                                              >
-                                                <td className="px-3 py-2 font-medium font-mono text-sm">
-                                                  {col.column_name}
-                                                </td>
-                                                <td className="px-3 py-2 font-mono text-xs text-blue-600">
-                                                  {col.data_type}
-                                                </td>
-                                                <td className="px-3 py-2 text-center text-muted-foreground">
-                                                  {col.nullable}
-                                                </td>
-                                                <td className="px-3 py-2 text-center">
-                                                  {col.pk === "PK" && (
-                                                    <span className="text-amber-600">
-                                                      ✓
-                                                    </span>
-                                                  )}
-                                                </td>
-                                                <td className="px-3 py-2 text-center">
-                                                  {col.fk === "FK" && (
-                                                    <span className="text-green-600">
-                                                      ✓
-                                                    </span>
-                                                  )}
-                                                </td>
-                                                <td className="px-3 py-2 text-center">
-                                                  {col.unique_key === "UQ" && (
-                                                    <span className="text-purple-600">
-                                                      ✓
-                                                    </span>
-                                                  )}
-                                                </td>
-                                              </tr>
-                                            ))}
+                                            {content.columns.map(
+                                              (col, idx) => (
+                                                <tr
+                                                  key={idx}
+                                                  className={`border-t hover:bg-blue-50 ${col.pk === "PK" ? "bg-amber-50" : ""}`}
+                                                >
+                                                  <td className="px-3 py-2 font-medium font-mono text-sm">
+                                                    {col.column_name}
+                                                  </td>
+                                                  <td className="px-3 py-2 font-mono text-xs text-blue-600">
+                                                    {col.data_type}
+                                                  </td>
+                                                  <td className="px-3 py-2 text-center text-muted-foreground">
+                                                    {col.nullable}
+                                                  </td>
+                                                  <td className="px-3 py-2 text-center">
+                                                    {col.pk === "PK" && (
+                                                      <span className="text-amber-600">
+                                                        ✓
+                                                      </span>
+                                                    )}
+                                                  </td>
+                                                  <td className="px-3 py-2 text-center">
+                                                    {col.fk === "FK" && (
+                                                      <span className="text-green-600">
+                                                        ✓
+                                                      </span>
+                                                    )}
+                                                  </td>
+                                                  <td className="px-3 py-2 text-center">
+                                                    {col.unique_key ===
+                                                      "UQ" && (
+                                                      <span className="text-purple-600">
+                                                        ✓
+                                                      </span>
+                                                    )}
+                                                  </td>
+                                                </tr>
+                                              ),
+                                            )}
                                           </tbody>
                                         </table>
                                       </div>
@@ -3468,7 +1958,9 @@ export function WorkPage() {
                         {/* 부가 업무 탭 */}
                         <TabsContent value="linkedissues">
                           <div className="flex justify-between items-center mb-3">
-                            <h3 className="font-semibold text-sm">부가 업무</h3>
+                            <h3 className="font-semibold text-sm">
+                              부가 업무
+                            </h3>
                           </div>
 
                           {/* 이슈 검색 */}
@@ -3492,7 +1984,9 @@ export function WorkPage() {
                               disabled={isSearchingIssue}
                             >
                               <Link className="w-4 h-4 mr-1" />
-                              {isSearchingIssue ? "검색 중..." : "이슈 검색"}
+                              {isSearchingIssue
+                                ? "검색 중..."
+                                : "이슈 검색"}
                             </Button>
                           </div>
 
@@ -3507,14 +2001,17 @@ export function WorkPage() {
                                   <div
                                     key={issue.id}
                                     className="flex items-center justify-between px-3 py-2 hover:bg-accent cursor-pointer"
-                                    onClick={() => handleLinkIssue(issue.id)}
+                                    onClick={() =>
+                                      handleLinkIssue(issue.id)
+                                    }
                                   >
                                     <div className="flex items-center gap-2">
                                       <Badge
                                         className={`text-xs ${ISSUE_STATUS_COLORS[issue.status] || "bg-gray-100 text-gray-600"}`}
                                       >
-                                        {ISSUE_STATUS_LABELS[issue.status] ||
-                                          issue.status}
+                                        {ISSUE_STATUS_LABELS[
+                                          issue.status
+                                        ] || issue.status}
                                       </Badge>
                                       <span className="text-sm">
                                         <span className="text-muted-foreground mr-1">
@@ -3538,10 +2035,7 @@ export function WorkPage() {
                                   key={linked.id}
                                   className="flex items-center justify-between p-3 border rounded-md hover:bg-accent group"
                                 >
-                                  <div
-                                    className="flex items-center gap-2 flex-1 cursor-pointer"
-                                    onClick={() => navigate({ to: "/issues" })}
-                                  >
+                                  <div className="flex items-center gap-2 flex-1 cursor-pointer">
                                     <Badge
                                       className={`text-xs flex-shrink-0 ${
                                         ISSUE_STATUS_COLORS[
@@ -3564,7 +2058,9 @@ export function WorkPage() {
                                     size="sm"
                                     variant="ghost"
                                     className="opacity-0 group-hover:opacity-100 h-7 px-2 hover:bg-destructive/10"
-                                    onClick={() => handleUnlinkIssue(linked.id)}
+                                    onClick={() =>
+                                      handleUnlinkIssue(linked.id)
+                                    }
                                     title="연결 해제"
                                   >
                                     <Unlink className="w-3.5 h-3.5 text-destructive" />
@@ -3731,7 +2227,9 @@ export function WorkPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">제목 *</label>
+              <label className="text-sm font-medium mb-1.5 block">
+                제목 *
+              </label>
               <input
                 type="text"
                 value={figmaTitle}
@@ -3779,7 +2277,10 @@ export function WorkPage() {
       </Dialog>
 
       {/* Mermaid 다이어그램 작성/편집 다이얼로그 */}
-      <Dialog open={isMindmapDialogOpen} onOpenChange={setIsMindmapDialogOpen}>
+      <Dialog
+        open={isMindmapDialogOpen}
+        onOpenChange={setIsMindmapDialogOpen}
+      >
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -3793,7 +2294,9 @@ export function WorkPage() {
             {/* 왼쪽: 입력 영역 */}
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">제목</label>
+                <label className="text-sm font-medium mb-2 block">
+                  제목
+                </label>
                 <input
                   type="text"
                   value={mindmapTitle}
@@ -3832,12 +2335,12 @@ export function WorkPage() {
                     {validationResult.isValid ? (
                       <p className="flex items-center gap-1">
                         <span className="font-semibold">
-                          ✅ 문법이 올바릅니다
+                          문법이 올바릅니다
                         </span>
                       </p>
                     ) : (
                       <div>
-                        <p className="font-semibold mb-1">❌ 문법 오류</p>
+                        <p className="font-semibold mb-1">문법 오류</p>
                         <pre className="text-xs whitespace-pre-wrap">
                           {validationResult.error}
                         </pre>
@@ -3867,7 +2370,10 @@ export function WorkPage() {
                 style={{ height: "calc(100% - 30px)" }}
               >
                 {mindmapContent.trim() ? (
-                  <Mermaid chart={mindmapContent} className="mermaid-preview" />
+                  <Mermaid
+                    chart={mindmapContent}
+                    className="mermaid-preview"
+                  />
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-10">
                     왼쪽에 Mermaid 코드를 입력하면 여기에 다이어그램이
@@ -3924,7 +2430,10 @@ export function WorkPage() {
       </Dialog>
 
       {/* DB 테이블 작성/편집 다이얼로그 */}
-      <Dialog open={isDbTableDialogOpen} onOpenChange={setIsDbTableDialogOpen}>
+      <Dialog
+        open={isDbTableDialogOpen}
+        onOpenChange={setIsDbTableDialogOpen}
+      >
         <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>
@@ -3971,7 +2480,9 @@ export function WorkPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">분류</label>
+                <label className="text-sm font-medium mb-1.5 block">
+                  분류
+                </label>
                 <input
                   type="text"
                   value={dbTableContent.category}
@@ -4044,13 +2555,21 @@ export function WorkPage() {
                       <table className="w-full text-sm">
                         <thead className="bg-gray-700 text-white">
                           <tr>
-                            <th className="px-3 py-2 text-left">column_name</th>
-                            <th className="px-3 py-2 text-left">data_type</th>
+                            <th className="px-3 py-2 text-left">
+                              column_name
+                            </th>
+                            <th className="px-3 py-2 text-left">
+                              data_type
+                            </th>
                             <th className="px-3 py-2 text-center w-20">
                               nullable
                             </th>
-                            <th className="px-3 py-2 text-center w-12">pk</th>
-                            <th className="px-3 py-2 text-center w-12">fk</th>
+                            <th className="px-3 py-2 text-center w-12">
+                              pk
+                            </th>
+                            <th className="px-3 py-2 text-center w-12">
+                              fk
+                            </th>
                             <th className="px-3 py-2 text-center w-16">
                               unique_key
                             </th>
@@ -4110,6 +2629,6 @@ export function WorkPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

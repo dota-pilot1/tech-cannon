@@ -19,6 +19,7 @@
         <result property="dueDate" column="due_date"/>
         <result property="orderNum" column="order_num"/>
         <result property="isArchived" column="is_archived"/>
+        <result property="prize" column="prize"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -38,6 +39,7 @@
             w.due_date,
             w.order_num,
             w.is_archived,
+            w.prize,
             w.created_at,
             w.updated_at,
             u1.username AS reporter_name,
@@ -114,6 +116,7 @@
             w.due_date,
             w.order_num,
             w.is_archived,
+            w.prize,
             w.created_at,
             w.updated_at,
             u1.username AS reporter_name,
@@ -128,7 +131,7 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO works (
             title, content, work_type, status, priority,
-            reporter_id, assignee_id, organization_id, due_date,
+            reporter_id, assignee_id, organization_id, due_date, prize,
             created_at, updated_at
         ) VALUES (
             #{title},
@@ -143,6 +146,7 @@
                 <when test="dueDate != null and dueDate != ''">#{dueDate}::timestamp</when>
                 <otherwise>NULL</otherwise>
             </choose>,
+            COALESCE(#{prize}, 0),
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP
         )
@@ -158,6 +162,7 @@
             status         = #{status},
             priority       = #{priority},
             assignee_id    = #{assigneeId},
+            prize          = COALESCE(#{prize}, 0),
             due_date       = <choose>
                 <when test="dueDate != null and dueDate != ''">#{dueDate}::timestamp</when>
                 <otherwise>NULL</otherwise>

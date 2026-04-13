@@ -234,9 +234,14 @@ function WorkCard({
               onStatusChange={onStatusChange}
             />
           </div>
-          <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", WORK_TYPE_COLORS[work.workType])}>
-            {WORK_TYPE_LABELS[work.workType] || work.workType}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", WORK_TYPE_COLORS[work.workType])}>
+              {WORK_TYPE_LABELS[work.workType] || work.workType}
+            </Badge>
+            {work.prize > 0 && (
+              <span className="text-[10px] font-semibold text-amber-600">{work.prize.toLocaleString()}원</span>
+            )}
+          </div>
         </div>
         <div className="w-full h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
           <div

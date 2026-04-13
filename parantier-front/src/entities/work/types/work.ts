@@ -22,6 +22,7 @@ export interface Work {
   dueDate?: string; // 'YYYY-MM-DDTHH:mm'
   orderNum?: number;
   isArchived?: boolean;
+  prize: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +35,7 @@ export interface CreateWorkRequest {
   priority?: WorkPriority;
   assigneeId?: number | null;
   dueDate?: string | null; // 'YYYY-MM-DDTHH:mm'
+  prize?: number;
 }
 
 export interface UpdateWorkRequest {
@@ -44,6 +46,7 @@ export interface UpdateWorkRequest {
   priority?: WorkPriority;
   assigneeId?: number | null;
   dueDate?: string | null; // 'YYYY-MM-DDTHH:mm'
+  prize?: number;
 }
 
 export interface WorkListResponse {

@@ -246,9 +246,14 @@ function KanbanCard({ work, onWorkClick }: { work: Work; onWorkClick: (id: numbe
 
       {/* 하단: 유형 + 메타 */}
       <div className="flex items-center justify-between">
-        <Badge className={cn("text-[9px] px-1.5 py-0", WORK_TYPE_COLORS[work.workType])}>
-          {WORK_TYPE_LABELS[work.workType] || work.workType}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          <Badge className={cn("text-[9px] px-1.5 py-0", WORK_TYPE_COLORS[work.workType])}>
+            {WORK_TYPE_LABELS[work.workType] || work.workType}
+          </Badge>
+          {work.prize > 0 && (
+            <span className="text-[9px] font-semibold text-amber-600">{work.prize.toLocaleString()}원</span>
+          )}
+        </div>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
           {work.assigneeName && <span>{work.assigneeName}</span>}
           {work.dueDate && (
@@ -277,9 +282,14 @@ function KanbanCardOverlay({ work }: { work: Work }) {
       </div>
       <p className="text-sm font-medium line-clamp-2">{work.title}</p>
       <div className="flex items-center justify-between mt-2">
-        <Badge className={cn("text-[9px] px-1.5 py-0", WORK_TYPE_COLORS[work.workType])}>
-          {WORK_TYPE_LABELS[work.workType] || work.workType}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          <Badge className={cn("text-[9px] px-1.5 py-0", WORK_TYPE_COLORS[work.workType])}>
+            {WORK_TYPE_LABELS[work.workType] || work.workType}
+          </Badge>
+          {work.prize > 0 && (
+            <span className="text-[9px] font-semibold text-amber-600">{work.prize.toLocaleString()}원</span>
+          )}
+        </div>
         {work.assigneeName && (
           <span className="text-[10px] text-muted-foreground">{work.assigneeName}</span>
         )}

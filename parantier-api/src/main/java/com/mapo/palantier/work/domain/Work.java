@@ -21,6 +21,7 @@ public class Work {
     private String dueDate;
     private Integer orderNum;
     private Boolean isArchived;
+    private Integer prize;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -140,6 +141,14 @@ public class Work {
 
     public void setIsArchived(Boolean isArchived) {
         this.isArchived = isArchived;
+    }
+
+    public Integer getPrize() {
+        return prize;
+    }
+
+    public void setPrize(Integer prize) {
+        this.prize = prize;
     }
 
     public LocalDateTime getCreatedAt() {

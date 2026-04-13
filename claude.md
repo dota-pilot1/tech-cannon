@@ -10,9 +10,7 @@
 
 ## ⚠️ 절대 규칙 (항상 적용)
 
-1. **서버 시작/중지 금지** — `bootRun`, `npm run dev`, `kill`, `nohup` 등 절대 실행하지 않음
-   - 재시작 필요 시 사용자에게 안내만 할 것
-2. **모든 백엔드 코드는 `com.mapo.palantier` 패키지 하위에 작성**
+1. **모든 백엔드 코드는 `com.mapo.palantier` 패키지 하위에 작성**
 3. **WebSocket은 순수 WebSocket만 사용** — STOMP 금지
 4. **API 호출 시 `/api` 중복 금지** — baseURL에 이미 `/api` 포함됨
 
