@@ -738,11 +738,20 @@ export function WorkPage() {
         field: "prize",
         width: 100,
         headerClass: "ag-header-cell-center",
+        editable: true,
+        cellEditor: "agNumberCellEditor",
+        cellEditorParams: { min: 0, step: 1000 },
+        valueSetter: (params) => {
+          const val = Number(params.newValue) || 0;
+          params.data.prize = val;
+          return true;
+        },
         cellStyle: {
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
+          justifyContent: "flex-end",
           fontSize: "12px",
+          paddingRight: "12px",
         } as CellStyle,
         valueFormatter: (params) => {
           const v = params.value ?? 0;
