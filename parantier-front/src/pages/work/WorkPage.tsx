@@ -734,6 +734,22 @@ export function WorkPage() {
         } as CellStyle,
       },
       {
+        headerName: "보상금",
+        field: "prize",
+        width: 100,
+        headerClass: "ag-header-cell-center",
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "12px",
+        } as CellStyle,
+        valueFormatter: (params) => {
+          const v = params.value ?? 0;
+          return v > 0 ? `${v.toLocaleString()}원` : "-";
+        },
+      },
+      {
         headerName: "유형",
         field: "workType",
         width: 85,
@@ -1204,22 +1220,6 @@ export function WorkPage() {
             );
           };
           return <DueDateCell />;
-        },
-      },
-      {
-        headerName: "보상금",
-        field: "prize",
-        width: 100,
-        headerClass: "ag-header-cell-center",
-        cellStyle: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "12px",
-        } as CellStyle,
-        valueFormatter: (params) => {
-          const v = params.value ?? 0;
-          return v > 0 ? `${v.toLocaleString()}원` : "-";
         },
       },
       {
