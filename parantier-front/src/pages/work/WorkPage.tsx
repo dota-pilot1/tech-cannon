@@ -749,9 +749,8 @@ export function WorkPage() {
         cellStyle: {
           display: "flex",
           alignItems: "center",
-          justifyContent: "flex-end",
+          justifyContent: "center",
           fontSize: "12px",
-          paddingRight: "12px",
         } as CellStyle,
         valueFormatter: (params) => {
           const v = params.value ?? 0;
