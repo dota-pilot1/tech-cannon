@@ -22,6 +22,7 @@ public class WorkResponse {
     private String dueDate;
     private Integer orderNum;
     private Boolean isArchived;
+    private Integer prize;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -42,6 +43,7 @@ public class WorkResponse {
         response.dueDate = work.getDueDate();
         response.orderNum = work.getOrderNum();
         response.isArchived = work.getIsArchived();
+        response.prize = work.getPrize();
         response.createdAt = work.getCreatedAt();
         response.updatedAt = work.getUpdatedAt();
         return response;
@@ -103,6 +105,10 @@ public class WorkResponse {
 
     public Boolean getIsArchived() {
         return isArchived;
+    }
+
+    public Integer getPrize() {
+        return prize;
     }
 
     public LocalDateTime getCreatedAt() {
