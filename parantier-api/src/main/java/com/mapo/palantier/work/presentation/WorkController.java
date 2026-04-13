@@ -153,6 +153,7 @@ public class WorkController {
         work.setAssigneeId(request.getAssigneeId());
         work.setOrganizationId(1L); // TODO: 사용자의 organization_id로 설정
         work.setDueDate(parseDueDate(request.getDueDate()));
+        work.setPrize(request.getPrize() != null ? request.getPrize() : 0);
 
         Work created = workService.createWork(work);
 
@@ -175,6 +176,7 @@ public class WorkController {
         work.setPriority(request.getPriority());
         work.setAssigneeId(request.getAssigneeId());
         work.setDueDate(parseDueDate(request.getDueDate()));
+        work.setPrize(request.getPrize() != null ? request.getPrize() : 0);
 
         String oldStatus = before != null ? before.getStatus() : null;
 

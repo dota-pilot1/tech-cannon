@@ -9,6 +9,7 @@ public class CreateWorkRequest {
     private String priority;
     private Long assigneeId;
     private String dueDate; // "YYYY-MM-DD" 형식
+    private Integer prize;
 
     public String getTitle() {
         return title;
@@ -64,5 +65,13 @@ public class CreateWorkRequest {
 
     public void setDueDate(String dueDate) {
         this.dueDate = dueDate;
+    }
+
+    public Integer getPrize() {
+        return prize;
+    }
+
+    public void setPrize(Integer prize) {
+        this.prize = prize;
     }
 }
