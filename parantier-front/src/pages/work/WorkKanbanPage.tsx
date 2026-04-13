@@ -51,13 +51,6 @@ const WORK_TYPE_LABELS: Record<string, string> = {
 };
 
 
-const WORK_TYPE_COLORS: Record<string, string> = {
-  APACHE: "bg-amber-100 text-amber-800", DRONE: "bg-sky-100 text-sky-700",
-  SNIPER: "bg-red-100 text-red-700", HAMMER: "bg-slate-100 text-slate-700",
-  ROCKET: "bg-violet-100 text-violet-700", MISSILE: "bg-rose-100 text-rose-800",
-  CANNON: "bg-orange-100 text-orange-700", SPEAR: "bg-red-100 text-red-700",
-  SHIP: "bg-green-100 text-green-700", BOOK: "bg-emerald-100 text-emerald-700",
-};
 
 const PRIORITY_LABELS: Record<WorkPriority, string> = {
   LOW: "낮음", MEDIUM: "보통", HIGH: "높음", CRITICAL: "긴급",
