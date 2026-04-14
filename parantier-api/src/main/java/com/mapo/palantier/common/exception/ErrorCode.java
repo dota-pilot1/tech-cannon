@@ -359,6 +359,28 @@ public enum ErrorCode {
         "섹션을 찾을 수 없습니다",
         HttpStatus.NOT_FOUND
     ),
+    // prototype v2
+    PROTOTYPE_CATEGORY_NOT_FOUND(
+        "PROTOTYPE_CATEGORY_NOT_FOUND",
+        "카테고리를 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
+    PROTOTYPE_SECTION_NOT_FOUND(
+        "PROTOTYPE_SECTION_NOT_FOUND",
+        "섹션을 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
+    // skillcore
+    SKILLCORE_CATEGORY_NOT_FOUND(
+        "SKILLCORE_CATEGORY_NOT_FOUND",
+        "카테고리를 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
+    SKILLCORE_SECTION_NOT_FOUND(
+        "SKILLCORE_SECTION_NOT_FOUND",
+        "섹션을 찾을 수 없습니다",
+        HttpStatus.NOT_FOUND
+    ),
 
     // ── 중복 관련 (409) ──────────────────────────────────────────────────────
     DUPLICATE_EMAIL(

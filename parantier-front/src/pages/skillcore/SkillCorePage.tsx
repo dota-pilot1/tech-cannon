@@ -2,12 +2,12 @@ import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { authStore } from "@/entities/user/model/authStore";
-import { prototypeDocApi } from "@/features/prototypev2/api/prototypeDocApi";
+import { skillcoreDocApi } from "@/features/skillcore/api/skillcoreDocApi";
 import type {
-  PrototypeCategory,
-  PrototypeSection,
-  PrototypeBlock,
-} from "@/features/prototypev2/api/prototypeDocApi";
+  SkillCoreCategory,
+  SkillCoreSection,
+  SkillCoreBlock,
+} from "@/features/skillcore/api/skillcoreDocApi";
 import TaskBlockEditor from "@/features/task/components/TaskBlockEditor";
 import type { TaskBlock, BlockType } from "@/features/task/types/task.types";
 import { TYPE_META } from "@/features/task/types/task.types";
@@ -70,7 +70,7 @@ function SortableItem({
 // ─────────────────────────────────────────────
 // BlockViewer 인라인 컴포넌트
 // ─────────────────────────────────────────────
-function BlockViewer({ block }: { block: PrototypeBlock }) {
+function BlockViewer({ block }: { block: SkillCoreBlock }) {
   const meta = TYPE_META[block.blockType as BlockType] ?? {
     icon: "📄",
     label: block.blockType,
@@ -98,18 +98,18 @@ function BlockViewer({ block }: { block: PrototypeBlock }) {
 // ─────────────────────────────────────────────
 // 메인 페이지
 // ─────────────────────────────────────────────
-export default function PrototypePage() {
+export default function SkillCorePage() {
   const queryClient = useQueryClient();
   const { user } = useStore(authStore, (s) => s);
   const isAdmin = user?.role === "ROLE_ADMIN";
 
   // ── 사이드바 넓이 (localStorage 복원)
   const [cat1Width, setCat1Width] = useState(() => {
-    const saved = localStorage.getItem("prototype-cat1-width");
+    const saved = localStorage.getItem("skillcore-cat1-width");
     return saved ? Number(saved) : 192;
   });
   const [cat2Width, setCat2Width] = useState(() => {
-    const saved = localStorage.getItem("prototype-cat2-width");
+    const saved = localStorage.getItem("skillcore-cat2-width");
     return saved ? Number(saved) : 240;
   });
   const isResizing1 = useRef(false);
@@ -125,7 +125,7 @@ export default function PrototypePage() {
         if (!isResizing1.current) return;
         const next = Math.min(320, Math.max(120, startW + ev.clientX - startX));
         setCat1Width(next);
-        localStorage.setItem("prototype-cat1-width", String(next));
+        localStorage.setItem("skillcore-cat1-width", String(next));
       };
       const onUp = () => {
         isResizing1.current = false;
@@ -148,7 +148,7 @@ export default function PrototypePage() {
         if (!isResizing2.current) return;
         const next = Math.min(400, Math.max(140, startW + ev.clientX - startX));
         setCat2Width(next);
-        localStorage.setItem("prototype-cat2-width", String(next));
+        localStorage.setItem("skillcore-cat2-width", String(next));
       };
       const onUp = () => {
         isResizing2.current = false;
@@ -171,7 +171,7 @@ export default function PrototypePage() {
 
   // ── 편집 상태
   const [isEditing, setIsEditing] = useState(false);
-  const [editBlocks, setEditBlocks] = useState<PrototypeBlock[]>([]);
+  const [editBlocks, setEditBlocks] = useState<SkillCoreBlock[]>([]);
   const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
   const [editingSectionTitle, setEditingSectionTitle] = useState("");
 
@@ -192,20 +192,20 @@ export default function PrototypePage() {
   // ─────────────────────────────────────────────
   // Queries
   // ─────────────────────────────────────────────
-  const { data: categories = [] } = useQuery<PrototypeCategory[]>({
-    queryKey: ["prototype", "categories"],
-    queryFn: prototypeDocApi.getCategories,
+  const { data: categories = [] } = useQuery<SkillCoreCategory[]>({
+    queryKey: ["skillcore", "categories"],
+    queryFn: skillcoreDocApi.getCategories,
   });
 
-  const { data: sections = [] } = useQuery<PrototypeSection[]>({
-    queryKey: ["prototype", "sections", selectedCategoryId],
-    queryFn: () => prototypeDocApi.getSections(selectedCategoryId!),
+  const { data: sections = [] } = useQuery<SkillCoreSection[]>({
+    queryKey: ["skillcore", "sections", selectedCategoryId],
+    queryFn: () => skillcoreDocApi.getSections(selectedCategoryId!),
     enabled: !!selectedCategoryId,
   });
 
-  const { data: blocks = [] } = useQuery<PrototypeBlock[]>({
-    queryKey: ["prototype", "blocks", selectedSectionId],
-    queryFn: () => prototypeDocApi.getBlocks(selectedSectionId!),
+  const { data: blocks = [] } = useQuery<SkillCoreBlock[]>({
+    queryKey: ["skillcore", "blocks", selectedSectionId],
+    queryFn: () => skillcoreDocApi.getBlocks(selectedSectionId!),
     enabled: !!selectedSectionId,
   });
 
@@ -213,10 +213,10 @@ export default function PrototypePage() {
   // Mutations
   // ─────────────────────────────────────────────
   const saveMutation = useMutation({
-    mutationFn: () => prototypeDocApi.saveBlocks(selectedSectionId!, editBlocks),
+    mutationFn: () => skillcoreDocApi.saveBlocks(selectedSectionId!, editBlocks),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["prototype", "blocks", selectedSectionId],
+        queryKey: ["skillcore", "blocks", selectedSectionId],
       });
       setIsEditing(false);
       toast.success("저장되었습니다");
@@ -226,14 +226,14 @@ export default function PrototypePage() {
 
   const addCategoryMutation = useMutation({
     mutationFn: (name: string) =>
-      prototypeDocApi.createCategory({
+      skillcoreDocApi.createCategory({
         name,
         icon: "Folder",
         emoji: "",
         orderNum: categories.length,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prototype", "categories"] });
+      queryClient.invalidateQueries({ queryKey: ["skillcore", "categories"] });
       setIsAddingCategory(false);
       setNewCategoryName("");
       toast.success("카테고리가 추가되었습니다");
@@ -244,7 +244,7 @@ export default function PrototypePage() {
   const updateCategoryMutation = useMutation({
     mutationFn: ({ id, name }: { id: number; name: string }) => {
       const cat = categories.find((c) => c.id === id);
-      return prototypeDocApi.updateCategory(id, {
+      return skillcoreDocApi.updateCategory(id, {
         name,
         icon: cat?.icon ?? "Folder",
         emoji: cat?.emoji ?? "",
@@ -252,7 +252,7 @@ export default function PrototypePage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prototype", "categories"] });
+      queryClient.invalidateQueries({ queryKey: ["skillcore", "categories"] });
       setEditingCategoryId(null);
       setEditingCategoryName("");
       toast.success("카테고리 이름이 변경됐습니다.");
@@ -262,14 +262,14 @@ export default function PrototypePage() {
 
   const addSectionMutation = useMutation({
     mutationFn: (title: string) =>
-      prototypeDocApi.createSection({
+      skillcoreDocApi.createSection({
         categoryId: selectedCategoryId!,
         title,
         orderNum: sections.length,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["prototype", "sections", selectedCategoryId],
+        queryKey: ["skillcore", "sections", selectedCategoryId],
       });
       setIsAddingSection(false);
       setNewSectionTitle("");
@@ -280,28 +280,28 @@ export default function PrototypePage() {
 
   const reorderCategoryMutation = useMutation({
     mutationFn: (items: { id: number; orderNum: number }[]) =>
-      prototypeDocApi.reorderCategories(items),
+      skillcoreDocApi.reorderCategories(items),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prototype", "categories"] });
+      queryClient.invalidateQueries({ queryKey: ["skillcore", "categories"] });
     },
     onError: () => toast.error("순서 변경 실패"),
   });
 
   const reorderSectionMutation = useMutation({
     mutationFn: (items: { id: number; orderNum: number }[]) =>
-      prototypeDocApi.reorderSections(items),
+      skillcoreDocApi.reorderSections(items),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["prototype", "sections", selectedCategoryId],
+        queryKey: ["skillcore", "sections", selectedCategoryId],
       });
     },
     onError: () => toast.error("순서 변경 실패"),
   });
 
   const deleteCategoryMutation = useMutation({
-    mutationFn: (id: number) => prototypeDocApi.deleteCategory(id),
+    mutationFn: (id: number) => skillcoreDocApi.deleteCategory(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prototype", "categories"] });
+      queryClient.invalidateQueries({ queryKey: ["skillcore", "categories"] });
       setSelectedCategoryId(null);
       setSelectedSectionId(null);
       toast.success("카테고리가 삭제되었습니다");
@@ -310,10 +310,10 @@ export default function PrototypePage() {
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (id: number) => prototypeDocApi.deleteSection(id),
+    mutationFn: (id: number) => skillcoreDocApi.deleteSection(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["prototype", "sections", selectedCategoryId],
+        queryKey: ["skillcore", "sections", selectedCategoryId],
       });
       setSelectedSectionId(null);
       toast.success("섹션이 삭제되었습니다");
@@ -324,14 +324,14 @@ export default function PrototypePage() {
   const renameSectionMutation = useMutation({
     mutationFn: ({ id, title }: { id: number; title: string }) => {
       const sec = sections.find((s) => s.id === id);
-      return prototypeDocApi.updateSection(id, {
+      return skillcoreDocApi.updateSection(id, {
         title,
         orderNum: sec?.orderNum ?? 0,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["prototype", "sections", selectedCategoryId],
+        queryKey: ["skillcore", "sections", selectedCategoryId],
       });
       setEditingSectionId(null);
       setEditingSectionTitle("");
@@ -472,10 +472,10 @@ export default function PrototypePage() {
         >
           <div>
             <p className="text-sm font-semibold text-foreground leading-tight">
-              Prototype
+              SkillCore
             </p>
             <p className="text-[10px] text-muted-foreground leading-tight">
-              프로토타입 공유
+              기술 구현 가이드
             </p>
           </div>
           {isAdmin && (
@@ -951,7 +951,7 @@ export default function PrototypePage() {
                   title={selectedSection?.title ?? ""}
                   setTitle={() => {}}
                   blocks={editBlocks as TaskBlock[]}
-                  setBlocks={(b) => setEditBlocks(b as PrototypeBlock[])}
+                  setBlocks={(b) => setEditBlocks(b as SkillCoreBlock[])}
                 />
                 {/* 저장 / 취소 */}
                 <div className="flex items-center gap-3 mt-6 pt-4 border-t border-border">

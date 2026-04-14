@@ -31,7 +31,7 @@ import { ChallengePage } from "@/pages/challenge/ChallengePage";
 import { MeetingPage } from "@/pages/meeting/MeetingPage";
 import { WikiPage } from "@/pages/wiki/WikiPage";
 import { PromptPage } from "@/pages/prompt/PromptPage";
-import { PrototypePage } from "@/pages/prototype/PrototypePage";
+import PrototypePage from "@/pages/prototype/PrototypePage";
 import { DbPage } from "@/pages/db/DbPage";
 import { SqlPage } from "@/pages/sql/SqlPage";
 import ArchitecturePage from "@/pages/architecture/ArchitecturePage";
@@ -48,6 +48,7 @@ import SubutaiDocuPage from "@/pages/subutai/SubutaiDocuPage";
 import SecurityPage from "@/pages/security/SecurityPage";
 import DevOpsPage from "@/pages/devops/DevOpsPage";
 import SpringAiPage from "@/pages/springai/SpringAiPage";
+import SkillCorePage from "@/pages/skillcore/SkillCorePage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -421,6 +422,14 @@ const springaiRoute = createRoute({
   component: SpringAiPage,
 });
 
+// SkillCore 페이지 (로그인 필요)
+const skillcoreRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/skillcore",
+  beforeLoad: () => requireAuth(),
+  component: SkillCorePage,
+});
+
 // Subutai AI 페이지 (로그인 필요)
 const subutaiAiRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -496,6 +505,7 @@ const routeTree = rootRoute.addChildren([
   securityRoute,
   devopsRoute,
   springaiRoute,
+  skillcoreRoute,
   notFoundRoute,
 ]);
 

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapo.palantier.prototypev2.infrastructure.PrototypeSectionMapper">
+    <resultMap id="PrototypeSectionResultMap" type="com.mapo.palantier.prototypev2.domain.PrototypeSection">
+        <id property="id" column="id"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="title" column="title"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <select id="findByCategoryId" resultMap="PrototypeSectionResultMap">
+        SELECT id, category_id, title, order_num, is_active, created_at, updated_at
+        FROM prototype_sections WHERE category_id=#{categoryId} AND is_active=true ORDER BY order_num ASC, id ASC
+    </select>
+    <select id="findById" resultMap="PrototypeSectionResultMap">
+        SELECT id, category_id, title, order_num, is_active, created_at, updated_at
+        FROM prototype_sections WHERE id=#{id}
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO prototype_sections (category_id, title, order_num, is_active)
+        VALUES (#{categoryId}, #{title}, #{orderNum}, #{isActive})
+    </insert>
+    <update id="update">
+        UPDATE prototype_sections SET category_id=#{categoryId}, title=#{title},
+        order_num=#{orderNum}, updated_at=CURRENT_TIMESTAMP WHERE id=#{id}
+    </update>
+    <delete id="delete">DELETE FROM prototype_sections WHERE id=#{id}</delete>
+    <update id="updateOrderNum">
+        UPDATE prototype_sections SET order_num=#{orderNum}, updated_at=CURRENT_TIMESTAMP WHERE id=#{id}
+    </update>
+</mapper>
