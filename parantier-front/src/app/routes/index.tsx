@@ -431,11 +431,10 @@ const skillcoreRoute = createRoute({
   component: SkillCorePage,
 });
 
-// Topic 게시판 (로그인 필요)
+// Topic 게시판 (비로그인 접근 가능)
 const topicRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/topic",
-  beforeLoad: () => requireAuth(),
   component: TopicPage,
 });
 
