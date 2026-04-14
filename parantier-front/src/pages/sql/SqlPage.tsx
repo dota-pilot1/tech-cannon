@@ -94,7 +94,8 @@ export function SqlPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-56px)] bg-background">
+    <div className="h-[calc(100vh-64px)] bg-muted/30 p-4">
+      <div className="flex h-full bg-background rounded-xl border border-border shadow-sm overflow-hidden">
       {/* 왼쪽: ERD 사이드바 */}
       <ErdSidebar />
 
@@ -163,6 +164,7 @@ export function SqlPage() {
         activeSet={activeSet}
         onSetChange={handleSetChange}
       />
+      </div>
     </div>
   );
 }

@@ -457,12 +457,13 @@ export default function ArchitecturePage() {
   // Render
   // ─────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-background">
+    <div className="h-[calc(100vh-64px)] bg-muted/30 p-4">
+      <div className="flex h-full bg-background rounded-xl border border-border shadow-sm overflow-hidden">
       {/* ───────────────────────────────────────────
           1차 사이드바: 카테고리 목록
       ─────────────────────────────────────────── */}
       <aside
-        className="shrink-0 border-r border-border bg-muted flex flex-col relative"
+        className="shrink-0 border-r border-border bg-muted/50 flex flex-col relative"
         style={{ width: cat1Width }}
       >
         {/* 헤더 - 2차 사이드바와 동일한 높이 */}
@@ -1002,6 +1003,7 @@ export default function ArchitecturePage() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }
