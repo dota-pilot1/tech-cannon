@@ -1,4 +1,16 @@
 import { useMemo, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { Badge } from "@/shared/ui/badge";
 import {
   Popover,
@@ -6,7 +18,7 @@ import {
   PopoverTrigger,
 } from "@/shared/ui/popover";
 import { cn } from "@/shared/lib/utils";
-import { ChevronLeft, ChevronRight, Eye, Clock, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Clock, AlertTriangle, CheckCircle2, Undo2 } from "lucide-react";
 import type {
   Work,
   WorkStatus,
@@ -92,77 +104,274 @@ export function WorkCardView({
   onStatusChange,
   onAssigneeChange,
 }: WorkCardViewProps) {
-  // 담당자별 그룹핑
-  const grouped = useMemo(() => {
-    const map = new Map<string, { assigneeId: number | null; assigneeName: string; works: Work[] }>();
+  const IN_PROGRESS_ORDER: WorkStatus[] = ["IN_PROGRESS", "TODO", "TEST", "HOLD", "BLOCKED"];
 
-    // "미지정" 그룹
-    map.set("__unassigned__", { assigneeId: null, assigneeName: "미지정", works: [] });
+  const { incomplete, done } = useMemo(() => {
+    const doneWorks = works
+      .filter((w) => w.status === "DONE")
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-    works.forEach((w) => {
-      const key = w.assigneeName || "__unassigned__";
-      if (!map.has(key)) {
-        map.set(key, { assigneeId: w.assigneeId ?? null, assigneeName: w.assigneeName || "미지정", works: [] });
-      }
-      map.get(key)!.works.push(w);
-    });
+    const statusGroups = IN_PROGRESS_ORDER
+      .map((status) => ({
+        status,
+        works: works.filter((w) => w.status === status),
+      }))
+      .filter((g) => g.works.length > 0);
 
-    // 미지정 그룹이 비어있으면 제거
-    if (map.get("__unassigned__")!.works.length === 0) {
-      map.delete("__unassigned__");
-    }
-
-    return Array.from(map.values());
+    return { incomplete: statusGroups, done: doneWorks };
   }, [works]);
 
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<WorkStatus>>(new Set());
+  const [activeWork, setActiveWork] = useState<Work | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const toggleGroup = (status: WorkStatus) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const work = works.find((w) => w.id === Number(event.active.id));
+    setActiveWork(work || null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveWork(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const workId = Number(active.id);
+    const dropZone = over.id as string;
+    const work = works.find((w) => w.id === workId);
+    if (!work) return;
+
+    if (dropZone === "zone-done" && work.status !== "DONE") {
+      onStatusChange(workId, "DONE");
+    } else if (dropZone === "zone-incomplete" && work.status === "DONE") {
+      onStatusChange(workId, "TODO");
+    }
+  };
+
+  const totalIncomplete = incomplete.reduce((sum, g) => sum + g.works.length, 0);
+
+  if (works.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-40 text-muted-foreground">
+        업무가 없습니다.
+      </div>
+    );
+  }
+
   return (
-    <div className="h-full overflow-y-auto px-4 py-3 space-y-6">
-      {grouped.length === 0 && (
-        <div className="flex items-center justify-center h-40 text-muted-foreground">
-          업무가 없습니다.
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="h-full overflow-y-auto px-4 py-3">
+        <div className="flex flex-col lg:flex-row gap-4 h-full">
+          {/* ── 왼쪽: 미완료 (드롭 영역) ── */}
+          <DroppableZone id="zone-incomplete" isOver={activeWork?.status === "DONE"} className="flex-1 min-w-0">
+            <div className="space-y-4">
+              {/* 헤더 */}
+              <div className="flex items-center gap-2 pb-2 border-b border-border">
+                <div className="w-2 h-5 rounded-full bg-blue-500" />
+                <span className="font-bold text-sm">진행 중</span>
+                <Badge variant="secondary" className="text-xs">{totalIncomplete}건</Badge>
+                <div className="flex items-center gap-1 ml-auto">
+                  {incomplete.map((g) => (
+                    <span key={g.status} className={cn("text-[10px] px-1.5 py-0.5 rounded", STATUS_CONFIG[g.status].bgColor, STATUS_CONFIG[g.status].color)}>
+                      {STATUS_LABELS[g.status]} {g.works.length}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 상태별 소그룹 */}
+              {totalIncomplete === 0 ? (
+                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                  미완료 업무가 없습니다
+                </div>
+              ) : (
+                incomplete.map((group) => (
+                  <div key={group.status} className="space-y-2">
+                    <button
+                      onClick={() => toggleGroup(group.status)}
+                      className="flex items-center gap-2 w-full text-left group/header"
+                    >
+                      <ChevronRight
+                        className={cn(
+                          "w-3.5 h-3.5 text-muted-foreground transition-transform duration-200",
+                          !collapsedGroups.has(group.status) && "rotate-90",
+                        )}
+                      />
+                      <div className={cn("w-2 h-2 rounded-full", STATUS_CONFIG[group.status].progressColor)} />
+                      <span className={cn("text-xs font-semibold", STATUS_CONFIG[group.status].color)}>
+                        {STATUS_LABELS[group.status]}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">({group.works.length})</span>
+                    </button>
+
+                    {!collapsedGroups.has(group.status) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-5">
+                        {group.works.map((work) => (
+                          <DraggableWorkCard
+                            key={work.id}
+                            work={work}
+                            users={users}
+                            onWorkClick={onWorkClick}
+                            onStatusChange={onStatusChange}
+                            onAssigneeChange={onAssigneeChange}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </DroppableZone>
+
+          {/* ── 구분선 ── */}
+          <div className="hidden lg:block w-px bg-border shrink-0" />
+
+          {/* ── 오른쪽: 완료 (드롭 영역) ── */}
+          <DroppableZone id="zone-done" isOver={activeWork !== null && activeWork.status !== "DONE"} className="flex-1 min-w-0">
+            <div className="space-y-4">
+              {/* 헤더 */}
+              <div className="flex items-center gap-2 pb-2 border-b border-border">
+                <div className="w-2 h-5 rounded-full bg-green-500" />
+                <span className="font-bold text-sm">완료</span>
+                <Badge variant="secondary" className="text-xs">{done.length}건</Badge>
+              </div>
+
+              {done.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                  {activeWork && activeWork.status !== "DONE"
+                    ? "여기에 놓으면 완료 처리됩니다"
+                    : "완료된 업무가 없습니다"}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {done.map((work) => (
+                    <DraggableWorkCard
+                      key={work.id}
+                      work={work}
+                      users={users}
+                      onWorkClick={onWorkClick}
+                      onStatusChange={onStatusChange}
+                      onAssigneeChange={onAssigneeChange}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </DroppableZone>
         </div>
+      </div>
+
+      {/* 드래그 오버레이 */}
+      <DragOverlay>
+        {activeWork && <DragOverlayCard work={activeWork} />}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
+// ─── DroppableZone ───────────────────────────────────────────────────────
+
+function DroppableZone({
+  id,
+  isOver: shouldHighlight,
+  className: extraClassName,
+  children,
+}: {
+  id: string;
+  isOver: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  const highlight = isOver && shouldHighlight;
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "rounded-xl transition-all duration-200",
+        highlight && id === "zone-done" && "ring-2 ring-green-400/50 bg-green-50/30",
+        highlight && id === "zone-incomplete" && "ring-2 ring-blue-400/50 bg-blue-50/30",
+        extraClassName,
       )}
+    >
+      {children}
+    </div>
+  );
+}
 
-      {grouped.map((group) => (
-        <div key={group.assigneeName} className="space-y-3">
-          {/* 그룹 헤더 */}
-          <div className="flex items-center gap-2 pb-1 border-b border-border/50">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-              {group.assigneeName.charAt(0)}
-            </div>
-            <span className="font-semibold text-sm">{group.assigneeName}</span>
-            <Badge variant="secondary" className="text-xs">
-              {group.works.length}건
-            </Badge>
-            {/* 상태 서머리 */}
-            <div className="flex items-center gap-1 ml-auto">
-              {(["TODO", "IN_PROGRESS", "TEST", "DONE", "HOLD", "BLOCKED"] as WorkStatus[]).map((s) => {
-                const cnt = group.works.filter((w) => w.status === s).length;
-                if (cnt === 0) return null;
-                return (
-                  <span key={s} className={cn("text-[10px] px-1.5 py-0.5 rounded", STATUS_CONFIG[s].bgColor, STATUS_CONFIG[s].color)}>
-                    {STATUS_LABELS[s]} {cnt}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
+// ─── DragOverlayCard (드래그 중 미리보기) ────────────────────────────────
 
-          {/* 카드 그리드 4열 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {group.works.map((work) => (
-              <WorkCard
-                key={work.id}
-                work={work}
-                users={users}
-                onWorkClick={onWorkClick}
-                onStatusChange={onStatusChange}
-                onAssigneeChange={onAssigneeChange}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+function DragOverlayCard({ work }: { work: Work }) {
+  const priorityCfg = PRIORITY_CONFIG[work.priority];
+  const statusCfg = STATUS_CONFIG[work.status];
+
+  return (
+    <div className={cn(
+      "rounded-xl border-2 border-primary p-4 shadow-xl w-[280px] rotate-2 opacity-90",
+      statusCfg.bgColor,
+    )}>
+      <div className="flex items-center gap-1 mb-2">
+        <span className={cn("text-xs", priorityCfg.color)}>
+          {priorityCfg.icon} {PRIORITY_LABELS[work.priority]}
+        </span>
+      </div>
+      <p className="text-sm font-semibold line-clamp-2">{work.title}</p>
+      <div className="flex items-center justify-between mt-2">
+        <Badge className={cn("text-[10px] px-1.5 py-0", WORK_TYPE_COLORS[work.workType])}>
+          {WORK_TYPE_LABELS[work.workType] || work.workType}
+        </Badge>
+        {work.assigneeName && (
+          <span className="text-[10px] text-muted-foreground">{work.assigneeName}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── DraggableWorkCard (드래그 가능한 카드 래퍼) ─────────────────────────
+
+function DraggableWorkCard(props: {
+  work: Work;
+  users: { id: number; username: string; email: string }[];
+  onWorkClick: (workId: number) => void;
+  onStatusChange: (workId: number, status: WorkStatus) => void;
+  onAssigneeChange: (workId: number, assigneeId: number | null, assigneeName: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: props.work.id,
+  });
+
+  const style = transform
+    ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(isDragging && "opacity-30")}
+      {...attributes}
+      {...listeners}
+    >
+      <WorkCard {...props} />
     </div>
   );
 }
@@ -196,21 +405,42 @@ function WorkCard({
       )}
       onClick={() => onWorkClick(work.id)}
     >
-      {/* 상단: 우선순위 + 상세 버튼 */}
+      {/* 상단: 우선순위 + 완료/되돌리기 + 상세 버튼 */}
       <div className="flex items-center justify-between mb-2">
         <span className={cn("text-xs", priorityCfg.color)}>
           {priorityCfg.icon} {PRIORITY_LABELS[work.priority]}
         </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onWorkClick(work.id);
-          }}
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded hover:bg-background/80 transition-colors"
-        >
-          <Eye className="w-3 h-3" />
-          상세
-        </button>
+        <div className="flex items-center gap-1">
+          {/* 완료/되돌리기 버튼 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onStatusChange(work.id, isDone ? "TODO" : "DONE");
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={cn(
+              "flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded transition-colors",
+              isDone
+                ? "text-yellow-600 hover:bg-yellow-100"
+                : "text-green-600 hover:bg-green-100",
+            )}
+            title={isDone ? "진행 전으로 되돌리기" : "완료 처리"}
+          >
+            {isDone ? <Undo2 className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+            {isDone ? "되돌리기" : "완료"}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onWorkClick(work.id);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded hover:bg-background/80 transition-colors"
+          >
+            <Eye className="w-3 h-3" />
+            상세
+          </button>
+        </div>
       </div>
 
       {/* 제목 */}
