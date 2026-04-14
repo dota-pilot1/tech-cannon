@@ -20,6 +20,7 @@ public class TopicService {
         return topicRepository.findAll(keyword);
     }
 
+    @Transactional
     public Optional<Topic> getTopic(Long id) {
         topicRepository.incrementViewCount(id);
         return topicRepository.findById(id);
