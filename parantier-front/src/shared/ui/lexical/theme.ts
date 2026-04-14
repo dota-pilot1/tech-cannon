@@ -21,6 +21,7 @@ export const editorTheme: EditorThemeClasses = {
       listitem: "list-none",
     },
   },
+  link: "text-blue-500 underline hover:text-blue-600 cursor-pointer",
   code: "block bg-gray-900 text-gray-100 font-mono text-sm p-4 rounded my-2 overflow-x-auto whitespace-pre",
   codeHighlight: {
     atrule: "text-purple-300",
@@ -54,4 +55,5 @@ export const editorTheme: EditorThemeClasses = {
     url: "text-blue-300",
     variable: "text-red-200",
   },
+  image: "my-2",
 };

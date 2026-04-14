@@ -49,6 +49,7 @@ import SecurityPage from "@/pages/security/SecurityPage";
 import DevOpsPage from "@/pages/devops/DevOpsPage";
 import SpringAiPage from "@/pages/springai/SpringAiPage";
 import SkillCorePage from "@/pages/skillcore/SkillCorePage";
+import { TopicPage } from "@/pages/topic/TopicPage";
 
 import { authStore } from "@/entities/user/model/authStore";
 import { toast } from "sonner";
@@ -430,6 +431,14 @@ const skillcoreRoute = createRoute({
   component: SkillCorePage,
 });
 
+// Topic 게시판 (로그인 필요)
+const topicRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/topic",
+  beforeLoad: () => requireAuth(),
+  component: TopicPage,
+});
+
 // Subutai AI 페이지 (로그인 필요)
 const subutaiAiRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -506,6 +515,7 @@ const routeTree = rootRoute.addChildren([
   devopsRoute,
   springaiRoute,
   skillcoreRoute,
+  topicRoute,
   notFoundRoute,
 ]);
 

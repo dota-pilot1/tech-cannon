@@ -4,6 +4,9 @@ import { $generateHtmlFromNodes } from "@lexical/html";
 import { HeadingNode } from "@lexical/rich-text";
 import { ListNode, ListItemNode } from "@lexical/list";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
+import { LinkNode } from "@lexical/link";
+import { ImageNode } from "./nodes/ImageNode";
+import { YouTubeNode } from "./nodes/YouTubeNode";
 import { editorTheme } from "./theme";
 
 export function LexicalViewer({ content }: { content: string }) {
@@ -21,6 +24,9 @@ export function LexicalViewer({ content }: { content: string }) {
           ListItemNode,
           CodeNode,
           CodeHighlightNode,
+          ImageNode,
+          LinkNode,
+          YouTubeNode,
         ],
         onError: () => {},
       });

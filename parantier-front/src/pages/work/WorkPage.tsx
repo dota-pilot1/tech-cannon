@@ -2708,19 +2708,18 @@ export function WorkPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-2 flex-shrink-0 ml-4">
-                    <Button variant="outline" size="sm" onClick={handleEdit}>
-                      <Edit2 className="w-4 h-4 mr-1" />
+                  <div className="flex gap-1.5 flex-shrink-0 ml-4">
+                    <button onClick={handleEdit} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border border-border hover:bg-accent transition-colors">
+                      <Edit2 className="w-3.5 h-3.5" />
                       수정
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleDelete}
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
+                    </button>
+                    <button onClick={handleDelete} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border border-red-300 text-red-600 hover:bg-red-50 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
                       삭제
-                    </Button>
+                    </button>
+                    <button onClick={() => setIsDetailOpen(false)} className="inline-flex items-center px-2 py-1.5 rounded-md border border-border hover:bg-accent transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 

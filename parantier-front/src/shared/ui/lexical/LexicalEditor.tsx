@@ -19,6 +19,13 @@ import {
 } from 'lexical'
 import { editorTheme } from './theme'
 import { ToolbarPlugin } from './toolbar/ToolbarPlugin'
+import { LinkNode } from '@lexical/link'
+import { ImageNode } from './nodes/ImageNode'
+import { YouTubeNode } from './nodes/YouTubeNode'
+import { ImagePlugin, DragDropImagePlugin } from './plugins/ImagePlugin'
+import { AutoLinkPlugin } from './plugins/AutoLinkPlugin'
+import { YouTubePlugin, YouTubePastePlugin } from './plugins/YouTubePlugin'
+import { uploadImageToS3 } from './utils/uploadImage'
 
 interface LexicalEditorProps {
   initialState?: string
@@ -83,14 +90,14 @@ export function LexicalEditor({
   const initialConfig = {
     namespace: 'TaskEditor',
     theme: editorTheme,
-    nodes: [HeadingNode, ListNode, ListItemNode, CodeNode, CodeHighlightNode],
+    nodes: [HeadingNode, ListNode, ListItemNode, CodeNode, CodeHighlightNode, ImageNode, LinkNode, YouTubeNode],
     onError: (error: Error) => console.error('Lexical error:', error),
   }
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className="flex flex-col">
-        <ToolbarPlugin />
+        <ToolbarPlugin onImageUpload={uploadImageToS3} />
         <div className="relative">
           <RichTextPlugin
             contentEditable={
@@ -110,6 +117,11 @@ export function LexicalEditor({
         <HistoryPlugin />
         <ListPlugin />
         <CodeHighlightPlugin />
+        <ImagePlugin />
+        <DragDropImagePlugin onUpload={uploadImageToS3} />
+        <AutoLinkPlugin />
+        <YouTubePlugin />
+        <YouTubePastePlugin />
         <OnChangePlugin onChange={handleChange} />
         <InitialContentPlugin initialState={initialState} />
       </div>

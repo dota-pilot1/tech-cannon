@@ -16,6 +16,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@lexical/code": "^0.42.0",
     "@lexical/html": "^0.42.0",
+    "@lexical/link": "^0.42.0",
     "@lexical/list": "^0.42.0",
     "@lexical/react": "^0.42.0",
     "@lexical/rich-text": "^0.42.0",

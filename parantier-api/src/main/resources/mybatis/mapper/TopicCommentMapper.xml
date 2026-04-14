@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.topic.infrastructure.TopicCommentMapper">
+
+    <resultMap id="TopicCommentResultMap" type="com.mapo.palantier.topic.domain.TopicComment">
+        <id property="id" column="id"/>
+        <result property="topicId" column="topic_id"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="content" column="content"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByTopicId" resultMap="TopicCommentResultMap">
+        SELECT
+            tc.id,
+            tc.topic_id,
+            tc.author_id,
+            u.username AS author_name,
+            tc.content,
+            tc.created_at,
+            tc.updated_at
+        FROM topic_comments tc
+        INNER JOIN users u ON tc.author_id = u.id
+        WHERE tc.topic_id = #{topicId}
+        ORDER BY tc.created_at ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO topic_comments (topic_id, author_id, author_name, content)
+        VALUES (#{topicId}, #{authorId},
+                (SELECT username FROM users WHERE id = #{authorId}),
+                #{content})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM topic_comments WHERE id = #{id}
+    </delete>
+
+</mapper>

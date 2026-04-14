@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mapo.palantier.topic.infrastructure.TopicMapper">
+
+    <resultMap id="TopicResultMap" type="com.mapo.palantier.topic.domain.Topic">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="contentPlain" column="content_plain"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="commentCount" column="comment_count"/>
+        <result property="isPinned" column="is_pinned"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="TopicResultMap">
+        SELECT
+            t.id,
+            t.title,
+            t.author_id,
+            u.username AS author_name,
+            t.view_count,
+            t.is_pinned,
+            t.is_active,
+            t.created_at,
+            t.updated_at,
+            (SELECT COUNT(*) FROM topic_comments WHERE topic_id = t.id) AS comment_count
+        FROM topics t
+        INNER JOIN users u ON t.author_id = u.id
+        WHERE t.is_active = true
+        <if test="keyword != null and keyword != ''">
+          AND (t.title ILIKE CONCAT('%', #{keyword}, '%')
+            OR t.content_plain ILIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY t.is_pinned DESC, t.created_at DESC
+    </select>
+
+    <select id="findById" resultMap="TopicResultMap">
+        SELECT
+            t.id,
+            t.title,
+            t.content,
+            t.content_plain,
+            t.author_id,
+            u.username AS author_name,
+            t.view_count,
+            t.is_pinned,
+            t.is_active,
+            t.created_at,
+            t.updated_at,
+            (SELECT COUNT(*) FROM topic_comments WHERE topic_id = t.id) AS comment_count
+        FROM topics t
+        INNER JOIN users u ON t.author_id = u.id
+        WHERE t.id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO topics (title, content, content_plain, author_id, author_name)
+        VALUES (#{title}, #{content}, #{contentPlain}, #{authorId},
+                (SELECT username FROM users WHERE id = #{authorId}))
+    </insert>
+
+    <update id="update">
+        UPDATE topics
+        SET title = #{title},
+            content = #{content},
+            content_plain = #{contentPlain},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM topics WHERE id = #{id}
+    </delete>
+
+    <update id="incrementViewCount">
+        UPDATE topics SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="updatePinned">
+        UPDATE topics SET is_pinned = #{isPinned}, updated_at = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
+</mapper>
