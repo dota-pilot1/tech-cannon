@@ -410,7 +410,7 @@ function WorkCard({
         <span className={cn("text-xs", priorityCfg.color)}>
           {priorityCfg.icon} {PRIORITY_LABELS[work.priority]}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           {/* 완료/되돌리기 버튼 */}
           <button
             onClick={(e) => {
@@ -419,10 +419,10 @@ function WorkCard({
             }}
             onPointerDown={(e) => e.stopPropagation()}
             className={cn(
-              "flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded transition-colors",
+              "flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border transition-colors",
               isDone
-                ? "text-yellow-600 hover:bg-yellow-100"
-                : "text-green-600 hover:bg-green-100",
+                ? "text-yellow-600 border-yellow-300 bg-yellow-50 hover:bg-yellow-100"
+                : "text-green-600 border-green-300 bg-green-50 hover:bg-green-100",
             )}
             title={isDone ? "진행 전으로 되돌리기" : "완료 처리"}
           >
@@ -435,7 +435,7 @@ function WorkCard({
               onWorkClick(work.id);
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded hover:bg-background/80 transition-colors"
+            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary px-2 py-1 rounded-md border border-border bg-background/50 hover:bg-background transition-colors"
           >
             <Eye className="w-3 h-3" />
             상세

@@ -1130,7 +1130,7 @@ export function WorkPage() {
                         </span>
                         <button
                           onClick={handleClear}
-                          className="text-muted-foreground hover:text-destructive text-[10px] leading-none"
+                          className="ml-1 w-4 h-4 flex items-center justify-center rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive text-[10px] leading-none transition-colors"
                           title="마감일 제거"
                         >
                           ✕
