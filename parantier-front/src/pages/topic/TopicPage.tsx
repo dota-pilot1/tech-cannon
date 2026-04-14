@@ -85,10 +85,10 @@ export function TopicPage() {
   ], [])
 
   return (
-    <div className="flex h-[calc(100vh-48px)]">
+    <div className="flex gap-3 p-3 h-[calc(100vh-48px)]">
       {/* 좌측: 목록 */}
       <div
-        className={`flex flex-col border-r ${selectedTopicId ? 'w-[400px]' : 'flex-1'} transition-all`}
+        className="flex flex-col w-[40%] border rounded-lg bg-background shadow-sm overflow-hidden shrink-0"
       >
         {/* 검색 + 새 토픽 버튼 */}
         <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
@@ -136,13 +136,19 @@ export function TopicPage() {
       </div>
 
       {/* 우측: 상세 */}
-      {selectedTopicId && (
-        <TopicDetailPanel
-          key={selectedTopicId}
-          topicId={selectedTopicId}
-          onClose={() => setSelectedTopicId(null)}
-        />
-      )}
+      <div className="flex-1 border rounded-lg bg-background shadow-sm overflow-hidden">
+        {selectedTopicId ? (
+          <TopicDetailPanel
+            key={selectedTopicId}
+            topicId={selectedTopicId}
+            onClose={() => setSelectedTopicId(null)}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center h-full text-muted-foreground text-sm">
+            토픽을 선택하면 내용이 표시됩니다
+          </div>
+        )}
+      </div>
 
       {/* 새 토픽 다이얼로그 */}
       <TopicCreateDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
