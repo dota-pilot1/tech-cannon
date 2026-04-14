@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { LinkNode, $createLinkNode, $isLinkNode, toggleLink } from '@lexical/link'
-import { $createTextNode, $isTextNode, TextNode } from 'lexical'
+import { $createLinkNode, $isLinkNode } from '@lexical/link'
+import { $createTextNode, TextNode } from 'lexical'
 
 const URL_REGEX =
   /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/

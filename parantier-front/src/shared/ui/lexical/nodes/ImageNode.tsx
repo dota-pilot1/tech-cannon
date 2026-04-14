@@ -1,4 +1,5 @@
 import { Suspense, lazy } from 'react'
+import type { ReactElement } from 'react'
 import type {
   DOMConversionMap,
   DOMConversionOutput,
@@ -51,7 +52,7 @@ function convertImageElement(domNode: Node): DOMConversionOutput | null {
   return null
 }
 
-export class ImageNode extends DecoratorNode<JSX.Element> {
+export class ImageNode extends DecoratorNode<ReactElement> {
   __src: string
   __altText: string
   __width: number
@@ -135,7 +136,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     return { element: wrapper }
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
+  createDOM(_config: EditorConfig): HTMLElement {
     const div = document.createElement('div')
     div.style.textAlign = this.__alignment
     div.style.margin = '8px 0'
@@ -160,7 +161,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     writable.__alignment = alignment
   }
 
-  decorate(_editor: LexicalEditor, config: EditorConfig): JSX.Element {
+  decorate(_editor: LexicalEditor, _config: EditorConfig): ReactElement {
     return (
       <ImageDecorator
         src={this.__src}

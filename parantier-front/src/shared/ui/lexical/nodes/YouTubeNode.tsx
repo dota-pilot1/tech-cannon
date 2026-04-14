@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import type {
   DOMConversionMap,
   DOMConversionOutput,
@@ -24,7 +25,7 @@ function convertYouTubeElement(domNode: HTMLElement): DOMConversionOutput | null
   return null
 }
 
-export class YouTubeNode extends DecoratorNode<JSX.Element> {
+export class YouTubeNode extends DecoratorNode<ReactElement> {
   __id: string
 
   static getType(): string {
@@ -95,7 +96,7 @@ export class YouTubeNode extends DecoratorNode<JSX.Element> {
     return false
   }
 
-  decorate(_editor: LexicalEditor, _config: EditorConfig): JSX.Element {
+  decorate(_editor: LexicalEditor, _config: EditorConfig): ReactElement {
     return (
       <div className="flex justify-center my-3">
         <iframe
