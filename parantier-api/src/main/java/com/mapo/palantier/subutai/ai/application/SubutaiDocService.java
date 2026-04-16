@@ -141,15 +141,15 @@ public class SubutaiDocService {
     public List<SubutaiTagSearchResponse> searchByTag(String keyword) {
         List<SubutaiDocTag> allTags = tagMapper.findAll();
 
-        // 질문을 공백/특수문자로 분리해서 각 단어별로 태그 매칭
-        String[] words = keyword.trim().toLowerCase().split("[\\s,./·]+");
+        // 형태소 분석기로 명사 추출 후 태그 매칭
+        List<String> nouns = com.mapo.palantier.common.util.KomoranHelper.extractNouns(keyword);
 
         Set<Long> matchedPostIds = allTags
             .stream()
             .filter(t -> {
                 String tag = t.getTag().toLowerCase();
-                for (String word : words) {
-                    if (word.length() >= 2 && tag.contains(word)) return true;
+                for (String word : nouns) {
+                    if (tag.contains(word) || word.contains(tag)) return true;
                 }
                 return false;
             })

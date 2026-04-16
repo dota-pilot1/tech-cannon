@@ -148,14 +148,14 @@ public class SubutaiPostService {
 
     public List<Map<String, Object>> searchByTag(String keyword) {
         List<SubutaiPostTag> allTags = postTagMapper.findAll();
-        String[] words = keyword.trim().toLowerCase().split("[\\s,./·]+");
+        List<String> nouns = com.mapo.palantier.common.util.KomoranHelper.extractNouns(keyword);
 
         Set<Long> matchedPostIds = allTags
             .stream()
             .filter(t -> {
                 String tag = t.getTag().toLowerCase();
-                for (String word : words) {
-                    if (word.length() >= 2 && tag.contains(word)) return true;
+                for (String word : nouns) {
+                    if (tag.contains(word) || word.contains(tag)) return true;
                 }
                 return false;
             })
