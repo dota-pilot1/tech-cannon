@@ -39,7 +39,7 @@ ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu
 ## 트러블슈팅
 
 ### WebSocket 연결 실패
-1. 백엔드 헬스체크: `curl http://43.200.241.26:8080/actuator/health`
+1. 백엔드 헬스체크: `curl https://api.dxline-tallent.com/actuator/health`
 2. 브라우저 개발자 도구 콘솔 확인
 3. 백엔드 로그 확인: `tail -f /home/ubuntu/app.log`
 
@@ -52,4 +52,4 @@ SELECT * FROM issue_messages WHERE issue_id = {issueId} ORDER BY created_at DESC
 
 ---
 
-**마지막 업데이트**: 2026-03-28
+**마지막 업데이트**: 2026-04-25

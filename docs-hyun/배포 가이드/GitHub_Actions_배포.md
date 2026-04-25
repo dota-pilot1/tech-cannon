@@ -71,10 +71,15 @@ git push
 
 **배포 단계:**
 1. 코드 체크아웃
-2. Java 17 설치
-3. Gradle 빌드 (`./gradlew clean bootJar`)
+2. Java 21 설치
+3. Gradle 빌드 (`./gradlew build -x test`)
 4. JAR 파일 EC2로 전송 (SCP)
-5. 백엔드 서버 재시작 (SSH)
+5. `application.yml` EC2로 전송
+6. `palantier-backend.service` systemd 서비스 설치/활성화/재시작
+7. `/actuator/health` 헬스체크
+
+> 백엔드는 `palantier-backend.service`로 등록됩니다. EC2 재부팅 후 자동 시작되며,
+> 배포 중 기존 프로세스를 먼저 강제 종료하지 않고 새 JAR 업로드 후 systemd 재시작으로 전환합니다.
 
 ## 수동 배포 트리거
 
@@ -96,8 +101,16 @@ GitHub Actions 웹 UI에서 수동으로 배포를 실행할 수 있습니다.
 - `AWS_ACCESS_KEY_ID` - AWS 액세스 키
 - `AWS_SECRET_ACCESS_KEY` - AWS 시크릿 키
 - `EC2_HOST` - EC2 서버 IP (43.200.241.26)
-- `EC2_USERNAME` - EC2 사용자 이름 (ubuntu)
-- `EC2_SSH_KEY` - EC2 SSH 개인 키 (PEM)
+- `EC2_USER` - EC2 사용자 이름 (ubuntu)
+- `EC2_SSH_PRIVATE_KEY` - EC2 SSH 개인 키 (PEM)
+- `DB_HOST` - PostgreSQL 호스트
+- `DB_PORT` - PostgreSQL 포트
+- `DB_NAME` - PostgreSQL 데이터베이스명
+- `DB_USERNAME` - PostgreSQL 사용자명
+- `DB_PASSWORD` - PostgreSQL 비밀번호
+- `JWT_SECRET` - JWT 서명 키
+- `AWS_S3_BUCKET_NAME_BACKEND` - 백엔드 S3 버킷명
+- `OPENAI_API_KEY` - OpenAI API 키
 - `VITE_API_URL` - 프론트엔드 API URL
 - `VITE_WS_URL` - WebSocket URL
 
@@ -141,7 +154,7 @@ tail -100 /home/ubuntu/app.log | grep -i "error"
 **자주 발생하는 에러:**
 - 빌드 실패: 타입 에러, 의존성 문제
 - S3 업로드 실패: AWS 권한 문제
-- SSH 연결 실패: EC2_SSH_KEY 형식 문제
+- SSH 연결 실패: `EC2_SSH_PRIVATE_KEY` 형식 문제
 
 ### 2. 배포 후 서버 오류
 
@@ -154,6 +167,10 @@ curl -I https://dxline-tallent.com
 
 # 로그 확인
 ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26 "tail -50 /home/ubuntu/app.log"
+
+# systemd 상태 확인
+ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26 \
+  "systemctl is-enabled palantier-backend.service && systemctl is-active palantier-backend.service"
 ```
 
 ### 3. 롤백
