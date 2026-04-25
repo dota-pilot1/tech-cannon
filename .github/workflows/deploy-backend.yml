@@ -39,12 +39,6 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Stop running application
-        continue-on-error: true
-        run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            "pkill -f 'parantier-api' || kill \$(cat /home/${{ secrets.EC2_USER }}/app.pid 2>/dev/null) || true; sleep 2"
-
       - name: Upload JAR to EC2
         run: |
           scp parantier-api/build/libs/parantier-api-0.0.1-SNAPSHOT.jar \
@@ -107,43 +101,48 @@ jobs:
           scp /tmp/application.yml \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/application.yml
 
-      - name: Start application
+      - name: Install and restart systemd service
         run: |
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'ENDSSH'
-            JAR=/home/ubuntu/parantier-api-0.0.1-SNAPSHOT.jar
-            CONFIG=/home/ubuntu/application.yml
             LOG=/home/ubuntu/app.log
-            PID_FILE=/home/ubuntu/app.pid
 
-            # 기존 프로세스 종료 (PID 파일 우선, 없으면 pkill)
-            if [ -f "$PID_FILE" ]; then
-              OLD_PID=$(cat "$PID_FILE")
-              kill "$OLD_PID" 2>/dev/null || true
-              rm -f "$PID_FILE"
-            fi
-            pkill -f 'parantier-api' || true
-            sleep 3
+            sudo tee /etc/systemd/system/palantier-backend.service > /dev/null << 'SERVICE'
+          [Unit]
+          Description=Palantier Backend API
+          Wants=network-online.target
+          After=network-online.target postgresql.service
 
-            # 애플리케이션 시작
-            nohup java -jar "$JAR" \
-              --spring.config.location="$CONFIG" \
-              --spring.profiles.active=prod \
-              > "$LOG" 2>&1 &
+          [Service]
+          User=ubuntu
+          WorkingDirectory=/home/ubuntu
+          ExecStart=/usr/bin/java -jar /home/ubuntu/parantier-api-0.0.1-SNAPSHOT.jar --spring.config.location=file:/home/ubuntu/application.yml --spring.profiles.active=prod
+          SuccessExitStatus=143
+          Restart=always
+          RestartSec=10
+          StandardOutput=append:/home/ubuntu/app.log
+          StandardError=append:/home/ubuntu/app.log
 
-            echo $! > "$PID_FILE"
-            echo "PID: $(cat $PID_FILE)"
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE
 
-            # 시작 대기
-            sleep 20
+            sudo systemctl daemon-reload
+            sudo systemctl enable palantier-backend.service
+            sudo systemctl restart palantier-backend.service
 
-            # 헬스체크
-            if curl -s http://localhost:8080/actuator/health | grep -q '"status":"UP"'; then
-              echo "✅ Application started successfully"
-            else
-              echo "❌ Application failed to start"
-              tail -80 "$LOG"
-              exit 1
-            fi
+            for i in $(seq 1 30); do
+              if curl -fsS http://localhost:8080/actuator/health | grep -q '"status":"UP"'; then
+                echo "✅ Application started successfully"
+                exit 0
+              fi
+              sleep 3
+            done
+
+            echo "❌ Application failed to become healthy"
+            sudo systemctl status palantier-backend.service --no-pager || true
+            sudo journalctl -u palantier-backend.service -n 120 --no-pager || true
+            tail -120 "$LOG" || true
+            exit 1
           ENDSSH
 
       - name: Deployment complete
