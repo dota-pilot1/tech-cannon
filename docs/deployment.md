@@ -44,13 +44,13 @@ aws cloudfront create-invalidation \
 
 ```bash
 # SSH 접속
-ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26
+ssh -i "/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem" ubuntu@43.200.241.26
 
 # 배포 DB 접속 (SSH 접속 후)
 PGPASSWORD=palantier_password psql -h localhost -p 5432 -U palantier_user -d palantier
 
 # 백엔드 로그 확인
-ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26 "tail -f /home/ubuntu/app.log"
+ssh -i "/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem" ubuntu@43.200.241.26 "tail -f /home/ubuntu/app.log"
 
 # 헬스체크
 curl https://api.dxline-tallent.com/actuator/health
@@ -66,7 +66,7 @@ curl https://api.dxline-tallent.com/actuator/health
 
 ## 상세 문서
 
-- [빠른 참조](/docs-hyun/배포 가이드/빠른_참조.md)
-- [AWS 인프라 정보](/docs-hyun/배포 가이드/AWS_인프라_정보.md)
-- [GitHub Actions 배포](/docs-hyun/배포 가이드/GitHub_Actions_배포.md)
-- [트러블슈팅 이력](/docs-hyun/배포 가이드/트러블슈팅_이력.md)
+- [빠른 참조](/배포 가이드/빠른_참조.md)
+- [AWS 인프라 정보](/배포 가이드/AWS_인프라_정보.md)
+- [GitHub Actions 배포](/배포 가이드/GitHub_Actions_배포.md)
+- [트러블슈팅 이력](/배포 가이드/트러블슈팅_이력.md)

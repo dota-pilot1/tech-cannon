@@ -26,7 +26,7 @@
 https://dxline-tallent.com/issues/{issueId}
 
 # 로그 확인
-ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26 \
+ssh -i "/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem" ubuntu@43.200.241.26 \
   "tail -30 /home/ubuntu/app.log | grep -i 'websocket\|stomp\|broker'"
 ```
 

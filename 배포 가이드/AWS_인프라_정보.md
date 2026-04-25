@@ -5,7 +5,7 @@
 - **IP**: `43.200.241.26`
 - **OS**: Ubuntu 24.04 LTS
 - **리전**: ap-northeast-2 (서울)
-- **SSH**: `ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26`
+- **SSH**: `ssh -i "/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem" ubuntu@43.200.241.26`
 
 ### 보안 그룹 인바운드
 - SSH (22): 관리자 IP만
@@ -22,7 +22,7 @@
 
 **접속**:
 ```bash
-ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26
+ssh -i "/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem" ubuntu@43.200.241.26
 PGPASSWORD=palantier_password psql -h localhost -p 5432 -U palantier_user -d palantier
 ```
 

@@ -133,7 +133,7 @@ GitHub Actions 웹 UI에서 수동으로 배포를 실행할 수 있습니다.
 
 ```bash
 # SSH 접속
-ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26
+ssh -i "/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem" ubuntu@43.200.241.26
 
 # 백엔드 로그 확인
 tail -f /home/ubuntu/app.log
@@ -166,10 +166,10 @@ curl https://api.dxline-tallent.com/actuator/health
 curl -I https://dxline-tallent.com
 
 # 로그 확인
-ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26 "tail -50 /home/ubuntu/app.log"
+ssh -i "/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem" ubuntu@43.200.241.26 "tail -50 /home/ubuntu/app.log"
 
 # systemd 상태 확인
-ssh -i "/Users/terecal/dxline-container/hibot-d-server-key 복사본.pem" ubuntu@43.200.241.26 \
+ssh -i "/Users/terecal/mapo-palantier-project/배포 가이드/hibot-d-server-key.pem" ubuntu@43.200.241.26 \
   "systemctl is-enabled palantier-backend.service && systemctl is-active palantier-backend.service"
 ```
 
